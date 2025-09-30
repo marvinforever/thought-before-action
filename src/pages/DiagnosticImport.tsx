@@ -174,19 +174,21 @@ const DiagnosticImport = () => {
 
            if (!profile) {
              const fullName = extractFullName(row);
-             const { data: createdId, error: createProfileError } = await supabase.rpc('admin_create_profile', {
-               p_admin_id: session.session.user.id,
-               p_email: email,
-               p_full_name: fullName,
-               p_is_admin: false,
+             
+             // Use edge function to create auth user + profile
+             const { data: newEmployee, error: createError } = await supabase.functions.invoke('create-employee', {
+               body: { 
+                 email: email, 
+                 full_name: fullName 
+               }
              });
 
-             if (createProfileError || !createdId) {
-               errors.push(`Employee not found and could not be created: ${email}`);
+             if (createError || !newEmployee?.id) {
+               errors.push(`Failed to create employee ${email}: ${createError?.message || 'Unknown error'}`);
                failedCount++;
                continue;
              }
-             profileId = createdId as unknown as string;
+             profileId = newEmployee.id;
              newProfilesCount++;
            } else {
              profileId = profile.id;
