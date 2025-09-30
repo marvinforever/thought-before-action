@@ -63,9 +63,18 @@ const Dashboard = () => {
       const avgSalary = 75000; // Industry average
       const turnoverCost = Math.round(highRiskCount * avgSalary * 1.5);
 
-      // 2. ENGAGEMENT & ENERGY
+      // 2. ENGAGEMENT INDEX
+      // Average of: Q21 (sees_growth_path) × 10, Q24 (feels_valued) × 10, Q25 (daily_energy_level) × 10
+      const engagementScores = diagnostics.map(d => {
+        const growthPath = d.sees_growth_path ? 10 : 0;
+        const valued = d.feels_valued ? 10 : 0;
+        const energy = parseInt(d.daily_energy_level) || 0;
+        return (growthPath + valued + energy) / 3;
+      }).filter(s => s > 0);
+      const avgEngagement = engagementScores.length > 0 ? Math.round((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10) : 0;
+      
+      // Keep energy scores for impact calculation
       const energyScores = diagnostics.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0);
-      const avgEngagement = energyScores.length > 0 ? Math.round((energyScores.reduce((a, b) => a + b, 0) / energyScores.length) * 10) : 0;
 
       // 3. BURNOUT
       const burnoutMap: Record<string, number> = {
