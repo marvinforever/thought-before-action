@@ -128,22 +128,30 @@ export type Database = {
       }
       diagnostic_responses: {
         Row: {
+          adaptability_application_frequency: string | null
           additional_feedback: string | null
+          additional_responses: Json | null
           biggest_difficulty: string | null
           biggest_frustration: string | null
           biggest_work_obstacle: string | null
           burnout_frequency: string | null
+          communication_application_frequency: string | null
           company_id: string | null
+          company_size: string | null
           company_supporting_goal: boolean | null
           confidence_score: number | null
           created_at: string | null
           daily_energy_level: string | null
+          department_or_team: string | null
+          employment_status: string | null
           energy_drain_area: string | null
           feels_valued: boolean | null
           focus_quality: string | null
           growth_barrier: string | null
           has_written_job_description: boolean | null
           id: string
+          job_title_or_role: string | null
+          leadership_application_frequency: string | null
           leadership_should_understand: string | null
           learning_motivation: string | null
           learning_preference:
@@ -151,6 +159,7 @@ export type Database = {
             | null
           listens_to_podcasts: boolean | null
           manager_support_quality: string | null
+          manages_others: boolean | null
           mental_drain_frequency: string | null
           most_important_job_aspect: string | null
           natural_strength: string | null
@@ -166,35 +175,52 @@ export type Database = {
           sees_growth_path: boolean | null
           sees_leadership_path: boolean | null
           skill_to_master: string | null
+          strategic_thinking_application_frequency: string | null
           submitted_at: string | null
           support_needed_from_leadership: string | null
+          survey_version: string | null
+          technical_application_frequency: string | null
           three_year_goal: string | null
           twelve_month_growth_goal: string | null
+          typeform_response_id: string | null
+          typeform_start_date: string | null
+          typeform_submit_date: string | null
           watches_youtube: boolean | null
           weekly_development_hours: number | null
           what_enjoy_most: string | null
           why_people_leave_opinion: string | null
+          work_life_integration_score: number | null
           work_life_sacrifice_frequency: string | null
           workload_status: Database["public"]["Enums"]["workload_status"] | null
           would_stay_if_offered_similar: string | null
+          years_in_current_role: string | null
+          years_with_company: string | null
         }
         Insert: {
+          adaptability_application_frequency?: string | null
           additional_feedback?: string | null
+          additional_responses?: Json | null
           biggest_difficulty?: string | null
           biggest_frustration?: string | null
           biggest_work_obstacle?: string | null
           burnout_frequency?: string | null
+          communication_application_frequency?: string | null
           company_id?: string | null
+          company_size?: string | null
           company_supporting_goal?: boolean | null
           confidence_score?: number | null
           created_at?: string | null
           daily_energy_level?: string | null
+          department_or_team?: string | null
+          employment_status?: string | null
           energy_drain_area?: string | null
           feels_valued?: boolean | null
           focus_quality?: string | null
           growth_barrier?: string | null
           has_written_job_description?: boolean | null
           id?: string
+          job_title_or_role?: string | null
+          leadership_application_frequency?: string | null
           leadership_should_understand?: string | null
           learning_motivation?: string | null
           learning_preference?:
@@ -202,6 +228,7 @@ export type Database = {
             | null
           listens_to_podcasts?: boolean | null
           manager_support_quality?: string | null
+          manages_others?: boolean | null
           mental_drain_frequency?: string | null
           most_important_job_aspect?: string | null
           natural_strength?: string | null
@@ -217,37 +244,54 @@ export type Database = {
           sees_growth_path?: boolean | null
           sees_leadership_path?: boolean | null
           skill_to_master?: string | null
+          strategic_thinking_application_frequency?: string | null
           submitted_at?: string | null
           support_needed_from_leadership?: string | null
+          survey_version?: string | null
+          technical_application_frequency?: string | null
           three_year_goal?: string | null
           twelve_month_growth_goal?: string | null
+          typeform_response_id?: string | null
+          typeform_start_date?: string | null
+          typeform_submit_date?: string | null
           watches_youtube?: boolean | null
           weekly_development_hours?: number | null
           what_enjoy_most?: string | null
           why_people_leave_opinion?: string | null
+          work_life_integration_score?: number | null
           work_life_sacrifice_frequency?: string | null
           workload_status?:
             | Database["public"]["Enums"]["workload_status"]
             | null
           would_stay_if_offered_similar?: string | null
+          years_in_current_role?: string | null
+          years_with_company?: string | null
         }
         Update: {
+          adaptability_application_frequency?: string | null
           additional_feedback?: string | null
+          additional_responses?: Json | null
           biggest_difficulty?: string | null
           biggest_frustration?: string | null
           biggest_work_obstacle?: string | null
           burnout_frequency?: string | null
+          communication_application_frequency?: string | null
           company_id?: string | null
+          company_size?: string | null
           company_supporting_goal?: boolean | null
           confidence_score?: number | null
           created_at?: string | null
           daily_energy_level?: string | null
+          department_or_team?: string | null
+          employment_status?: string | null
           energy_drain_area?: string | null
           feels_valued?: boolean | null
           focus_quality?: string | null
           growth_barrier?: string | null
           has_written_job_description?: boolean | null
           id?: string
+          job_title_or_role?: string | null
+          leadership_application_frequency?: string | null
           leadership_should_understand?: string | null
           learning_motivation?: string | null
           learning_preference?:
@@ -255,6 +299,7 @@ export type Database = {
             | null
           listens_to_podcasts?: boolean | null
           manager_support_quality?: string | null
+          manages_others?: boolean | null
           mental_drain_frequency?: string | null
           most_important_job_aspect?: string | null
           natural_strength?: string | null
@@ -270,19 +315,28 @@ export type Database = {
           sees_growth_path?: boolean | null
           sees_leadership_path?: boolean | null
           skill_to_master?: string | null
+          strategic_thinking_application_frequency?: string | null
           submitted_at?: string | null
           support_needed_from_leadership?: string | null
+          survey_version?: string | null
+          technical_application_frequency?: string | null
           three_year_goal?: string | null
           twelve_month_growth_goal?: string | null
+          typeform_response_id?: string | null
+          typeform_start_date?: string | null
+          typeform_submit_date?: string | null
           watches_youtube?: boolean | null
           weekly_development_hours?: number | null
           what_enjoy_most?: string | null
           why_people_leave_opinion?: string | null
+          work_life_integration_score?: number | null
           work_life_sacrifice_frequency?: string | null
           workload_status?:
             | Database["public"]["Enums"]["workload_status"]
             | null
           would_stay_if_offered_similar?: string | null
+          years_in_current_role?: string | null
+          years_with_company?: string | null
         }
         Relationships: [
           {

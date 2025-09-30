@@ -9,6 +9,9 @@ const Dashboard = () => {
     capabilities: 0,
     resources: 0,
     diagnosticsCompleted: 0,
+    avgEngagement: 0,
+    avgBurnout: 0,
+    retentionRisk: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -29,18 +32,47 @@ const Dashboard = () => {
 
       if (!profile) return;
 
-      const [employeesRes, capabilitiesRes, resourcesRes, diagnosticsRes] = await Promise.all([
+      const [employeesRes, capabilitiesRes, resourcesRes, diagnosticsRes, diagnosticDataRes] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact" }).eq("company_id", profile.company_id),
         supabase.from("capabilities").select("id", { count: "exact" }),
         supabase.from("resources").select("id", { count: "exact" }).eq("company_id", profile.company_id),
         supabase.from("diagnostic_responses").select("id", { count: "exact" }).eq("company_id", profile.company_id),
+        supabase.from("diagnostic_responses").select("daily_energy_level, would_stay_if_offered_similar, burnout_frequency").eq("company_id", profile.company_id),
       ]);
+
+      // Calculate engagement score (based on energy level)
+      const energyScores = diagnosticDataRes.data?.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0) || [];
+      const avgEngagement = energyScores.length > 0 
+        ? Math.round(energyScores.reduce((a, b) => a + b, 0) / energyScores.length) 
+        : 0;
+
+      // Calculate burnout metric (frequency mapping)
+      const burnoutMap: Record<string, number> = {
+        'Never or almost never': 1,
+        'Rarely (monthly)': 2,
+        'Sometimes (weekly)': 3,
+        'Often (several times a week)': 4,
+        'Frequently (daily)': 5,
+      };
+      const burnoutScores = diagnosticDataRes.data?.map(d => burnoutMap[d.burnout_frequency || ''] || 0).filter(s => s > 0) || [];
+      const avgBurnout = burnoutScores.length > 0 
+        ? Math.round(burnoutScores.reduce((a, b) => a + b, 0) / burnoutScores.length) 
+        : 0;
+
+      // Calculate retention risk (based on "would stay" question)
+      const retentionScores = diagnosticDataRes.data?.map(d => parseInt(d.would_stay_if_offered_similar) || 0).filter(s => s > 0) || [];
+      const retentionRisk = retentionScores.length > 0
+        ? Math.round(retentionScores.filter(s => s <= 5).length / retentionScores.length * 100)
+        : 0;
 
       setStats({
         employees: employeesRes.count || 0,
         capabilities: capabilitiesRes.count || 0,
         resources: resourcesRes.count || 0,
         diagnosticsCompleted: diagnosticsRes.count || 0,
+        avgEngagement,
+        avgBurnout,
+        retentionRisk,
       });
     } catch (error) {
       console.error("Error loading stats:", error);
@@ -50,10 +82,10 @@ const Dashboard = () => {
   };
 
   const statCards = [
-    { title: "Total Employees", value: stats.employees, icon: Users, color: "text-blue-600" },
-    { title: "Capabilities", value: stats.capabilities, icon: Target, color: "text-green-600" },
-    { title: "Resources", value: stats.resources, icon: BookOpen, color: "text-purple-600" },
-    { title: "Diagnostics Completed", value: stats.diagnosticsCompleted, icon: TrendingUp, color: "text-orange-600" },
+    { title: "Total Employees", value: stats.employees, icon: Users, color: "text-blue-600", suffix: "" },
+    { title: "Diagnostics Completed", value: stats.diagnosticsCompleted, icon: TrendingUp, color: "text-green-600", suffix: "" },
+    { title: "Avg Engagement", value: stats.avgEngagement, icon: TrendingUp, color: "text-purple-600", suffix: "/10" },
+    { title: "Retention Risk", value: stats.retentionRisk, icon: Users, color: "text-orange-600", suffix: "%" },
   ];
 
   if (loading) {
@@ -81,7 +113,7 @@ const Dashboard = () => {
               <stat.icon className={`h-5 w-5 ${stat.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{stat.value}</div>
+              <div className="text-3xl font-bold">{stat.value}{stat.suffix}</div>
             </CardContent>
           </Card>
         ))}
