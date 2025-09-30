@@ -138,28 +138,43 @@ const DiagnosticImport = () => {
           }
 
           // Find existing profile
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("email", email)
-            .eq("company_id", adminProfile.company_id)
-            .maybeSingle();
+           let profileId: string;
+           const { data: profile } = await supabase
+             .from("profiles")
+             .select("id")
+             .eq("email", email)
+             .eq("company_id", adminProfile.company_id)
+             .maybeSingle();
 
-          if (!profile) {
-            errors.push(`Employee not found: ${email}. Please create employee account first.`);
-            failedCount++;
-            continue;
-          }
+           if (!profile) {
+             const fullName = row['Full Name'] || row['Full name'] || row['full_name'] || null;
+             const { data: createdId, error: createProfileError } = await supabase.rpc('admin_create_profile', {
+               p_admin_id: session.session.user.id,
+               p_email: email,
+               p_full_name: fullName,
+               p_is_admin: false,
+             });
+
+             if (createProfileError || !createdId) {
+               errors.push(`Employee not found and could not be created: ${email}`);
+               failedCount++;
+               continue;
+             }
+             profileId = createdId as unknown as string;
+             newProfilesCount++;
+           } else {
+             profileId = profile.id;
+           }
 
           // Insert diagnostic response
           const diagnosticData = mapCSVToDatabase(row);
           const { error: insertError } = await supabase
             .from("diagnostic_responses")
-            .insert([{
-              ...diagnosticData,
-              profile_id: profile.id,
-              company_id: adminProfile.company_id,
-            }]);
+             .insert([{
+               ...diagnosticData,
+               profile_id: profileId,
+               company_id: adminProfile.company_id,
+             }]);
 
           if (insertError) {
             errors.push(`Failed to import diagnostic for ${email}: ${insertError.message}`);

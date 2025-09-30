@@ -566,6 +566,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_create_profile: {
+        Args: {
+          p_admin_id: string
+          p_email: string
+          p_full_name?: string
+          p_is_admin?: boolean
+        }
+        Returns: string
+      }
       get_user_company_id: {
         Args: { _user_id: string }
         Returns: string
