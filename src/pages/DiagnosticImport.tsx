@@ -71,11 +71,23 @@ const DiagnosticImport = () => {
   };
 
   const mapCSVToDatabase = (row: any) => {
+    // Store raw 1-10 scores for engagement calculation
+    const growthPathScore = parseInt(row['I see a clear path for growth and advancement in this company.']) || 0;
+    const managerFeedbackScore = parseInt(row['My manager provides useful feedback that helps me grow.']) || 0;
+    const valuedScore = parseInt(row['I feel valued for my contributions.']) || 0;
+    const energyScore = parseInt(row['How energized do you feel about your work most days?']) || 0;
+
     return {
       department_or_team: row['Department or Team'],
       job_title_or_role: row['Job Title or Role'],
       additional_responses: {
         company_name: row['Company'] || row['company'] || null,
+        engagement_scores: {
+          growth_path_score: growthPathScore,
+          manager_feedback_score: managerFeedbackScore,
+          valued_score: valuedScore,
+          energy_score: energyScore,
+        },
       },
       years_with_company: row['How long have you been with this company?'],
       years_in_current_role: row['How long have you been in your current role?'],
@@ -88,6 +100,7 @@ const DiagnosticImport = () => {
       workload_status: row['In a typical week, how manageable is your workload?'],
       burnout_frequency: row['How often do you feel burned out or exhausted by your work?'],
       work_life_sacrifice_frequency: row['How often do you sacrifice personal health, rest, or family time to keep up with work?'],
+      manager_support_quality: row['My manager provides useful feedback that helps me grow.'],
       sees_growth_path: parseInt(row['I see a clear path for growth and advancement in this company.']) >= 7,
       feels_valued: parseInt(row['I feel valued for my contributions.']) >= 7,
       sees_leadership_path: row['Do you see yourself growing into a leadership role at this company someday?'] === 'Yes, definitely',

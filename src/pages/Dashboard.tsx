@@ -63,13 +63,20 @@ const Dashboard = () => {
       const avgSalary = 75000; // Industry average
       const turnoverCost = Math.round(highRiskCount * avgSalary * 1.5);
 
-      // 2. ENGAGEMENT INDEX
-      // Average of: Q21 (sees_growth_path) × 10, Q24 (feels_valued) × 10, Q25 (daily_energy_level) × 10
+      // 2. ENGAGEMENT INDEX - 4-question formula
+      // (Q28 + Q29 + Q31 + Q32) / 4 × 10 = Score out of 100
+      // Q28: Growth path, Q29: Manager feedback, Q31: Feel valued, Q32: Daily energy
       const engagementScores = diagnostics.map(d => {
-        const growthPath = d.sees_growth_path ? 10 : 0;
-        const valued = d.feels_valued ? 10 : 0;
-        const energy = parseInt(d.daily_energy_level) || 0;
-        return (growthPath + valued + energy) / 3;
+        const scores = (d.additional_responses as any)?.engagement_scores;
+        if (scores) {
+          // Use raw 1-10 scores from additional_responses
+          const growthPath = scores.growth_path_score || 0;
+          const managerFeedback = scores.manager_feedback_score || 0;
+          const valued = scores.valued_score || 0;
+          const energy = scores.energy_score || 0;
+          return (growthPath + managerFeedback + valued + energy) / 4;
+        }
+        return 0;
       }).filter(s => s > 0);
       const avgEngagement = engagementScores.length > 0 ? Math.round((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10) : 0;
       
