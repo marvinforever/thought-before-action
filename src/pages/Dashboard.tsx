@@ -183,12 +183,12 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Retention Risk</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Employees at Risk</CardTitle>
             <AlertTriangle className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.retentionRisk}%</div>
-            <p className="text-xs text-muted-foreground mt-1">{stats.atRiskEmployees} employees at risk</p>
+            <div className="text-3xl font-bold">{stats.atRiskEmployees}</div>
+            <p className="text-xs text-muted-foreground mt-1">High retention risk</p>
           </CardContent>
         </Card>
 
