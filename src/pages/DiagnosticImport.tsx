@@ -49,6 +49,9 @@ const DiagnosticImport = () => {
     return {
       department_or_team: row['Department or Team'],
       job_title_or_role: row['Job Title or Role'],
+      additional_responses: {
+        company_name: row['Company'] || row['company'] || null,
+      },
       years_with_company: row['How long have you been with this company?'],
       years_in_current_role: row['How long have you been in your current role?'],
       employment_status: row['Employment Status'],
