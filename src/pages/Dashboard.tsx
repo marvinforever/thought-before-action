@@ -84,7 +84,7 @@ const Dashboard = () => {
           return (growthPath + managerFeedback + valued + energy) / 4;
         }
       }).filter(s => s > 0);
-      const avgEngagement = engagementScores.length > 0 ? Math.round((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10) : 0;
+      const avgEngagement = engagementScores.length > 0 ? parseFloat(((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10).toFixed(2)) : 0;
       
       // Keep energy scores for impact calculation
       const energyScores = diagnostics.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0);
