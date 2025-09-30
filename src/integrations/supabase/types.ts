@@ -512,7 +512,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_company_id: {
+        Args: { _user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       burnout_level: "energized" | "normal" | "tired" | "drained" | "burned_out"
