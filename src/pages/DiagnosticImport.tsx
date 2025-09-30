@@ -70,6 +70,17 @@ const DiagnosticImport = () => {
       });
   };
 
+  const mapWorkloadStatusToEnum = (value: string): 'very_manageable' | 'manageable' | 'stretched' | 'overwhelmed' | 'unsustainable' | null => {
+    const score = parseInt(value);
+    if (isNaN(score)) return null;
+    
+    if (score <= 2) return 'unsustainable';
+    if (score <= 4) return 'overwhelmed';
+    if (score <= 6) return 'stretched';
+    if (score <= 8) return 'manageable';
+    return 'very_manageable';
+  };
+
   const mapCSVToDatabase = (row: any) => {
     // Store raw 1-10 scores for engagement calculation
     const growthPathScore = parseInt(row['I see a clear path for growth and advancement in this company.']) || 0;
@@ -97,7 +108,7 @@ const DiagnosticImport = () => {
       has_written_job_description: row['Do you have a written job description that accurately reflects what you actually do?'] === 'Yes',
       role_clarity_score: parseInt(row['How clear are you on what\'s expected of you in your role?']) || null,
       confidence_score: parseInt(row['How confident are you that you can consistently meet your role\'s expectations?']) || null,
-      workload_status: row['In a typical week, how manageable is your workload?'],
+      workload_status: mapWorkloadStatusToEnum(row['In a typical week, how manageable is your workload?']),
       burnout_frequency: row['How often do you feel burned out or exhausted by your work?'],
       work_life_sacrifice_frequency: row['How often do you sacrifice personal health, rest, or family time to keep up with work?'],
       manager_support_quality: row['My manager provides useful feedback that helps me grow.'],
