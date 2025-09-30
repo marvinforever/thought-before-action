@@ -33,6 +33,9 @@ const DiagnosticImport = () => {
     const lines = text.split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
     
+    // Log headers for debugging
+    console.log('CSV Headers found:', headers);
+    
     return lines.slice(1)
       .filter(line => line.trim())
       .map(line => {
@@ -99,13 +102,19 @@ const DiagnosticImport = () => {
 
   // Helper to robustly extract email from various CSV header names
   const extractEmail = (row: any): string | null => {
-    const keys = ['Email Address','Email address','Email','email','E-mail','Work Email','Work email'];
+    const keys = [
+      'Email Address','Email address','Email','email','E-mail','Work Email','Work email',
+      'email_address','EMAIL','EMAIL ADDRESS','work_email','WORK EMAIL'
+    ];
     for (const key of keys) {
       const val = row[key];
       if (typeof val === 'string' && val.trim()) {
         return val.trim().toLowerCase();
       }
     }
+    
+    // Log available keys for debugging
+    console.log('Email not found. Available keys:', Object.keys(row));
     return null;
   };
 
@@ -158,7 +167,8 @@ const DiagnosticImport = () => {
         try {
           const email = extractEmail(row);
           if (!email) {
-            errors.push(`Row missing email address`);
+            const availableColumns = Object.keys(row).slice(0, 5).join(', ');
+            errors.push(`Row missing email address. Found columns: ${availableColumns}...`);
             failedCount++;
             continue;
           }
