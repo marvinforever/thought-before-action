@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import DiagnosticImport from "./pages/DiagnosticImport";
 import SuperAdmin from "./pages/SuperAdmin";
+import Capabilities from "./pages/Capabilities";
 import DashboardLayout from "./components/DashboardLayout";
 import NotFound from "./pages/NotFound";
 
@@ -28,6 +29,7 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="employees" element={<Employees />} />
             <Route path="import" element={<DiagnosticImport />} />
+            <Route path="capabilities" element={<Capabilities />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
