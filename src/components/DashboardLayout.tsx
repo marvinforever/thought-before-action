@@ -51,26 +51,27 @@ const DashboardLayout = () => {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      try {
-        setUser(session?.user ?? null);
-        if (!session) {
-          navigate("/auth");
-          setIsSuperAdmin(false);
-        } else {
-          // Check if user is super admin
-          const { data: profile, error } = await supabase
-            .from("profiles")
-            .select("is_super_admin")
-            .eq("id", session.user.id)
-            .maybeSingle();
-          
-          if (!error) {
-            setIsSuperAdmin(profile?.is_super_admin || false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session) {
+        navigate("/auth");
+        setIsSuperAdmin(false);
+      } else {
+        // Defer profile fetch to avoid deadlocks in auth callback
+        setTimeout(async () => {
+          try {
+            const { data: profile, error } = await supabase
+              .from("profiles")
+              .select("is_super_admin")
+              .eq("id", session.user!.id)
+              .maybeSingle();
+            if (!error) {
+              setIsSuperAdmin(profile?.is_super_admin || false);
+            }
+          } catch (error) {
+            console.error("Error fetching profile after auth change:", error);
           }
-        }
-      } catch (error) {
-        console.error("Error in auth state change:", error);
+        }, 0);
       }
     });
 
