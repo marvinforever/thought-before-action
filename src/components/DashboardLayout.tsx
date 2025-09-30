@@ -28,34 +28,49 @@ const DashboardLayout = () => {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (!session) {
-        navigate("/auth");
-      } else {
-        // Check if user is super admin
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_super_admin")
-          .eq("id", session.user.id)
-          .single();
-        setIsSuperAdmin(profile?.is_super_admin || false);
+      try {
+        setUser(session?.user ?? null);
+        if (!session) {
+          navigate("/auth");
+        } else {
+          // Check if user is super admin
+          const { data: profile, error } = await supabase
+            .from("profiles")
+            .select("is_super_admin")
+            .eq("id", session.user.id)
+            .maybeSingle();
+          
+          if (!error) {
+            setIsSuperAdmin(profile?.is_super_admin || false);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading session:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session) {
-        navigate("/auth");
-        setIsSuperAdmin(false);
-      } else {
-        // Check if user is super admin
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_super_admin")
-          .eq("id", session.user.id)
-          .single();
-        setIsSuperAdmin(profile?.is_super_admin || false);
+      try {
+        setUser(session?.user ?? null);
+        if (!session) {
+          navigate("/auth");
+          setIsSuperAdmin(false);
+        } else {
+          // Check if user is super admin
+          const { data: profile, error } = await supabase
+            .from("profiles")
+            .select("is_super_admin")
+            .eq("id", session.user.id)
+            .maybeSingle();
+          
+          if (!error) {
+            setIsSuperAdmin(profile?.is_super_admin || false);
+          }
+        }
+      } catch (error) {
+        console.error("Error in auth state change:", error);
       }
     });
 
