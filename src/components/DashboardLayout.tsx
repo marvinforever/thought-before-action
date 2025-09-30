@@ -11,7 +11,8 @@ import {
   Settings,
   LogOut,
   Menu,
-  Upload
+  Upload,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -21,19 +22,41 @@ const DashboardLayout = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (!session) navigate("/auth");
+      if (!session) {
+        navigate("/auth");
+      } else {
+        // Check if user is super admin
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_super_admin")
+          .eq("id", session.user.id)
+          .single();
+        setIsSuperAdmin(profile?.is_super_admin || false);
+      }
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
-      if (!session) navigate("/auth");
+      if (!session) {
+        navigate("/auth");
+        setIsSuperAdmin(false);
+      } else {
+        // Check if user is super admin
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_super_admin")
+          .eq("id", session.user.id)
+          .single();
+        setIsSuperAdmin(profile?.is_super_admin || false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -77,6 +100,16 @@ const DashboardLayout = () => {
           <p className="text-sm text-muted-foreground">Capability Platform</p>
         </div>
         <nav className="p-4 space-y-2">
+          {isSuperAdmin && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start bg-primary/10 text-primary hover:bg-primary/20"
+              onClick={() => navigate("/super-admin")}
+            >
+              <Shield className="mr-3 h-5 w-5" />
+              Super Admin
+            </Button>
+          )}
           {navItems.map((item) => (
             <Button
               key={item.path}

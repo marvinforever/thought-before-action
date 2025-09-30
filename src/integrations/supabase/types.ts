@@ -466,6 +466,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_admin: boolean | null
+          is_super_admin: boolean | null
           role: string | null
           updated_at: string | null
         }
@@ -477,6 +478,7 @@ export type Database = {
           id: string
           is_active?: boolean | null
           is_admin?: boolean | null
+          is_super_admin?: boolean | null
           role?: string | null
           updated_at?: string | null
         }
@@ -488,6 +490,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_admin?: boolean | null
+          is_super_admin?: boolean | null
           role?: string | null
           updated_at?: string | null
         }
@@ -581,6 +584,10 @@ export type Database = {
       get_user_company_id: {
         Args: { _user_id: string }
         Returns: string
+      }
+      is_super_admin: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
