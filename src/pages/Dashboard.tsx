@@ -32,13 +32,15 @@ const Dashboard = () => {
 
       if (!profile) return;
 
-      const [employeesRes, capabilitiesRes, resourcesRes, diagnosticsRes, diagnosticDataRes] = await Promise.all([
+      const [employeesRes, capabilitiesRes, resourcesRes, diagnosticDataRes] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact" }).eq("company_id", profile.company_id),
         supabase.from("capabilities").select("id", { count: "exact" }),
         supabase.from("resources").select("id", { count: "exact" }).eq("company_id", profile.company_id),
-        supabase.from("diagnostic_responses").select("id", { count: "exact" }).eq("company_id", profile.company_id),
-        supabase.from("diagnostic_responses").select("daily_energy_level, would_stay_if_offered_similar, burnout_frequency").eq("company_id", profile.company_id),
+        supabase.from("diagnostic_responses").select("profile_id, daily_energy_level, would_stay_if_offered_similar, burnout_frequency").eq("company_id", profile.company_id),
       ]);
+
+      // Count unique employees with diagnostics
+      const uniqueEmployeesWithDiagnostics = new Set(diagnosticDataRes.data?.map(d => d.profile_id).filter(Boolean)).size;
 
       // Calculate engagement score (based on energy level)
       const energyScores = diagnosticDataRes.data?.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0) || [];
@@ -69,7 +71,7 @@ const Dashboard = () => {
         employees: employeesRes.count || 0,
         capabilities: capabilitiesRes.count || 0,
         resources: resourcesRes.count || 0,
-        diagnosticsCompleted: diagnosticsRes.count || 0,
+        diagnosticsCompleted: uniqueEmployeesWithDiagnostics,
         avgEngagement,
         avgBurnout,
         retentionRisk,
@@ -83,7 +85,7 @@ const Dashboard = () => {
 
   const statCards = [
     { title: "Total Employees", value: stats.employees, icon: Users, color: "text-blue-600", suffix: "" },
-    { title: "Diagnostics Completed", value: stats.diagnosticsCompleted, icon: TrendingUp, color: "text-green-600", suffix: "" },
+    { title: "Employees with Diagnostics", value: stats.diagnosticsCompleted, icon: TrendingUp, color: "text-green-600", suffix: "" },
     { title: "Avg Engagement", value: stats.avgEngagement, icon: TrendingUp, color: "text-purple-600", suffix: "/10" },
     { title: "Retention Risk", value: stats.retentionRisk, icon: Users, color: "text-orange-600", suffix: "%" },
   ];
