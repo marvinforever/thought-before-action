@@ -97,6 +97,32 @@ const DiagnosticImport = () => {
     };
   };
 
+  // Helper to robustly extract email from various CSV header names
+  const extractEmail = (row: any): string | null => {
+    const keys = ['Email Address','Email address','Email','email','E-mail','Work Email','Work email'];
+    for (const key of keys) {
+      const val = row[key];
+      if (typeof val === 'string' && val.trim()) {
+        return val.trim().toLowerCase();
+      }
+    }
+    return null;
+  };
+
+  const extractFullName = (row: any): string | null => {
+    const directKeys = ['Full Name','Full name','full_name','Name','name'];
+    for (const key of directKeys) {
+      const v = row[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    const firstRaw = row['First Name'] || row['first_name'] || '';
+    const lastRaw = row['Last Name'] || row['last_name'] || '';
+    const first = typeof firstRaw === 'string' ? firstRaw.trim() : '';
+    const last = typeof lastRaw === 'string' ? lastRaw.trim() : '';
+    const combined = [first, last].filter(Boolean).join(' ').trim();
+    return combined || null;
+  };
+
   const handleImport = async () => {
     if (!file) {
       toast({
@@ -130,7 +156,7 @@ const DiagnosticImport = () => {
 
       for (const row of rows) {
         try {
-          const email = row['Email Address'];
+          const email = extractEmail(row);
           if (!email) {
             errors.push(`Row missing email address`);
             failedCount++;
@@ -138,16 +164,16 @@ const DiagnosticImport = () => {
           }
 
           // Find existing profile
-           let profileId: string;
-           const { data: profile } = await supabase
-             .from("profiles")
-             .select("id")
-             .ilike("email", email)
-             .eq("company_id", adminProfile.company_id)
-             .maybeSingle();
+          let profileId: string;
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('email', email)
+            .eq('company_id', adminProfile.company_id)
+            .maybeSingle();
 
            if (!profile) {
-             const fullName = row['Full Name'] || row['Full name'] || row['full_name'] || null;
+             const fullName = extractFullName(row);
              const { data: createdId, error: createProfileError } = await supabase.rpc('admin_create_profile', {
                p_admin_id: session.session.user.id,
                p_email: email,
