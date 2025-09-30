@@ -142,7 +142,7 @@ const DiagnosticImport = () => {
            const { data: profile } = await supabase
              .from("profiles")
              .select("id")
-             .eq("email", email)
+             .ilike("email", email)
              .eq("company_id", adminProfile.company_id)
              .maybeSingle();
 
