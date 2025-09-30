@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Search, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Upload, Search, FileText, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Employee {
@@ -20,7 +23,11 @@ const Employees = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({ fullName: "", email: "", role: "" });
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadEmployees();
@@ -72,6 +79,49 @@ const Employees = () => {
     }
   };
 
+  const handleCreateEmployee = async () => {
+    if (!newEmployee.email || !newEmployee.fullName) {
+      toast({
+        title: "Validation error",
+        description: "Name and email are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error("Not authenticated");
+
+      const { data: profileId, error } = await supabase.rpc('admin_create_profile', {
+        p_admin_id: session.session.user.id,
+        p_email: newEmployee.email,
+        p_full_name: newEmployee.fullName,
+        p_is_admin: false,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Employee created successfully",
+      });
+
+      setNewEmployee({ fullName: "", email: "", role: "" });
+      setDialogOpen(false);
+      loadEmployees();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create employee",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const filteredEmployees = employees.filter((emp) =>
     emp.full_name.toLowerCase().includes(search.toLowerCase()) ||
     emp.email.toLowerCase().includes(search.toLowerCase())
@@ -84,10 +134,66 @@ const Employees = () => {
           <h1 className="text-3xl font-bold">Employees</h1>
           <p className="text-muted-foreground">Manage your team and their diagnostics</p>
         </div>
-        <Button>
-          <Upload className="mr-2 h-4 w-4" />
-          Import CSV
-        </Button>
+        <div className="flex gap-2">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Employee
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Employee</DialogTitle>
+                <DialogDescription>
+                  Create a new employee profile manually
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name *</Label>
+                  <Input
+                    id="fullName"
+                    value={newEmployee.fullName}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, fullName: e.target.value })}
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newEmployee.email}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                    placeholder="john@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role (Optional)</Label>
+                  <Input
+                    id="role"
+                    value={newEmployee.role}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })}
+                    placeholder="Software Engineer"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateEmployee} disabled={creating}>
+                  {creating ? "Creating..." : "Create Employee"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button onClick={() => navigate("/dashboard/import")}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import CSV
+          </Button>
+        </div>
       </div>
 
       <Card>
