@@ -28,28 +28,36 @@ Deno.serve(async (req) => {
       throw new Error('No authorization header')
     }
 
-    // Create a client with the user's token to verify they're authenticated
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader }
-        }
-      }
-    )
+    // Decode JWT from Authorization header (function has verify_jwt enabled)
+    const jwt = authHeader.replace('Bearer ', '')
+    const payloadBase64 = jwt.split('.')[1]
+    if (!payloadBase64) {
+      throw new Error('Invalid authorization token')
+    }
+    let userId: string | undefined
+    try {
+      const claims = JSON.parse(atob(payloadBase64))
+      userId = claims.sub as string | undefined
+    } catch (e) {
+      console.error('JWT decode error:', e)
+      throw new Error('Invalid authorization token')
+    }
 
-    // Verify the user is authenticated and is an admin
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    if (userError || !user) {
+    if (!userId) {
       throw new Error('Not authenticated')
     }
 
-    const { data: profile } = await supabaseClient
+    // Verify the user is an admin and get company_id
+    const { data: profile, error: profileFetchError } = await supabaseAdmin
       .from('profiles')
       .select('company_id, is_admin')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
+
+    if (profileFetchError) {
+      console.error('Profile fetch error:', profileFetchError)
+      throw new Error('Failed to load profile')
+    }
 
     if (!profile?.is_admin) {
       throw new Error('Not authorized - admin access required')
