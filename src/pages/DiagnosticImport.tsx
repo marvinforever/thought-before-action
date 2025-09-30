@@ -221,10 +221,22 @@ const DiagnosticImport = () => {
         newProfiles: newProfilesCount,
       });
 
-      if (successCount > 0) {
+      if (failedCount === 0 && successCount > 0) {
         toast({
-          title: "Import completed",
-          description: `Successfully imported ${successCount} diagnostic responses`,
+          title: "Import completed successfully",
+          description: `Successfully imported all ${successCount} diagnostic responses`,
+        });
+      } else if (successCount > 0 && failedCount > 0) {
+        toast({
+          title: "Import completed with errors",
+          description: `Imported ${successCount} responses, ${failedCount} failed`,
+          variant: "destructive",
+        });
+      } else if (failedCount > 0 && successCount === 0) {
+        toast({
+          title: "Import failed",
+          description: `All ${failedCount} rows failed to import. Check errors below.`,
+          variant: "destructive",
         });
       }
     } catch (error: any) {
