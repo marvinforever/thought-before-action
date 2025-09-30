@@ -69,14 +69,20 @@ const Dashboard = () => {
       const engagementScores = diagnostics.map(d => {
         const scores = (d.additional_responses as any)?.engagement_scores;
         if (scores) {
-          // Use raw 1-10 scores from additional_responses
+          // Use raw 1-10 scores from additional_responses (new data)
           const growthPath = scores.growth_path_score || 0;
           const managerFeedback = scores.manager_feedback_score || 0;
           const valued = scores.valued_score || 0;
           const energy = scores.energy_score || 0;
           return (growthPath + managerFeedback + valued + energy) / 4;
+        } else {
+          // Fallback for old data without engagement_scores
+          const growthPath = d.sees_growth_path ? 10 : 0;
+          const managerFeedback = parseInt(d.manager_support_quality) || 0;
+          const valued = d.feels_valued ? 10 : 0;
+          const energy = parseInt(d.daily_energy_level) || 0;
+          return (growthPath + managerFeedback + valued + energy) / 4;
         }
-        return 0;
       }).filter(s => s > 0);
       const avgEngagement = engagementScores.length > 0 ? Math.round((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10) : 0;
       
