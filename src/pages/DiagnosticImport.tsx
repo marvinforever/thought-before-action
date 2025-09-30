@@ -30,16 +30,38 @@ const DiagnosticImport = () => {
   };
 
   const parseCSV = (text: string): any[] => {
-    const lines = text.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
+    // Remove BOM if present
+    const cleanText = text.replace(/^\uFEFF/, '');
+    const lines = cleanText.split('\n');
     
-    // Log headers for debugging
+    // Parse CSV line respecting quotes
+    const parseLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+    
+    const headers = parseLine(lines[0]);
     console.log('CSV Headers found:', headers);
     
     return lines.slice(1)
       .filter(line => line.trim())
       .map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const values = parseLine(line);
         const obj: any = {};
         headers.forEach((header, i) => {
           obj[header] = values[i] || null;
