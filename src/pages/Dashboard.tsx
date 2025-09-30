@@ -182,6 +182,16 @@ const Dashboard = () => {
     }
   };
 
+  const getRiskLabel = (risk: string) => {
+    switch (risk) {
+      case "critical": return "Critical";
+      case "high": return "High Risk";
+      case "medium": return "Moderate Risk";
+      case "low": return "Low Risk";
+      default: return risk;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -276,7 +286,7 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">{domain.domain}</CardTitle>
-                <span className={`text-sm font-semibold ${getRiskColor(domain.risk)} uppercase`}>{domain.risk}</span>
+                <span className={`text-sm font-semibold ${getRiskColor(domain.risk)} uppercase`}>{getRiskLabel(domain.risk)}</span>
               </div>
             </CardHeader>
             <CardContent>
