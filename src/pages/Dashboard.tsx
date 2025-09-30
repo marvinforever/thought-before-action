@@ -26,7 +26,7 @@ const Dashboard = () => {
     careerPathScore: 0,
     roleClarity: 0,
     learningEngagement: 0,
-    skillsGap: 0,
+    skillsScore: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -128,10 +128,9 @@ const Dashboard = () => {
       }).filter(s => s > 0);
       const learningEngagement = learningScores.length > 0 ? Math.round(learningScores.reduce((a, b) => a + b, 0) / learningScores.length) : 0;
 
-      // 8. SKILLS GAP (inverse of confidence)
+      // 8. SKILLS - Direct confidence score
       const confidenceScores = diagnostics.map(d => d.confidence_score || 0).filter(s => s > 0);
-      const avgConfidence = confidenceScores.length > 0 ? confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length : 5;
-      const skillsGap = Math.round((10 - avgConfidence) * 10);
+      const skillsScore = confidenceScores.length > 0 ? Math.round((confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length) * 10) : 0;
 
       // Domain scores with risk levels
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
@@ -149,7 +148,7 @@ const Dashboard = () => {
         { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: `${diagnostics.length - careerPathCount} no path` },
         { domain: "Clarity", score: roleClarity, risk: getRiskLevel(roleClarity), impact: `${clarityScores.filter(s => s <= 5).length} unclear roles` },
         { domain: "Learning", score: learningEngagement, risk: getRiskLevel(learningEngagement), impact: `${learningScores.filter(s => s < 50).length} low engagement` },
-        { domain: "Skills", score: 100 - skillsGap, risk: getRiskLevel(100 - skillsGap), impact: `${confidenceScores.filter(s => s <= 5).length} low confidence` },
+        { domain: "Skills", score: skillsScore, risk: getRiskLevel(skillsScore), impact: `${confidenceScores.filter(s => s <= 5).length} low confidence` },
       ];
 
       setStats({
@@ -165,7 +164,7 @@ const Dashboard = () => {
         careerPathScore,
         roleClarity,
         learningEngagement,
-        skillsGap,
+        skillsScore,
       });
     } catch (error) {
       console.error("Error loading stats:", error);
@@ -355,7 +354,7 @@ const Dashboard = () => {
                 <BarChart data={[
                   { metric: "Retention Risk", value: stats.retentionRisk },
                   { metric: "Burnout Level", value: stats.burnoutScore },
-                  { metric: "Skills Gap", value: stats.skillsGap },
+                  { metric: "Skills Gap", value: 100 - stats.skillsScore },
                   { metric: "Disengagement", value: 100 - stats.avgEngagement },
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" />
