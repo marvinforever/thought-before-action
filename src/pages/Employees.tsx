@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Upload, Search, FileText, UserPlus } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface Employee {
@@ -17,6 +19,7 @@ interface Employee {
   email: string;
   role: string;
   has_diagnostic: boolean;
+  is_active: boolean;
 }
 
 const Employees = () => {
@@ -26,6 +29,8 @@ const Employees = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ fullName: "", email: "", role: "" });
   const [creating, setCreating] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -53,6 +58,7 @@ const Employees = () => {
           full_name,
           email,
           role,
+          is_active,
           diagnostic_responses (id)
         `)
         .eq("company_id", profile.company_id);
@@ -64,6 +70,7 @@ const Employees = () => {
           email: p.email || "N/A",
           role: p.role || "N/A",
           has_diagnostic: p.diagnostic_responses && p.diagnostic_responses.length > 0,
+          is_active: p.is_active !== false,
         }));
         setEmployees(mappedEmployees);
       }
@@ -116,6 +123,58 @@ const Employees = () => {
       });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleSuspendEmployee = async (employee: Employee) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_active: !employee.is_active })
+        .eq("id", employee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: employee.is_active ? "Employee suspended" : "Employee reactivated",
+      });
+
+      loadEmployees();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update employee status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", selectedEmployee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Employee deleted successfully",
+      });
+
+      setDeleteDialogOpen(false);
+      setSelectedEmployee(null);
+      loadEmployees();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete employee",
+        variant: "destructive",
+      });
     }
   };
 
@@ -219,6 +278,7 @@ const Employees = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Diagnostic</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -226,16 +286,23 @@ const Employees = () => {
               <TableBody>
                 {filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id}>
+                    <TableRow key={employee.id} className={!employee.is_active ? "opacity-50" : ""}>
                       <TableCell className="font-medium">{employee.full_name}</TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{employee.role}</TableCell>
+                      <TableCell>
+                        {employee.is_active ? (
+                          <Badge variant="default" className="bg-green-600">Active</Badge>
+                        ) : (
+                          <Badge variant="secondary">Suspended</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {employee.has_diagnostic ? (
                           <Badge variant="default" className="bg-success">
@@ -247,9 +314,38 @@ const Employees = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">
-                          View Details
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
+                              {employee.is_active ? (
+                                <>
+                                  <UserX className="mr-2 h-4 w-4" />
+                                  Suspend
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="mr-2 h-4 w-4" />
+                                  Reactivate
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setSelectedEmployee(employee);
+                                setDeleteDialogOpen(true);
+                              }}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -259,6 +355,23 @@ const Employees = () => {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedEmployee?.full_name}? This action cannot be undone and will permanently remove all their data including diagnostic responses.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedEmployee(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEmployee} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
