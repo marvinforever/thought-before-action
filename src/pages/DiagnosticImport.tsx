@@ -88,6 +88,10 @@ const DiagnosticImport = () => {
     const valuedScore = parseInt(row['I feel valued for my contributions.']) || 0;
     const energyScore = parseInt(row['How energized do you feel about your work most days?']) || 0;
 
+    // Learning-related scores
+    const learningQualityScore = parseInt(row['How would you rate the quality of learning and development opportunities currently available to you?']) || 0;
+    const learningNeedsMet = parseInt(row['What percentage of your professional development needs are currently being met by existing programs or resources?']) || 0;
+
     return {
       department_or_team: row['Department or Team'],
       job_title_or_role: row['Job Title or Role'],
@@ -98,6 +102,10 @@ const DiagnosticImport = () => {
           manager_feedback_score: managerFeedbackScore,
           valued_score: valuedScore,
           energy_score: energyScore,
+        },
+        learning_scores: {
+          quality_rating: learningQualityScore,
+          needs_met_percentage: learningNeedsMet,
         },
       },
       years_with_company: row['How long have you been with this company?'],

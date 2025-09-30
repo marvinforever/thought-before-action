@@ -112,9 +112,21 @@ const Dashboard = () => {
       const clarityScores = diagnostics.map(d => d.role_clarity_score || 0).filter(s => s > 0);
       const roleClarity = clarityScores.length > 0 ? Math.round((clarityScores.reduce((a, b) => a + b, 0) / clarityScores.length) * 10) : 0;
 
-      // 7. LEARNING ENGAGEMENT
-      const learningHours = diagnostics.map(d => parseFloat(d.weekly_development_hours as any) || 0).filter(h => h > 0);
-      const learningEngagement = learningHours.length > 0 ? Math.round((learningHours.reduce((a, b) => a + b, 0) / learningHours.length) * 10) : 0;
+      // 7. LEARNING ENGAGEMENT - Blended approach
+      // 50% time investment (hours * 25, max 100) + 30% quality rating + 20% needs met
+      const learningScores = diagnostics.map(d => {
+        const hours = parseFloat(d.weekly_development_hours as any) || 0;
+        const learningData = (d.additional_responses as any)?.learning_scores;
+        const qualityRating = learningData?.quality_rating || 0;
+        const needsMet = learningData?.needs_met_percentage || 0;
+        
+        const timeScore = Math.min(hours * 25, 100); // 1hr=25, 2hr=50, 3hr=75, 4hr=100
+        const qualityScore = qualityRating * 10; // 1-10 scale to 0-100
+        const needsScore = needsMet; // Already 0-100 percentage
+        
+        return (timeScore * 0.5) + (qualityScore * 0.3) + (needsScore * 0.2);
+      }).filter(s => s > 0);
+      const learningEngagement = learningScores.length > 0 ? Math.round(learningScores.reduce((a, b) => a + b, 0) / learningScores.length) : 0;
 
       // 8. SKILLS GAP (inverse of confidence)
       const confidenceScores = diagnostics.map(d => d.confidence_score || 0).filter(s => s > 0);
@@ -136,7 +148,7 @@ const Dashboard = () => {
         { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: `${managerScores.filter(s => s <= 5).length} low support` },
         { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: `${diagnostics.length - careerPathCount} no path` },
         { domain: "Clarity", score: roleClarity, risk: getRiskLevel(roleClarity), impact: `${clarityScores.filter(s => s <= 5).length} unclear roles` },
-        { domain: "Learning", score: learningEngagement, risk: getRiskLevel(learningEngagement), impact: `${learningHours.filter(h => h < 1).length} low hours` },
+        { domain: "Learning", score: learningEngagement, risk: getRiskLevel(learningEngagement), impact: `${learningScores.filter(s => s < 50).length} low engagement` },
         { domain: "Skills", score: 100 - skillsGap, risk: getRiskLevel(100 - skillsGap), impact: `${confidenceScores.filter(s => s <= 5).length} low confidence` },
       ];
 
