@@ -91,14 +91,11 @@ const Employees = () => {
 
     setCreating(true);
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) throw new Error("Not authenticated");
-
-      const { data: profileId, error } = await supabase.rpc('admin_create_profile', {
-        p_admin_id: session.session.user.id,
-        p_email: newEmployee.email,
-        p_full_name: newEmployee.fullName,
-        p_is_admin: false,
+      const { data, error } = await supabase.functions.invoke('create-employee', {
+        body: {
+          email: newEmployee.email,
+          full_name: newEmployee.fullName,
+        }
       });
 
       if (error) throw error;
