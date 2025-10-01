@@ -46,6 +46,8 @@ serve(async (req) => {
 Available capabilities:
 ${capabilityContext}
 
+CRITICAL: You MUST use the EXACT UUID from the "ID:" field for each capability. Do NOT generate or modify capability IDs.
+
 For each relevant capability, provide a confidence score (0-100) indicating how well it matches the job requirements.
 Return confidence scores for the top 5 most relevant capabilities.
 
@@ -231,17 +233,30 @@ Generate:
 
     // Step 3: Use existing capabilities with high confidence
     const validCapabilityIds = new Set(capabilities?.map(c => c.id) || []);
+    const capabilityIdToName = new Map(capabilities?.map(c => [c.id, c.name]) || []);
+    
     const highConfidenceMatches = matchResult.matches
-      .filter((m: any) => m.confidence >= 80 && validCapabilityIds.has(m.capability_id));
+      .filter((m: any) => {
+        const isValid = m.confidence >= 80 && validCapabilityIds.has(m.capability_id);
+        if (!isValid && m.confidence >= 80) {
+          console.warn(`Invalid capability_id from AI: ${m.capability_id} (${m.capability_name})`);
+        }
+        return isValid;
+      });
 
     if (highConfidenceMatches.length === 0) {
+      console.error('No valid high-confidence matches. Available IDs:', Array.from(validCapabilityIds));
+      console.error('AI returned matches:', matchResult.matches);
       throw new Error('No high-confidence capability matches found');
     }
 
     // Get detailed suggestions for high-confidence matches
-    const suggestionPrompt = `For these capabilities, determine appropriate proficiency levels and priority for the job role:
+    const suggestionPrompt = `For these capabilities, determine appropriate proficiency levels and priority for the job role.
 
-${highConfidenceMatches.map((m: any) => `${m.capability_name}: ${m.reasoning}`).join('\n')}
+CRITICAL INSTRUCTION: You MUST use the EXACT capability_id UUID values provided below. Do NOT modify or create new IDs.
+
+Capabilities to evaluate:
+${highConfidenceMatches.map((m: any) => `ID: ${m.capability_id} | Name: ${m.capability_name} | Why relevant: ${m.reasoning}`).join('\n')}
 
 Job Description: ${jobDescription}`;
 
@@ -309,12 +324,24 @@ Job Description: ${jobDescription}`;
       'expert': 'mastery'
     };
 
-    const sanitized = suggestions.suggestions.map((s: any) => ({
-      ...s,
-      current_level: levelMap[s.current_level] || 'foundational',
-      target_level: levelMap[s.target_level] || 'advancing',
-      priority: Math.min(5, Math.max(1, Math.round(Number(s.priority) || 3))),
-    }));
+    const sanitized = suggestions.suggestions
+      .filter((s: any) => {
+        const isValid = validCapabilityIds.has(s.capability_id);
+        if (!isValid) {
+          console.error(`Invalid capability_id in suggestions: ${s.capability_id} (${s.capability_name})`);
+        }
+        return isValid;
+      })
+      .map((s: any) => ({
+        ...s,
+        current_level: levelMap[s.current_level] || 'foundational',
+        target_level: levelMap[s.target_level] || 'advancing',
+        priority: Math.min(5, Math.max(1, Math.round(Number(s.priority) || 3))),
+      }));
+
+    if (sanitized.length === 0) {
+      throw new Error('All suggested capability IDs were invalid');
+    }
 
     // Track usage for existing capabilities
     for (const suggestion of sanitized) {
