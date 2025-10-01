@@ -22,8 +22,6 @@ interface CompanyStats {
   totalEmployees: number;
   activeEmployees: number;
   totalResponses: number;
-  avgRetentionRisk: number;
-  avgBurnout: number;
   createdAt: string;
 }
 
@@ -119,39 +117,10 @@ const SuperAdmin = () => {
         // Get diagnostic responses
         const { data: responses } = await supabase
           .from("diagnostic_responses")
-          .select("burnout_frequency, daily_energy_level")
+          .select("id")
           .eq("company_id", company.id);
 
         const totalResponses = responses?.length || 0;
-
-        // Calculate averages
-        const burnoutScores = responses?.map(r => {
-          const freq = r.burnout_frequency?.toLowerCase() || "";
-          if (freq.includes("never")) return 10;
-          if (freq.includes("rarely")) return 30;
-          if (freq.includes("sometimes")) return 50;
-          if (freq.includes("often")) return 70;
-          if (freq.includes("always")) return 90;
-          return 50;
-        }) || [];
-
-        const energyScores = responses?.map(r => {
-          const energy = r.daily_energy_level?.toLowerCase() || "";
-          if (energy.includes("high")) return 90;
-          if (energy.includes("moderate")) return 50;
-          if (energy.includes("low")) return 20;
-          return 50;
-        }) || [];
-
-        const avgBurnout = burnoutScores.length > 0 
-          ? Math.round(burnoutScores.reduce((a, b) => a + b, 0) / burnoutScores.length)
-          : 0;
-
-        const avgEnergy = energyScores.length > 0
-          ? Math.round(energyScores.reduce((a, b) => a + b, 0) / energyScores.length)
-          : 0;
-
-        const avgRetentionRisk = Math.round((avgBurnout + (100 - avgEnergy)) / 2);
 
         return {
           id: company.id,
@@ -159,8 +128,6 @@ const SuperAdmin = () => {
           totalEmployees,
           activeEmployees,
           totalResponses,
-          avgRetentionRisk,
-          avgBurnout,
           createdAt: company.created_at,
         };
       });
@@ -415,13 +382,6 @@ const SuperAdmin = () => {
     }
   };
 
-  const getRiskBadge = (score: number) => {
-    if (score >= 70) return <Badge variant="destructive">Critical</Badge>;
-    if (score >= 50) return <Badge className="bg-orange-500">High</Badge>;
-    if (score >= 30) return <Badge className="bg-yellow-500">Medium</Badge>;
-    return <Badge className="bg-green-500">Low</Badge>;
-  };
-
   if (loading || !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -433,9 +393,6 @@ const SuperAdmin = () => {
   const totalEmployees = companies.reduce((sum, c) => sum + c.totalEmployees, 0);
   const totalActive = companies.reduce((sum, c) => sum + c.activeEmployees, 0);
   const totalResponses = companies.reduce((sum, c) => sum + c.totalResponses, 0);
-  const avgRisk = companies.length > 0
-    ? Math.round(companies.reduce((sum, c) => sum + c.avgRetentionRisk, 0) / companies.length)
-    : 0;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -509,17 +466,6 @@ const SuperAdmin = () => {
             <div className="text-2xl font-bold">{totalResponses}</div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Retention Risk</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{avgRisk}%</div>
-            {getRiskBadge(avgRisk)}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Companies Table */}
@@ -535,8 +481,6 @@ const SuperAdmin = () => {
                 <TableHead>Company Name</TableHead>
                 <TableHead>Employees</TableHead>
                 <TableHead>Responses</TableHead>
-                <TableHead>Retention Risk</TableHead>
-                <TableHead>Burnout</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
@@ -548,8 +492,6 @@ const SuperAdmin = () => {
                     {company.activeEmployees} / {company.totalEmployees}
                   </TableCell>
                   <TableCell>{company.totalResponses}</TableCell>
-                  <TableCell>{getRiskBadge(company.avgRetentionRisk)}</TableCell>
-                  <TableCell>{company.avgBurnout}%</TableCell>
                   <TableCell>{new Date(company.createdAt).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
