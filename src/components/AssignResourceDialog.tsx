@@ -127,7 +127,7 @@ export default function AssignResourceDialog({
         .insert({
           profile_id: selectedEmployeeId,
           resource_id: resourceId,
-          employee_capability_id: selectedCapabilityId || null,
+          employee_capability_id: selectedCapabilityId === "none" ? null : selectedCapabilityId || null,
           status: "pending",
           match_score: null,
           ai_reasoning: "Manually assigned by admin",
@@ -199,7 +199,7 @@ export default function AssignResourceDialog({
                   <SelectValue placeholder="Link to a capability (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {capabilities.map((capability) => (
                     <SelectItem key={capability.id} value={capability.id}>
                       {capability.name}
