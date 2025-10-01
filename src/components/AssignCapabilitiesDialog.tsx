@@ -29,16 +29,16 @@ interface Capability {
 
 interface SelectedCapability {
   capability_id: string;
-  current_level: "beginner" | "intermediate" | "advanced" | "expert";
-  target_level: "beginner" | "intermediate" | "advanced" | "expert";
+  current_level: "foundational" | "advancing" | "independent" | "mastery";
+  target_level: "foundational" | "advancing" | "independent" | "mastery";
   priority: number;
 }
 
 const levels = [
-  { value: "beginner", label: "Beginner" },
-  { value: "intermediate", label: "Intermediate" },
-  { value: "advanced", label: "Advanced" },
-  { value: "expert", label: "Expert" },
+  { value: "foundational", label: "Foundational" },
+  { value: "advancing", label: "Advancing" },
+  { value: "independent", label: "Independent" },
+  { value: "mastery", label: "Mastery" },
 ];
 
 export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: AssignCapabilitiesDialogProps) {
@@ -88,8 +88,8 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
     } else {
       newSelected.set(capabilityId, {
         capability_id: capabilityId,
-        current_level: "beginner",
-        target_level: "intermediate",
+        current_level: "foundational",
+        target_level: "advancing",
         priority: 3,
       });
     }

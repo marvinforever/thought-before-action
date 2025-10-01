@@ -642,7 +642,7 @@ export type Database = {
     }
     Enums: {
       burnout_level: "energized" | "normal" | "tired" | "drained" | "burned_out"
-      capability_level: "beginner" | "intermediate" | "advanced" | "expert"
+      capability_level: "foundational" | "advancing" | "independent" | "mastery"
       content_type:
         | "article"
         | "video"
@@ -797,7 +797,7 @@ export const Constants = {
   public: {
     Enums: {
       burnout_level: ["energized", "normal", "tired", "drained", "burned_out"],
-      capability_level: ["beginner", "intermediate", "advanced", "expert"],
+      capability_level: ["foundational", "advancing", "independent", "mastery"],
       content_type: [
         "article",
         "video",

@@ -21,8 +21,8 @@ interface JobDescriptionDialogProps {
 interface CapabilitySuggestion {
   capability_id: string;
   capability_name: string;
-  current_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-  target_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  current_level: 'foundational' | 'advancing' | 'independent' | 'mastery';
+  target_level: 'foundational' | 'advancing' | 'independent' | 'mastery';
   priority: number;
   reasoning: string;
 }
@@ -135,10 +135,10 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
 
   const getLevelColor = (level: string) => {
     switch (level) {
-      case 'beginner': return 'bg-blue-500/10 text-blue-700 dark:text-blue-300';
-      case 'intermediate': return 'bg-green-500/10 text-green-700 dark:text-green-300';
-      case 'advanced': return 'bg-purple-500/10 text-purple-700 dark:text-purple-300';
-      case 'expert': return 'bg-orange-500/10 text-orange-700 dark:text-orange-300';
+      case 'foundational': return 'bg-blue-500/10 text-blue-700 dark:text-blue-300';
+      case 'advancing': return 'bg-green-500/10 text-green-700 dark:text-green-300';
+      case 'independent': return 'bg-purple-500/10 text-purple-700 dark:text-purple-300';
+      case 'mastery': return 'bg-orange-500/10 text-orange-700 dark:text-orange-300';
       default: return 'bg-gray-500/10 text-gray-700 dark:text-gray-300';
     }
   };
