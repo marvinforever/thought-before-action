@@ -183,7 +183,7 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Assign Capabilities to {employee.full_name}</DialogTitle>
         </DialogHeader>
@@ -222,7 +222,7 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 pr-4 max-h-[60vh]">
+          <ScrollArea className="flex-1 pr-4 h-[60vh]">
             <div className="space-y-6 pb-4">
               {groupedCapabilities.map(group => (
                 <div key={group.category} className="space-y-3">
