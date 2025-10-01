@@ -30,7 +30,7 @@ const Employees = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ fullName: "", email: "", role: "" });
+  const [newEmployee, setNewEmployee] = useState({ fullName: "", email: "", role: "", phone: "" });
   const [creating, setCreating] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -108,6 +108,8 @@ const Employees = () => {
         body: {
           email: newEmployee.email,
           full_name: newEmployee.fullName,
+          role: newEmployee.role || null,
+          phone: newEmployee.phone || null,
         }
       });
 
@@ -118,7 +120,7 @@ const Employees = () => {
         description: "Employee created successfully",
       });
 
-      setNewEmployee({ fullName: "", email: "", role: "" });
+      setNewEmployee({ fullName: "", email: "", role: "", phone: "" });
       setDialogOpen(false);
       loadEmployees();
     } catch (error: any) {
@@ -238,6 +240,15 @@ const Employees = () => {
                     value={newEmployee.role}
                     onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })}
                     placeholder="Software Engineer"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone (Optional)</Label>
+                  <Input
+                    id="phone"
+                    value={newEmployee.phone}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
+                    placeholder="+1 (555) 123-4567"
                   />
                 </div>
               </div>

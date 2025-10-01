@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       throw new Error('Not authorized - admin access required')
     }
 
-    const { email, full_name } = await req.json()
+    const { email, full_name, role, phone } = await req.json()
 
     if (!email || !full_name) {
       throw new Error('Email and full name are required')
@@ -96,6 +96,8 @@ Deno.serve(async (req) => {
         id: authUser.user.id,
         email: email.toLowerCase().trim(),
         full_name: full_name,
+        role: role || null,
+        phone: phone || null,
         company_id: profile.company_id,
         is_admin: false
       })
