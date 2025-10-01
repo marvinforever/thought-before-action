@@ -502,6 +502,7 @@ export type Database = {
           is_active: boolean | null
           is_admin: boolean | null
           is_super_admin: boolean | null
+          phone: string | null
           role: string | null
           updated_at: string | null
         }
@@ -514,6 +515,7 @@ export type Database = {
           is_active?: boolean | null
           is_admin?: boolean | null
           is_super_admin?: boolean | null
+          phone?: string | null
           role?: string | null
           updated_at?: string | null
         }
@@ -526,6 +528,7 @@ export type Database = {
           is_active?: boolean | null
           is_admin?: boolean | null
           is_super_admin?: boolean | null
+          phone?: string | null
           role?: string | null
           updated_at?: string | null
         }
