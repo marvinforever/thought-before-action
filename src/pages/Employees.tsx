@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { JobDescriptionDialog } from "@/components/JobDescriptionDialog";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
+import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 
 interface Employee {
   id: string;
@@ -35,6 +36,7 @@ const Employees = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [jobDescEmployee, setJobDescEmployee] = useState<Employee | null>(null);
   const [capabilitiesEmployee, setCapabilitiesEmployee] = useState<Employee | null>(null);
+  const [assignCapabilitiesEmployee, setAssignCapabilitiesEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -329,6 +331,10 @@ const Employees = () => {
                               <Target className="mr-2 h-4 w-4" />
                               View Capabilities
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setAssignCapabilitiesEmployee(employee)}>
+                              <Target className="mr-2 h-4 w-4" />
+                              Assign Capabilities
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
                               <Brain className="mr-2 h-4 w-4" />
                               Analyze Job Description
@@ -405,6 +411,16 @@ const Employees = () => {
             if (!open) setCapabilitiesEmployee(null);
           }}
           employee={capabilitiesEmployee}
+        />
+      )}
+
+      {assignCapabilitiesEmployee && (
+        <AssignCapabilitiesDialog
+          open={!!assignCapabilitiesEmployee}
+          onOpenChange={(open) => {
+            if (!open) setAssignCapabilitiesEmployee(null);
+          }}
+          employee={assignCapabilitiesEmployee}
         />
       )}
     </div>
