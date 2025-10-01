@@ -10,6 +10,7 @@ import Employees from "./pages/Employees";
 import DiagnosticImport from "./pages/DiagnosticImport";
 import SuperAdmin from "./pages/SuperAdmin";
 import Capabilities from "./pages/Capabilities";
+import Resources from "./pages/Resources";
 import DashboardLayout from "./components/DashboardLayout";
 import NotFound from "./pages/NotFound";
 
@@ -27,10 +28,11 @@ const App = () => (
           <Route path="/super-admin" element={<SuperAdmin />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
-            <Route path="employees" element={<Employees />} />
-            <Route path="import" element={<DiagnosticImport />} />
-            <Route path="capabilities" element={<Capabilities />} />
-          </Route>
+          <Route path="employees" element={<Employees />} />
+          <Route path="import" element={<DiagnosticImport />} />
+          <Route path="capabilities" element={<Capabilities />} />
+          <Route path="resources" element={<Resources />} />
+        </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

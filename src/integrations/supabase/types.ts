@@ -541,6 +541,7 @@ export type Database = {
       }
       resources: {
         Row: {
+          authors: string | null
           capability_id: string | null
           capability_level:
             | Database["public"]["Enums"]["capability_level"]
@@ -550,12 +551,17 @@ export type Database = {
           created_at: string | null
           description: string | null
           estimated_time_minutes: number | null
+          external_id: string | null
+          external_url: string | null
           id: string
           is_active: boolean | null
+          publisher: string | null
+          rating: number | null
           title: string
           url: string | null
         }
         Insert: {
+          authors?: string | null
           capability_id?: string | null
           capability_level?:
             | Database["public"]["Enums"]["capability_level"]
@@ -565,12 +571,17 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           estimated_time_minutes?: number | null
+          external_id?: string | null
+          external_url?: string | null
           id?: string
           is_active?: boolean | null
+          publisher?: string | null
+          rating?: number | null
           title: string
           url?: string | null
         }
         Update: {
+          authors?: string | null
           capability_id?: string | null
           capability_level?:
             | Database["public"]["Enums"]["capability_level"]
@@ -580,8 +591,12 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           estimated_time_minutes?: number | null
+          external_id?: string | null
+          external_url?: string | null
           id?: string
           is_active?: boolean | null
+          publisher?: string | null
+          rating?: number | null
           title?: string
           url?: string | null
         }
