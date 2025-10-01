@@ -135,6 +135,14 @@ const leadershipBooks: BookResource[] = [
   }
 ];
 
+const levelMap: Record<BookResource['capability_level'], 'beginner' | 'intermediate' | 'advanced' | 'expert'> = {
+  foundational: 'beginner',
+  advancing: 'intermediate',
+  independent: 'advanced',
+  mastery: 'expert',
+};
+const mapLevel = (lvl: BookResource['capability_level']) => levelMap[lvl];
+
 export async function importLeadershipBooks(companyId: string) {
   try {
     // Get the Leadership capability
@@ -158,7 +166,7 @@ export async function importLeadershipBooks(companyId: string) {
           url: book.external_url,
           description: book.description,
           capability_id: capability.id,
-          capability_level: book.capability_level,
+          capability_level: mapLevel(book.capability_level),
           company_id: companyId,
           is_active: true,
           authors: book.authors,

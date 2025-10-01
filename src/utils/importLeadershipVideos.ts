@@ -113,6 +113,14 @@ const leadershipVideos: VideoResource[] = [
   }
 ];
 
+const levelMap: Record<VideoResource['capability_level'], 'beginner' | 'intermediate' | 'advanced' | 'expert'> = {
+  foundational: 'beginner',
+  advancing: 'intermediate',
+  independent: 'advanced',
+  mastery: 'expert',
+};
+const mapLevel = (lvl: VideoResource['capability_level']) => levelMap[lvl];
+
 export async function importLeadershipVideos(companyId: string) {
   try {
     // Get the Leadership capability
@@ -136,7 +144,7 @@ export async function importLeadershipVideos(companyId: string) {
           url: video.external_url,
           description: video.description,
           capability_id: capability.id,
-          capability_level: video.capability_level,
+          capability_level: mapLevel(video.capability_level),
           company_id: companyId,
           is_active: true,
           authors: video.authors,
