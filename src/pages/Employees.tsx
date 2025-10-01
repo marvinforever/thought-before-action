@@ -8,11 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { JobDescriptionDialog } from "@/components/JobDescriptionDialog";
+import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 
 interface Employee {
   id: string;
@@ -33,6 +34,7 @@ const Employees = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [jobDescEmployee, setJobDescEmployee] = useState<Employee | null>(null);
+  const [capabilitiesEmployee, setCapabilitiesEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -323,6 +325,10 @@ const Employees = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setCapabilitiesEmployee(employee)}>
+                              <Target className="mr-2 h-4 w-4" />
+                              View Capabilities
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
                               <Brain className="mr-2 h-4 w-4" />
                               Analyze Job Description
@@ -389,6 +395,16 @@ const Employees = () => {
             }
           }}
           employee={jobDescEmployee}
+        />
+      )}
+
+      {capabilitiesEmployee && (
+        <EmployeeCapabilitiesDialog
+          open={!!capabilitiesEmployee}
+          onOpenChange={(open) => {
+            if (!open) setCapabilitiesEmployee(null);
+          }}
+          employee={capabilitiesEmployee}
         />
       )}
     </div>

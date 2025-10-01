@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp } from "lucide-react";
 
 type GrowthPlanResource = {
   id: string;
@@ -31,14 +31,30 @@ type GrowthPlanResource = {
   } | null;
 };
 
+type EmployeeCapability = {
+  id: string;
+  current_level: string;
+  target_level: string;
+  priority: number;
+  ai_reasoning: string | null;
+  capability: {
+    id: string;
+    name: string;
+    category: string;
+    description: string;
+  };
+};
+
 export default function MyGrowthPlan() {
   const [resources, setResources] = useState<GrowthPlanResource[]>([]);
+  const [capabilities, setCapabilities] = useState<EmployeeCapability[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
     loadGrowthPlan();
+    loadCapabilities();
   }, []);
 
   const loadGrowthPlan = async () => {
@@ -97,6 +113,36 @@ export default function MyGrowthPlan() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCapabilities = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("employee_capabilities")
+        .select(`
+          id,
+          current_level,
+          target_level,
+          priority,
+          ai_reasoning,
+          capability:capabilities(
+            id,
+            name,
+            category,
+            description
+          )
+        `)
+        .eq("profile_id", user.id)
+        .order("priority", { ascending: true });
+
+      if (error) throw error;
+      setCapabilities((data as any) || []);
+    } catch (error: any) {
+      console.error("Error loading capabilities:", error);
     }
   };
 
@@ -201,9 +247,64 @@ export default function MyGrowthPlan() {
       <div>
         <h1 className="text-4xl font-bold tracking-tight">My Growth Plan</h1>
         <p className="text-muted-foreground mt-2">
-          Your personalized learning resources to develop your capabilities
+          Your personalized learning path and assigned capabilities
         </p>
       </div>
+
+      {capabilities.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              My Capabilities
+            </CardTitle>
+            <CardDescription>
+              Focus areas for your professional development
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-2">
+              {capabilities.map((cap) => (
+                <Card key={cap.id} className="border-l-4 border-l-primary">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <CardTitle className="text-base">{cap.capability.name}</CardTitle>
+                        <Badge variant="secondary" className="mt-1">
+                          {cap.capability.category}
+                        </Badge>
+                      </div>
+                      <Badge variant="outline">Priority {cap.priority}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <div className="text-xs text-muted-foreground mb-1">Current Level</div>
+                        <Badge className={getLevelColor(cap.current_level)}>
+                          {getLevelLabel(cap.current_level)}
+                        </Badge>
+                      </div>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="text-xs text-muted-foreground mb-1">Target Level</div>
+                        <Badge className={getLevelColor(cap.target_level)}>
+                          {getLevelLabel(cap.target_level)}
+                        </Badge>
+                      </div>
+                    </div>
+                    {cap.ai_reasoning && (
+                      <p className="text-xs text-muted-foreground italic">
+                        {cap.ai_reasoning}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
