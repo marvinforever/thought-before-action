@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface AssignCapabilitiesDialogProps {
   open: boolean;
@@ -45,6 +46,7 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedCapabilities, setSelectedCapabilities] = useState<Map<string, SelectedCapability>>(new Map());
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -146,14 +148,25 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
     }
   };
 
+  // Filter capabilities based on search
+  const filteredCapabilities = capabilities.filter(cap => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      cap.name.toLowerCase().includes(query) ||
+      cap.description?.toLowerCase().includes(query) ||
+      cap.category?.toLowerCase().includes(query)
+    );
+  });
+
   // Group capabilities by category
   const uniqueCategories = Array.from(
-    new Set(capabilities.map(c => c.category).filter(Boolean))
+    new Set(filteredCapabilities.map(c => c.category).filter(Boolean))
   ).sort();
 
   const groupedCapabilities = uniqueCategories.map(category => ({
     category,
-    items: capabilities.filter(c => c.category === category)
+    items: filteredCapabilities.filter(c => c.category === category)
   }));
 
   return (
@@ -162,6 +175,16 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
         <DialogHeader>
           <DialogTitle>Assign Capabilities to {employee.full_name}</DialogTitle>
         </DialogHeader>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search capabilities..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
