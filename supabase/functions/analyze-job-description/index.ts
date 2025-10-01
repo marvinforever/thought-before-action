@@ -31,7 +31,7 @@ serve(async (req) => {
     }
 
     const capabilityContext = capabilities?.map(c => 
-      `${c.name} (${c.category}, ${c.level}): ${c.description}`
+      `ID: ${c.id} | Name: ${c.name} | Category: ${c.category} | Level: ${c.level}`
     ).join('\n');
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -41,16 +41,17 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert HR analyst specializing in capability mapping. Analyze job descriptions and map them to specific capabilities.
 
-Available capabilities:
+Available capabilities (you MUST use the exact IDs provided):
 ${capabilityContext}
 
 Your task: Given a job description, identify the top 3-5 most relevant capabilities this person needs. For each capability, determine:
+- capability_id: MUST be one of the exact IDs listed above
 - current_level: Their likely current proficiency (beginner, intermediate, advanced, expert)
 - target_level: The level they should reach for this role (beginner, intermediate, advanced, expert)
 - priority: How critical this capability is (1=highest, 5=lowest)
 - reasoning: Brief explanation of why this capability matters for this role
 
-Be specific and practical. Focus on the most impactful capabilities.`;
+CRITICAL: Only use capability IDs from the list above. Do not make up or generate new IDs.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -112,7 +113,21 @@ Be specific and practical. Focus on the most impactful capabilities.`;
 
     const suggestions = JSON.parse(toolCall.function.arguments);
 
-    return new Response(JSON.stringify(suggestions), {
+    // Validate that all capability IDs exist in the database
+    const validCapabilityIds = new Set(capabilities?.map(c => c.id) || []);
+    const validatedSuggestions = suggestions.suggestions.filter((s: any) => {
+      const isValid = validCapabilityIds.has(s.capability_id);
+      if (!isValid) {
+        console.error(`Invalid capability_id returned by AI: ${s.capability_id} for ${s.capability_name}`);
+      }
+      return isValid;
+    });
+
+    if (validatedSuggestions.length === 0) {
+      throw new Error('AI returned no valid capability suggestions');
+    }
+
+    return new Response(JSON.stringify({ suggestions: validatedSuggestions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
