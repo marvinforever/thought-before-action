@@ -15,6 +15,7 @@ interface JobDescriptionDialogProps {
     id: string;
     full_name: string;
     role?: string;
+    company_id: string;
   };
 }
 
@@ -48,10 +49,25 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
     setIsAnalyzing(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-job-description', {
-        body: { jobDescription, employeeId: employee.id }
+        body: { 
+          jobDescription, 
+          employeeId: employee.id,
+          companyId: employee.company_id 
+        }
       });
 
       if (error) throw error;
+
+      if (data.needsApproval) {
+        toast({
+          title: "Custom Capability Created",
+          description: "A custom capability was generated and is pending admin approval. No capabilities assigned yet.",
+        });
+        onOpenChange(false);
+        setJobDescription("");
+        setSuggestions([]);
+        return;
+      }
 
       setSuggestions(data.suggestions || []);
       setSelectedSuggestions(new Set(data.suggestions.map((s: CapabilitySuggestion) => s.capability_id)));

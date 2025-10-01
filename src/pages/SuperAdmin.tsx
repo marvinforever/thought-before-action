@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PendingCapabilitiesTab } from "@/components/PendingCapabilitiesTab";
+import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
 
 interface CompanyStats {
   id: string;
@@ -447,6 +450,15 @@ const SuperAdmin = () => {
         </Button>
       </div>
 
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="pending">Pending Capabilities</TabsTrigger>
+          <TabsTrigger value="watchlist">Standard Cap Watchlist</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+
       {/* Employee Management */}
       <Card>
         <CardHeader>
@@ -545,6 +557,16 @@ const SuperAdmin = () => {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <PendingCapabilitiesTab />
+        </TabsContent>
+
+        <TabsContent value="watchlist">
+          <StandardCapWatchlistTab />
+        </TabsContent>
+      </Tabs>
 
       {/* Add Company Dialog */}
       <Dialog open={isAddCompanyOpen} onOpenChange={setIsAddCompanyOpen}>

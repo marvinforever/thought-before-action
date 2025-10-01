@@ -23,6 +23,7 @@ interface Employee {
   role: string;
   has_diagnostic: boolean;
   is_active: boolean;
+  company_id: string;
 }
 
 const Employees = () => {
@@ -65,6 +66,7 @@ const Employees = () => {
           email,
           role,
           is_active,
+          company_id,
           diagnostic_responses (id)
         `)
         .eq("company_id", profile.company_id);
@@ -77,6 +79,7 @@ const Employees = () => {
           role: p.role || "N/A",
           has_diagnostic: p.diagnostic_responses && p.diagnostic_responses.length > 0,
           is_active: p.is_active !== false,
+          company_id: p.company_id,
         }));
         setEmployees(mappedEmployees);
       }

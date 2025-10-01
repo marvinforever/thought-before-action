@@ -16,33 +16,66 @@ export type Database = {
     Tables: {
       capabilities: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           category: string | null
+          companies_using_count: number | null
           created_at: string | null
+          created_by_company_id: string | null
           description: string | null
           full_description: string | null
           id: string
+          is_custom: boolean | null
           level: Database["public"]["Enums"]["capability_level"] | null
           name: string
+          status: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           category?: string | null
+          companies_using_count?: number | null
           created_at?: string | null
+          created_by_company_id?: string | null
           description?: string | null
           full_description?: string | null
           id?: string
+          is_custom?: boolean | null
           level?: Database["public"]["Enums"]["capability_level"] | null
           name: string
+          status?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           category?: string | null
+          companies_using_count?: number | null
           created_at?: string | null
+          created_by_company_id?: string | null
           description?: string | null
           full_description?: string | null
           id?: string
+          is_custom?: boolean | null
           level?: Database["public"]["Enums"]["capability_level"] | null
           name?: string
+          status?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "capabilities_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capabilities_created_by_company_id_fkey"
+            columns: ["created_by_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       capability_levels: {
         Row: {
@@ -72,6 +105,119 @@ export type Database = {
             columns: ["capability_id"]
             isOneToOne: false
             referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capability_levels_pending: {
+        Row: {
+          created_at: string | null
+          custom_capability_id: string | null
+          description: string
+          id: string
+          level: string
+        }
+        Insert: {
+          created_at?: string | null
+          custom_capability_id?: string | null
+          description: string
+          id?: string
+          level: string
+        }
+        Update: {
+          created_at?: string | null
+          custom_capability_id?: string | null
+          description?: string
+          id?: string
+          level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_levels_pending_custom_capability_id_fkey"
+            columns: ["custom_capability_id"]
+            isOneToOne: false
+            referencedRelation: "custom_capabilities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capability_resource_gaps: {
+        Row: {
+          capability_id: string | null
+          flagged_at: string | null
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          capability_id?: string | null
+          flagged_at?: string | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          capability_id?: string | null
+          flagged_at?: string | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_resource_gaps_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: true
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_resource_gaps_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capability_usage_stats: {
+        Row: {
+          capability_id: string | null
+          company_id: string | null
+          first_used_at: string | null
+          id: string
+          last_used_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          capability_id?: string | null
+          company_id?: string | null
+          first_used_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          capability_id?: string | null
+          company_id?: string | null
+          first_used_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_usage_stats_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_usage_stats_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -157,6 +303,69 @@ export type Database = {
             columns: ["resource_id"]
             isOneToOne: false
             referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_capabilities: {
+        Row: {
+          ai_confidence_score: number | null
+          approved_at: string | null
+          approved_by: string | null
+          category: string
+          company_id: string | null
+          created_at: string | null
+          created_by_job_description: string | null
+          description: string | null
+          full_description: string | null
+          id: string
+          name: string
+          rejection_reason: string | null
+          status: string | null
+        }
+        Insert: {
+          ai_confidence_score?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category: string
+          company_id?: string | null
+          created_at?: string | null
+          created_by_job_description?: string | null
+          description?: string | null
+          full_description?: string | null
+          id?: string
+          name: string
+          rejection_reason?: string | null
+          status?: string | null
+        }
+        Update: {
+          ai_confidence_score?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: string
+          company_id?: string | null
+          created_at?: string | null
+          created_by_job_description?: string | null
+          description?: string | null
+          full_description?: string | null
+          id?: string
+          name?: string
+          rejection_reason?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_capabilities_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_capabilities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
