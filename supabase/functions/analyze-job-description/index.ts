@@ -233,13 +233,19 @@ Generate:
 
     // Step 3: Use existing capabilities with high confidence
     const validCapabilityIds = new Set(capabilities?.map(c => c.id) || []);
-    const capabilityIdToName = new Map(capabilities?.map(c => [c.id, c.name]) || []);
+    const nameToId = new Map((capabilities || []).map(c => [String(c.name).toLowerCase(), c.id]));
     
     const highConfidenceMatches = matchResult.matches
       .filter((m: any) => {
         const isValid = m.confidence >= 80 && validCapabilityIds.has(m.capability_id);
         if (!isValid && m.confidence >= 80) {
-          console.warn(`Invalid capability_id from AI: ${m.capability_id} (${m.capability_name})`);
+          // Attempt to map by name as a fallback if AI returned a slug instead of UUID
+          const mapped = nameToId.get(String(m.capability_name).toLowerCase());
+          if (mapped) {
+            m.capability_id = mapped;
+            return true;
+          }
+          console.warn(`Invalid capability_id from AI (no fallback by name): ${m.capability_id} (${m.capability_name})`);
         }
         return isValid;
       });
@@ -325,19 +331,25 @@ Job Description: ${jobDescription}`;
     };
 
     const sanitized = suggestions.suggestions
-      .filter((s: any) => {
-        const isValid = validCapabilityIds.has(s.capability_id);
-        if (!isValid) {
-          console.error(`Invalid capability_id in suggestions: ${s.capability_id} (${s.capability_name})`);
+      .map((s: any) => {
+        let cid = s.capability_id;
+        if (!validCapabilityIds.has(cid)) {
+          const mapped = nameToId.get(String(s.capability_name).toLowerCase());
+          if (mapped) {
+            cid = mapped;
+          } else {
+            console.error(`Suggestion has invalid capability_id and no name match: ${s.capability_id} (${s.capability_name})`);
+          }
         }
-        return isValid;
+        return {
+          ...s,
+          capability_id: cid,
+          current_level: levelMap[s.current_level] || 'foundational',
+          target_level: levelMap[s.target_level] || 'advancing',
+          priority: Math.min(5, Math.max(1, Math.round(Number(s.priority) || 3))),
+        };
       })
-      .map((s: any) => ({
-        ...s,
-        current_level: levelMap[s.current_level] || 'foundational',
-        target_level: levelMap[s.target_level] || 'advancing',
-        priority: Math.min(5, Math.max(1, Math.round(Number(s.priority) || 3))),
-      }));
+      .filter((s: any) => validCapabilityIds.has(s.capability_id));
 
     if (sanitized.length === 0) {
       throw new Error('All suggested capability IDs were invalid');
