@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2 } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, UserPlus } from "lucide-react";
+import AssignResourceDialog from "@/components/AssignResourceDialog";
 
 type Resource = {
   id: string;
@@ -33,11 +34,32 @@ export default function Resources() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("all");
   const [selectedContentType, setSelectedContentType] = useState<string>("all");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<{ id: string; title: string; capabilityId: string | null } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
+    checkAdminStatus();
     loadResources();
   }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      setIsAdmin(data?.is_admin || false);
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+    }
+  };
 
   const loadResources = async () => {
     try {
@@ -267,24 +289,44 @@ export default function Resources() {
                             Est. time: {resource.estimated_time_minutes} min
                           </p>
                         )}
-                        {resource.external_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            asChild
-                          >
-                            <a
-                              href={resource.external_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2"
+                        <div className="flex gap-2">
+                          {resource.external_url && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              asChild
                             >
-                              View Resource
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </Button>
-                        )}
+                              <a
+                                href={resource.external_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2"
+                              >
+                                View Resource
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setSelectedResource({
+                                  id: resource.id,
+                                  title: resource.title,
+                                  capabilityId: resource.capability?.id || null,
+                                });
+                                setAssignDialogOpen(true);
+                              }}
+                              className="gap-1"
+                            >
+                              <UserPlus className="h-3 w-3" />
+                              Assign
+                            </Button>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -293,6 +335,16 @@ export default function Resources() {
             </AccordionItem>
           ))}
         </Accordion>
+      )}
+
+      {selectedResource && (
+        <AssignResourceDialog
+          open={assignDialogOpen}
+          onOpenChange={setAssignDialogOpen}
+          resourceId={selectedResource.id}
+          resourceTitle={selectedResource.title}
+          defaultCapabilityId={selectedResource.capabilityId}
+        />
       )}
     </div>
   );

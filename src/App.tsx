@@ -12,6 +12,7 @@ import SuperAdmin from "./pages/SuperAdmin";
 import Capabilities from "./pages/Capabilities";
 import Resources from "./pages/Resources";
 import AdminResourceImport from "./pages/AdminResourceImport";
+import MyGrowthPlan from "./pages/MyGrowthPlan";
 import DashboardLayout from "./components/DashboardLayout";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="capabilities" element={<Capabilities />} />
           <Route path="resources" element={<Resources />} />
           <Route path="resource-import" element={<AdminResourceImport />} />
+          <Route path="my-growth-plan" element={<MyGrowthPlan />} />
         </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

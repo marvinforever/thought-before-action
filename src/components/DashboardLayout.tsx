@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   Upload,
-  Shield
+  Shield,
+  GraduationCap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -96,6 +97,7 @@ const DashboardLayout = () => {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+    { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
     { icon: Users, label: "Employees", path: "/dashboard/employees" },
     { icon: Upload, label: "Import Data", path: "/dashboard/import" },
     { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
