@@ -23,6 +23,7 @@ const Capabilities = () => {
       const { data, error } = await supabase
         .from("capabilities")
         .select("*")
+        .order("category", { ascending: true })
         .order("name", { ascending: true });
 
       if (error) throw error;
@@ -39,13 +40,18 @@ const Capabilities = () => {
     }
   };
 
-  const domains = [
+  const categories = [
     "Leadership & Management",
     "Communication",
     "Technical/Functional",
     "Interpersonal",
     "Execution"
   ];
+
+  const groupedCapabilities = categories.map(category => ({
+    category,
+    items: capabilities.filter(c => c.category === category)
+  })).filter(group => group.items.length > 0);
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -87,19 +93,26 @@ const Capabilities = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {capabilities.map((capability) => (
-              <div key={capability.id} className="border-b pb-4 last:border-0">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold">{capability.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {capability.description}
-                    </p>
-                  </div>
-                  {capability.category && (
-                    <Badge variant="outline">{capability.category}</Badge>
-                  )}
+          <div className="space-y-8">
+            {groupedCapabilities.map((group) => (
+              <div key={group.category}>
+                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  {group.category}
+                  <Badge variant="secondary">{group.items.length}</Badge>
+                </h2>
+                <div className="space-y-4">
+                  {group.items.map((capability) => (
+                    <div key={capability.id} className="border-b pb-4 last:border-0">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold">{capability.name}</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {capability.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
