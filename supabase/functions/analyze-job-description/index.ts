@@ -127,9 +127,19 @@ CRITICAL: Only use capability IDs from the list above. Do not make up or generat
       throw new Error('AI returned no valid capability suggestions');
     }
 
-    // Sanitize priority to integer 1..5
+    // Map AI levels to database enum values
+    const levelMap: Record<string, 'foundational' | 'advancing' | 'independent' | 'mastery'> = {
+      'beginner': 'foundational',
+      'intermediate': 'advancing',
+      'advanced': 'independent',
+      'expert': 'mastery'
+    };
+
+    // Sanitize priority to integer 1..5 and map levels to database enum
     const sanitized = validatedSuggestions.map((s: any) => ({
       ...s,
+      current_level: levelMap[s.current_level] || 'foundational',
+      target_level: levelMap[s.target_level] || 'advancing',
       priority: Math.min(5, Math.max(1, Math.round(Number(s.priority) || 3))),
     }));
 
