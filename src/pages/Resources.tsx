@@ -96,14 +96,20 @@ export default function Resources() {
 
   const getLevelColor = (level: string | null) => {
     if (!level) return "bg-muted";
-    switch (level.toLowerCase()) {
-      case "foundational":
+    const l = level.toLowerCase();
+    const norm = l === "foundational" ? "beginner"
+      : l === "advancing" ? "intermediate"
+      : l === "independent" ? "advanced"
+      : l === "mastery" ? "expert"
+      : l;
+    switch (norm) {
+      case "beginner":
         return "bg-blue-500/10 text-blue-700 dark:text-blue-400";
-      case "advancing":
+      case "intermediate":
         return "bg-green-500/10 text-green-700 dark:text-green-400";
-      case "independent":
+      case "advanced":
         return "bg-orange-500/10 text-orange-700 dark:text-orange-400";
-      case "mastery":
+      case "expert":
         return "bg-purple-500/10 text-purple-700 dark:text-purple-400";
       default:
         return "bg-muted";
@@ -112,7 +118,13 @@ export default function Resources() {
 
   const getLevelLabel = (level: string | null) => {
     if (!level) return "General";
-    return level.charAt(0).toUpperCase() + level.slice(1);
+    const l = level.toLowerCase();
+    const norm = l === "foundational" ? "beginner"
+      : l === "advancing" ? "intermediate"
+      : l === "independent" ? "advanced"
+      : l === "mastery" ? "expert"
+      : l;
+    return norm.charAt(0).toUpperCase() + norm.slice(1);
   };
 
   const filteredResources = resources.filter((resource) => {
@@ -166,10 +178,10 @@ export default function Resources() {
         <Tabs value={selectedLevel} onValueChange={setSelectedLevel} className="w-full">
           <TabsList>
             <TabsTrigger value="all">All Levels</TabsTrigger>
-            <TabsTrigger value="foundational">Foundational</TabsTrigger>
-            <TabsTrigger value="advancing">Advancing</TabsTrigger>
-            <TabsTrigger value="independent">Independent</TabsTrigger>
-            <TabsTrigger value="mastery">Mastery</TabsTrigger>
+            <TabsTrigger value="beginner">Beginner</TabsTrigger>
+            <TabsTrigger value="intermediate">Intermediate</TabsTrigger>
+            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="expert">Expert</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
