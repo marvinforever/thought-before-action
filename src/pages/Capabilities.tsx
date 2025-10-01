@@ -61,18 +61,15 @@ const Capabilities = () => {
     }
   };
 
-  const categories = [
-    "Leadership & Management",
-    "Communication",
-    "Technical/Functional",
-    "Interpersonal",
-    "Execution"
-  ];
+  // Dynamically get unique categories from capabilities
+  const uniqueCategories = Array.from(
+    new Set(capabilities.map(c => c.category).filter(Boolean))
+  ).sort();
 
-  const groupedCapabilities = categories.map(category => ({
+  const groupedCapabilities = uniqueCategories.map(category => ({
     category,
     items: capabilities.filter(c => c.category === category)
-  })).filter(group => group.items.length > 0);
+  }));
 
   const getLevelColor = (level: string) => {
     switch (level) {
