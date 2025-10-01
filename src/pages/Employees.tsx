@@ -8,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { JobDescriptionDialog } from "@/components/JobDescriptionDialog";
 
 interface Employee {
   id: string;
@@ -31,6 +32,7 @@ const Employees = () => {
   const [creating, setCreating] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [jobDescEmployee, setJobDescEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -321,6 +323,10 @@ const Employees = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
+                              <Brain className="mr-2 h-4 w-4" />
+                              Analyze Job Description
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
                               {employee.is_active ? (
                                 <>
@@ -372,6 +378,19 @@ const Employees = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {jobDescEmployee && (
+        <JobDescriptionDialog
+          open={!!jobDescEmployee}
+          onOpenChange={(open) => {
+            if (!open) {
+              setJobDescEmployee(null);
+              loadEmployees();
+            }
+          }}
+          employee={jobDescEmployee}
+        />
+      )}
     </div>
   );
 };
