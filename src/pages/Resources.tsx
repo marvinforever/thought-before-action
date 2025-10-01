@@ -32,6 +32,7 @@ export default function Resources() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("all");
+  const [selectedContentType, setSelectedContentType] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -139,7 +140,11 @@ export default function Resources() {
       selectedLevel === "all" ||
       resource.capability_level?.toLowerCase() === selectedLevel.toLowerCase();
 
-    return matchesSearch && matchesLevel;
+    const matchesContentType =
+      selectedContentType === "all" ||
+      resource.content_type === selectedContentType;
+
+    return matchesSearch && matchesLevel && matchesContentType;
   });
 
   const groupedByCapability = filteredResources.reduce((acc, resource) => {
@@ -168,22 +173,40 @@ export default function Resources() {
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4">
         <Input
           placeholder="Search resources..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
         />
-        <Tabs value={selectedLevel} onValueChange={setSelectedLevel} className="w-full">
-          <TabsList>
-            <TabsTrigger value="all">All Levels</TabsTrigger>
-            <TabsTrigger value="beginner">Beginner</TabsTrigger>
-            <TabsTrigger value="intermediate">Intermediate</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-            <TabsTrigger value="expert">Expert</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <p className="text-sm font-medium mb-2">Filter by Level</p>
+            <Tabs value={selectedLevel} onValueChange={setSelectedLevel} className="w-full">
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="beginner">Beginner</TabsTrigger>
+                <TabsTrigger value="intermediate">Intermediate</TabsTrigger>
+                <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                <TabsTrigger value="expert">Expert</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          
+          <div className="flex-1">
+            <p className="text-sm font-medium mb-2">Filter by Type</p>
+            <Tabs value={selectedContentType} onValueChange={setSelectedContentType} className="w-full">
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="book">Books</TabsTrigger>
+                <TabsTrigger value="video">Videos</TabsTrigger>
+                <TabsTrigger value="podcast">Podcasts</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
       </div>
 
       {Object.keys(groupedByCapability).length === 0 ? (
