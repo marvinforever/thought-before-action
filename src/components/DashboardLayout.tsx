@@ -100,6 +100,7 @@ const DashboardLayout = () => {
     { icon: Upload, label: "Import Data", path: "/dashboard/import" },
     { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
     { icon: BookOpen, label: "Resources", path: "/dashboard/resources" },
+    { icon: Upload, label: "Import Resources", path: "/dashboard/resource-import" },
     { icon: Mail, label: "Email Delivery", path: "/dashboard/emails" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];

@@ -11,6 +11,7 @@ import DiagnosticImport from "./pages/DiagnosticImport";
 import SuperAdmin from "./pages/SuperAdmin";
 import Capabilities from "./pages/Capabilities";
 import Resources from "./pages/Resources";
+import AdminResourceImport from "./pages/AdminResourceImport";
 import DashboardLayout from "./components/DashboardLayout";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="import" element={<DiagnosticImport />} />
           <Route path="capabilities" element={<Capabilities />} />
           <Route path="resources" element={<Resources />} />
+          <Route path="resource-import" element={<AdminResourceImport />} />
         </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
