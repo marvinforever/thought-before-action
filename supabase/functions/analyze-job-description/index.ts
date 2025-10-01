@@ -127,7 +127,13 @@ CRITICAL: Only use capability IDs from the list above. Do not make up or generat
       throw new Error('AI returned no valid capability suggestions');
     }
 
-    return new Response(JSON.stringify({ suggestions: validatedSuggestions }), {
+    // Sanitize priority to integer 1..5
+    const sanitized = validatedSuggestions.map((s: any) => ({
+      ...s,
+      priority: Math.min(5, Math.max(1, Math.round(Number(s.priority) || 3))),
+    }));
+
+    return new Response(JSON.stringify({ suggestions: sanitized }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

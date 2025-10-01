@@ -89,14 +89,20 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
     try {
       const capabilitiesToAssign = suggestions
         .filter(s => selectedSuggestions.has(s.capability_id))
-        .map(s => ({
-          profile_id: employee.id,
-          capability_id: s.capability_id,
-          current_level: s.current_level,
-          target_level: s.target_level,
-          priority: s.priority,
-          ai_reasoning: s.reasoning,
-        }));
+        .map(s => {
+          const priority =
+            Number.isFinite(Number(s.priority))
+              ? Math.min(5, Math.max(1, Math.round(Number(s.priority))))
+              : 3;
+          return {
+            profile_id: employee.id,
+            capability_id: s.capability_id,
+            current_level: s.current_level,
+            target_level: s.target_level,
+            priority,
+            ai_reasoning: s.reasoning,
+          };
+        });
 
       const { error } = await supabase
         .from('employee_capabilities')
