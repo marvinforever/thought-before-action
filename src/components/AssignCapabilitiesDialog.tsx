@@ -191,8 +191,8 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 pr-4">
-            <div className="space-y-6">
+          <ScrollArea className="flex-1 pr-4 max-h-[60vh]">
+            <div className="space-y-6 pb-4">
               {groupedCapabilities.map(group => (
                 <div key={group.category} className="space-y-3">
                   <h3 className="font-semibold text-lg sticky top-0 bg-background py-2">
