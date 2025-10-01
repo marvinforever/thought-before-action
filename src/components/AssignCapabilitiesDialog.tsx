@@ -47,6 +47,7 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
   const [submitting, setSubmitting] = useState(false);
   const [selectedCapabilities, setSelectedCapabilities] = useState<Map<string, SelectedCapability>>(new Map());
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -148,8 +149,14 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
     }
   };
 
-  // Filter capabilities based on search
+  // Filter capabilities based on search and category
   const filteredCapabilities = capabilities.filter(cap => {
+    // Category filter
+    if (selectedCategory !== "all" && cap.category !== selectedCategory) {
+      return false;
+    }
+    
+    // Search filter
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -158,6 +165,11 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
       cap.category?.toLowerCase().includes(query)
     );
   });
+
+  // Get all unique categories for the dropdown
+  const allCategories = Array.from(
+    new Set(capabilities.map(c => c.category).filter(Boolean))
+  ).sort();
 
   // Group capabilities by category
   const uniqueCategories = Array.from(
@@ -176,14 +188,33 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
           <DialogTitle>Assign Capabilities to {employee.full_name}</DialogTitle>
         </DialogHeader>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search capabilities..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search capabilities..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent className="bg-background z-50">
+              <SelectItem value="all">All Categories ({capabilities.length})</SelectItem>
+              {allCategories.map(category => {
+                const count = capabilities.filter(c => c.category === category).length;
+                return (
+                  <SelectItem key={category} value={category}>
+                    {category} ({count})
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (
