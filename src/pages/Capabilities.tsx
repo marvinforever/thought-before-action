@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Capability = Tables<"capabilities">;
+type CapabilityLevel = Tables<"capability_levels">;
+
+interface CapabilityWithLevels extends Capability {
+  levels: CapabilityLevel[];
+}
 
 const Capabilities = () => {
-  const [capabilities, setCapabilities] = useState<Capability[]>([]);
+  const [capabilities, setCapabilities] = useState<CapabilityWithLevels[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -20,14 +25,30 @@ const Capabilities = () => {
 
   const loadCapabilities = async () => {
     try {
-      const { data, error } = await supabase
+      // Load capabilities with their levels
+      const { data: capsData, error: capsError } = await supabase
         .from("capabilities")
         .select("*")
         .order("category", { ascending: true })
         .order("name", { ascending: true });
 
-      if (error) throw error;
-      setCapabilities(data || []);
+      if (capsError) throw capsError;
+
+      // Load all capability levels
+      const { data: levelsData, error: levelsError } = await supabase
+        .from("capability_levels")
+        .select("*")
+        .order("level", { ascending: true });
+
+      if (levelsError) throw levelsError;
+
+      // Combine capabilities with their levels
+      const capabilitiesWithLevels = (capsData || []).map(cap => ({
+        ...cap,
+        levels: (levelsData || []).filter(level => level.capability_id === cap.id)
+      }));
+
+      setCapabilities(capabilitiesWithLevels);
     } catch (error) {
       console.error("Error loading capabilities:", error);
       toast({
@@ -56,16 +77,20 @@ const Capabilities = () => {
   const getLevelColor = (level: string) => {
     switch (level) {
       case "foundational":
-        return "bg-blue-500/10 text-blue-500";
+        return "bg-blue-500/10 text-blue-700 border-blue-200";
       case "advancing":
-        return "bg-green-500/10 text-green-500";
+        return "bg-green-500/10 text-green-700 border-green-200";
       case "independent":
-        return "bg-yellow-500/10 text-yellow-500";
+        return "bg-yellow-500/10 text-yellow-700 border-yellow-200";
       case "mastery":
-        return "bg-purple-500/10 text-purple-500";
+        return "bg-purple-500/10 text-purple-700 border-purple-200";
       default:
-        return "bg-gray-500/10 text-gray-500";
+        return "bg-gray-500/10 text-gray-700 border-gray-200";
     }
+  };
+
+  const getLevelLabel = (level: string) => {
+    return level.charAt(0).toUpperCase() + level.slice(1);
   };
 
   if (loading) {
@@ -100,20 +125,48 @@ const Capabilities = () => {
                   {group.category}
                   <Badge variant="secondary">{group.items.length}</Badge>
                 </h2>
-                <div className="space-y-4">
+                <Accordion type="single" collapsible className="space-y-2">
                   {group.items.map((capability) => (
-                    <div key={capability.id} className="border-b pb-4 last:border-0">
-                      <div className="flex items-start justify-between">
-                        <div>
+                    <AccordionItem key={capability.id} value={capability.id} className="border rounded-lg px-4">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex flex-col items-start text-left">
                           <h3 className="font-semibold">{capability.name}</h3>
                           <p className="text-sm text-muted-foreground mt-1">
                             {capability.description}
                           </p>
                         </div>
-                      </div>
-                    </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="pt-4 space-y-4">
+                          {capability.full_description && (
+                            <div className="bg-muted/50 p-4 rounded-lg">
+                              <h4 className="font-medium mb-2">Full Definition</h4>
+                              <p className="text-sm">{capability.full_description}</p>
+                            </div>
+                          )}
+                          
+                          {capability.levels.length > 0 && (
+                            <div>
+                              <h4 className="font-medium mb-3">Progression Levels</h4>
+                              <div className="space-y-3">
+                                {capability.levels.map((level) => (
+                                  <div key={level.id} className={`p-4 rounded-lg border ${getLevelColor(level.level)}`}>
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Badge variant="outline" className="font-semibold">
+                                        {getLevelLabel(level.level)}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm">{level.description}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
                   ))}
-                </div>
+                </Accordion>
               </div>
             ))}
           </div>

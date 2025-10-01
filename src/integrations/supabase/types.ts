@@ -19,6 +19,7 @@ export type Database = {
           category: string | null
           created_at: string | null
           description: string | null
+          full_description: string | null
           id: string
           level: Database["public"]["Enums"]["capability_level"] | null
           name: string
@@ -27,6 +28,7 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           description?: string | null
+          full_description?: string | null
           id?: string
           level?: Database["public"]["Enums"]["capability_level"] | null
           name: string
@@ -35,11 +37,44 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           description?: string | null
+          full_description?: string | null
           id?: string
           level?: Database["public"]["Enums"]["capability_level"] | null
           name?: string
         }
         Relationships: []
+      }
+      capability_levels: {
+        Row: {
+          capability_id: string
+          created_at: string | null
+          description: string
+          id: string
+          level: string
+        }
+        Insert: {
+          capability_id: string
+          created_at?: string | null
+          description: string
+          id?: string
+          level: string
+        }
+        Update: {
+          capability_id?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_levels_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {
