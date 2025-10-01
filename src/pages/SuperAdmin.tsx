@@ -4,7 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, TrendingUp, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Building2, Users, TrendingUp, AlertCircle, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CompanyStats {
@@ -22,6 +26,9 @@ const SuperAdmin = () => {
   const [companies, setCompanies] = useState<CompanyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAddCompanyOpen, setIsAddCompanyOpen] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -146,6 +153,44 @@ const SuperAdmin = () => {
     }
   };
 
+  const handleCreateCompany = async () => {
+    if (!newCompanyName.trim()) {
+      toast({
+        title: "Error",
+        description: "Company name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .insert({ name: newCompanyName.trim() });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Company created successfully",
+      });
+
+      setIsAddCompanyOpen(false);
+      setNewCompanyName("");
+      loadCompanyData();
+    } catch (error) {
+      console.error("Error creating company:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create company",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const getRiskBadge = (score: number) => {
     if (score >= 70) return <Badge variant="destructive">Critical</Badge>;
     if (score >= 50) return <Badge className="bg-orange-500">High</Badge>;
@@ -175,6 +220,10 @@ const SuperAdmin = () => {
           <h1 className="text-3xl font-bold">Super Admin Portal</h1>
           <p className="text-muted-foreground">Manage all companies and view platform-wide metrics</p>
         </div>
+        <Button onClick={() => setIsAddCompanyOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Company
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -257,6 +306,48 @@ const SuperAdmin = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Add Company Dialog */}
+      <Dialog open={isAddCompanyOpen} onOpenChange={setIsAddCompanyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Company</DialogTitle>
+            <DialogDescription>
+              Create a new company to add employees to.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="company-name">Company Name</Label>
+              <Input
+                id="company-name"
+                placeholder="Enter company name"
+                value={newCompanyName}
+                onChange={(e) => setNewCompanyName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleCreateCompany();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddCompanyOpen(false);
+                setNewCompanyName("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateCompany} disabled={isCreating}>
+              {isCreating ? "Creating..." : "Create Company"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
