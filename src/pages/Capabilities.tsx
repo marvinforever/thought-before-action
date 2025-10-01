@@ -38,7 +38,7 @@ const Capabilities = () => {
       const { data: levelsData, error: levelsError } = await supabase
         .from("capability_levels")
         .select("*")
-        .order("level", { ascending: true });
+        .order("created_at", { ascending: true });
 
       if (levelsError) throw levelsError;
 
