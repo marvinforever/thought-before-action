@@ -76,7 +76,7 @@ const Employees = () => {
           id: p.id,
           full_name: p.full_name || "N/A",
           email: p.email || "N/A",
-          role: p.role || "N/A",
+          role: p.role || "",
           has_diagnostic: p.diagnostic_responses && p.diagnostic_responses.length > 0,
           is_active: p.is_active !== false,
           company_id: p.company_id,
@@ -315,7 +315,7 @@ const Employees = () => {
                     <TableRow key={employee.id} className={!employee.is_active ? "opacity-50" : ""}>
                       <TableCell className="font-medium">{employee.full_name}</TableCell>
                       <TableCell>{employee.email}</TableCell>
-                      <TableCell>{employee.role}</TableCell>
+                      <TableCell>{employee.role || <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell>
                         {employee.is_active ? (
                           <Badge variant="default" className="bg-green-600">Active</Badge>
