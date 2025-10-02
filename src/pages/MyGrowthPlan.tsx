@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw } from "lucide-react";
+import PersonalVisionCard from "@/components/PersonalVisionCard";
+import NinetyDayTracker from "@/components/NinetyDayTracker";
+import AchievementsCard from "@/components/AchievementsCard";
+import DiagnosticInsights from "@/components/DiagnosticInsights";
 
 type GrowthPlanResource = {
   id: string;
@@ -341,9 +345,18 @@ export default function MyGrowthPlan() {
       <div>
         <h1 className="text-4xl font-bold tracking-tight">My Growth Plan</h1>
         <p className="text-muted-foreground mt-2">
-          Your personalized learning path and assigned capabilities
+          Your personalized development journey, goals, and learning resources
         </p>
       </div>
+
+      {/* Personal Vision */}
+      <PersonalVisionCard />
+
+      {/* Diagnostic Insights */}
+      <DiagnosticInsights />
+
+      {/* 90 Day Tracker */}
+      <NinetyDayTracker />
 
       {jobDescriptions.length > 0 && (
         <Card>
@@ -399,6 +412,9 @@ export default function MyGrowthPlan() {
           </CardContent>
         </Card>
       )}
+
+      {/* Achievements */}
+      <AchievementsCard />
 
       {capabilities.length > 0 && (
         <Card>

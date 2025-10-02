@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achieved_date: string | null
+          achievement_text: string
+          category: string
+          company_id: string
+          created_at: string
+          id: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          achieved_date?: string | null
+          achievement_text: string
+          category: string
+          company_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          achieved_date?: string | null
+          achievement_text?: string
+          category?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "achievements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "achievements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capabilities: {
         Row: {
           approved_at: string | null
@@ -748,6 +796,114 @@ export type Database = {
           },
           {
             foreignKeyName: "job_descriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninety_day_targets: {
+        Row: {
+          by_when: string | null
+          category: string
+          company_id: string
+          completed: boolean | null
+          created_at: string
+          goal_number: number
+          goal_text: string | null
+          id: string
+          profile_id: string
+          quarter: string
+          support_needed: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          by_when?: string | null
+          category: string
+          company_id: string
+          completed?: boolean | null
+          created_at?: string
+          goal_number: number
+          goal_text?: string | null
+          id?: string
+          profile_id: string
+          quarter: string
+          support_needed?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          by_when?: string | null
+          category?: string
+          company_id?: string
+          completed?: boolean | null
+          created_at?: string
+          goal_number?: number
+          goal_text?: string | null
+          id?: string
+          profile_id?: string
+          quarter?: string
+          support_needed?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninety_day_targets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninety_day_targets_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_goals: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          one_year_vision: string | null
+          profile_id: string
+          three_year_vision: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          one_year_vision?: string | null
+          profile_id: string
+          three_year_vision?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          one_year_vision?: string | null
+          profile_id?: string
+          three_year_vision?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_goals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_goals_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
