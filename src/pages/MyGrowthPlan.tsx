@@ -349,11 +349,11 @@ export default function MyGrowthPlan() {
         </p>
       </div>
 
-      {/* Personal Vision */}
-      <PersonalVisionCard />
-
       {/* Diagnostic Insights */}
       <DiagnosticInsights />
+
+      {/* Personal Vision */}
+      <PersonalVisionCard />
 
       {/* 90 Day Tracker */}
       <NinetyDayTracker />
