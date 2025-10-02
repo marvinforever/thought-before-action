@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Award, Plus, Trash2, Calendar } from "lucide-react";
+import { Award, Plus, Trash2, Calendar, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type Achievement = {
@@ -17,7 +17,9 @@ type Achievement = {
 export default function AchievementsCard() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [isAdding, setIsAdding] = useState<{ category: string } | null>(null);
+  const [editingAchievement, setEditingAchievement] = useState<string | null>(null);
   const [newAchievement, setNewAchievement] = useState({ text: "", date: "" });
+  const [editData, setEditData] = useState({ text: "", date: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -86,6 +88,37 @@ export default function AchievementsCard() {
     }
   };
 
+  const handleEditAchievement = async (id: string) => {
+    if (!editData.text.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from("achievements")
+        .update({
+          achievement_text: editData.text,
+          achieved_date: editData.date || null,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Achievement updated",
+        description: "Your accomplishment has been updated",
+      });
+
+      setEditingAchievement(null);
+      setEditData({ text: "", date: "" });
+      await loadAchievements();
+    } catch (error: any) {
+      toast({
+        title: "Error updating achievement",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteAchievement = async (id: string) => {
     try {
       const { error } = await supabase
@@ -108,6 +141,14 @@ export default function AchievementsCard() {
         variant: "destructive",
       });
     }
+  };
+
+  const startEditing = (achievement: Achievement) => {
+    setEditingAchievement(achievement.id);
+    setEditData({
+      text: achievement.achievement_text,
+      date: achievement.achieved_date || "",
+    });
   };
 
   const getAchievementsByCategory = (category: string) => {
@@ -166,30 +207,74 @@ export default function AchievementsCard() {
               No {category} achievements yet
             </p>
           ) : (
-            categoryAchievements.map((achievement) => (
-              <Card key={achievement.id} className="border-l-4 border-l-primary">
-                <CardContent className="pt-3 pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-sm">{achievement.achievement_text}</p>
-                      {achievement.achieved_date && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(achievement.achieved_date).toLocaleDateString()}</span>
-                        </div>
-                      )}
+            categoryAchievements.map((achievement) => {
+              const isEditing = editingAchievement === achievement.id;
+              
+              if (isEditing) {
+                return (
+                  <Card key={achievement.id} className="border-primary">
+                    <CardContent className="pt-4 space-y-3">
+                      <Input
+                        value={editData.text}
+                        onChange={(e) => setEditData({ ...editData, text: e.target.value })}
+                        placeholder="Describe your achievement..."
+                      />
+                      <Input
+                        type="date"
+                        value={editData.date}
+                        onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                        placeholder="Achievement date (optional)"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleEditAchievement(achievement.id)}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setEditingAchievement(null);
+                          setEditData({ text: "", date: "" });
+                        }}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              return (
+                <Card key={achievement.id} className="border-l-4 border-l-primary">
+                  <CardContent className="pt-3 pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm">{achievement.achievement_text}</p>
+                        {achievement.achieved_date && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{new Date(achievement.achieved_date).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditing(achievement)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteAchievement(achievement.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteAchievement(achievement.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       </div>
