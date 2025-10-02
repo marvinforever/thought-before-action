@@ -31,9 +31,7 @@ type DiagnosticResponse = {
   learning_preference: string | null;
   weekly_development_hours: number | null;
   burnout_frequency: string | null;
-  daily_energy_level: string | null;
-  energy_drain_area: string | null;
-  mental_drain_frequency: string | null;
+  work_life_sacrifice_frequency: string | null;
 };
 
 export default function DiagnosticInsights() {
@@ -67,17 +65,51 @@ export default function DiagnosticInsights() {
   if (loading) return null;
   if (!diagnostic) return null;
 
-  const getBurnoutLevel = (frequency: string | null) => {
-    if (!frequency) return null;
-    const lower = frequency.toLowerCase();
-    if (lower.includes('never') || lower.includes('rarely')) return { level: 'low', color: 'text-green-500', bgColor: 'bg-green-500', value: 20 };
-    if (lower.includes('occasionally') || lower.includes('sometimes')) return { level: 'moderate', color: 'text-yellow-500', bgColor: 'bg-yellow-500', value: 50 };
-    if (lower.includes('frequently') || lower.includes('often')) return { level: 'high', color: 'text-orange-500', bgColor: 'bg-orange-500', value: 75 };
-    if (lower.includes('constantly') || lower.includes('always')) return { level: 'critical', color: 'text-red-500', bgColor: 'bg-red-500', value: 95 };
-    return { level: 'moderate', color: 'text-yellow-500', bgColor: 'bg-yellow-500', value: 50 };
+  const calculateBurnoutRisk = () => {
+    const scores: number[] = [];
+
+    // Score workload status (0-100)
+    if (diagnostic.workload_status) {
+      const lower = diagnostic.workload_status.toLowerCase();
+      if (lower.includes('very manageable')) scores.push(10);
+      else if (lower.includes('manageable')) scores.push(30);
+      else if (lower.includes('somewhat overwhelming')) scores.push(65);
+      else if (lower.includes('very overwhelming')) scores.push(90);
+    }
+
+    // Score burnout frequency (0-100)
+    if (diagnostic.burnout_frequency) {
+      const lower = diagnostic.burnout_frequency.toLowerCase();
+      if (lower.includes('never')) scores.push(5);
+      else if (lower.includes('rarely')) scores.push(20);
+      else if (lower.includes('occasionally')) scores.push(50);
+      else if (lower.includes('frequently')) scores.push(75);
+      else if (lower.includes('constantly')) scores.push(95);
+    }
+
+    // Score work-life sacrifice frequency (0-100)
+    if (diagnostic.work_life_sacrifice_frequency) {
+      const lower = diagnostic.work_life_sacrifice_frequency.toLowerCase();
+      if (lower.includes('never')) scores.push(5);
+      else if (lower.includes('rarely')) scores.push(20);
+      else if (lower.includes('occasionally')) scores.push(50);
+      else if (lower.includes('frequently')) scores.push(75);
+      else if (lower.includes('constantly')) scores.push(95);
+    }
+
+    if (scores.length === 0) return null;
+
+    // Calculate simple average
+    const average = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+    // Map to risk levels with colors
+    if (average <= 25) return { level: 'Low', color: 'text-green-500', bgColor: 'bg-green-500', value: average };
+    if (average <= 50) return { level: 'Moderate', color: 'text-yellow-500', bgColor: 'bg-yellow-500', value: average };
+    if (average <= 75) return { level: 'High', color: 'text-orange-500', bgColor: 'bg-orange-500', value: average };
+    return { level: 'Critical', color: 'text-red-500', bgColor: 'bg-red-500', value: average };
   };
 
-  const burnoutInfo = getBurnoutLevel(diagnostic.burnout_frequency);
+  const burnoutInfo = calculateBurnoutRisk();
 
   return (
     <Card className="border-2 border-primary/20">
@@ -140,10 +172,7 @@ export default function DiagnosticInsights() {
                   <span className="text-xs font-medium">Burnout Risk</span>
                 </div>
                 <Progress value={burnoutInfo.value} className="mb-2" />
-                <p className="text-sm font-semibold capitalize">{burnoutInfo.level}</p>
-                {diagnostic.burnout_frequency && (
-                  <p className="text-xs text-muted-foreground mt-1">{diagnostic.burnout_frequency}</p>
-                )}
+                <p className="text-sm font-semibold">{burnoutInfo.level}</p>
               </CardContent>
             </Card>
           )}
