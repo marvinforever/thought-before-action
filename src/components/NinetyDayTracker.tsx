@@ -220,7 +220,7 @@ export default function NinetyDayTracker() {
           <CardContent className="pt-4 flex items-center justify-center min-h-[120px]">
             <Button variant="ghost" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Add Goal {goal.goal_number}
+              Add Target {goal.goal_number}
             </Button>
           </CardContent>
         </Card>;
