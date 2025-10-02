@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { jobDescription, employeeId, companyId } = await req.json();
+    const { jobDescription, jobTitle, employeeId, companyId } = await req.json();
     console.log('Analyzing job description for employee:', employeeId);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -40,18 +40,21 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Step 1: Try to match existing capabilities with confidence scoring
-    const matchSystemPrompt = `You are an expert HR analyst. Analyze the job description and determine if existing capabilities are a good match.
+    // Step 1: Match existing capabilities only (simplified - no custom capability creation)
+    const matchSystemPrompt = `You are an expert HR analyst. Analyze the job description and match it to existing capabilities.
 
 Available capabilities:
 ${capabilityContext}
 
 CRITICAL: You MUST use the EXACT UUID from the "ID:" field for each capability. Do NOT generate or modify capability IDs.
 
-For each relevant capability, provide a confidence score (0-100) indicating how well it matches the job requirements.
-Return confidence scores for the top 5 most relevant capabilities.
-
-If ALL top matches have confidence < 80%, indicate that custom capabilities are needed.`;
+Identify the top 3-7 most relevant capabilities for this job description.
+For each capability, provide:
+- Confidence score (0-100) indicating relevance
+- Current proficiency level the person likely has
+- Target proficiency level they should reach
+- Priority (1-5, where 5 is highest)
+- Reasoning for why this capability is relevant`;
 
     const matchResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -68,221 +71,8 @@ If ALL top matches have confidence < 80%, indicate that custom capabilities are 
         tools: [{
           type: 'function',
           function: {
-            name: 'evaluate_capability_matches',
-            description: 'Evaluate how well existing capabilities match the job description',
-            parameters: {
-              type: 'object',
-              properties: {
-                matches: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      capability_id: { type: 'string' },
-                      capability_name: { type: 'string' },
-                      confidence: { type: 'number', minimum: 0, maximum: 100 },
-                      reasoning: { type: 'string' }
-                    },
-                    required: ['capability_id', 'capability_name', 'confidence', 'reasoning']
-                  }
-                },
-                needs_custom_capability: { type: 'boolean', description: 'True if all matches have confidence < 80%' }
-              },
-              required: ['matches', 'needs_custom_capability']
-            }
-          }
-        }],
-        tool_choice: { type: 'function', function: { name: 'evaluate_capability_matches' } }
-      }),
-    });
-
-    if (!matchResponse.ok) {
-      const errorText = await matchResponse.text();
-      console.error('AI gateway error:', matchResponse.status, errorText);
-      throw new Error(`AI gateway error: ${matchResponse.status}`);
-    }
-
-    const matchData = await matchResponse.json();
-    const matchToolCall = matchData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!matchToolCall) {
-      throw new Error('No tool call in AI match response');
-    }
-
-    const matchResult = JSON.parse(matchToolCall.function.arguments);
-    console.log('Match evaluation:', matchResult);
-
-    // Step 2: If custom capability needed, generate it
-    if (matchResult.needs_custom_capability) {
-      console.log('Creating custom capability...');
-      
-      const customCapPrompt = `You are an expert at defining professional capabilities. Create a comprehensive capability definition for this job description.
-
-Generate:
-1. Capability name (concise, professional)
-2. Category (e.g., Technical, Leadership, Communication, Strategic Thinking, Adaptability)
-3. Short description (1-2 sentences)
-4. Full description (detailed explanation)
-5. Four progression levels with descriptions:
-   - Foundational: Basic understanding and application
-   - Advancing: Growing proficiency and independence
-   - Independent: Full autonomy and expertise
-   - Mastery: Expert-level, teaching others, driving innovation`;
-
-      const customResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: customCapPrompt },
-            { role: 'user', content: `Create a custom capability for this job:\n\n${jobDescription}` }
-          ],
-          tools: [{
-            type: 'function',
-            function: {
-              name: 'create_custom_capability',
-              description: 'Generate a complete custom capability definition',
-              parameters: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string' },
-                  category: { type: 'string' },
-                  description: { type: 'string' },
-                  full_description: { type: 'string' },
-                  levels: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        level: { type: 'string', enum: ['foundational', 'advancing', 'independent', 'mastery'] },
-                        description: { type: 'string' }
-                      },
-                      required: ['level', 'description']
-                    }
-                  }
-                },
-                required: ['name', 'category', 'description', 'full_description', 'levels']
-              }
-            }
-          }],
-          tool_choice: { type: 'function', function: { name: 'create_custom_capability' } }
-        }),
-      });
-
-      if (!customResponse.ok) {
-        throw new Error('Failed to generate custom capability');
-      }
-
-      const customData = await customResponse.json();
-      const customToolCall = customData.choices?.[0]?.message?.tool_calls?.[0];
-      if (!customToolCall) {
-        throw new Error('No tool call in custom capability response');
-      }
-
-      const customCapability = JSON.parse(customToolCall.function.arguments);
-      console.log('Generated custom capability:', customCapability);
-
-      // Store in custom_capabilities table
-      const { data: insertedCap, error: insertError } = await supabase
-        .from('custom_capabilities')
-        .insert({
-          name: customCapability.name,
-          category: customCapability.category,
-          description: customCapability.description,
-          full_description: customCapability.full_description,
-          company_id: companyId,
-          status: 'pending',
-          created_by_job_description: jobDescription,
-          ai_confidence_score: 0, // Custom capability since no good match
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Error inserting custom capability:', insertError);
-        throw insertError;
-      }
-
-      // Store capability levels
-      const levelsToInsert = customCapability.levels.map((level: any) => ({
-        custom_capability_id: insertedCap.id,
-        level: level.level,
-        description: level.description,
-      }));
-
-      const { error: levelsError } = await supabase
-        .from('capability_levels_pending')
-        .insert(levelsToInsert);
-
-      if (levelsError) {
-        console.error('Error inserting capability levels:', levelsError);
-        throw levelsError;
-      }
-
-      return new Response(JSON.stringify({ 
-        needsApproval: true,
-        message: 'Custom capability created and pending admin approval',
-        customCapabilityId: insertedCap.id
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Step 3: Use existing capabilities with high confidence
-    const validCapabilityIds = new Set(capabilities?.map(c => c.id) || []);
-    const nameToId = new Map((capabilities || []).map(c => [String(c.name).toLowerCase(), c.id]));
-    
-    const highConfidenceMatches = matchResult.matches
-      .filter((m: any) => {
-        const isValid = m.confidence >= 80 && validCapabilityIds.has(m.capability_id);
-        if (!isValid && m.confidence >= 80) {
-          // Attempt to map by name as a fallback if AI returned a slug instead of UUID
-          const mapped = nameToId.get(String(m.capability_name).toLowerCase());
-          if (mapped) {
-            m.capability_id = mapped;
-            return true;
-          }
-          console.warn(`Invalid capability_id from AI (no fallback by name): ${m.capability_id} (${m.capability_name})`);
-        }
-        return isValid;
-      });
-
-    if (highConfidenceMatches.length === 0) {
-      console.error('No valid high-confidence matches. Available IDs:', Array.from(validCapabilityIds));
-      console.error('AI returned matches:', matchResult.matches);
-      throw new Error('No high-confidence capability matches found');
-    }
-
-    // Get detailed suggestions for high-confidence matches
-    const suggestionPrompt = `For these capabilities, determine appropriate proficiency levels and priority for the job role.
-
-CRITICAL INSTRUCTION: You MUST use the EXACT capability_id UUID values provided below. Do NOT modify or create new IDs.
-
-Capabilities to evaluate:
-${highConfidenceMatches.map((m: any) => `ID: ${m.capability_id} | Name: ${m.capability_name} | Why relevant: ${m.reasoning}`).join('\n')}
-
-Job Description: ${jobDescription}`;
-
-    const suggestionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are an HR expert. Determine current and target proficiency levels.' },
-          { role: 'user', content: suggestionPrompt }
-        ],
-        tools: [{
-          type: 'function',
-          function: {
             name: 'suggest_capabilities',
-            description: 'Return capability suggestions with proficiency levels',
+            description: 'Match existing capabilities to the job description',
             parameters: {
               type: 'object',
               properties: {
@@ -310,19 +100,25 @@ Job Description: ${jobDescription}`;
       }),
     });
 
-    if (!suggestionResponse.ok) {
-      throw new Error('Failed to get capability suggestions');
+    if (!matchResponse.ok) {
+      const errorText = await matchResponse.text();
+      console.error('AI gateway error:', matchResponse.status, errorText);
+      throw new Error(`AI gateway error: ${matchResponse.status}`);
     }
 
-    const suggestionData = await suggestionResponse.json();
-    const suggestionToolCall = suggestionData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!suggestionToolCall) {
-      throw new Error('No tool call in suggestion response');
+    const analysisData = await matchResponse.json();
+    const toolCall = analysisData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      throw new Error('No tool call in AI response');
     }
 
-    const suggestions = JSON.parse(suggestionToolCall.function.arguments);
+    const suggestions = JSON.parse(toolCall.function.arguments);
+    console.log('AI suggestions:', suggestions);
 
-    // Map AI levels to database enum values
+    // Validate and sanitize suggestions
+    const validCapabilityIds = new Set(capabilities?.map(c => c.id) || []);
+    const nameToId = new Map((capabilities || []).map(c => [String(c.name).toLowerCase(), c.id]));
+    
     const levelMap: Record<string, 'foundational' | 'advancing' | 'independent' | 'mastery'> = {
       'beginner': 'foundational',
       'intermediate': 'advancing',
@@ -335,11 +131,7 @@ Job Description: ${jobDescription}`;
         let cid = s.capability_id;
         if (!validCapabilityIds.has(cid)) {
           const mapped = nameToId.get(String(s.capability_name).toLowerCase());
-          if (mapped) {
-            cid = mapped;
-          } else {
-            console.error(`Suggestion has invalid capability_id and no name match: ${s.capability_id} (${s.capability_name})`);
-          }
+          if (mapped) cid = mapped;
         }
         return {
           ...s,
@@ -352,7 +144,36 @@ Job Description: ${jobDescription}`;
       .filter((s: any) => validCapabilityIds.has(s.capability_id));
 
     if (sanitized.length === 0) {
-      throw new Error('All suggested capability IDs were invalid');
+      throw new Error('No valid capability matches found');
+    }
+
+    // Store job description in database
+    const { data: jobDescData, error: jobDescError } = await supabase
+      .from('job_descriptions')
+      .insert({
+        profile_id: employeeId,
+        company_id: companyId,
+        title: jobTitle || null,
+        description: jobDescription,
+        analysis_results: { suggestions: sanitized },
+        capabilities_assigned: sanitized.map((s: any) => s.capability_id),
+        is_current: true
+      })
+      .select()
+      .single();
+
+    if (jobDescError) {
+      console.error('Error storing job description:', jobDescError);
+      // Don't fail the request if storage fails
+    } else {
+      console.log('Stored job description:', jobDescData.id);
+      
+      // Mark previous job descriptions as not current
+      await supabase
+        .from('job_descriptions')
+        .update({ is_current: false })
+        .eq('profile_id', employeeId)
+        .neq('id', jobDescData.id);
     }
 
     // Track usage for existing capabilities

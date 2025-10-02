@@ -701,6 +701,60 @@ export type Database = {
           },
         ]
       }
+      job_descriptions: {
+        Row: {
+          analysis_results: Json | null
+          capabilities_assigned: Json | null
+          company_id: string
+          created_at: string
+          description: string
+          id: string
+          is_current: boolean
+          profile_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          analysis_results?: Json | null
+          capabilities_assigned?: Json | null
+          company_id: string
+          created_at?: string
+          description: string
+          id?: string
+          is_current?: boolean
+          profile_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analysis_results?: Json | null
+          capabilities_assigned?: Json | null
+          company_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_current?: boolean
+          profile_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_descriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_descriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_id: string | null

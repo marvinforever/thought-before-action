@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Brain, CheckCircle2 } from "lucide-react";
+import { Loader2, Brain, CheckCircle2, FileText, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -30,14 +31,40 @@ interface CapabilitySuggestion {
 
 export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescriptionDialogProps) {
   const { toast } = useToast();
+  const [jobTitle, setJobTitle] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<CapabilitySuggestion[]>([]);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [isAssigning, setIsAssigning] = useState(false);
+  const [previousDescriptions, setPreviousDescriptions] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
-  const handleAnalyze = async () => {
-    if (!jobDescription.trim()) {
+  // Load previous job descriptions
+  useEffect(() => {
+    if (open && employee.id) {
+      loadPreviousDescriptions();
+    }
+  }, [open, employee.id]);
+
+  const loadPreviousDescriptions = async () => {
+    const { data, error } = await supabase
+      .from('job_descriptions')
+      .select('*')
+      .eq('profile_id', employee.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (!error && data) {
+      setPreviousDescriptions(data);
+    }
+  };
+
+  const handleAnalyze = async (descriptionToAnalyze?: string, titleToAnalyze?: string) => {
+    const description = descriptionToAnalyze || jobDescription;
+    const title = titleToAnalyze || jobTitle;
+
+    if (!description.trim()) {
       toast({
         title: "Job description required",
         description: "Please enter a job description to analyze",
@@ -50,7 +77,8 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
     try {
       const { data, error } = await supabase.functions.invoke('analyze-job-description', {
         body: { 
-          jobDescription, 
+          jobDescription: description,
+          jobTitle: title,
           employeeId: employee.id,
           companyId: employee.company_id 
         }
@@ -58,34 +86,32 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
 
       if (error) throw error;
 
-      if (data.needsApproval) {
+      if (data.suggestions) {
+        setSuggestions(data.suggestions);
+        setSelectedSuggestions(new Set(data.suggestions.map((s: CapabilitySuggestion) => s.capability_id)));
         toast({
-          title: "Custom Capability Created",
-          description: "A custom capability was generated and is pending admin approval. No capabilities assigned yet.",
+          title: "Analysis complete",
+          description: `Found ${data.suggestions.length} matching capabilities`,
         });
-        onOpenChange(false);
-        setJobDescription("");
-        setSuggestions([]);
-        return;
+        await loadPreviousDescriptions();
       }
-
-      setSuggestions(data.suggestions || []);
-      setSelectedSuggestions(new Set(data.suggestions.map((s: CapabilitySuggestion) => s.capability_id)));
-      
-      toast({
-        title: "Analysis complete",
-        description: `Found ${data.suggestions?.length || 0} capability suggestions`,
-      });
     } catch (error) {
       console.error('Error analyzing job description:', error);
       toast({
         title: "Analysis failed",
-        description: "Could not analyze job description. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to analyze job description",
         variant: "destructive",
       });
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleReanalyze = (description: any) => {
+    setJobTitle(description.title || "");
+    setJobDescription(description.description);
+    setShowHistory(false);
+    handleAnalyze(description.description, description.title);
   };
 
   const toggleSuggestion = (capabilityId: string) => {
@@ -167,6 +193,65 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
         </DialogHeader>
 
         <div className="space-y-6">
+          {previousDescriptions.length > 0 && (
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {previousDescriptions.length} previous {previousDescriptions.length === 1 ? 'analysis' : 'analyses'} available
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                {showHistory ? "Hide History" : "Show History"}
+              </Button>
+            </div>
+          )}
+
+          {showHistory && (
+            <div className="space-y-2 p-3 bg-muted rounded-lg max-h-[300px] overflow-y-auto">
+              <h4 className="font-medium text-sm mb-2">Previous Analyses</h4>
+              {previousDescriptions.map((desc) => (
+                <div key={desc.id} className="flex items-start justify-between p-3 bg-background rounded border gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">{desc.title || "Untitled"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(desc.created_at).toLocaleDateString()}
+                      {desc.is_current && <span className="ml-2 text-primary">(Current)</span>}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {desc.description}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleReanalyze(desc)}
+                    disabled={isAnalyzing}
+                    className="flex-shrink-0"
+                  >
+                    <RotateCw className="h-3 w-3 mr-1" />
+                    Re-analyze
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Job Title (Optional)
+            </label>
+            <Input
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="e.g., Senior Software Engineer"
+            />
+          </div>
+
           <div>
             <label className="text-sm font-medium mb-2 block">
               Job Description
@@ -181,7 +266,7 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
           </div>
 
           <Button 
-            onClick={handleAnalyze} 
+            onClick={() => handleAnalyze()} 
             disabled={isAnalyzing || !jobDescription.trim()}
             className="w-full"
           >

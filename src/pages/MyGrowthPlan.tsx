@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw } from "lucide-react";
 
 type GrowthPlanResource = {
   id: string;
@@ -45,16 +45,28 @@ type EmployeeCapability = {
   };
 };
 
+type JobDescription = {
+  id: string;
+  title: string | null;
+  description: string;
+  created_at: string;
+  is_current: boolean;
+  analysis_results: any;
+};
+
 export default function MyGrowthPlan() {
   const [resources, setResources] = useState<GrowthPlanResource[]>([]);
   const [capabilities, setCapabilities] = useState<EmployeeCapability[]>([]);
+  const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
     loadGrowthPlan();
     loadCapabilities();
+    loadJobDescriptions();
   }, []);
 
   const loadGrowthPlan = async () => {
@@ -143,6 +155,88 @@ export default function MyGrowthPlan() {
       setCapabilities((data as any) || []);
     } catch (error: any) {
       console.error("Error loading capabilities:", error);
+    }
+  };
+
+  const loadJobDescriptions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("job_descriptions")
+        .select("*")
+        .eq("profile_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setJobDescriptions(data || []);
+    } catch (error) {
+      console.error("Error loading job descriptions:", error);
+    }
+  };
+
+  const handleReanalyze = async (jobDesc: JobDescription) => {
+    setIsReanalyzing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) throw new Error("Profile not found");
+
+      const { data, error } = await supabase.functions.invoke('analyze-job-description', {
+        body: { 
+          jobDescription: jobDesc.description,
+          jobTitle: jobDesc.title,
+          employeeId: user.id,
+          companyId: profile.company_id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.suggestions) {
+        // Auto-assign the suggestions
+        const capabilitiesToAssign = data.suggestions.map((s: any) => ({
+          profile_id: user.id,
+          capability_id: s.capability_id,
+          current_level: s.current_level,
+          target_level: s.target_level,
+          priority: s.priority,
+          ai_reasoning: s.reasoning,
+        }));
+
+        await supabase
+          .from('employee_capabilities')
+          .upsert(capabilitiesToAssign, {
+            onConflict: 'profile_id,capability_id',
+          });
+
+        toast({
+          title: "Re-analysis complete",
+          description: `Updated ${data.suggestions.length} capabilities based on your job description`,
+        });
+
+        // Reload data
+        await loadCapabilities();
+        await loadJobDescriptions();
+      }
+    } catch (error) {
+      console.error('Error re-analyzing:', error);
+      toast({
+        title: "Re-analysis failed",
+        description: error instanceof Error ? error.message : "Failed to re-analyze job description",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReanalyzing(false);
     }
   };
 
@@ -250,6 +344,61 @@ export default function MyGrowthPlan() {
           Your personalized learning path and assigned capabilities
         </p>
       </div>
+
+      {jobDescriptions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Job Description History
+            </CardTitle>
+            <CardDescription>
+              Previous job descriptions analyzed for your role
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {jobDescriptions.slice(0, 3).map((jobDesc) => (
+                <Card key={jobDesc.id} className="border-l-4 border-l-muted">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-semibold text-sm">{jobDesc.title || "Untitled"}</h4>
+                          {jobDesc.is_current && (
+                            <Badge variant="default" className="text-xs">Current</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Analyzed {new Date(jobDesc.created_at).toLocaleDateString()}
+                        </p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {jobDesc.description}
+                        </p>
+                        {jobDesc.analysis_results?.suggestions && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {jobDesc.analysis_results.suggestions.length} capabilities identified
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleReanalyze(jobDesc)}
+                        disabled={isReanalyzing}
+                        className="flex-shrink-0"
+                      >
+                        <RotateCw className="h-3 w-3 mr-1" />
+                        Re-analyze
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {capabilities.length > 0 && (
         <Card>
