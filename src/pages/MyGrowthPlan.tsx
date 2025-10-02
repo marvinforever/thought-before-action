@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles } from "lucide-react";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
@@ -64,6 +64,7 @@ export default function MyGrowthPlan() {
   const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
+  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const { toast } = useToast();
 
@@ -178,6 +179,49 @@ export default function MyGrowthPlan() {
       setJobDescriptions(data || []);
     } catch (error) {
       console.error("Error loading job descriptions:", error);
+    }
+  };
+
+  const handleGetRecommendations = async () => {
+    setIsGeneratingRecommendations(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) throw new Error("Profile not found");
+
+      const { data, error } = await supabase.functions.invoke('recommend-resources', {
+        body: { 
+          employeeId: user.id,
+          companyId: profile.company_id,
+          triggerSource: 'manual',
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Recommendations generated!",
+        description: `Jericho has added ${data.count} personalized resources to your growth plan.`,
+      });
+
+      // Reload resources
+      await loadGrowthPlan();
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      toast({
+        title: "Failed to generate recommendations",
+        description: error instanceof Error ? error.message : "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingRecommendations(false);
     }
   };
 
@@ -466,6 +510,25 @@ export default function MyGrowthPlan() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                onClick={handleGetRecommendations}
+                disabled={isGeneratingRecommendations}
+                className="gap-2"
+              >
+                {isGeneratingRecommendations ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Jericho is thinking...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Get Recommendations
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>

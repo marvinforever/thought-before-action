@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Brain, 
   TrendingUp, 
@@ -12,7 +14,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Lightbulb
+  Lightbulb,
+  Sparkles,
+  Loader2
 } from "lucide-react";
 
 type DiagnosticResponse = {
@@ -37,6 +41,8 @@ type DiagnosticResponse = {
 export default function DiagnosticInsights() {
   const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGettingHelp, setIsGettingHelp] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadDiagnostic();
@@ -59,6 +65,46 @@ export default function DiagnosticInsights() {
       console.error("Error loading diagnostic:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGetHelp = async (area: string) => {
+    setIsGettingHelp(area);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) throw new Error("Profile not found");
+
+      const { data, error } = await supabase.functions.invoke('recommend-resources', {
+        body: { 
+          employeeId: user.id,
+          companyId: profile.company_id,
+          triggerSource: area,
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Help is on the way!",
+        description: `Jericho has recommended resources to help with ${area}.`,
+      });
+    } catch (error) {
+      console.error('Error getting help:', error);
+      toast({
+        title: "Failed to get help",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGettingHelp(null);
     }
   };
 
@@ -135,6 +181,22 @@ export default function DiagnosticInsights() {
                 </div>
                 <Progress value={diagnostic.role_clarity_score * 10} className="mb-2" />
                 <p className="text-2xl font-bold">{diagnostic.role_clarity_score}/10</p>
+                {diagnostic.role_clarity_score < 7 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 text-xs"
+                    onClick={() => handleGetHelp('role_clarity')}
+                    disabled={isGettingHelp === 'role_clarity'}
+                  >
+                    {isGettingHelp === 'role_clarity' ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    Get Help
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -148,6 +210,22 @@ export default function DiagnosticInsights() {
                 </div>
                 <Progress value={diagnostic.confidence_score * 10} className="mb-2" />
                 <p className="text-2xl font-bold">{diagnostic.confidence_score}/10</p>
+                {diagnostic.confidence_score < 7 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 text-xs"
+                    onClick={() => handleGetHelp('confidence')}
+                    disabled={isGettingHelp === 'confidence'}
+                  >
+                    {isGettingHelp === 'confidence' ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    Get Help
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -161,6 +239,22 @@ export default function DiagnosticInsights() {
                 </div>
                 <Progress value={diagnostic.work_life_integration_score * 10} className="mb-2" />
                 <p className="text-2xl font-bold">{diagnostic.work_life_integration_score}/10</p>
+                {diagnostic.work_life_integration_score < 7 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 text-xs"
+                    onClick={() => handleGetHelp('work_life_balance')}
+                    disabled={isGettingHelp === 'work_life_balance'}
+                  >
+                    {isGettingHelp === 'work_life_balance' ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    Get Help
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -174,6 +268,22 @@ export default function DiagnosticInsights() {
                 </div>
                 <Progress value={burnoutInfo.value} className="mb-2" />
                 <p className="text-sm font-semibold">{burnoutInfo.level}</p>
+                {burnoutInfo.value > 50 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 text-xs"
+                    onClick={() => handleGetHelp('burnout_risk')}
+                    disabled={isGettingHelp === 'burnout_risk'}
+                  >
+                    {isGettingHelp === 'burnout_risk' ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    Get Help
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
