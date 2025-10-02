@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,10 @@ const Employees = () => {
   const [jobDescEmployee, setJobDescEmployee] = useState<Employee | null>(null);
   const [capabilitiesEmployee, setCapabilitiesEmployee] = useState<Employee | null>(null);
   const [assignCapabilitiesEmployee, setAssignCapabilitiesEmployee] = useState<Employee | null>(null);
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({ fullName: "", email: "", role: "", phone: "" });
+  const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -186,6 +190,60 @@ const Employees = () => {
         description: error.message || "Failed to delete employee",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleEditClick = (employee: Employee) => {
+    setEditEmployee(employee);
+    setEditFormData({
+      fullName: employee.full_name,
+      email: employee.email,
+      role: employee.role || "",
+      phone: "", // Phone is not in the Employee interface, will be loaded if needed
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (!editEmployee || !editFormData.fullName || !editFormData.email) {
+      toast({
+        title: "Validation error",
+        description: "Name and email are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: editFormData.fullName,
+          email: editFormData.email.toLowerCase().trim(),
+          role: editFormData.role || null,
+          phone: editFormData.phone || null,
+        })
+        .eq("id", editEmployee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Employee updated successfully",
+      });
+
+      setEditDialogOpen(false);
+      setEditEmployee(null);
+      loadEmployees();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update employee",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -341,6 +399,10 @@ const Employees = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditClick(employee)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit Employee
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setCapabilitiesEmployee(employee)}>
                               <Target className="mr-2 h-4 w-4" />
                               View Capabilities
@@ -387,6 +449,64 @@ const Employees = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Employee</DialogTitle>
+            <DialogDescription>
+              Update employee information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editFullName">Full Name *</Label>
+              <Input
+                id="editFullName"
+                value={editFormData.fullName}
+                onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editEmail">Email *</Label>
+              <Input
+                id="editEmail"
+                type="email"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                placeholder="john@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editRole">Role</Label>
+              <Input
+                id="editRole"
+                value={editFormData.role}
+                onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                placeholder="Software Engineer"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPhone">Phone</Label>
+              <Input
+                id="editPhone"
+                value={editFormData.phone}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                placeholder="+1 (555) 123-4567"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateEmployee} disabled={updating}>
+              {updating ? "Updating..." : "Update Employee"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
