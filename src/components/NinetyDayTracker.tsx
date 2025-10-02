@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Target, Plus, Check, Trash2 } from "lucide-react";
+import { Calendar, Target, Plus, Check, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 type NinetyDayTarget = {
   id: string;
@@ -34,6 +34,8 @@ export default function NinetyDayTracker() {
     byWhen: "",
     supportNeeded: ""
   });
+  const [aiSuggestion, setAiSuggestion] = useState("");
+  const [isLoadingAi, setIsLoadingAi] = useState(false);
   const {
     toast
   } = useToast();
@@ -177,6 +179,110 @@ export default function NinetyDayTracker() {
         supportNeeded: ""
       });
     }
+    setAiSuggestion("");
+  };
+
+  const handleGetAiHelp = async () => {
+    if (!editingGoal) return;
+    
+    setIsLoadingAi(true);
+    setAiSuggestion("");
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/help-write-goal`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            draftGoal: formData.goalText,
+            category: editingGoal.category,
+            quarter: editingGoal.quarter,
+          }),
+        }
+      );
+
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to get AI help');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let streamDone = false;
+
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") {
+            streamDone = true;
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              setAiSuggestion(prev => prev + content);
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split("\n")) {
+          if (!raw) continue;
+          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+          if (raw.startsWith(":") || raw.trim() === "") continue;
+          if (!raw.startsWith("data: ")) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              setAiSuggestion(prev => prev + content);
+            }
+          } catch { /* ignore partial leftovers */ }
+        }
+      }
+    } catch (error: any) {
+      console.error('Error getting AI help:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to get AI assistance. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingAi(false);
+    }
+  };
+
+  const handleUseAiSuggestion = () => {
+    setFormData(prev => ({
+      ...prev,
+      goalText: aiSuggestion,
+    }));
+    setAiSuggestion("");
   };
   const renderGoalCard = (goal: any, quarter: string, category: string) => {
     const isEditing = editingGoal?.quarter === quarter && editingGoal?.category === category && editingGoal?.number === goal.goal_number;
@@ -184,12 +290,50 @@ export default function NinetyDayTracker() {
       return <Card key={`${quarter}-${category}-${goal.goal_number}`} className="border-primary">
           <CardContent className="pt-4 space-y-3">
             <div>
-              <label className="text-xs font-medium mb-1 block">Goal {goal.goal_number}</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">Goal {goal.goal_number}</label>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={handleGetAiHelp}
+                  disabled={isLoadingAi}
+                  className="text-xs h-7"
+                >
+                  {isLoadingAi ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Writing...</>
+                  ) : (
+                    <><Sparkles className="h-3 w-3 mr-1" /> Get Help Writing</>
+                  )}
+                </Button>
+              </div>
               <Textarea value={formData.goalText} onChange={e => setFormData({
               ...formData,
               goalText: e.target.value
             })} placeholder="What do you want to accomplish?" className="min-h-[80px]" />
             </div>
+
+            {(aiSuggestion || isLoadingAi) && (
+              <div className="bg-muted rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium">Jericho suggests:</span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap">
+                  {aiSuggestion || (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Thinking...
+                    </span>
+                  )}
+                </p>
+                {aiSuggestion && (
+                  <Button size="sm" variant="outline" onClick={handleUseAiSuggestion}>
+                    Use This Goal
+                  </Button>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="text-xs font-medium mb-1 block">By When?</label>
               <Input type="date" value={formData.byWhen} onChange={e => setFormData({

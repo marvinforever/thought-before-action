@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.chat-with-jericho]
 verify_jwt = true
+
+[functions.help-write-goal]
+verify_jwt = true
