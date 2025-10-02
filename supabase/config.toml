@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.recommend-resources]
 verify_jwt = true
+
+[functions.chat-with-jericho]
+verify_jwt = true

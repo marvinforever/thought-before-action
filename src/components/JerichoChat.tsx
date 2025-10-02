@@ -1,0 +1,238 @@
+import { useState, useRef, useEffect } from 'react';
+import { X, Send, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface JerichoChatProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialMessage?: string;
+  contextType?: string;
+}
+
+export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: JerichoChatProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Load conversation history on mount
+  useEffect(() => {
+    if (isOpen) {
+      loadConversationHistory();
+    }
+  }, [isOpen]);
+
+  // Send initial message if provided
+  useEffect(() => {
+    if (isOpen && initialMessage && messages.length === 0) {
+      handleSendMessage(initialMessage);
+    }
+  }, [isOpen, initialMessage]);
+
+  const loadConversationHistory = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get most recent conversation
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('profile_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (conversations && conversations.length > 0) {
+        const convId = conversations[0].id;
+        setConversationId(convId);
+
+        // Load messages
+        const { data: messageData } = await supabase
+          .from('conversation_messages')
+          .select('*')
+          .eq('conversation_id', convId)
+          .order('created_at', { ascending: true });
+
+        if (messageData) {
+          setMessages(
+            messageData.map(m => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+              timestamp: new Date(m.created_at),
+            }))
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error loading conversation history:', error);
+    }
+  };
+
+  const handleSendMessage = async (messageText?: string) => {
+    const textToSend = messageText || input.trim();
+    if (!textToSend || isLoading) return;
+
+    const userMessage: Message = {
+      role: 'user',
+      content: textToSend,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('chat-with-jericho', {
+        body: {
+          conversationId,
+          message: textToSend,
+          contextType,
+        },
+      });
+
+      if (error) throw error;
+
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: data.message,
+        timestamp: new Date(),
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      if (!conversationId) {
+        setConversationId(data.conversationId);
+      }
+    } catch (error) {
+      console.error('Error chatting with Jericho:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to get response from Jericho. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-background border-l border-border shadow-2xl z-50 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+        <div>
+          <h2 className="text-lg font-semibold">Jericho</h2>
+          <p className="text-xs text-muted-foreground">Your AI Career Coach</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="hover:bg-accent"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        {messages.length === 0 && !isLoading && (
+          <div className="text-center text-muted-foreground py-8">
+            <p className="text-sm mb-2">👋 Hey! I'm Jericho.</p>
+            <p className="text-xs">
+              I'm here to help you crush your goals, prep for reviews, and level up your career.
+              Let's get to work.
+            </p>
+          </div>
+        )}
+
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`mb-4 ${
+              msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'
+            }`}
+          >
+            <div
+              className={`max-w-[85%] rounded-lg p-3 ${
+                msg.role === 'user'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground'
+              }`}
+            >
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              <p className="text-xs opacity-70 mt-1">
+                {msg.timestamp.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {isLoading && (
+          <div className="flex justify-start mb-4">
+            <div className="bg-muted rounded-lg p-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </ScrollArea>
+
+      {/* Input */}
+      <div className="p-4 border-t border-border bg-card">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type your message..."
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button
+            onClick={() => handleSendMessage()}
+            disabled={isLoading || !input.trim()}
+            size="icon"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

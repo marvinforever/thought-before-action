@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { JerichoChat } from "./JerichoChat";
 import { 
   Brain, 
   TrendingUp, 
@@ -41,7 +42,8 @@ type DiagnosticResponse = {
 export default function DiagnosticInsights() {
   const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isGettingHelp, setIsGettingHelp] = useState<string | null>(null);
+  const [jerichoOpen, setJerichoOpen] = useState(false);
+  const [jerichoContext, setJerichoContext] = useState<{message?: string, type?: string}>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,44 +70,19 @@ export default function DiagnosticInsights() {
     }
   };
 
-  const handleGetHelp = async (area: string) => {
-    setIsGettingHelp(area);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const handleGetHelp = (area: string) => {
+    const contextMessages = {
+      role_clarity: "I'm struggling with understanding my role clearly. Can you help me think through this?",
+      confidence: "I'm feeling uncertain about my direction. Can we talk through this?",
+      work_life_balance: "I need help with my work-life balance. What should I be thinking about?",
+      burnout_risk: "I'm concerned about burnout. Can you help me develop a plan?",
+    };
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile) throw new Error("Profile not found");
-
-      const { data, error } = await supabase.functions.invoke('recommend-resources', {
-        body: { 
-          employeeId: user.id,
-          companyId: profile.company_id,
-          triggerSource: area,
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Help is on the way!",
-        description: `Jericho has recommended resources to help with ${area}.`,
-      });
-    } catch (error) {
-      console.error('Error getting help:', error);
-      toast({
-        title: "Failed to get help",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGettingHelp(null);
-    }
+    setJerichoContext({
+      message: contextMessages[area as keyof typeof contextMessages] || "I need some help with my career development.",
+      type: area,
+    });
+    setJerichoOpen(true);
   };
 
   if (loading) return null;
@@ -187,13 +164,8 @@ export default function DiagnosticInsights() {
                     size="sm"
                     className="w-full mt-2 text-xs"
                     onClick={() => handleGetHelp('role_clarity')}
-                    disabled={isGettingHelp === 'role_clarity'}
                   >
-                    {isGettingHelp === 'role_clarity' ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
-                    )}
+                    <Sparkles className="h-3 w-3 mr-1" />
                     Get Help
                   </Button>
                 )}
@@ -216,13 +188,8 @@ export default function DiagnosticInsights() {
                     size="sm"
                     className="w-full mt-2 text-xs"
                     onClick={() => handleGetHelp('confidence')}
-                    disabled={isGettingHelp === 'confidence'}
                   >
-                    {isGettingHelp === 'confidence' ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
-                    )}
+                    <Sparkles className="h-3 w-3 mr-1" />
                     Get Help
                   </Button>
                 )}
@@ -245,13 +212,8 @@ export default function DiagnosticInsights() {
                     size="sm"
                     className="w-full mt-2 text-xs"
                     onClick={() => handleGetHelp('work_life_balance')}
-                    disabled={isGettingHelp === 'work_life_balance'}
                   >
-                    {isGettingHelp === 'work_life_balance' ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
-                    )}
+                    <Sparkles className="h-3 w-3 mr-1" />
                     Get Help
                   </Button>
                 )}
@@ -274,13 +236,8 @@ export default function DiagnosticInsights() {
                     size="sm"
                     className="w-full mt-2 text-xs"
                     onClick={() => handleGetHelp('burnout_risk')}
-                    disabled={isGettingHelp === 'burnout_risk'}
                   >
-                    {isGettingHelp === 'burnout_risk' ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
-                    )}
+                    <Sparkles className="h-3 w-3 mr-1" />
                     Get Help
                   </Button>
                 )}
@@ -366,6 +323,13 @@ export default function DiagnosticInsights() {
         )}
 
       </CardContent>
+
+      <JerichoChat
+        isOpen={jerichoOpen}
+        onClose={() => setJerichoOpen(false)}
+        initialMessage={jerichoContext.message}
+        contextType={jerichoContext.type}
+      />
     </Card>
   );
 }
