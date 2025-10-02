@@ -71,10 +71,11 @@ export default function DiagnosticInsights() {
     // Score workload status (0-100)
     if (diagnostic.workload_status) {
       const lower = diagnostic.workload_status.toLowerCase();
-      if (lower.includes('very manageable')) scores.push(10);
-      else if (lower.includes('manageable')) scores.push(30);
-      else if (lower.includes('somewhat overwhelming')) scores.push(65);
-      else if (lower.includes('very overwhelming')) scores.push(90);
+      if (lower.includes('very manageable') || lower.includes('light')) scores.push(10);
+      else if (lower.includes('manageable') || lower.includes('balanced')) scores.push(30);
+      else if (lower.includes('stretched') || lower.includes('busy')) scores.push(55);
+      else if (lower.includes('somewhat overwhelming') || lower.includes('challenging')) scores.push(70);
+      else if (lower.includes('very overwhelming') || lower.includes('unsustainable')) scores.push(90);
     }
 
     // Score burnout frequency (0-100)
