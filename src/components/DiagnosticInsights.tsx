@@ -30,6 +30,10 @@ type DiagnosticResponse = {
   skill_to_master: string | null;
   learning_preference: string | null;
   weekly_development_hours: number | null;
+  burnout_frequency: string | null;
+  daily_energy_level: string | null;
+  energy_drain_area: string | null;
+  mental_drain_frequency: string | null;
 };
 
 export default function DiagnosticInsights() {
@@ -63,6 +67,18 @@ export default function DiagnosticInsights() {
   if (loading) return null;
   if (!diagnostic) return null;
 
+  const getBurnoutLevel = (frequency: string | null) => {
+    if (!frequency) return null;
+    const lower = frequency.toLowerCase();
+    if (lower.includes('never') || lower.includes('rarely')) return { level: 'low', color: 'text-green-500', bgColor: 'bg-green-500', value: 20 };
+    if (lower.includes('occasionally') || lower.includes('sometimes')) return { level: 'moderate', color: 'text-yellow-500', bgColor: 'bg-yellow-500', value: 50 };
+    if (lower.includes('frequently') || lower.includes('often')) return { level: 'high', color: 'text-orange-500', bgColor: 'bg-orange-500', value: 75 };
+    if (lower.includes('constantly') || lower.includes('always')) return { level: 'critical', color: 'text-red-500', bgColor: 'bg-red-500', value: 95 };
+    return { level: 'moderate', color: 'text-yellow-500', bgColor: 'bg-yellow-500', value: 50 };
+  };
+
+  const burnoutInfo = getBurnoutLevel(diagnostic.burnout_frequency);
+
   return (
     <Card className="border-2 border-primary/20">
       <CardHeader>
@@ -76,20 +92,7 @@ export default function DiagnosticInsights() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Key Metrics */}
-        <div className="grid gap-4 md:grid-cols-3">
-          {diagnostic.confidence_score !== null && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                  <span className="text-xs font-medium">Confidence</span>
-                </div>
-                <Progress value={diagnostic.confidence_score * 10} className="mb-2" />
-                <p className="text-2xl font-bold">{diagnostic.confidence_score}/10</p>
-              </CardContent>
-            </Card>
-          )}
-
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {diagnostic.role_clarity_score !== null && (
             <Card>
               <CardContent className="pt-4">
@@ -103,6 +106,19 @@ export default function DiagnosticInsights() {
             </Card>
           )}
 
+          {diagnostic.confidence_score !== null && (
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs font-medium">Certainty</span>
+                </div>
+                <Progress value={diagnostic.confidence_score * 10} className="mb-2" />
+                <p className="text-2xl font-bold">{diagnostic.confidence_score}/10</p>
+              </CardContent>
+            </Card>
+          )}
+
           {diagnostic.work_life_integration_score !== null && (
             <Card>
               <CardContent className="pt-4">
@@ -112,6 +128,22 @@ export default function DiagnosticInsights() {
                 </div>
                 <Progress value={diagnostic.work_life_integration_score * 10} className="mb-2" />
                 <p className="text-2xl font-bold">{diagnostic.work_life_integration_score}/10</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {burnoutInfo && (
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className={`h-4 w-4 ${burnoutInfo.color}`} />
+                  <span className="text-xs font-medium">Burnout Risk</span>
+                </div>
+                <Progress value={burnoutInfo.value} className="mb-2" />
+                <p className="text-sm font-semibold capitalize">{burnoutInfo.level}</p>
+                {diagnostic.burnout_frequency && (
+                  <p className="text-xs text-muted-foreground mt-1">{diagnostic.burnout_frequency}</p>
+                )}
               </CardContent>
             </Card>
           )}
