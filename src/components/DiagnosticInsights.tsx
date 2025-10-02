@@ -71,7 +71,7 @@ export default function DiagnosticInsights() {
           My Personal Insights
         </CardTitle>
         <CardDescription>
-          Based on your diagnostic assessment
+          These scores reflect your responses from the diagnostic survey, helping identify areas of strength and opportunities for growth
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -117,27 +117,6 @@ export default function DiagnosticInsights() {
           )}
         </div>
 
-        {/* Status Badges */}
-        <div className="flex flex-wrap gap-2">
-          {diagnostic.workload_status && (
-            <Badge variant="outline" className="gap-1">
-              <Clock className="h-3 w-3" />
-              Workload: {diagnostic.workload_status}
-            </Badge>
-          )}
-          {diagnostic.sees_growth_path !== null && (
-            <Badge variant={diagnostic.sees_growth_path ? "default" : "secondary"} className="gap-1">
-              {diagnostic.sees_growth_path ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-              {diagnostic.sees_growth_path ? "Clear Growth Path" : "Unclear Growth Path"}
-            </Badge>
-          )}
-          {diagnostic.manages_others && (
-            <Badge variant="outline" className="gap-1">
-              <Users className="h-3 w-3" />
-              Manages Others
-            </Badge>
-          )}
-        </div>
 
         {/* Goals & Focus Areas */}
         <div className="grid gap-4 md:grid-cols-2">
@@ -214,26 +193,6 @@ export default function DiagnosticInsights() {
           </div>
         )}
 
-        {/* Learning Info */}
-        {(diagnostic.learning_preference || diagnostic.weekly_development_hours !== null) && (
-          <div className="bg-muted/30 p-4 rounded-md">
-            <h4 className="text-sm font-semibold mb-3">Learning Preferences</h4>
-            <div className="flex flex-wrap gap-4">
-              {diagnostic.learning_preference && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Preferred Learning Style</p>
-                  <Badge variant="secondary">{diagnostic.learning_preference}</Badge>
-                </div>
-              )}
-              {diagnostic.weekly_development_hours !== null && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Weekly Development Hours</p>
-                  <Badge variant="secondary">{diagnostic.weekly_development_hours} hours</Badge>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
