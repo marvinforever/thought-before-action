@@ -11,6 +11,7 @@ import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
 import GreatnessTracker from "@/components/GreatnessTracker";
+import InteractiveCapabilityCard from "@/components/InteractiveCapabilityCard";
 
 type GrowthPlanResource = {
   id: string;
@@ -62,6 +63,7 @@ type JobDescription = {
 export default function MyGrowthPlan() {
   const [resources, setResources] = useState<GrowthPlanResource[]>([]);
   const [capabilities, setCapabilities] = useState<EmployeeCapability[]>([]);
+  const [capabilityResources, setCapabilityResources] = useState<Record<string, any[]>>({});
   const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
@@ -73,6 +75,7 @@ export default function MyGrowthPlan() {
     loadGrowthPlan();
     loadCapabilities();
     loadJobDescriptions();
+    loadCapabilityResources();
   }, []);
 
   const loadGrowthPlan = async () => {
@@ -183,6 +186,55 @@ export default function MyGrowthPlan() {
     }
   };
 
+  const loadCapabilityResources = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get all employee capabilities with their IDs
+      const { data: empCaps } = await supabase
+        .from("employee_capabilities")
+        .select("id, capability_id")
+        .eq("profile_id", user.id);
+
+      if (!empCaps) return;
+
+      // Get resources for each capability
+      const { data: recommendations } = await supabase
+        .from("content_recommendations")
+        .select(`
+          employee_capability_id,
+          resource:resources(
+            id,
+            title,
+            description,
+            content_type,
+            external_url,
+            rating,
+            capability_level
+          )
+        `)
+        .eq("profile_id", user.id)
+        .in("employee_capability_id", empCaps.map(c => c.id));
+
+      if (!recommendations) return;
+
+      // Group resources by capability_id
+      const grouped: Record<string, any[]> = {};
+      empCaps.forEach(empCap => {
+        const capResources = recommendations
+          .filter(r => r.employee_capability_id === empCap.id)
+          .map(r => r.resource)
+          .filter(r => r !== null);
+        grouped[empCap.capability_id] = capResources;
+      });
+
+      setCapabilityResources(grouped);
+    } catch (error) {
+      console.error("Error loading capability resources:", error);
+    }
+  };
+
   const handleGetRecommendations = async () => {
     setIsGeneratingRecommendations(true);
     try {
@@ -214,6 +266,7 @@ export default function MyGrowthPlan() {
 
       // Reload resources
       await loadGrowthPlan();
+      await loadCapabilityResources();
     } catch (error) {
       console.error('Error generating recommendations:', error);
       toast({
@@ -287,6 +340,23 @@ export default function MyGrowthPlan() {
     } finally {
       setIsReanalyzing(false);
     }
+  };
+
+  const handleRequestLevelChange = async (capabilityId: string) => {
+    toast({
+      title: "Request submitted",
+      description: "Your manager will review your level change request.",
+    });
+    // TODO: Implement level change request logic
+  };
+
+  const handleResourceClick = async (resourceId: string, url: string) => {
+    // Find the recommendation ID from the resource
+    const recommendation = resources.find(r => r.resource?.id === resourceId);
+    if (recommendation) {
+      await markAsClicked(recommendation.id);
+    }
+    window.open(url, '_blank');
   };
 
   const markAsClicked = async (recommendationId: string) => {
@@ -478,41 +548,20 @@ export default function MyGrowthPlan() {
           <CardContent>
             <div className="grid gap-3 md:grid-cols-2">
               {capabilities.map((cap) => (
-                <Card key={cap.id} className="border-l-4 border-l-primary">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <CardTitle className="text-base">{cap.capability.name}</CardTitle>
-                        <Badge variant="secondary" className="mt-1">
-                          {cap.capability.category}
-                        </Badge>
-                      </div>
-                      <Badge variant="outline">Priority {cap.priority}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <div className="text-xs text-muted-foreground mb-1">Current Level</div>
-                        <Badge className={getLevelColor(cap.current_level)}>
-                          {getLevelLabel(cap.current_level)}
-                        </Badge>
-                      </div>
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="text-xs text-muted-foreground mb-1">Target Level</div>
-                        <Badge className={getLevelColor(cap.target_level)}>
-                          {getLevelLabel(cap.target_level)}
-                        </Badge>
-                      </div>
-                    </div>
-                    {cap.ai_reasoning && (
-                      <p className="text-xs text-muted-foreground italic">
-                        {cap.ai_reasoning}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
+                <InteractiveCapabilityCard
+                  key={cap.id}
+                  id={cap.id}
+                  name={cap.capability.name}
+                  category={cap.capability.category}
+                  description={cap.capability.description}
+                  currentLevel={cap.current_level}
+                  targetLevel={cap.target_level}
+                  priority={cap.priority}
+                  aiReasoning={cap.ai_reasoning}
+                  resources={capabilityResources[cap.capability.id] || []}
+                  onRequestLevelChange={handleRequestLevelChange}
+                  onResourceClick={handleResourceClick}
+                />
               ))}
             </div>
             <div className="mt-4 flex justify-end">
