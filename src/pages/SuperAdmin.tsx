@@ -486,7 +486,11 @@ const SuperAdmin = () => {
             </TableHeader>
             <TableBody>
               {companies.map((company) => (
-                <TableRow key={company.id}>
+                <TableRow 
+                  key={company.id} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate("/employees")}
+                >
                   <TableCell className="font-medium">{company.name}</TableCell>
                   <TableCell>
                     {company.activeEmployees} / {company.totalEmployees}
