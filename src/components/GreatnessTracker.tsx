@@ -24,9 +24,17 @@ type HabitCompletion = {
   completed_date: string;
 };
 
+type HabitCompletionStats = {
+  [habitId: string]: {
+    totalDays: number;
+    weeklyCompletions: number;
+  };
+};
+
 export default function GreatnessTracker() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<HabitCompletion[]>([]);
+  const [completionStats, setCompletionStats] = useState<HabitCompletionStats>({});
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const { toast } = useToast();
@@ -34,6 +42,7 @@ export default function GreatnessTracker() {
   useEffect(() => {
     loadHabits();
     loadTodayCompletions();
+    loadCompletionStats();
   }, []);
 
   const loadHabits = async () => {
@@ -82,6 +91,42 @@ export default function GreatnessTracker() {
     }
   };
 
+  const loadCompletionStats = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get all completions for the user
+      const { data: allCompletions, error } = await supabase
+        .from("habit_completions")
+        .select("habit_id, completed_date")
+        .eq("profile_id", user.id);
+
+      if (error) throw error;
+
+      // Calculate stats for each habit
+      const stats: HabitCompletionStats = {};
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      allCompletions?.forEach(completion => {
+        if (!stats[completion.habit_id]) {
+          stats[completion.habit_id] = { totalDays: 0, weeklyCompletions: 0 };
+        }
+        stats[completion.habit_id].totalDays++;
+
+        const completionDate = new Date(completion.completed_date);
+        if (completionDate >= sevenDaysAgo) {
+          stats[completion.habit_id].weeklyCompletions++;
+        }
+      });
+
+      setCompletionStats(stats);
+    } catch (error: any) {
+      console.error("Error loading completion stats:", error);
+    }
+  };
+
   const toggleHabitCompletion = async (habitId: string, isCompleted: boolean) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -122,6 +167,7 @@ export default function GreatnessTracker() {
       }
 
       await loadHabits();
+      await loadCompletionStats();
     } catch (error: any) {
       console.error("Error toggling completion:", error);
       toast({
@@ -189,9 +235,13 @@ export default function GreatnessTracker() {
   };
 
   const getWeeklyProgress = (habitId: string) => {
-    // This would calculate the weekly completion rate
-    // For now, returning a placeholder
-    return 71; // 5/7 days = 71%
+    const stats = completionStats[habitId];
+    if (!stats) return 0;
+    return Math.round((stats.weeklyCompletions / 7) * 100);
+  };
+
+  const getTotalCompletions = (habitId: string) => {
+    return completionStats[habitId]?.totalDays || 0;
   };
 
   if (loading) {
@@ -245,6 +295,7 @@ export default function GreatnessTracker() {
               {habits.map((habit) => {
                 const completed = isHabitCompleted(habit.id);
                 const weeklyProgress = getWeeklyProgress(habit.id);
+                const totalCompletions = getTotalCompletions(habit.id);
 
                 return (
                   <div
@@ -271,6 +322,12 @@ export default function GreatnessTracker() {
                             {habit.habit_description}
                           </p>
                         )}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                          <span>✅ Completed {totalCompletions} {totalCompletions === 1 ? 'day' : 'days'}</span>
+                          {habit.longest_streak > 0 && (
+                            <span>🏆 Best: {habit.longest_streak} days</span>
+                          )}
+                        </div>
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span>This week</span>
@@ -278,11 +335,6 @@ export default function GreatnessTracker() {
                           </div>
                           <Progress value={weeklyProgress} className="h-2" />
                         </div>
-                        {habit.longest_streak > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            🏆 Best streak: {habit.longest_streak} days
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
