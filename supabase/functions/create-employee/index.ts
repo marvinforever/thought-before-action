@@ -107,14 +107,21 @@ Deno.serve(async (req) => {
         console.log('User already exists, fetching existing user:', email)
         
         // Get the existing user by email
-        const { data: existingUser, error: fetchError } = await supabaseAdmin.auth.admin.listUsers()
-        
-        if (fetchError) {
-          console.error('Failed to fetch users:', fetchError)
-          throw new Error('User exists but could not be retrieved')
+        // Paginate through users to find by email (since direct lookup isn't available)
+        let page = 1
+        const perPage = 200
+        let foundUser: any = null
+        while (page <= 10 && !foundUser) {
+          const { data: pageData, error: fetchError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+          if (fetchError) {
+            console.error('Failed to fetch users (page ' + page + '):', fetchError)
+            throw new Error('User exists but could not be retrieved')
+          }
+          const users = pageData?.users || []
+          foundUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase().trim())
+          if (users.length === 0) break
+          page++
         }
-        
-        const foundUser = existingUser.users.find(u => u.email?.toLowerCase() === email.toLowerCase().trim())
         
         if (!foundUser) {
           throw new Error('User exists but could not be found')

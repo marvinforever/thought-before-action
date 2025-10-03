@@ -186,6 +186,18 @@ const DiagnosticImport = () => {
     return combined || null;
   };
 
+  // Robustly extract a job title from common header variants
+  const extractJobTitle = (row: any): string | null => {
+    const keys = [
+      'Job Title or Role','Job Title','job_title','Title','title','Role','role','Position','position','Job Role','Job role'
+    ];
+    for (const key of keys) {
+      const v = row[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
   const handleImport = async () => {
     if (!file) {
       toast({
@@ -238,7 +250,7 @@ const DiagnosticImport = () => {
 
            if (!profile) {
              const fullName = extractFullName(row);
-             const jobTitle = row['Job Title or Role'];
+             const jobTitle = extractJobTitle(row);
              
              // Use edge function to create auth user + profile
              const { data: newEmployee, error: createError } = await supabase.functions.invoke('create-employee', {
@@ -260,14 +272,14 @@ const DiagnosticImport = () => {
              profileId = profile.id;
              
              // Update existing profile with job title if not already set
-             const jobTitle = row['Job Title or Role'];
-             if (jobTitle) {
-               await supabase
-                 .from('profiles')
-                 .update({ role: jobTitle })
-                 .eq('id', profileId)
-                 .is('role', null);
-             }
+              const jobTitle = extractJobTitle(row);
+              if (jobTitle) {
+                await supabase
+                  .from('profiles')
+                  .update({ role: jobTitle })
+                  .eq('id', profileId)
+                  .or('role.is.null,role.eq.');
+              }
            }
 
           // Insert diagnostic response
