@@ -118,7 +118,8 @@ const SuperAdmin = () => {
         const { data: responses } = await supabase
           .from("diagnostic_responses")
           .select("id")
-          .eq("company_id", company.id);
+          .eq("company_id", company.id)
+          .not("submitted_at", "is", null);
 
         const totalResponses = responses?.length || 0;
 
