@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { JobDescriptionDialog } from "@/components/JobDescriptionDialog";
@@ -44,7 +45,7 @@ const Employees = () => {
   const [editFormData, setEditFormData] = useState({ fullName: "", email: "", role: "", phone: "" });
   const [updating, setUpdating] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [companySortOrder, setCompanySortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<string>("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -260,33 +261,17 @@ const Employees = () => {
     }
   };
 
-  const filteredEmployees = employees
-    .filter((emp) =>
-      emp.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.email.toLowerCase().includes(search.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (!companySortOrder) return 0;
-      
-      const companyA = a.company_name || '';
-      const companyB = b.company_name || '';
-      
-      if (companySortOrder === 'asc') {
-        return companyA.localeCompare(companyB);
-      } else {
-        return companyB.localeCompare(companyA);
-      }
-    });
+  // Get unique companies for the filter dropdown
+  const uniqueCompanies = Array.from(new Set(employees.map(emp => emp.company_name).filter(Boolean)));
 
-  const toggleCompanySort = () => {
-    if (companySortOrder === null) {
-      setCompanySortOrder('asc');
-    } else if (companySortOrder === 'asc') {
-      setCompanySortOrder('desc');
-    } else {
-      setCompanySortOrder(null);
-    }
-  };
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch = emp.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      emp.email.toLowerCase().includes(search.toLowerCase());
+    
+    const matchesCompany = selectedCompany === "all" || emp.company_name === selectedCompany;
+    
+    return matchesSearch && matchesCompany;
+  });
 
   return (
     <div className="space-y-6">
@@ -378,6 +363,21 @@ const Employees = () => {
                 className="pl-10"
               />
             </div>
+            {isSuperAdmin && uniqueCompanies.length > 0 && (
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by company" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {uniqueCompanies.map((company) => (
+                    <SelectItem key={company} value={company || ""}>
+                      {company}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -392,21 +392,7 @@ const Employees = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
-                  {isSuperAdmin && (
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 font-medium"
-                        onClick={toggleCompanySort}
-                      >
-                        Company
-                        {companySortOrder === null && <ArrowUpDown className="ml-2 h-4 w-4" />}
-                        {companySortOrder === 'asc' && <ArrowUp className="ml-2 h-4 w-4" />}
-                        {companySortOrder === 'desc' && <ArrowDown className="ml-2 h-4 w-4" />}
-                      </Button>
-                    </TableHead>
-                  )}
+                  {isSuperAdmin && <TableHead>Company</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead>Diagnostic</TableHead>
                   <TableHead>Actions</TableHead>
