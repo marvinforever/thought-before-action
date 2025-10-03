@@ -49,7 +49,7 @@ const Dashboard = () => {
 
       const [employeesRes, diagnosticDataRes] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact" }).eq("company_id", profile.company_id),
-        supabase.from("diagnostic_responses").select("*").eq("company_id", profile.company_id),
+        supabase.from("diagnostic_responses").select("*").eq("company_id", profile.company_id).not("submitted_at", "is", null),
       ]);
 
       const diagnostics = diagnosticDataRes.data || [];
