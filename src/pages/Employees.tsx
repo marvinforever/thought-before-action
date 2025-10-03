@@ -24,6 +24,7 @@ interface Employee {
   has_diagnostic: boolean;
   is_active: boolean;
   company_id: string;
+  company_name?: string;
 }
 
 const Employees = () => {
@@ -42,6 +43,7 @@ const Employees = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({ fullName: "", email: "", role: "", phone: "" });
   const [updating, setUpdating] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -56,13 +58,15 @@ const Employees = () => {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("company_id")
+        .select("company_id, is_super_admin")
         .eq("id", session.session.user.id)
         .single();
 
       if (!profile) return;
 
-      const { data: profilesData } = await supabase
+      setIsSuperAdmin(profile.is_super_admin || false);
+
+      let query = supabase
         .from("profiles")
         .select(`
           id,
@@ -71,9 +75,16 @@ const Employees = () => {
           role,
           is_active,
           company_id,
+          companies (name),
           diagnostic_responses (id)
-        `)
-        .eq("company_id", profile.company_id);
+        `);
+
+      // If not super admin, filter by company
+      if (!profile.is_super_admin) {
+        query = query.eq("company_id", profile.company_id);
+      }
+
+      const { data: profilesData } = await query;
 
       if (profilesData) {
         const mappedEmployees = profilesData.map((p: any) => ({
@@ -84,6 +95,7 @@ const Employees = () => {
           has_diagnostic: p.diagnostic_responses && p.diagnostic_responses.length > 0,
           is_active: p.is_active !== false,
           company_id: p.company_id,
+          company_name: p.companies?.name || "N/A",
         }));
         setEmployees(mappedEmployees);
       }
@@ -356,6 +368,7 @@ const Employees = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  {isSuperAdmin && <TableHead>Company</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead>Diagnostic</TableHead>
                   <TableHead>Actions</TableHead>
@@ -364,7 +377,7 @@ const Employees = () => {
               <TableBody>
                 {filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>
@@ -374,6 +387,11 @@ const Employees = () => {
                       <TableCell className="font-medium">{employee.full_name}</TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{employee.role || <span className="text-muted-foreground">—</span>}</TableCell>
+                      {isSuperAdmin && (
+                        <TableCell>
+                          <Badge variant="outline">{employee.company_name}</Badge>
+                        </TableCell>
+                      )}
                       <TableCell>
                         {employee.is_active ? (
                           <Badge variant="default" className="bg-green-600">Active</Badge>
