@@ -238,12 +238,14 @@ const DiagnosticImport = () => {
 
            if (!profile) {
              const fullName = extractFullName(row);
+             const jobTitle = row['Job Title or Role'];
              
              // Use edge function to create auth user + profile
              const { data: newEmployee, error: createError } = await supabase.functions.invoke('create-employee', {
                body: { 
                  email: email, 
-                 full_name: fullName 
+                 full_name: fullName,
+                 role: jobTitle || null
                }
              });
 
@@ -256,6 +258,16 @@ const DiagnosticImport = () => {
              newProfilesCount++;
            } else {
              profileId = profile.id;
+             
+             // Update existing profile with job title if not already set
+             const jobTitle = row['Job Title or Role'];
+             if (jobTitle) {
+               await supabase
+                 .from('profiles')
+                 .update({ role: jobTitle })
+                 .eq('id', profileId)
+                 .is('role', null);
+             }
            }
 
           // Insert diagnostic response
