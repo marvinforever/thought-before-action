@@ -988,6 +988,58 @@ export type Database = {
           },
         ]
       }
+      profile_company_changes: {
+        Row: {
+          change_source: string | null
+          changed_at: string | null
+          changed_by: string | null
+          id: string
+          new_company_id: string | null
+          old_company_id: string | null
+          profile_id: string | null
+        }
+        Insert: {
+          change_source?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          new_company_id?: string | null
+          old_company_id?: string | null
+          profile_id?: string | null
+        }
+        Update: {
+          change_source?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          new_company_id?: string | null
+          old_company_id?: string | null
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_company_changes_new_company_id_fkey"
+            columns: ["new_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_company_changes_old_company_id_fkey"
+            columns: ["old_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_company_changes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_id: string | null
