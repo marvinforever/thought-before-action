@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isResetPassword, setIsResetPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -79,23 +80,52 @@ const Auth = () => {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Check your email",
+        description: "We've sent you a password reset link.",
+      });
+      setIsResetPassword(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            {isLogin ? "Welcome back" : "Create your account"}
+            {isResetPassword ? "Reset password" : isLogin ? "Welcome back" : "Create your account"}
           </CardTitle>
           <CardDescription className="text-center">
-            {isLogin 
-              ? "Sign in to your Jericho admin dashboard"
-              : "Start building your team's capabilities"
+            {isResetPassword
+              ? "Enter your email to receive a password reset link"
+              : isLogin 
+                ? "Sign in to your Jericho admin dashboard"
+                : "Start building your team's capabilities"
             }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            {!isLogin && (
+          <form onSubmit={isResetPassword ? handlePasswordReset : handleAuth} className="space-y-4">
+            {!isLogin && !isResetPassword && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
@@ -132,33 +162,63 @@ const Auth = () => {
                 disabled={loading}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                minLength={6}
-              />
-            </div>
+            {!isResetPassword && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => setIsResetPassword(true)}
+                      className="text-xs text-primary hover:underline"
+                      disabled={loading}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  minLength={6}
+                />
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? "Sign In" : "Create Account"}
+              {isResetPassword ? "Send Reset Link" : isLogin ? "Sign In" : "Create Account"}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline font-medium"
-              disabled={loading}
-            >
-              {isLogin ? "Sign up" : "Sign in"}
-            </button>
+            {isResetPassword ? (
+              <>
+                Remember your password?{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsResetPassword(false)}
+                  className="text-primary hover:underline font-medium"
+                  disabled={loading}
+                >
+                  Sign in
+                </button>
+              </>
+            ) : (
+              <>
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-primary hover:underline font-medium"
+                  disabled={loading}
+                >
+                  {isLogin ? "Sign up" : "Sign in"}
+                </button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
