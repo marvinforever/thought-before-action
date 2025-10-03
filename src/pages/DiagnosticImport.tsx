@@ -193,12 +193,8 @@ const DiagnosticImport = () => {
     ];
     for (const key of keys) {
       const v = row[key];
-      if (typeof v === 'string' && v.trim()) {
-        console.log('Found job title:', v.trim(), 'from key:', key);
-        return v.trim();
-      }
+      if (typeof v === 'string' && v.trim()) return v.trim();
     }
-    console.log('No job title found in row. Available keys:', Object.keys(row));
     return null;
   };
 
@@ -277,14 +273,12 @@ const DiagnosticImport = () => {
              
              // Update existing profile with job title if not already set
               const jobTitle = extractJobTitle(row);
-              console.log('Updating existing profile:', profileId, 'with job title:', jobTitle);
               if (jobTitle) {
-                const { error: updateError } = await supabase
+                await supabase
                   .from('profiles')
                   .update({ role: jobTitle })
                   .eq('id', profileId)
                   .or('role.is.null,role.eq.');
-                console.log('Update result for', profileId, ':', updateError ? 'ERROR: ' + updateError.message : 'SUCCESS');
               }
            }
 

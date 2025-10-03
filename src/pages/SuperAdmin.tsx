@@ -294,6 +294,17 @@ const SuperAdmin = () => {
     return [first, last].filter(Boolean).join(' ').trim() || null;
   };
 
+  const extractJobTitle = (row: any): string | null => {
+    const keys = [
+      'Job Title or Role','Job Title','job_title','Title','title','Role','role','Position','position','Job Role','Job role'
+    ];
+    for (const key of keys) {
+      const v = row[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
   const handleCSVImport = async () => {
     if (!file || !importCompanyId) {
       toast({
@@ -332,10 +343,12 @@ const SuperAdmin = () => {
 
           if (!profile) {
             const fullName = extractFullName(row);
+            const jobTitle = extractJobTitle(row);
             const { data: newEmp, error: createError } = await supabase.functions.invoke('create-employee', {
               body: { 
                 email: email, 
                 full_name: fullName,
+                role: jobTitle || null,
                 company_id: importCompanyId
               }
             });
@@ -348,6 +361,15 @@ const SuperAdmin = () => {
             newProfilesCount++;
             successCount++;
           } else {
+            // Update existing profile with job title if not already set
+            const jobTitle = extractJobTitle(row);
+            if (jobTitle) {
+              await supabase
+                .from('profiles')
+                .update({ role: jobTitle })
+                .eq('id', profile.id)
+                .or('role.is.null,role.eq.');
+            }
             successCount++;
           }
         } catch (error: any) {
