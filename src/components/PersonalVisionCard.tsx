@@ -9,14 +9,12 @@ import { Eye, Edit, Save, X } from "lucide-react";
 type PersonalGoals = {
   id: string;
   one_year_vision: string | null;
-  three_year_vision: string | null;
 };
 
 export default function PersonalVisionCard() {
   const [goals, setGoals] = useState<PersonalGoals | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [oneYearVision, setOneYearVision] = useState("");
-  const [threeYearVision, setThreeYearVision] = useState("");
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -40,7 +38,6 @@ export default function PersonalVisionCard() {
       if (data) {
         setGoals(data);
         setOneYearVision(data.one_year_vision || "");
-        setThreeYearVision(data.three_year_vision || "");
       }
     } catch (error: any) {
       console.error("Error loading visions:", error);
@@ -65,7 +62,6 @@ export default function PersonalVisionCard() {
         profile_id: user.id,
         company_id: profile.company_id,
         one_year_vision: oneYearVision || null,
-        three_year_vision: threeYearVision || null,
       };
 
       const { error } = await supabase
@@ -94,7 +90,6 @@ export default function PersonalVisionCard() {
 
   const handleCancel = () => {
     setOneYearVision(goals?.one_year_vision || "");
-    setThreeYearVision(goals?.three_year_vision || "");
     setIsEditing(false);
   };
 
@@ -130,7 +125,7 @@ export default function PersonalVisionCard() {
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent>
         <div>
           <label className="text-sm font-semibold mb-2 block">
             1 Year Vision
@@ -148,27 +143,6 @@ export default function PersonalVisionCard() {
           ) : (
             <p className="text-sm p-4 bg-muted/50 rounded-md min-h-[100px]">
               {oneYearVision || "No vision set yet. Click edit to add your 1-year vision."}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label className="text-sm font-semibold mb-2 block">
-            3 Year Vision
-          </label>
-          <p className="text-xs text-muted-foreground mb-2">
-            Three years from now, what do you want the story to be?
-          </p>
-          {isEditing ? (
-            <Textarea
-              value={threeYearVision}
-              onChange={(e) => setThreeYearVision(e.target.value)}
-              placeholder="Describe your vision for three years from now..."
-              className="min-h-[100px]"
-            />
-          ) : (
-            <p className="text-sm p-4 bg-muted/50 rounded-md min-h-[100px]">
-              {threeYearVision || "No vision set yet. Click edit to add your 3-year vision."}
             </p>
           )}
         </div>
