@@ -125,6 +125,148 @@ export type Database = {
           },
         ]
       }
+      capability_level_history: {
+        Row: {
+          capability_id: string
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string
+          from_level: string | null
+          id: string
+          profile_id: string
+          request_id: string | null
+          to_level: string
+        }
+        Insert: {
+          capability_id: string
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          from_level?: string | null
+          id?: string
+          profile_id: string
+          request_id?: string | null
+          to_level: string
+        }
+        Update: {
+          capability_id?: string
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          from_level?: string | null
+          id?: string
+          profile_id?: string
+          request_id?: string | null
+          to_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_level_history_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_level_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_level_history_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_level_history_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "capability_level_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capability_level_requests: {
+        Row: {
+          capability_id: string
+          company_id: string
+          created_at: string
+          current_level: string
+          evidence_text: string
+          id: string
+          manager_notes: string | null
+          profile_id: string
+          requested_level: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          capability_id: string
+          company_id: string
+          created_at?: string
+          current_level: string
+          evidence_text: string
+          id?: string
+          manager_notes?: string | null
+          profile_id: string
+          requested_level: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          capability_id?: string
+          company_id?: string
+          created_at?: string
+          current_level?: string
+          evidence_text?: string
+          id?: string
+          manager_notes?: string | null
+          profile_id?: string
+          requested_level?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_level_requests_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_level_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_level_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_level_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capability_levels: {
         Row: {
           capability_id: string
@@ -775,6 +917,97 @@ export type Database = {
           },
         ]
       }
+      email_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          frequency: string
+          id: string
+          preferred_day: string | null
+          preferred_time: string
+          profile_id: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          frequency?: string
+          id?: string
+          preferred_day?: string | null
+          preferred_time?: string
+          profile_id: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          frequency?: string
+          id?: string
+          preferred_day?: string | null
+          preferred_time?: string
+          profile_id?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_preferences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_reply_logs: {
+        Row: {
+          created_at: string
+          email_body: string
+          email_from: string
+          email_subject: string | null
+          error_message: string | null
+          id: string
+          parsed_data: Json | null
+          processed_at: string | null
+          processing_status: string
+          profile_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_body: string
+          email_from: string
+          email_subject?: string | null
+          error_message?: string | null
+          id?: string
+          parsed_data?: Json | null
+          processed_at?: string | null
+          processing_status?: string
+          profile_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_body?: string
+          email_from?: string
+          email_subject?: string | null
+          error_message?: string | null
+          id?: string
+          parsed_data?: Json | null
+          processed_at?: string | null
+          processing_status?: string
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_reply_logs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_capabilities: {
         Row: {
           ai_reasoning: string | null
@@ -819,6 +1052,93 @@ export type Database = {
           },
           {
             foreignKeyName: "employee_capabilities_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      growth_journal: {
+        Row: {
+          company_id: string
+          created_at: string
+          entry_date: string
+          entry_source: string
+          entry_text: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entry_date: string
+          entry_source?: string
+          entry_text: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entry_date?: string
+          entry_source?: string
+          entry_text?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_journal_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "growth_journal_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_completions: {
+        Row: {
+          completed_date: string
+          created_at: string
+          habit_id: string
+          id: string
+          notes: string | null
+          profile_id: string
+        }
+        Insert: {
+          completed_date: string
+          created_at?: string
+          habit_id: string
+          id?: string
+          notes?: string | null
+          profile_id: string
+        }
+        Update: {
+          completed_date?: string
+          created_at?: string
+          habit_id?: string
+          id?: string
+          notes?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_completions_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "leading_indicators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "habit_completions_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -875,6 +1195,124 @@ export type Database = {
             foreignKeyName: "job_descriptions_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leading_indicators: {
+        Row: {
+          company_id: string
+          created_at: string
+          current_streak: number
+          habit_description: string | null
+          habit_name: string
+          id: string
+          is_active: boolean
+          linked_capability_id: string | null
+          linked_goal_id: string | null
+          longest_streak: number
+          profile_id: string
+          target_frequency: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          current_streak?: number
+          habit_description?: string | null
+          habit_name: string
+          id?: string
+          is_active?: boolean
+          linked_capability_id?: string | null
+          linked_goal_id?: string | null
+          longest_streak?: number
+          profile_id: string
+          target_frequency?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          current_streak?: number
+          habit_description?: string | null
+          habit_name?: string
+          id?: string
+          is_active?: boolean
+          linked_capability_id?: string | null
+          linked_goal_id?: string | null
+          longest_streak?: number
+          profile_id?: string
+          target_frequency?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leading_indicators_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leading_indicators_linked_capability_id_fkey"
+            columns: ["linked_capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leading_indicators_linked_goal_id_fkey"
+            columns: ["linked_goal_id"]
+            isOneToOne: false
+            referencedRelation: "ninety_day_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leading_indicators_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      login_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_login_date: string
+          longest_streak: number
+          profile_id: string
+          total_logins: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_login_date: string
+          longest_streak?: number
+          profile_id: string
+          total_logins?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_login_date?: string
+          longest_streak?: number
+          profile_id?: string
+          total_logins?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_streaks_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -937,6 +1375,73 @@ export type Database = {
           {
             foreignKeyName: "ninety_day_targets_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_reviews: {
+        Row: {
+          ai_summary: string | null
+          company_id: string
+          created_at: string
+          employee_notes: string | null
+          id: string
+          manager_notes: string | null
+          profile_id: string
+          review_date: string
+          review_type: string
+          scheduled_by: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          company_id: string
+          created_at?: string
+          employee_notes?: string | null
+          id?: string
+          manager_notes?: string | null
+          profile_id: string
+          review_date: string
+          review_type?: string
+          scheduled_by: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          company_id?: string
+          created_at?: string
+          employee_notes?: string | null
+          id?: string
+          manager_notes?: string | null
+          profile_id?: string
+          review_date?: string
+          review_type?: string
+          scheduled_by?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_reviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_scheduled_by_fkey"
+            columns: ["scheduled_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1086,6 +1591,51 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_ratings: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          rating: number
+          resource_id: string
+          review_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          rating: number
+          resource_id: string
+          review_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          rating?: number
+          resource_id?: string
+          review_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_ratings_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_ratings_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
             referencedColumns: ["id"]
           },
         ]

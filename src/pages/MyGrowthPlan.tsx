@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles } from "lucide-react";
+import DiagnosticInsights from "@/components/DiagnosticInsights";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
-import DiagnosticInsights from "@/components/DiagnosticInsights";
+import GreatnessTracker from "@/components/GreatnessTracker";
 
 type GrowthPlanResource = {
   id: string;
@@ -396,8 +397,11 @@ export default function MyGrowthPlan() {
       {/* Diagnostic Insights */}
       <DiagnosticInsights />
 
-      {/* Personal Vision */}
-      <PersonalVisionCard />
+      {/* Personal Vision and Greatness Tracker */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PersonalVisionCard />
+        <GreatnessTracker />
+      </div>
 
       {/* 90 Day Tracker */}
       <NinetyDayTracker />
