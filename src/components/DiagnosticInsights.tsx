@@ -202,7 +202,7 @@ export default function DiagnosticInsights() {
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Heart className="h-4 w-4 text-red-500" />
-                  <span className="text-xs font-medium">Work-Life Balance</span>
+                  <span className="text-xs font-medium">Life Rhythm</span>
                 </div>
                 <Progress value={diagnostic.work_life_integration_score * 10} className="mb-2" />
                 <p className="text-2xl font-bold">{diagnostic.work_life_integration_score}/10</p>
