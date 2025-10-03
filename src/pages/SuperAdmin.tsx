@@ -489,7 +489,7 @@ const SuperAdmin = () => {
                 <TableRow 
                   key={company.id} 
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => navigate("/employees")}
+                  onClick={() => navigate("/dashboard/employees")}
                 >
                   <TableCell className="font-medium">{company.name}</TableCell>
                   <TableCell>
