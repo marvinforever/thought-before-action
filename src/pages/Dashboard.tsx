@@ -45,11 +45,20 @@ const Dashboard = () => {
         .eq("id", session.session.user.id)
         .single();
 
-      if (!profile) return;
+      if (!profile?.company_id) return;
 
+      // Only get employees and diagnostics for THIS specific company
       const [employeesRes, diagnosticDataRes] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact" }).eq("company_id", profile.company_id),
-        supabase.from("diagnostic_responses").select("*").eq("company_id", profile.company_id).not("submitted_at", "is", null),
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact" })
+          .eq("company_id", profile.company_id)
+          .eq("is_active", true),
+        supabase
+          .from("diagnostic_responses")
+          .select("*")
+          .eq("company_id", profile.company_id)
+          .not("submitted_at", "is", null),
       ]);
 
       const diagnostics = diagnosticDataRes.data || [];
