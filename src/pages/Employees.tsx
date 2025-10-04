@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2 } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -49,6 +49,9 @@ const Employees = () => {
   const [selectedCompany, setSelectedCompany] = useState<string>("all");
   const [managerAssignEmployee, setManagerAssignEmployee] = useState<Employee | null>(null);
   const [managerDialogOpen, setManagerDialogOpen] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+  const [createdPassword, setCreatedPassword] = useState("");
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -116,11 +119,39 @@ const Employees = () => {
     }
   };
 
+  const generateStrongPassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setTempPassword(password);
+  };
+
   const handleCreateEmployee = async () => {
     if (!newEmployee.email || !newEmployee.fullName) {
       toast({
         title: "Validation error",
         description: "Name and email are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!tempPassword) {
+      toast({
+        title: "Validation error",
+        description: "Password is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (tempPassword.length < 8) {
+      toast({
+        title: "Validation error",
+        description: "Password must be at least 8 characters",
         variant: "destructive",
       });
       return;
@@ -134,17 +165,16 @@ const Employees = () => {
           full_name: newEmployee.fullName,
           role: newEmployee.role || null,
           phone: newEmployee.phone || null,
+          password: tempPassword,
         }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Employee created successfully",
-      });
-
+      setCreatedPassword(tempPassword);
+      setShowPasswordDialog(true);
       setNewEmployee({ fullName: "", email: "", role: "", phone: "" });
+      setTempPassword("");
       setDialogOpen(false);
       loadEmployees();
     } catch (error: any) {
@@ -276,8 +306,57 @@ const Employees = () => {
     return matchesSearch && matchesCompany;
   });
 
+  const copyPasswordToClipboard = () => {
+    navigator.clipboard.writeText(createdPassword);
+    toast({
+      title: "Copied!",
+      description: "Password copied to clipboard",
+    });
+  };
+
   return (
     <div className="space-y-6">
+      {/* Password Display Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              Employee Created Successfully
+            </DialogTitle>
+            <DialogDescription>
+              Save this password now - it won't be shown again
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={createdPassword}
+                  readOnly
+                  className="font-mono bg-muted"
+                />
+                <Button type="button" variant="outline" onClick={copyPasswordToClipboard}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>Important:</strong> Share this password securely with the employee. They should change it after their first login.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowPasswordDialog(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Employees</h1>
@@ -335,6 +414,24 @@ const Employees = () => {
                     onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
                     placeholder="+1 (555) 123-4567"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Temporary Password *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="password"
+                      type="text"
+                      value={tempPassword}
+                      onChange={(e) => setTempPassword(e.target.value)}
+                      placeholder="Enter or generate password"
+                    />
+                    <Button type="button" variant="outline" onClick={generateStrongPassword}>
+                      Generate
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Minimum 8 characters. This password will be shown once after creation.
+                  </p>
                 </div>
               </div>
               <DialogFooter>

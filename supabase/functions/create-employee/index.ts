@@ -63,10 +63,18 @@ Deno.serve(async (req) => {
       throw new Error('Not authorized - admin access required')
     }
 
-    const { email, full_name, role, phone, company_id } = await req.json()
+    const { email, full_name, role, phone, company_id, password } = await req.json()
 
     if (!email || !full_name) {
       throw new Error('Email and full name are required')
+    }
+
+    if (!password) {
+      throw new Error('Password is required')
+    }
+
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters')
     }
 
     console.log('Creating employee:', { email, full_name, company_id })
@@ -88,11 +96,10 @@ Deno.serve(async (req) => {
       throw new Error('Company ID not found')
     }
 
-    // Try to create the auth user with admin client (generates a random password)
-    const randomPassword = crypto.randomUUID()
+    // Try to create the auth user with admin client using provided password
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.toLowerCase().trim(),
-      password: randomPassword,
+      password: password,
       email_confirm: true,
       user_metadata: {
         full_name: full_name
