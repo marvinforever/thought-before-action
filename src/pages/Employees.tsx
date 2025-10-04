@@ -52,6 +52,10 @@ const Employees = () => {
   const [tempPassword, setTempPassword] = useState("");
   const [createdPassword, setCreatedPassword] = useState("");
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [resetPasswordEmployee, setResetPasswordEmployee] = useState<Employee | null>(null);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -314,6 +318,67 @@ const Employees = () => {
     });
   };
 
+  const generateResetPassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setResetPassword(password);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordEmployee || !resetPassword) {
+      toast({
+        title: "Validation error",
+        description: "Password is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (resetPassword.length < 8) {
+      toast({
+        title: "Validation error",
+        description: "Password must be at least 8 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const { error } = await supabase.functions.invoke('reset-employee-password', {
+        body: {
+          employee_id: resetPasswordEmployee.id,
+          new_password: resetPassword,
+        }
+      });
+
+      if (error) throw error;
+
+      setCreatedPassword(resetPassword);
+      setShowPasswordDialog(true);
+      setResetPassword("");
+      setResetPasswordDialogOpen(false);
+      setResetPasswordEmployee(null);
+      
+      toast({
+        title: "Success",
+        description: "Password reset successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Password Display Dialog */}
@@ -564,6 +629,13 @@ const Employees = () => {
                               <Users2 className="mr-2 h-4 w-4" />
                               Assign Manager
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setResetPasswordEmployee(employee);
+                              setResetPasswordDialogOpen(true);
+                            }}>
+                              <Copy className="mr-2 h-4 w-4" />
+                              Reset Password
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
                               {employee.is_active ? (
                                 <>
@@ -724,6 +796,49 @@ const Employees = () => {
           }}
         />
       )}
+
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Generate a new temporary password for {resetPasswordEmployee?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="resetPassword">New Temporary Password *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="resetPassword"
+                  type="text"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder="Enter or generate password"
+                />
+                <Button type="button" variant="outline" onClick={generateResetPassword}>
+                  Generate
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Minimum 8 characters. This password will be shown once after reset.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setResetPasswordDialogOpen(false);
+              setResetPassword("");
+              setResetPasswordEmployee(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleResetPassword} disabled={resettingPassword}>
+              {resettingPassword ? "Resetting..." : "Reset Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
