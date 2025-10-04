@@ -182,7 +182,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
@@ -193,7 +193,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 overflow-hidden">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -215,7 +215,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : (
-            <ScrollArea className="h-[400px] pr-4">
+            <ScrollArea className="flex-1 pr-4">
               <div className="space-y-2">
                 {filteredEmployees.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
