@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { JobDescriptionDialog } from "@/components/JobDescriptionDialog";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
+import { AssignManagerDialog } from "@/components/AssignManagerDialog";
 
 interface Employee {
   id: string;
@@ -46,6 +47,8 @@ const Employees = () => {
   const [updating, setUpdating] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<string>("all");
+  const [managerAssignEmployee, setManagerAssignEmployee] = useState<Employee | null>(null);
+  const [managerDialogOpen, setManagerDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -457,6 +460,13 @@ const Employees = () => {
                               <Brain className="mr-2 h-4 w-4" />
                               Analyze Job Description
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setManagerAssignEmployee(employee);
+                              setManagerDialogOpen(true);
+                            }}>
+                              <Users2 className="mr-2 h-4 w-4" />
+                              Assign Manager
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
                               {employee.is_active ? (
                                 <>
@@ -597,6 +607,24 @@ const Employees = () => {
             if (!open) setAssignCapabilitiesEmployee(null);
           }}
           employee={assignCapabilitiesEmployee}
+        />
+      )}
+
+      {managerAssignEmployee && (
+        <AssignManagerDialog
+          open={managerDialogOpen}
+          onOpenChange={(open) => {
+            setManagerDialogOpen(open);
+            if (!open) {
+              setManagerAssignEmployee(null);
+              loadEmployees();
+            }
+          }}
+          employee={{
+            id: managerAssignEmployee.id,
+            full_name: managerAssignEmployee.full_name,
+            company_id: managerAssignEmployee.company_id
+          }}
         />
       )}
     </div>

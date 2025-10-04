@@ -24,6 +24,7 @@ const DashboardLayout = () => {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isManager, setIsManager] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -44,6 +45,15 @@ const DashboardLayout = () => {
           if (!error) {
             setIsSuperAdmin(profile?.is_super_admin || false);
           }
+
+          // Check if user has manager role
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .in("role", ["manager", "admin", "super_admin"]);
+          
+          setIsManager((roles && roles.length > 0) || false);
         }
       } catch (error) {
         console.error("Error loading session:", error);
@@ -69,6 +79,15 @@ const DashboardLayout = () => {
             if (!error) {
               setIsSuperAdmin(profile?.is_super_admin || false);
             }
+
+            // Check if user has manager role
+            const { data: roles } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", session.user!.id)
+              .in("role", ["manager", "admin", "super_admin"]);
+            
+            setIsManager((roles && roles.length > 0) || false);
           } catch (error) {
             console.error("Error fetching profile after auth change:", error);
           }
@@ -98,6 +117,7 @@ const DashboardLayout = () => {
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
+    ...(isManager ? [{ icon: Users, label: "My Team", path: "/dashboard/manager" }] : []),
     { icon: Users, label: "Employees", path: "/dashboard/employees" },
     { icon: Upload, label: "Import Data", path: "/dashboard/import" },
     { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },

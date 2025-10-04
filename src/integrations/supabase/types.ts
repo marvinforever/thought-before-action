@@ -125,6 +125,67 @@ export type Database = {
           },
         ]
       }
+      capability_adjustments: {
+        Row: {
+          adjusted_by: string
+          adjustment_reason: string | null
+          created_at: string
+          employee_capability_id: string
+          id: string
+          new_level: string
+          new_priority: number | null
+          previous_level: string
+          previous_priority: number | null
+          profile_id: string
+        }
+        Insert: {
+          adjusted_by: string
+          adjustment_reason?: string | null
+          created_at?: string
+          employee_capability_id: string
+          id?: string
+          new_level: string
+          new_priority?: number | null
+          previous_level: string
+          previous_priority?: number | null
+          profile_id: string
+        }
+        Update: {
+          adjusted_by?: string
+          adjustment_reason?: string | null
+          created_at?: string
+          employee_capability_id?: string
+          id?: string
+          new_level?: string
+          new_priority?: number | null
+          previous_level?: string
+          previous_priority?: number | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_adjustments_adjusted_by_fkey"
+            columns: ["adjusted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_adjustments_employee_capability_id_fkey"
+            columns: ["employee_capability_id"]
+            isOneToOne: false
+            referencedRelation: "employee_capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_adjustments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capability_level_history: {
         Row: {
           capability_id: string
@@ -1321,6 +1382,55 @@ export type Database = {
           },
         ]
       }
+      manager_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          company_id: string
+          employee_id: string
+          id: string
+          manager_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          company_id: string
+          employee_id: string
+          id?: string
+          manager_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          company_id?: string
+          employee_id?: string
+          id?: string
+          manager_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_assignments_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ninety_day_targets: {
         Row: {
           by_when: string | null
@@ -1801,6 +1911,30 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1819,12 +1953,24 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string
       }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_super_admin: {
         Args: { _user_id: string }
         Returns: boolean
       }
     }
     Enums: {
+      app_role: "super_admin" | "admin" | "manager" | "user"
       burnout_level: "energized" | "normal" | "tired" | "drained" | "burned_out"
       capability_level: "foundational" | "advancing" | "independent" | "mastery"
       content_type:
@@ -1980,6 +2126,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["super_admin", "admin", "manager", "user"],
       burnout_level: ["energized", "normal", "tired", "drained", "burned_out"],
       capability_level: ["foundational", "advancing", "independent", "mastery"],
       content_type: [
