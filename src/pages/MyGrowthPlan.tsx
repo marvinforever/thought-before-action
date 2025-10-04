@@ -15,6 +15,7 @@ import InteractiveCapabilityCard from "@/components/InteractiveCapabilityCard";
 import { ResourceRatingDialog } from "@/components/ResourceRatingDialog";
 import { SuggestResourceDialog } from "@/components/SuggestResourceDialog";
 import { ContentTypeFilter } from "@/components/ContentTypeFilter";
+import { RequestCapabilityLevelDialog } from "@/components/RequestCapabilityLevelDialog";
 
 type GrowthPlanResource = {
   id: string;
@@ -76,6 +77,8 @@ export default function MyGrowthPlan() {
   const [contentTypeFilter, setContentTypeFilter] = useState<string>("all");
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [selectedResource, setSelectedResource] = useState<any>(null);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [selectedCapability, setSelectedCapability] = useState<EmployeeCapability | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -444,11 +447,11 @@ export default function MyGrowthPlan() {
   };
 
   const handleRequestLevelChange = async (capabilityId: string) => {
-    toast({
-      title: "Request submitted",
-      description: "Your manager will review your level change request.",
-    });
-    // TODO: Implement level change request logic
+    const capability = capabilities.find(c => c.id === capabilityId);
+    if (capability) {
+      setSelectedCapability(capability);
+      setRequestDialogOpen(true);
+    }
   };
 
   const handleResourceClick = async (resourceId: string, url: string) => {
@@ -948,6 +951,20 @@ export default function MyGrowthPlan() {
           open={ratingDialogOpen}
           onOpenChange={setRatingDialogOpen}
           onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
+
+      {/* Request Capability Level Dialog */}
+      {selectedCapability && (
+        <RequestCapabilityLevelDialog
+          open={requestDialogOpen}
+          onOpenChange={setRequestDialogOpen}
+          employeeCapability={{
+            id: selectedCapability.id,
+            capability_id: selectedCapability.capability.id,
+            current_level: selectedCapability.current_level,
+            capability_name: selectedCapability.capability.name,
+          }}
         />
       )}
     </div>

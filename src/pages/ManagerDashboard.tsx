@@ -14,6 +14,8 @@ import { OneOnOneDialog } from "@/components/OneOnOneDialog";
 import { RecognitionDialog } from "@/components/RecognitionDialog";
 import { ScheduleReviewDialog } from "@/components/ScheduleReviewDialog";
 import { ManageMyTeamDialog } from "@/components/ManageMyTeamDialog";
+import { PendingCapabilitiesTab } from "@/components/PendingCapabilitiesTab";
+import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
 
 type DirectReport = {
   id: string;
@@ -192,7 +194,8 @@ export default function ManagerDashboard() {
       <Tabs defaultValue="team" className="space-y-4">
         <TabsList>
           <TabsTrigger value="team">Team Overview</TabsTrigger>
-          <TabsTrigger value="capabilities">Capabilities</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
         </TabsList>
 
@@ -287,20 +290,12 @@ export default function ManagerDashboard() {
           )}
         </TabsContent>
 
-        <TabsContent value="capabilities">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Capabilities Overview</CardTitle>
-              <CardDescription>
-                View and manage capabilities across your team
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                Capability matrix coming soon
-              </p>
-            </CardContent>
-          </Card>
+        <TabsContent value="requests" className="space-y-4">
+          <PendingCapabilitiesTab />
+        </TabsContent>
+
+        <TabsContent value="watchlist" className="space-y-4">
+          <StandardCapWatchlistTab />
         </TabsContent>
 
         <TabsContent value="reviews">

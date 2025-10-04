@@ -1,259 +1,191 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, AlertCircle, Loader2, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { toast } from "sonner";
+import { Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
-interface WatchlistCapability {
-  id: string;
-  name: string;
+interface TeamCapability {
+  capability_id: string;
+  capability_name: string;
   category: string;
-  description: string;
-  is_custom: boolean;
-  companies_using_count: number;
-  companies: Array<{
+  employees: Array<{
     id: string;
     name: string;
+    current_level: string;
+    target_level: string;
+    priority: number;
   }>;
-  has_resource_gap: boolean;
+  avg_priority: number;
 }
 
-export const StandardCapWatchlistTab = () => {
-  const [watchlistCapabilities, setWatchlistCapabilities] = useState<WatchlistCapability[]>([]);
+export function StandardCapWatchlistTab() {
+  const [capabilities, setCapabilities] = useState<TeamCapability[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const { toast } = useToast();
 
   useEffect(() => {
-    loadWatchlist();
+    loadTeamCapabilities();
   }, []);
 
-  const loadWatchlist = async () => {
+  const loadTeamCapabilities = async () => {
     try {
-      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // Get custom capabilities used by 3+ companies
-      const { data: capabilities, error: capError } = await supabase
-        .from('capabilities')
-        .select('*')
-        .eq('is_custom', true)
-        .eq('status', 'approved')
-        .gte('companies_using_count', 3)
-        .order('companies_using_count', { ascending: false });
+      // Get manager's direct reports
+      const { data: reports } = await supabase
+        .from("manager_assignments")
+        .select("employee_id")
+        .eq("manager_id", user.id);
 
-      if (capError) throw capError;
+      if (!reports || reports.length === 0) {
+        setCapabilities([]);
+        setLoading(false);
+        return;
+      }
 
-      // For each capability, get the companies using it
-      const watchlistWithCompanies = await Promise.all(
-        (capabilities || []).map(async (cap) => {
-          const { data: stats } = await supabase
-            .from('capability_usage_stats')
-            .select(`
-              company_id,
-              companies:company_id (
-                id,
-                name
-              )
-            `)
-            .eq('capability_id', cap.id);
+      const employeeIds = reports.map((r) => r.employee_id);
 
-          // Check for resource gaps
-          const { data: gaps } = await supabase
-            .from('capability_resource_gaps')
-            .select('id')
-            .eq('capability_id', cap.id)
-            .is('resolved_at', null)
-            .limit(1);
+      // Get all capabilities for direct reports
+      const { data: empCaps, error } = await supabase
+        .from("employee_capabilities")
+        .select(`
+          id,
+          profile_id,
+          capability_id,
+          current_level,
+          target_level,
+          priority,
+          profiles!employee_capabilities_profile_id_fkey(full_name),
+          capabilities!employee_capabilities_capability_id_fkey(name, category)
+        `)
+        .in("profile_id", employeeIds)
+        .not("priority", "is", null)
+        .order("priority", { ascending: false });
 
-          return {
-            ...cap,
-            companies: stats?.map((s: any) => s.companies).filter(Boolean) || [],
-            has_resource_gap: (gaps && gaps.length > 0) || false
-          };
-        })
-      );
+      if (error) throw error;
 
-      setWatchlistCapabilities(watchlistWithCompanies);
-    } catch (error) {
-      console.error('Error loading watchlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load watchlist",
-        variant: "destructive",
+      // Group by capability
+      const capMap = new Map<string, TeamCapability>();
+
+      (empCaps || []).forEach((ec: any) => {
+        const capId = ec.capability_id;
+        const capName = ec.capabilities?.name || "Unknown";
+        const category = ec.capabilities?.category || "Other";
+
+        if (!capMap.has(capId)) {
+          capMap.set(capId, {
+            capability_id: capId,
+            capability_name: capName,
+            category,
+            employees: [],
+            avg_priority: 0,
+          });
+        }
+
+        const cap = capMap.get(capId)!;
+        cap.employees.push({
+          id: ec.profile_id,
+          name: ec.profiles?.full_name || "Unknown",
+          current_level: ec.current_level,
+          target_level: ec.target_level,
+          priority: ec.priority || 0,
+        });
       });
+
+      // Calculate average priority and sort
+      const capsArray = Array.from(capMap.values()).map((cap) => ({
+        ...cap,
+        avg_priority:
+          cap.employees.reduce((sum, emp) => sum + emp.priority, 0) / cap.employees.length,
+      }));
+
+      capsArray.sort((a, b) => b.avg_priority - a.avg_priority);
+
+      setCapabilities(capsArray);
+    } catch (error) {
+      console.error("Error loading team capabilities:", error);
+      toast.error("Failed to load team capabilities");
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePromote = async (capabilityId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+  const getLevelIcon = (current: string, target: string) => {
+    const levels = ["foundational", "advancing", "independent", "mastery"];
+    const currentIdx = levels.indexOf(current);
+    const targetIdx = levels.indexOf(target);
 
-      // Update capability to mark as standard (non-custom)
-      const { error } = await supabase
-        .from('capabilities')
-        .update({ 
-          is_custom: false,
-          approved_by: user.id,
-          approved_at: new Date().toISOString()
-        })
-        .eq('id', capabilityId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Capability promoted to standard library",
-      });
-
-      loadWatchlist();
-    } catch (error) {
-      console.error('Error promoting capability:', error);
-      toast({
-        title: "Error",
-        description: "Failed to promote capability",
-        variant: "destructive",
-      });
+    if (targetIdx > currentIdx) {
+      return <TrendingUp className="h-4 w-4 text-green-600" />;
+    } else if (targetIdx < currentIdx) {
+      return <TrendingDown className="h-4 w-4 text-orange-600" />;
     }
+    return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
-  const toggleRow = (capId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(capId)) {
-      newExpanded.delete(capId);
-    } else {
-      newExpanded.add(capId);
-    }
-    setExpandedRows(newExpanded);
+  const getPriorityColor = (priority: number) => {
+    if (priority >= 8) return "destructive";
+    if (priority >= 5) return "default";
+    return "secondary";
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  if (capabilities.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No capabilities with priority set for your team
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Standard Capability Watchlist
-          </CardTitle>
-          <CardDescription>
-            Custom capabilities used by 3+ companies. Consider promoting to standard library.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {watchlistCapabilities.length === 0 ? (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                No capabilities meet the promotion criteria yet
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12"></TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Companies</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {watchlistCapabilities.map((cap) => (
-                  <>
-                    <TableRow key={cap.id}>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleRow(cap.id)}
-                        >
-                          {expandedRows.has(cap.id) ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="font-medium">{cap.name}</TableCell>
-                      <TableCell>{cap.category}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {cap.companies_using_count} companies
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {cap.has_resource_gap && (
-                          <Badge variant="destructive">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            No Resources
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handlePromote(cap.id)}
-                          disabled={cap.has_resource_gap}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Promote to Standard
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                    {expandedRows.has(cap.id) && (
-                      <TableRow>
-                        <TableCell colSpan={6}>
-                          <div className="p-4 bg-muted rounded-lg space-y-4">
-                            <div>
-                              <h4 className="font-semibold mb-2">Description</h4>
-                              <p className="text-sm text-muted-foreground">{cap.description}</p>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold mb-2">Companies Using This Capability</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {cap.companies.map((company) => (
-                                  <Badge key={company.id} variant="outline">
-                                    {company.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                            {cap.has_resource_gap && (
-                              <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                  This capability has no assigned resources. Add resources before promoting to standard library.
-                                </AlertDescription>
-                              </Alert>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      {capabilities.map((cap) => (
+        <Card key={cap.capability_id}>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-lg">{cap.capability_name}</CardTitle>
+                <CardDescription>{cap.category}</CardDescription>
+              </div>
+              <Badge variant={getPriorityColor(Math.round(cap.avg_priority))}>
+                Avg Priority: {cap.avg_priority.toFixed(1)}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {cap.employees.map((emp) => (
+                <div
+                  key={emp.id}
+                  className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                >
+                  <div className="flex items-center gap-3">
+                    {getLevelIcon(emp.current_level, emp.target_level)}
+                    <div>
+                      <div className="font-medium text-sm">{emp.name}</div>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {emp.current_level} → {emp.target_level}
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant={getPriorityColor(emp.priority)} className="text-xs">
+                    P{emp.priority}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
-};
+}
