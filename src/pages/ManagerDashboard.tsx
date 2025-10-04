@@ -158,6 +158,11 @@ export default function ManagerDashboard() {
     setAssignDialogOpen(true);
   };
 
+  const handleAssignFromView = () => {
+    setCapabilitiesDialogOpen(false);
+    setAssignDialogOpen(true);
+  };
+
   const handleOneOnOne = (employee: DirectReport) => {
     setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
     setOneOnOneDialogOpen(true);
@@ -334,6 +339,7 @@ export default function ManagerDashboard() {
             open={capabilitiesDialogOpen}
             onOpenChange={setCapabilitiesDialogOpen}
             employee={selectedEmployee}
+            onAssignClick={handleAssignFromView}
           />
           <AssignCapabilitiesDialog
             open={assignDialogOpen}

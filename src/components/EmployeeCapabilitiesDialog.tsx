@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, Target } from "lucide-react";
+import { Loader2, TrendingUp, Target, Plus } from "lucide-react";
 
 interface EmployeeCapabilitiesDialogProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface EmployeeCapabilitiesDialogProps {
     id: string;
     full_name: string;
   };
+  onAssignClick?: () => void;
 }
 
 type EmployeeCapability = {
@@ -29,7 +31,7 @@ type EmployeeCapability = {
   };
 };
 
-export function EmployeeCapabilitiesDialog({ open, onOpenChange, employee }: EmployeeCapabilitiesDialogProps) {
+export function EmployeeCapabilitiesDialog({ open, onOpenChange, employee, onAssignClick }: EmployeeCapabilitiesDialogProps) {
   const [capabilities, setCapabilities] = useState<EmployeeCapability[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -154,6 +156,15 @@ export function EmployeeCapabilitiesDialog({ open, onOpenChange, employee }: Emp
               </Card>
             ))}
           </div>
+        )}
+        
+        {onAssignClick && (
+          <DialogFooter className="mt-6">
+            <Button onClick={onAssignClick} className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Assign Capabilities
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>
