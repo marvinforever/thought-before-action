@@ -12,6 +12,9 @@ import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
 import GreatnessTracker from "@/components/GreatnessTracker";
 import InteractiveCapabilityCard from "@/components/InteractiveCapabilityCard";
+import { ResourceRatingDialog } from "@/components/ResourceRatingDialog";
+import { SuggestResourceDialog } from "@/components/SuggestResourceDialog";
+import { ContentTypeFilter } from "@/components/ContentTypeFilter";
 
 type GrowthPlanResource = {
   id: string;
@@ -62,6 +65,7 @@ type JobDescription = {
 
 export default function MyGrowthPlan() {
   const [resources, setResources] = useState<GrowthPlanResource[]>([]);
+  const [allResources, setAllResources] = useState<any[]>([]);
   const [capabilities, setCapabilities] = useState<EmployeeCapability[]>([]);
   const [capabilityResources, setCapabilityResources] = useState<Record<string, any[]>>({});
   const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
@@ -69,6 +73,9 @@ export default function MyGrowthPlan() {
   const [isReanalyzing, setIsReanalyzing] = useState(false);
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [contentTypeFilter, setContentTypeFilter] = useState<string>("all");
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -76,6 +83,69 @@ export default function MyGrowthPlan() {
     loadCapabilities();
     loadJobDescriptions();
     loadCapabilityResources();
+    loadAllResources();
+  }, []);
+
+  // Auto-trigger recommendations when key data changes
+  useEffect(() => {
+    const handleDataChange = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) return;
+
+      // Trigger recommendations in background (don't block UI)
+      supabase.functions.invoke('recommend-resources', {
+        body: { 
+          employeeId: user.id,
+          companyId: profile.company_id,
+          triggerSource: 'auto',
+        }
+      }).then(() => {
+        loadGrowthPlan();
+        loadCapabilityResources();
+      });
+    };
+
+    // Listen for changes to triggers
+    const capabilitiesChannel = supabase
+      .channel('capability-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'employee_capabilities'
+      }, handleDataChange)
+      .subscribe();
+
+    const goalsChannel = supabase
+      .channel('goals-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'personal_goals'
+      }, handleDataChange)
+      .subscribe();
+
+    const targetsChannel = supabase
+      .channel('targets-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ninety_day_targets'
+      }, handleDataChange)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(capabilitiesChannel);
+      supabase.removeChannel(goalsChannel);
+      supabase.removeChannel(targetsChannel);
+    };
   }, []);
 
   const loadGrowthPlan = async () => {
@@ -98,6 +168,7 @@ export default function MyGrowthPlan() {
           sent_at,
           clicked_at,
           completed_at,
+          expires_at,
           resource:resources(
             id,
             title,
@@ -115,6 +186,7 @@ export default function MyGrowthPlan() {
           )
         `)
         .eq("profile_id", user.id)
+        .gt("expires_at", new Date().toISOString()) // Filter expired
         .order("sent_at", { ascending: false });
 
       if (error) throw error;
@@ -199,11 +271,12 @@ export default function MyGrowthPlan() {
 
       if (!empCaps) return;
 
-      // Get resources for each capability
+      // Get resources for each capability (filter expired)
       const { data: recommendations } = await supabase
         .from("content_recommendations")
         .select(`
           employee_capability_id,
+          expires_at,
           resource:resources(
             id,
             title,
@@ -215,6 +288,7 @@ export default function MyGrowthPlan() {
           )
         `)
         .eq("profile_id", user.id)
+        .gt("expires_at", new Date().toISOString())
         .in("employee_capability_id", empCaps.map(c => c.id));
 
       if (!recommendations) return;
@@ -232,6 +306,33 @@ export default function MyGrowthPlan() {
       setCapabilityResources(grouped);
     } catch (error) {
       console.error("Error loading capability resources:", error);
+    }
+  };
+
+  const loadAllResources = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) return;
+
+      const { data, error } = await supabase
+        .from("resources")
+        .select("*")
+        .eq("company_id", profile.company_id)
+        .eq("is_active", true)
+        .order("rating", { ascending: false, nullsFirst: false });
+
+      if (error) throw error;
+      setAllResources(data || []);
+    } catch (error) {
+      console.error("Error loading all resources:", error);
     }
   };
 
@@ -442,7 +543,25 @@ export default function MyGrowthPlan() {
   const filteredResources = resources.filter((item) => {
     if (selectedStatus === "all") return true;
     return item.status === selectedStatus;
+  }).filter((item) => {
+    if (contentTypeFilter === "all") return true;
+    return item.resource?.content_type === contentTypeFilter;
   });
+
+  const filteredAllResources = allResources.filter((resource) => {
+    if (contentTypeFilter === "all") return true;
+    return resource.content_type === contentTypeFilter;
+  });
+
+  const handleOpenRating = (resource: any) => {
+    setSelectedResource(resource);
+    setRatingDialogOpen(true);
+  };
+
+  const handleRatingSubmitted = () => {
+    loadAllResources();
+    loadGrowthPlan();
+  };
 
   const pendingCount = resources.filter(r => r.status === "pending").length;
   const completedCount = resources.filter(r => r.status === "completed").length;
@@ -614,16 +733,103 @@ export default function MyGrowthPlan() {
         </Card>
       </div>
 
+      <div className="flex items-center justify-between mb-4">
+        <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
+          <TabsList>
+            <TabsTrigger value="all">My Plan ({resources.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
+            <TabsTrigger value="clicked">In Progress</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
+            <TabsTrigger value="all-resources">All Resources ({allResources.length})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="flex items-center gap-2">
+          <ContentTypeFilter value={contentTypeFilter} onChange={setContentTypeFilter} />
+          <SuggestResourceDialog />
+        </div>
+      </div>
+
       <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
-        <TabsList>
-          <TabsTrigger value="all">All ({resources.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
-          <TabsTrigger value="clicked">In Progress</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
-        </TabsList>
+
+        <TabsContent value="all-resources" className="mt-6">
+          {filteredAllResources.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">
+                  No resources available
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredAllResources.map((resource) => (
+                <Card key={resource.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getContentIcon(resource.content_type)}
+                        <Badge className={getLevelColor(resource.capability_level)}>
+                          {getLevelLabel(resource.capability_level)}
+                        </Badge>
+                      </div>
+                      {resource.rating && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">{resource.rating}</span>
+                        </div>
+                      )}
+                    </div>
+                    <CardTitle className="text-lg line-clamp-2">{resource.title}</CardTitle>
+                    {resource.authors && (
+                      <CardDescription className="text-sm">
+                        by {resource.authors}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {resource.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {resource.description}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      {resource.external_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          asChild
+                        >
+                          <a
+                            href={resource.external_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2"
+                          >
+                            View Resource
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleOpenRating(resource)}
+                        className="gap-1"
+                      >
+                        <Star className="h-3 w-3" />
+                        Rate
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value={selectedStatus} className="mt-6">
-          {filteredResources.length === 0 ? (
+          {selectedStatus === "all-resources" ? null : filteredResources.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
                 <p className="text-center text-muted-foreground">
@@ -716,6 +922,14 @@ export default function MyGrowthPlan() {
                             Complete
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenRating(resource)}
+                          className="gap-1"
+                        >
+                          <Star className="h-3 w-3" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -725,6 +939,17 @@ export default function MyGrowthPlan() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Rating Dialog */}
+      {selectedResource && (
+        <ResourceRatingDialog
+          resourceId={selectedResource.id}
+          resourceTitle={selectedResource.title}
+          open={ratingDialogOpen}
+          onOpenChange={setRatingDialogOpen}
+          onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
     </div>
   );
 }

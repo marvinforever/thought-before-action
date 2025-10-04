@@ -440,6 +440,7 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           employee_capability_id: string | null
+          expires_at: string | null
           id: string
           match_score: number | null
           profile_id: string | null
@@ -453,6 +454,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           employee_capability_id?: string | null
+          expires_at?: string | null
           id?: string
           match_score?: number | null
           profile_id?: string | null
@@ -466,6 +468,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           employee_capability_id?: string | null
+          expires_at?: string | null
           id?: string
           match_score?: number | null
           profile_id?: string | null
@@ -1636,6 +1639,86 @@ export type Database = {
             columns: ["resource_id"]
             isOneToOne: false
             referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_suggestions: {
+        Row: {
+          company_id: string
+          content_type: string
+          created_at: string | null
+          description: string | null
+          external_url: string
+          id: string
+          profile_id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          suggested_capability_id: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          content_type: string
+          created_at?: string | null
+          description?: string | null
+          external_url: string
+          id?: string
+          profile_id: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          suggested_capability_id?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          content_type?: string
+          created_at?: string | null
+          description?: string | null
+          external_url?: string
+          id?: string
+          profile_id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          suggested_capability_id?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_suggestions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_suggestions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_suggestions_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_suggestions_suggested_capability_id_fkey"
+            columns: ["suggested_capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
             referencedColumns: ["id"]
           },
         ]

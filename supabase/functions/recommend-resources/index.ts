@@ -77,7 +77,24 @@ serve(async (req) => {
       quarterlyGoals: targets?.map(t => t.goal_text) || [],
     };
 
-    // Fetch available resources for matching
+    // Fetch existing recommendations to avoid duplicates and expired ones
+    const { data: existingRecs } = await supabaseClient
+      .from('content_recommendations')
+      .select('resource_id, status, expires_at')
+      .eq('profile_id', employeeId);
+
+    // Get IDs of completed resources and non-expired active recommendations
+    const completedResourceIds = new Set(
+      existingRecs?.filter(r => r.status === 'completed').map(r => r.resource_id) || []
+    );
+    const activeRecommendedIds = new Set(
+      existingRecs?.filter(r => 
+        r.status !== 'completed' && 
+        (!r.expires_at || new Date(r.expires_at) > new Date())
+      ).map(r => r.resource_id) || []
+    );
+
+    // Fetch available resources for matching (exclude already completed/recommended)
     const { data: allResources, error: resourcesError } = await supabaseClient
       .from('resources')
       .select(`
@@ -90,7 +107,8 @@ serve(async (req) => {
         rating
       `)
       .eq('company_id', companyId)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .not('id', 'in', `(${[...completedResourceIds, ...activeRecommendedIds].join(',') || 'null'})`);
 
     if (resourcesError) throw resourcesError;
 
@@ -101,14 +119,16 @@ serve(async (req) => {
     const systemPrompt = `You are Jericho, a personal growth and development coach. Analyze the employee's capabilities, goals, and available resources to recommend the most relevant learning materials.
 
 Consider:
-- Capability gaps (current level vs target level)
-- Personal vision and quarterly goals
+- Capability gaps (current level vs target level) - prioritize high-priority capabilities
+- Personal vision and quarterly goals alignment
 - Resource relevance to capability categories
 - Resource level matching the employee's current skill level
+- Resource ratings (prefer highly-rated content)
+- Limit to 3-5 recommendations per capability to avoid overwhelming
 
 For each recommended resource, provide:
 - match_score (0-100): How well this resource matches their needs
-- reasoning: Brief explanation of why this resource will help
+- reasoning: Brief, personalized explanation of why this resource will help them close their capability gap
 
 Return ONLY a JSON array of recommendations in this exact format:
 [
@@ -120,7 +140,7 @@ Return ONLY a JSON array of recommendations in this exact format:
   }
 ]
 
-Recommend 5-10 most relevant resources. Focus on quality over quantity.`;
+Recommend 5-15 total resources, distributed across their priority capabilities. Focus on quality over quantity.`;
 
     const userPrompt = `Employee Context:
 Capabilities: ${JSON.stringify(capabilitiesContext, null, 2)}
@@ -177,16 +197,23 @@ Provide recommendations now:`;
       throw new Error('Invalid AI response format');
     }
 
-    // Insert recommendations into database
-    const recommendationsToInsert = recommendations.map((rec: any) => ({
-      profile_id: employeeId,
-      resource_id: rec.resource_id,
-      employee_capability_id: rec.employee_capability_id || null,
-      match_score: rec.match_score,
-      ai_reasoning: rec.reasoning,
-      status: 'pending',
-      sent_at: new Date().toISOString(),
-    }));
+    // Insert recommendations into database with 45-day expiration
+    const recommendationsToInsert = recommendations.map((rec: any) => {
+      const sentAt = new Date();
+      const expiresAt = new Date(sentAt);
+      expiresAt.setDate(expiresAt.getDate() + 45); // 45 days expiration
+
+      return {
+        profile_id: employeeId,
+        resource_id: rec.resource_id,
+        employee_capability_id: rec.employee_capability_id || null,
+        match_score: rec.match_score,
+        ai_reasoning: rec.reasoning,
+        status: 'pending',
+        sent_at: sentAt.toISOString(),
+        expires_at: expiresAt.toISOString(),
+      };
+    });
 
     const { data: inserted, error: insertError } = await supabaseClient
       .from('content_recommendations')
