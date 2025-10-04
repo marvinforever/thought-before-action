@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles } from "lucide-react";
-import DiagnosticInsights from "@/components/DiagnosticInsights";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
@@ -585,9 +584,6 @@ export default function MyGrowthPlan() {
           Your personalized development journey, goals, and learning resources
         </p>
       </div>
-
-      {/* Diagnostic Insights */}
-      <DiagnosticInsights />
 
       {/* Personal Vision and Greatness Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

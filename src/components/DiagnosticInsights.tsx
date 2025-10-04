@@ -1,324 +1,254 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Brain, AlertCircle, TrendingUp, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { JerichoChat } from "./JerichoChat";
-import { 
-  Brain, 
-  TrendingUp, 
-  Heart, 
-  Users, 
-  Target,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Lightbulb,
-  Sparkles,
-  Loader2
-} from "lucide-react";
 
-type DiagnosticResponse = {
-  confidence_score: number | null;
-  role_clarity_score: number | null;
-  work_life_integration_score: number | null;
-  workload_status: string | null;
-  sees_growth_path: boolean | null;
-  manages_others: boolean | null;
-  three_year_goal: string | null;
-  twelve_month_growth_goal: string | null;
-  natural_strength: string | null;
-  growth_barrier: string | null;
-  biggest_work_obstacle: string | null;
-  skill_to_master: string | null;
-  learning_preference: string | null;
-  weekly_development_hours: number | null;
-  burnout_frequency: string | null;
-  work_life_sacrifice_frequency: string | null;
+type Insight = {
+  type: 'warning' | 'opportunity' | 'strength';
+  title: string;
+  description: string;
+  actionable?: string;
 };
 
-export default function DiagnosticInsights() {
-  const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
+export function DiagnosticInsights() {
   const [loading, setLoading] = useState(true);
-  const [jerichoOpen, setJerichoOpen] = useState(false);
-  const [jerichoContext, setJerichoContext] = useState<{message?: string, type?: string}>({});
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [generatingAI, setGeneratingAI] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadDiagnostic();
+    loadInsights();
   }, []);
 
-  const loadDiagnostic = async () => {
+  const loadInsights = async () => {
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("diagnostic_responses")
-        .select("*")
-        .eq("profile_id", user.id)
-        .maybeSingle();
+      const { data: assignments } = await supabase
+        .from("manager_assignments")
+        .select("employee_id")
+        .eq("manager_id", user.id);
 
-      if (error && error.code !== 'PGRST116') throw error;
-      setDiagnostic(data);
+      const employeeIds = assignments?.map(a => a.employee_id) || [];
+
+      if (employeeIds.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const generatedInsights: Insight[] = [];
+
+      // Check for employees without diagnostics
+      const { data: diagnostics } = await supabase
+        .from("diagnostic_responses")
+        .select("profile_id")
+        .in("profile_id", employeeIds);
+
+      const withDiagnostics = diagnostics?.map(d => d.profile_id) || [];
+      const withoutDiagnostics = employeeIds.filter(id => !withDiagnostics.includes(id));
+
+      if (withoutDiagnostics.length > 0) {
+        generatedInsights.push({
+          type: 'warning',
+          title: 'Missing Diagnostics',
+          description: `${withoutDiagnostics.length} team member(s) haven't completed their diagnostic assessment`,
+          actionable: 'Encourage team members to complete their assessments for better insights',
+        });
+      }
+
+      // Check for overdue 1-on-1s
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: recentOneOnOnes } = await supabase
+        .from("one_on_one_notes")
+        .select("employee_id")
+        .in("employee_id", employeeIds)
+        .gte("meeting_date", thirtyDaysAgo.toISOString());
+
+      const hadRecentOneOnOne = recentOneOnOnes?.map(o => o.employee_id) || [];
+      const needsOneOnOne = employeeIds.filter(id => !hadRecentOneOnOne.includes(id));
+
+      if (needsOneOnOne.length > 0) {
+        generatedInsights.push({
+          type: 'warning',
+          title: 'Overdue Check-ins',
+          description: `${needsOneOnOne.length} team member(s) haven't had a 1-on-1 in over 30 days`,
+          actionable: 'Schedule regular check-ins to maintain connection and address concerns',
+        });
+      }
+
+      // Check for pending capability requests
+      const { count: pendingRequests } = await supabase
+        .from("capability_level_requests")
+        .select("*", { count: "exact", head: true })
+        .in("profile_id", employeeIds)
+        .eq("status", "pending");
+
+      if (pendingRequests && pendingRequests > 0) {
+        generatedInsights.push({
+          type: 'opportunity',
+          title: 'Pending Requests',
+          description: `${pendingRequests} capability level request(s) awaiting your review`,
+          actionable: 'Review and respond to capability requests to support team growth',
+        });
+      }
+
+      // Check for high performers (lots of recognition)
+      const { data: recognition } = await supabase
+        .from("recognition_notes")
+        .select("given_to")
+        .in("given_to", employeeIds);
+
+      const recognitionCounts = recognition?.reduce((acc: any, r: any) => {
+        acc[r.given_to] = (acc[r.given_to] || 0) + 1;
+        return acc;
+      }, {});
+
+      const highPerformers = Object.entries(recognitionCounts || {}).filter(([_, count]: any) => count >= 3);
+
+      if (highPerformers.length > 0) {
+        generatedInsights.push({
+          type: 'strength',
+          title: 'High Performers',
+          description: `${highPerformers.length} team member(s) have received multiple recognitions`,
+          actionable: 'Consider these individuals for leadership opportunities or mentorship roles',
+        });
+      }
+
+      // Check goal completion rates
+      const { data: goals } = await supabase
+        .from("ninety_day_targets")
+        .select("profile_id, completed")
+        .in("profile_id", employeeIds);
+
+      const goalsByEmployee = goals?.reduce((acc: any, g: any) => {
+        if (!acc[g.profile_id]) {
+          acc[g.profile_id] = { total: 0, completed: 0 };
+        }
+        acc[g.profile_id].total += 1;
+        if (g.completed) acc[g.profile_id].completed += 1;
+        return acc;
+      }, {});
+
+      const strugglingWithGoals = Object.entries(goalsByEmployee || {}).filter(
+        ([_, stats]: any) => stats.total >= 3 && (stats.completed / stats.total) < 0.5
+      );
+
+      if (strugglingWithGoals.length > 0) {
+        generatedInsights.push({
+          type: 'warning',
+          title: 'Goal Achievement Concerns',
+          description: `${strugglingWithGoals.length} team member(s) have low goal completion rates`,
+          actionable: 'Schedule coaching sessions to identify blockers and adjust goals if needed',
+        });
+      }
+
+      setInsights(generatedInsights);
+
     } catch (error: any) {
-      console.error("Error loading diagnostic:", error);
+      toast({
+        title: "Error loading insights",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGetHelp = (area: string) => {
-    const contextMessages = {
-      role_clarity: "I'm struggling with understanding my role clearly. Can you help me think through this?",
-      confidence: "I'm feeling uncertain about my direction. Can we talk through this?",
-      work_life_balance: "I need help with my work-life balance. What should I be thinking about?",
-      burnout_risk: "I'm concerned about burnout. Can you help me develop a plan?",
-    };
-
-    setJerichoContext({
-      message: contextMessages[area as keyof typeof contextMessages] || "I need some help with my career development.",
-      type: area,
-    });
-    setJerichoOpen(true);
+  const generateAIInsights = async () => {
+    setGeneratingAI(true);
+    try {
+      toast({
+        title: "AI Insights",
+        description: "AI-powered insights generation coming soon",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error generating AI insights",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingAI(false);
+    }
   };
 
-  if (loading) return null;
-  if (!diagnostic) return null;
-
-  const calculateBurnoutRisk = () => {
-    const scores: number[] = [];
-
-    // Score workload status (0-100)
-    if (diagnostic.workload_status) {
-      const lower = diagnostic.workload_status.toLowerCase();
-      if (lower.includes('very manageable') || lower.includes('light')) scores.push(10);
-      else if (lower.includes('manageable') || lower.includes('balanced')) scores.push(30);
-      else if (lower.includes('stretched') || lower.includes('busy')) scores.push(55);
-      else if (lower.includes('somewhat overwhelming') || lower.includes('challenging')) scores.push(70);
-      else if (lower.includes('very overwhelming') || lower.includes('unsustainable')) scores.push(90);
-    }
-
-    // Score burnout frequency (0-100)
-    if (diagnostic.burnout_frequency) {
-      const lower = diagnostic.burnout_frequency.toLowerCase();
-      if (lower.includes('never')) scores.push(5);
-      else if (lower.includes('rarely')) scores.push(20);
-      else if (lower.includes('occasionally')) scores.push(50);
-      else if (lower.includes('frequently')) scores.push(75);
-      else if (lower.includes('constantly')) scores.push(95);
-    }
-
-    // Score work-life sacrifice frequency (0-100)
-    if (diagnostic.work_life_sacrifice_frequency) {
-      const lower = diagnostic.work_life_sacrifice_frequency.toLowerCase();
-      if (lower.includes('never')) scores.push(5);
-      else if (lower.includes('rarely')) scores.push(20);
-      else if (lower.includes('occasionally')) scores.push(50);
-      else if (lower.includes('frequently')) scores.push(75);
-      else if (lower.includes('constantly')) scores.push(95);
-    }
-
-    if (scores.length === 0) return null;
-
-    // Calculate simple average
-    const average = scores.reduce((a, b) => a + b, 0) / scores.length;
-
-    // Map to risk levels with colors
-    if (average <= 25) return { level: 'Low', color: 'text-green-500', bgColor: 'bg-green-500', value: average };
-    if (average <= 50) return { level: 'Moderate', color: 'text-yellow-500', bgColor: 'bg-yellow-500', value: average };
-    if (average <= 75) return { level: 'High', color: 'text-orange-500', bgColor: 'bg-orange-500', value: average };
-    return { level: 'Critical', color: 'text-red-500', bgColor: 'bg-red-500', value: average };
-  };
-
-  const burnoutInfo = calculateBurnoutRisk();
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center text-muted-foreground">
+          Loading insights...
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="border-2 border-primary/20">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Brain className="h-5 w-5 text-primary" />
-          My Personal Insights
-        </CardTitle>
-        <CardDescription>
-          These scores reflect your responses from the diagnostic survey, helping identify areas of strength and opportunities for growth
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Key Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {diagnostic.role_clarity_score !== null && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="h-4 w-4 text-green-500" />
-                  <span className="text-xs font-medium">Role Clarity</span>
-                </div>
-                <Progress value={diagnostic.role_clarity_score * 10} className="mb-2" />
-                <p className="text-2xl font-bold">{diagnostic.role_clarity_score}/10</p>
-                {diagnostic.role_clarity_score < 7 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full mt-2 text-xs"
-                    onClick={() => handleGetHelp('role_clarity')}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    Get Help
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {diagnostic.confidence_score !== null && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                  <span className="text-xs font-medium">Certainty</span>
-                </div>
-                <Progress value={diagnostic.confidence_score * 10} className="mb-2" />
-                <p className="text-2xl font-bold">{diagnostic.confidence_score}/10</p>
-                {diagnostic.confidence_score < 7 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full mt-2 text-xs"
-                    onClick={() => handleGetHelp('confidence')}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    Get Help
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {diagnostic.work_life_integration_score !== null && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Heart className="h-4 w-4 text-red-500" />
-                  <span className="text-xs font-medium">Life Rhythm</span>
-                </div>
-                <Progress value={diagnostic.work_life_integration_score * 10} className="mb-2" />
-                <p className="text-2xl font-bold">{diagnostic.work_life_integration_score}/10</p>
-                {diagnostic.work_life_integration_score < 7 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full mt-2 text-xs"
-                    onClick={() => handleGetHelp('work_life_balance')}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    Get Help
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {burnoutInfo && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className={`h-4 w-4 ${burnoutInfo.color}`} />
-                  <span className="text-xs font-medium">Burnout Risk</span>
-                </div>
-                <Progress value={burnoutInfo.value} className="mb-2" />
-                <p className="text-sm font-semibold">{burnoutInfo.level}</p>
-                {burnoutInfo.value > 50 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full mt-2 text-xs"
-                    onClick={() => handleGetHelp('burnout_risk')}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    Get Help
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-
-        {/* Goals & Focus Areas */}
-        <div className="grid gap-4 md:grid-cols-2">
-
-          {diagnostic.twelve_month_growth_goal && (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                12-Month Growth Goal
-              </h4>
-              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                {diagnostic.twelve_month_growth_goal}
-              </p>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5" />
+                Team Insights
+              </CardTitle>
+              <CardDescription>
+                AI-powered recommendations based on your team's data
+              </CardDescription>
             </div>
-          )}
-
-          {diagnostic.natural_strength && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                Natural Strength
-              </h4>
-              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                {diagnostic.natural_strength}
-              </p>
-            </div>
-          )}
-
-          {diagnostic.skill_to_master && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <Brain className="h-4 w-4" />
-                Skill to Master
-              </h4>
-              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                {diagnostic.skill_to_master}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Barriers & Obstacles */}
-        {(diagnostic.growth_barrier || diagnostic.biggest_work_obstacle) && (
-          <div>
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-orange-500" />
-              Areas Needing Support
-            </h4>
-            <div className="space-y-2">
-              {diagnostic.growth_barrier && (
-                <div className="bg-orange-50 dark:bg-orange-950/20 p-3 rounded-md border border-orange-200 dark:border-orange-900">
-                  <p className="text-xs font-medium text-orange-900 dark:text-orange-200 mb-1">Growth Barrier</p>
-                  <p className="text-sm text-orange-800 dark:text-orange-300">{diagnostic.growth_barrier}</p>
-                </div>
-              )}
-              {diagnostic.biggest_work_obstacle && (
-                <div className="bg-orange-50 dark:bg-orange-950/20 p-3 rounded-md border border-orange-200 dark:border-orange-900">
-                  <p className="text-xs font-medium text-orange-900 dark:text-orange-200 mb-1">Work Obstacle</p>
-                  <p className="text-sm text-orange-800 dark:text-orange-300">{diagnostic.biggest_work_obstacle}</p>
-                </div>
-              )}
-            </div>
+            <Button onClick={generateAIInsights} disabled={generatingAI}>
+              <Brain className="h-4 w-4 mr-2" />
+              {generatingAI ? "Generating..." : "Refresh AI Insights"}
+            </Button>
           </div>
-        )}
-
-      </CardContent>
-
-      <JerichoChat
-        isOpen={jerichoOpen}
-        onClose={() => setJerichoOpen(false)}
-        initialMessage={jerichoContext.message}
-        contextType={jerichoContext.type}
-      />
-    </Card>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {insights.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No insights available yet. As your team grows and engages with the platform, insights will appear here.</p>
+            </div>
+          ) : (
+            insights.map((insight, index) => (
+              <Card key={index} className="border-l-4" style={{
+                borderLeftColor: insight.type === 'warning' ? 'hsl(var(--destructive))' : 
+                                insight.type === 'opportunity' ? 'hsl(var(--primary))' : 
+                                'hsl(var(--chart-2))'
+              }}>
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {insight.type === 'warning' && <AlertCircle className="h-4 w-4 text-destructive" />}
+                        {insight.type === 'opportunity' && <TrendingUp className="h-4 w-4 text-primary" />}
+                        {insight.type === 'strength' && <Users className="h-4 w-4 text-chart-2" />}
+                        <h4 className="font-semibold">{insight.title}</h4>
+                        <Badge variant={insight.type === 'warning' ? 'destructive' : insight.type === 'opportunity' ? 'default' : 'secondary'}>
+                          {insight.type}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">{insight.description}</p>
+                      {insight.actionable && (
+                        <p className="text-sm font-medium text-foreground">
+                          💡 {insight.actionable}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
