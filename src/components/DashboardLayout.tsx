@@ -18,13 +18,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const DashboardLayout = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -127,67 +131,94 @@ const DashboardLayout = () => {
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-40",
-        sidebarOpen ? "w-64" : "w-0 -translate-x-full"
-      )}>
-        <div className="p-6 border-b border-border">
-          <h1 className="text-2xl font-bold text-primary">Jericho</h1>
-          <p className="text-sm text-muted-foreground">Capability Platform</p>
-        </div>
-        <nav className="p-4 space-y-2">
-          {isSuperAdmin && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start bg-primary/10 text-primary hover:bg-primary/20"
-              onClick={() => navigate("/super-admin")}
-            >
-              <Shield className="mr-3 h-5 w-5" />
-              Super Admin
-            </Button>
-          )}
-          {navItems.map((item) => (
-            <Button
-              key={item.path}
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => navigate(item.path)}
-            >
-              <item.icon className="mr-3 h-5 w-5" />
-              {item.label}
-            </Button>
-          ))}
-        </nav>
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+  const SidebarContent = () => (
+    <>
+      <div className="p-6 border-b border-border">
+        <h1 className="text-2xl font-bold text-primary">Jericho</h1>
+        <p className="text-sm text-muted-foreground">Capability Platform</p>
+      </div>
+      <nav className="p-4 space-y-2">
+        {isSuperAdmin && (
           <Button
             variant="ghost"
-            className="w-full justify-start text-destructive hover:text-destructive"
-            onClick={handleLogout}
+            className="w-full justify-start bg-primary/10 text-primary hover:bg-primary/20"
+            onClick={() => {
+              navigate("/super-admin");
+              setMobileMenuOpen(false);
+            }}
           >
-            <LogOut className="mr-3 h-5 w-5" />
-            Logout
+            <Shield className="mr-3 h-5 w-5" />
+            Super Admin
           </Button>
-        </div>
-      </aside>
+        )}
+        {navItems.map((item) => (
+          <Button
+            key={item.path}
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => {
+              navigate(item.path);
+              setMobileMenuOpen(false);
+            }}
+          >
+            <item.icon className="mr-3 h-5 w-5" />
+            {item.label}
+          </Button>
+        ))}
+      </nav>
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-destructive hover:text-destructive"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          Logout
+        </Button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <aside className={cn(
+          "fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-40",
+          sidebarOpen ? "w-64" : "w-0 -translate-x-full"
+        )}>
+          <SidebarContent />
+        </aside>
+      )}
 
       {/* Main Content */}
       <div className={cn(
         "transition-all duration-300",
-        sidebarOpen ? "ml-64" : "ml-0"
+        !isMobile && sidebarOpen ? "ml-64" : "ml-0"
       )}>
         {/* Header */}
         <header className="bg-card border-b border-border sticky top-0 z-30">
           <div className="flex items-center justify-between p-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            {isMobile ? (
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 p-0">
+                  <SidebarContent />
+                </SheetContent>
+              </Sheet>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">
                 {user.email}
