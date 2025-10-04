@@ -14,8 +14,18 @@ type Achievement = {
   achieved_date: string | null;
 };
 
+type Recognition = {
+  id: string;
+  title: string;
+  description: string;
+  category: string | null;
+  recognition_date: string;
+  given_by_name: string;
+};
+
 export default function AchievementsCard() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [recognitions, setRecognitions] = useState<Recognition[]>([]);
   const [isAdding, setIsAdding] = useState<{ category: string } | null>(null);
   const [editingAchievement, setEditingAchievement] = useState<string | null>(null);
   const [newAchievement, setNewAchievement] = useState({ text: "", date: "" });
@@ -24,6 +34,7 @@ export default function AchievementsCard() {
 
   useEffect(() => {
     loadAchievements();
+    loadRecognitions();
   }, []);
 
   const loadAchievements = async () => {
@@ -41,6 +52,41 @@ export default function AchievementsCard() {
       setAchievements(data || []);
     } catch (error: any) {
       console.error("Error loading achievements:", error);
+    }
+  };
+
+  const loadRecognitions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("recognition_notes")
+        .select(`
+          id,
+          title,
+          description,
+          category,
+          recognition_date,
+          profiles!recognition_notes_given_by_fkey(full_name)
+        `)
+        .eq("given_to", user.id)
+        .order("recognition_date", { ascending: false });
+
+      if (error) throw error;
+      
+      const formattedData = data?.map(r => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        recognition_date: r.recognition_date,
+        given_by_name: (r.profiles as any)?.full_name || "Manager"
+      })) || [];
+      
+      setRecognitions(formattedData);
+    } catch (error: any) {
+      console.error("Error loading recognitions:", error);
     }
   };
 
@@ -153,6 +199,54 @@ export default function AchievementsCard() {
 
   const getAchievementsByCategory = (category: string) => {
     return achievements.filter(a => a.category === category);
+  };
+
+  const renderRecognitionsList = () => {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-sm">Manager Recognition</h4>
+          <Badge variant="secondary">{recognitions.length}</Badge>
+        </div>
+
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {recognitions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No manager recognition yet
+            </p>
+          ) : (
+            recognitions.map((recognition) => (
+              <Card key={recognition.id} className="border-l-4 border-l-primary bg-primary/5">
+                <CardContent className="pt-3 pb-3">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{recognition.title}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{recognition.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>{new Date(recognition.recognition_date).toLocaleDateString()}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-xs text-muted-foreground">From {recognition.given_by_name}</span>
+                      {recognition.category && (
+                        <>
+                          <span className="text-xs text-muted-foreground">•</span>
+                          <Badge variant="outline" className="text-xs">{recognition.category}</Badge>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </div>
+    );
   };
 
   const renderAchievementsList = (category: string) => {
@@ -293,9 +387,10 @@ export default function AchievementsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           {renderAchievementsList("personal")}
           {renderAchievementsList("professional")}
+          {renderRecognitionsList()}
         </div>
       </CardContent>
     </Card>
