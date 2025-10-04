@@ -6,13 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
 import { OneOnOneDialog } from "@/components/OneOnOneDialog";
 import { RecognitionDialog } from "@/components/RecognitionDialog";
 import { ScheduleReviewDialog } from "@/components/ScheduleReviewDialog";
+import { ManageMyTeamDialog } from "@/components/ManageMyTeamDialog";
 
 type DirectReport = {
   id: string;
@@ -35,6 +36,7 @@ export default function ManagerDashboard() {
   const [oneOnOneDialogOpen, setOneOnOneDialogOpen] = useState(false);
   const [recognitionDialogOpen, setRecognitionDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -175,10 +177,16 @@ export default function ManagerDashboard() {
             Manage and develop your team
           </p>
         </div>
-        <Badge variant="secondary" className="px-4 py-2">
-          <Users className="h-4 w-4 mr-2" />
-          {directReports.length} Direct Reports
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary" className="px-4 py-2">
+            <Users className="h-4 w-4 mr-2" />
+            {directReports.length} Direct Reports
+          </Badge>
+          <Button onClick={() => setManageTeamDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Manage Team
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="team" className="space-y-4">
@@ -368,6 +376,12 @@ export default function ManagerDashboard() {
           )}
         </>
       )}
+
+      <ManageMyTeamDialog
+        open={manageTeamDialogOpen}
+        onOpenChange={setManageTeamDialogOpen}
+        onTeamUpdated={loadDirectReports}
+      />
     </div>
   );
 }
