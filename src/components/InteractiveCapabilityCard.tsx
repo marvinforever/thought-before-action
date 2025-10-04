@@ -142,12 +142,12 @@ export default function InteractiveCapabilityCard({
             )}
 
             {/* Linked Resources */}
-            {resources.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Recommended Resources ({resources.length})
-                </h4>
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Recommended Resources {resources.length > 0 && `(${resources.length})`}
+              </h4>
+              {resources.length > 0 ? (
                 <div className="space-y-2">
                   {resources.map((resource) => (
                     <div
@@ -192,8 +192,12 @@ export default function InteractiveCapabilityCard({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="border rounded-lg p-4 text-center">
+                  <p className="text-sm text-muted-foreground">Resources coming soon</p>
+                </div>
+              )}
+            </div>
 
             {/* Request Level Change Button */}
             <Button
