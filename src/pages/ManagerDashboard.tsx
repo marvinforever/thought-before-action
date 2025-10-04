@@ -18,6 +18,7 @@ import { PendingCapabilitiesTab } from "@/components/PendingCapabilitiesTab";
 import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
 import { TeamAnalytics } from "@/components/TeamAnalytics";
 import { DiagnosticInsights } from "@/components/DiagnosticInsights";
+import { TeamDiagnosticSnapshot } from "@/components/TeamDiagnosticSnapshot";
 
 type DirectReport = {
   id: string;
@@ -204,6 +205,7 @@ export default function ManagerDashboard() {
           <TabsTrigger value="team">Team Overview</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
+          <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
@@ -306,6 +308,10 @@ export default function ManagerDashboard() {
 
         <TabsContent value="watchlist" className="space-y-4">
           <StandardCapWatchlistTab />
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="space-y-4">
+          <TeamDiagnosticSnapshot />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
