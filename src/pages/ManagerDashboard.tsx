@@ -6,10 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
+import { OneOnOneDialog } from "@/components/OneOnOneDialog";
+import { RecognitionDialog } from "@/components/RecognitionDialog";
+import { ScheduleReviewDialog } from "@/components/ScheduleReviewDialog";
 
 type DirectReport = {
   id: string;
@@ -20,14 +23,18 @@ type DirectReport = {
   capability_count: number;
   completed_goals: number;
   total_goals: number;
+  company_id: string;
 };
 
 export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [directReports, setDirectReports] = useState<DirectReport[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; full_name: string } | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; full_name: string; company_id?: string } | null>(null);
   const [capabilitiesDialogOpen, setCapabilitiesDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [oneOnOneDialogOpen, setOneOnOneDialogOpen] = useState(false);
+  const [recognitionDialogOpen, setRecognitionDialogOpen] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -117,6 +124,7 @@ export default function ManagerDashboard() {
             capability_count: capCount || 0,
             completed_goals: completedGoals,
             total_goals: totalGoals,
+            company_id: assignment.company_id,
           };
         })
       );
@@ -134,13 +142,28 @@ export default function ManagerDashboard() {
   };
 
   const handleViewCapabilities = (employee: DirectReport) => {
-    setSelectedEmployee({ id: employee.id, full_name: employee.full_name });
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
     setCapabilitiesDialogOpen(true);
   };
 
   const handleAssignCapabilities = (employee: DirectReport) => {
-    setSelectedEmployee({ id: employee.id, full_name: employee.full_name });
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
     setAssignDialogOpen(true);
+  };
+
+  const handleOneOnOne = (employee: DirectReport) => {
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
+    setOneOnOneDialogOpen(true);
+  };
+
+  const handleRecognition = (employee: DirectReport) => {
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
+    setRecognitionDialogOpen(true);
+  };
+
+  const handleScheduleReview = (employee: DirectReport) => {
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
+    setReviewDialogOpen(true);
   };
 
   return (
@@ -209,22 +232,45 @@ export default function ManagerDashboard() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleViewCapabilities(report)}
-                      >
-                        View Capabilities
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleAssignCapabilities(report)}
-                      >
-                        Assign
-                      </Button>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleOneOnOne(report)}
+                        >
+                          <MessageSquare className="h-3 w-3 mr-1" />
+                          1-on-1
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleRecognition(report)}
+                        >
+                          <Award className="h-3 w-3 mr-1" />
+                          Recognize
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleViewCapabilities(report)}
+                        >
+                          View Caps
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleScheduleReview(report)}
+                        >
+                          <ClipboardCheck className="h-3 w-3 mr-1" />
+                          Review
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -283,6 +329,43 @@ export default function ManagerDashboard() {
             }}
             employee={selectedEmployee}
           />
+          {selectedEmployee.company_id && (
+            <>
+              <OneOnOneDialog
+                open={oneOnOneDialogOpen}
+                onOpenChange={(open) => {
+                  setOneOnOneDialogOpen(open);
+                  if (!open) loadDirectReports();
+                }}
+                employee={{
+                  id: selectedEmployee.id,
+                  full_name: selectedEmployee.full_name,
+                  company_id: selectedEmployee.company_id
+                }}
+              />
+              <RecognitionDialog
+                open={recognitionDialogOpen}
+                onOpenChange={setRecognitionDialogOpen}
+                employee={{
+                  id: selectedEmployee.id,
+                  full_name: selectedEmployee.full_name,
+                  company_id: selectedEmployee.company_id
+                }}
+              />
+              <ScheduleReviewDialog
+                open={reviewDialogOpen}
+                onOpenChange={(open) => {
+                  setReviewDialogOpen(open);
+                  if (!open) loadDirectReports();
+                }}
+                employee={{
+                  id: selectedEmployee.id,
+                  full_name: selectedEmployee.full_name,
+                  company_id: selectedEmployee.company_id
+                }}
+              />
+            </>
+          )}
         </>
       )}
     </div>

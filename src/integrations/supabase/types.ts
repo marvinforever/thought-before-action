@@ -1123,6 +1123,54 @@ export type Database = {
           },
         ]
       }
+      feedback_requests: {
+        Row: {
+          created_at: string
+          dismissed: boolean
+          dismissed_at: string | null
+          employee_id: string
+          id: string
+          manager_id: string
+          message: string
+          request_type: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          employee_id: string
+          id?: string
+          manager_id: string
+          message: string
+          request_type: string
+        }
+        Update: {
+          created_at?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          employee_id?: string
+          id?: string
+          manager_id?: string
+          message?: string
+          request_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       growth_journal: {
         Row: {
           company_id: string
@@ -1494,47 +1542,138 @@ export type Database = {
           },
         ]
       }
+      one_on_one_notes: {
+        Row: {
+          action_items: Json | null
+          company_id: string
+          concerns: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          manager_id: string
+          meeting_date: string
+          next_meeting_date: string | null
+          notes: string | null
+          updated_at: string
+          wins: string | null
+        }
+        Insert: {
+          action_items?: Json | null
+          company_id: string
+          concerns?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          manager_id: string
+          meeting_date: string
+          next_meeting_date?: string | null
+          notes?: string | null
+          updated_at?: string
+          wins?: string | null
+        }
+        Update: {
+          action_items?: Json | null
+          company_id?: string
+          concerns?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          manager_id?: string
+          meeting_date?: string
+          next_meeting_date?: string | null
+          notes?: string | null
+          updated_at?: string
+          wins?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "one_on_one_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_one_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_on_one_notes_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_reviews: {
         Row: {
+          ai_draft: string | null
           ai_summary: string | null
+          areas_for_improvement: string | null
           company_id: string
           created_at: string
+          employee_acknowledged_at: string | null
           employee_notes: string | null
+          goals_met: Json | null
+          goals_missed: Json | null
           id: string
+          manager_completed_at: string | null
           manager_notes: string | null
+          overall_rating: number | null
           profile_id: string
           review_date: string
           review_type: string
           scheduled_by: string
           status: string
+          strengths: string | null
           updated_at: string
         }
         Insert: {
+          ai_draft?: string | null
           ai_summary?: string | null
+          areas_for_improvement?: string | null
           company_id: string
           created_at?: string
+          employee_acknowledged_at?: string | null
           employee_notes?: string | null
+          goals_met?: Json | null
+          goals_missed?: Json | null
           id?: string
+          manager_completed_at?: string | null
           manager_notes?: string | null
+          overall_rating?: number | null
           profile_id: string
           review_date: string
           review_type?: string
           scheduled_by: string
           status?: string
+          strengths?: string | null
           updated_at?: string
         }
         Update: {
+          ai_draft?: string | null
           ai_summary?: string | null
+          areas_for_improvement?: string | null
           company_id?: string
           created_at?: string
+          employee_acknowledged_at?: string | null
           employee_notes?: string | null
+          goals_met?: Json | null
+          goals_missed?: Json | null
           id?: string
+          manager_completed_at?: string | null
           manager_notes?: string | null
+          overall_rating?: number | null
           profile_id?: string
           review_date?: string
           review_type?: string
           scheduled_by?: string
           status?: string
+          strengths?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1704,6 +1843,67 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recognition_notes: {
+        Row: {
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string
+          given_by: string
+          given_to: string
+          id: string
+          recognition_date: string
+          title: string
+          visibility: string
+        }
+        Insert: {
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description: string
+          given_by: string
+          given_to: string
+          id?: string
+          recognition_date?: string
+          title: string
+          visibility?: string
+        }
+        Update: {
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string
+          given_by?: string
+          given_to?: string
+          id?: string
+          recognition_date?: string
+          title?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recognition_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_notes_given_by_fkey"
+            columns: ["given_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_notes_given_to_fkey"
+            columns: ["given_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
