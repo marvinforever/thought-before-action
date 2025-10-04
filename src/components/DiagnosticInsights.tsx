@@ -249,17 +249,6 @@ export default function DiagnosticInsights() {
 
         {/* Goals & Focus Areas */}
         <div className="grid gap-4 md:grid-cols-2">
-          {diagnostic.three_year_goal && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                3-Year Goal
-              </h4>
-              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                {diagnostic.three_year_goal}
-              </p>
-            </div>
-          )}
 
           {diagnostic.twelve_month_growth_goal && (
             <div>
