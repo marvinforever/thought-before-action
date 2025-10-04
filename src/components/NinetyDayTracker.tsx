@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Target, Plus, Check, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 type NinetyDayTarget = {
   id: string;
   quarter: string;
@@ -20,10 +21,31 @@ type NinetyDayTarget = {
   completed: boolean;
 };
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
-const CURRENT_YEAR = new Date().getFullYear();
+
+// Helper function to get current quarter
+const getCurrentQuarter = () => {
+  const month = new Date().getMonth(); // 0-11
+  if (month < 3) return "Q1";
+  if (month < 6) return "Q2";
+  if (month < 9) return "Q3";
+  return "Q4";
+};
+
+// Helper function to get available years
+const getAvailableYears = () => {
+  const currentYear = new Date().getFullYear();
+  const startYear = 2024; // Or whenever the app started
+  const years = [];
+  for (let year = currentYear; year >= startYear; year--) {
+    years.push(year);
+  }
+  return years;
+};
+
 export default function NinetyDayTracker() {
   const [targets, setTargets] = useState<NinetyDayTarget[]>([]);
-  const [selectedQuarter, setSelectedQuarter] = useState("Q1");
+  const [selectedQuarter, setSelectedQuarter] = useState(getCurrentQuarter());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [editingGoal, setEditingGoal] = useState<{
     quarter: string;
     category: string;
@@ -41,7 +63,7 @@ export default function NinetyDayTracker() {
   } = useToast();
   useEffect(() => {
     loadTargets();
-  }, []);
+  }, [selectedYear]);
   const loadTargets = async () => {
     try {
       const {
@@ -53,7 +75,7 @@ export default function NinetyDayTracker() {
       const {
         data,
         error
-      } = await supabase.from("ninety_day_targets").select("*").eq("profile_id", user.id).eq("year", CURRENT_YEAR).order("goal_number", {
+      } = await supabase.from("ninety_day_targets").select("*").eq("profile_id", user.id).eq("year", selectedYear).order("goal_number", {
         ascending: true
       });
       if (error) throw error;
@@ -92,7 +114,7 @@ export default function NinetyDayTracker() {
         profile_id: user.id,
         company_id: profile.company_id,
         quarter,
-        year: CURRENT_YEAR,
+        year: selectedYear,
         category,
         goal_number: goalNumber,
         goal_text: formData.goalText || null,
@@ -403,15 +425,50 @@ export default function NinetyDayTracker() {
         </CardContent>
       </Card>;
   };
+  const availableYears = getAvailableYears();
+  const currentYear = new Date().getFullYear();
+  const currentQuarter = getCurrentQuarter();
+
   return <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-primary" />
-          90 Day Targets - {CURRENT_YEAR}
-        </CardTitle>
-        <CardDescription>
-          Set quarterly goals to track your progress throughout the year
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              90 Day Targets
+            </CardTitle>
+            <CardDescription>
+              Set quarterly goals to track your progress throughout the year
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                    {year === currentYear && " (Current)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(selectedYear !== currentYear || selectedQuarter !== currentQuarter) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setSelectedYear(currentYear);
+                  setSelectedQuarter(currentQuarter);
+                }}
+              >
+                Current Quarter
+              </Button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs value={selectedQuarter} onValueChange={setSelectedQuarter}>
