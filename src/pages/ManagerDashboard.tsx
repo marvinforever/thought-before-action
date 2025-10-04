@@ -83,6 +83,7 @@ export default function ManagerDashboard() {
         .from("manager_assignments")
         .select(`
           employee_id,
+          company_id,
           profiles!manager_assignments_employee_id_fkey (
             id,
             full_name,
