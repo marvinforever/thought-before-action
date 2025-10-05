@@ -64,6 +64,13 @@ const Dashboard = () => {
       const diagnostics = diagnosticDataRes.data || [];
       const employeeCount = employeesRes.count || 0;
       const uniqueEmployeesWithDiagnostics = new Set(diagnostics.map(d => d.profile_id).filter(Boolean)).size;
+      
+      console.log('Dashboard Stats Debug:', {
+        employeeCount,
+        totalDiagnostics: diagnostics.length,
+        uniqueEmployeesWithDiagnostics,
+        percentage: employeeCount > 0 ? Math.round((uniqueEmployeesWithDiagnostics / employeeCount) * 100) : 0
+      });
 
       // 1. RETENTION & FLIGHT RISK
       const retentionScores = diagnostics.map(d => parseInt(d.would_stay_if_offered_similar) || 0).filter(s => s > 0);
