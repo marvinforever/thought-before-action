@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock } from "lucide-react";
+import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
 
 interface DomainScore {
   domain: string;
@@ -506,6 +507,18 @@ const Dashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Jericho Org Health Advisor */}
+      <OrgHealthAdvisor
+        organizationContext={{
+          employees: stats.employees,
+          diagnosticsCompleted: stats.diagnosticsCompleted,
+          diagnosticsPercentage: stats.employees > 0 ? Math.round((stats.diagnosticsCompleted / stats.employees) * 100) : 0,
+          atRiskEmployees: stats.atRiskEmployees,
+          avgEngagement: stats.avgEngagement,
+          domainScores: stats.domainScores,
+        }}
+      />
     </div>
   );
 };
