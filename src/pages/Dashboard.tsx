@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Brain, Zap } from "lucide-react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock } from "lucide-react";
 
 interface DomainScore {
   domain: string;
@@ -27,6 +25,7 @@ const Dashboard = () => {
     roleClarity: 0,
     learningEngagement: 0,
     skillsScore: 0,
+    recentActivity: [] as Array<{ type: string; description: string; timestamp: Date; icon: string }>,
   });
   const [loading, setLoading] = useState(true);
 
@@ -190,6 +189,65 @@ const Dashboard = () => {
         { domain: "Skills", score: skillsScore, risk: getRiskLevel(skillsScore), impact: `${confidenceScores.filter(s => s <= 5).length} low confidence` },
       ];
 
+      // Fetch recent organizational activity
+      const [oneOnOnesRes, capRequestsRes, goalsRes, recognitionRes] = await Promise.all([
+        supabase
+          .from("one_on_one_notes")
+          .select("meeting_date, manager_id, employee_id, profiles!one_on_one_notes_employee_id_fkey(full_name)")
+          .eq("company_id", profile.company_id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("capability_level_requests")
+          .select("created_at, status, profiles!capability_level_requests_profile_id_fkey(full_name)")
+          .eq("company_id", profile.company_id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("ninety_day_targets")
+          .select("updated_at, completed, goal_text, profiles(full_name)")
+          .eq("company_id", profile.company_id)
+          .eq("completed", true)
+          .order("updated_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("one_on_one_notes")
+          .select("created_at, wins, profiles!one_on_one_notes_employee_id_fkey(full_name)")
+          .eq("company_id", profile.company_id)
+          .not("wins", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
+
+      const recentActivity = [
+        ...(oneOnOnesRes.data || []).map(item => ({
+          type: "1-on-1",
+          description: `1-on-1 with ${(item.profiles as any)?.full_name || "team member"}`,
+          timestamp: new Date(item.meeting_date),
+          icon: "users"
+        })),
+        ...(capRequestsRes.data || []).map(item => ({
+          type: "capability",
+          description: `${(item.profiles as any)?.full_name || "Someone"} requested capability level change`,
+          timestamp: new Date(item.created_at),
+          icon: "trending-up"
+        })),
+        ...(goalsRes.data || []).map(item => ({
+          type: "goal",
+          description: `${(item.profiles as any)?.full_name || "Someone"} completed a goal`,
+          timestamp: new Date(item.updated_at),
+          icon: "target"
+        })),
+        ...(recognitionRes.data || []).map(item => ({
+          type: "recognition",
+          description: `${(item.profiles as any)?.full_name || "Someone"} received recognition`,
+          timestamp: new Date(item.created_at),
+          icon: "award"
+        })),
+      ]
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 10);
+
       setStats({
         employees: employeeCount,
         diagnosticsCompleted,
@@ -204,6 +262,7 @@ const Dashboard = () => {
         roleClarity,
         learningEngagement,
         skillsScore,
+        recentActivity,
       });
     } catch (error) {
       console.error("Error loading stats:", error);
@@ -249,10 +308,6 @@ const Dashboard = () => {
       </div>
     );
   }
-
-  const chartConfig = {
-    score: { label: "Score", color: "hsl(var(--primary))" },
-  };
 
   return (
     <div className="space-y-6">
@@ -373,56 +428,56 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Detailed Metrics Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Key Performance Indicators</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                  { metric: "Manager Support", value: stats.managerEffectiveness },
-                  { metric: "Career Path", value: stats.careerPathScore },
-                  { metric: "Role Clarity", value: stats.roleClarity },
-                  { metric: "Learning", value: stats.learningEngagement },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="metric" />
-                  <YAxis domain={[0, 100]} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+      {/* Organizational Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Organizational Activity</CardTitle>
+          <p className="text-sm text-muted-foreground">Latest team actions and achievements</p>
+        </CardHeader>
+        <CardContent>
+          {stats.recentActivity.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No recent activity to display</p>
+          ) : (
+            <div className="space-y-4">
+              {stats.recentActivity.map((activity, index) => {
+                const IconComponent = 
+                  activity.icon === "users" ? Users :
+                  activity.icon === "trending-up" ? TrendingUp :
+                  activity.icon === "target" ? Target :
+                  Award;
+                
+                const getTimeAgo = (date: Date) => {
+                  const now = new Date();
+                  const diff = now.getTime() - date.getTime();
+                  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                  const hours = Math.floor(diff / (1000 * 60 * 60));
+                  const minutes = Math.floor(diff / (1000 * 60));
+                  
+                  if (days > 0) return `${days}d ago`;
+                  if (hours > 0) return `${hours}h ago`;
+                  if (minutes > 0) return `${minutes}m ago`;
+                  return "Just now";
+                };
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Risk Indicators</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                  { metric: "Retention Risk", value: stats.retentionRisk },
-                  { metric: "Burnout Level", value: stats.burnoutScore },
-                  { metric: "Skills Gap", value: 100 - stats.skillsScore },
-                  { metric: "Disengagement", value: 100 - stats.avgEngagement },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="metric" />
-                  <YAxis domain={[0, 100]} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="value" fill="hsl(var(--destructive))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
+                return (
+                  <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                    <div className="mt-0.5 p-2 rounded-full bg-primary/10">
+                      <IconComponent className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{activity.description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">{getTimeAgo(activity.timestamp)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Action Items */}
       <Card className="border-destructive">
