@@ -250,7 +250,7 @@ const Dashboard = () => {
             <DollarSign className="h-5 w-5 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">${Math.round(stats.estimatedTurnoverCost / 1000)}K</div>
+            <div className="text-3xl font-bold">${Math.round(stats.estimatedTurnoverCost / 1000)}</div>
             <p className="text-xs text-muted-foreground mt-1">Estimated replacement cost</p>
           </CardContent>
         </Card>
@@ -261,7 +261,7 @@ const Dashboard = () => {
             <TrendingUp className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.avgEngagement}/100</div>
+            <div className="text-3xl font-bold">{stats.avgEngagement}</div>
             <p className="text-xs text-muted-foreground mt-1">Average energy level</p>
           </CardContent>
         </Card>
@@ -273,7 +273,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.diagnosticsCompleted}/{stats.employees}</div>
-            <p className="text-xs text-muted-foreground mt-1">{Math.round((stats.diagnosticsCompleted / stats.employees) * 100)}% participation</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats.employees > 0 ? Math.round((stats.diagnosticsCompleted / stats.employees) * 100) : 0}% participation</p>
           </CardContent>
         </Card>
       </div>
