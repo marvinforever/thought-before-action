@@ -61,14 +61,21 @@ const Dashboard = () => {
       ]);
 
       const diagnostics = diagnosticDataRes.data || [];
-      const employeeCount = employeesRes.count || 0;
-      const uniqueEmployeesWithDiagnostics = new Set(diagnostics.map(d => d.profile_id).filter(Boolean)).size;
+      const employeeRows = employeesRes.data || [];
+      const employeeIds = new Set(employeeRows.map((e: any) => e.id));
+      const diagProfileIds = new Set(diagnostics.map((d: any) => d.profile_id).filter(Boolean));
+      let completedByCurrentEmployees = 0;
+      employeeIds.forEach((id: string) => { if (diagProfileIds.has(id)) completedByCurrentEmployees++; });
+
+      const employeeCount = employeesRes.count ?? employeeRows.length;
+      const diagnosticsCompleted = completedByCurrentEmployees;
       
       console.log('Dashboard Stats Debug:', {
         employeeCount,
         totalDiagnostics: diagnostics.length,
-        uniqueEmployeesWithDiagnostics,
-        percentage: employeeCount > 0 ? Math.round((uniqueEmployeesWithDiagnostics / employeeCount) * 100) : 0
+        uniqueDiagProfiles: diagProfileIds.size,
+        diagnosticsCompleted,
+        percentage: employeeCount > 0 ? Math.round((diagnosticsCompleted / employeeCount) * 100) : 0
       });
 
       // 1. RETENTION & FLIGHT RISK
@@ -168,7 +175,7 @@ const Dashboard = () => {
 
       setStats({
         employees: employeeCount,
-        diagnosticsCompleted: uniqueEmployeesWithDiagnostics,
+        diagnosticsCompleted,
         avgEngagement,
         retentionRisk,
         estimatedTurnoverCost: turnoverCost,
