@@ -19,6 +19,7 @@ import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
 import { TeamAnalytics } from "@/components/TeamAnalytics";
 import { DiagnosticInsights } from "@/components/DiagnosticInsights";
 import { TeamDiagnosticSnapshot } from "@/components/TeamDiagnosticSnapshot";
+import { ReviewsTab } from "@/components/ReviewsTab";
 
 type DirectReport = {
   id: string;
@@ -323,19 +324,7 @@ export default function ManagerDashboard() {
         </TabsContent>
 
         <TabsContent value="reviews">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Reviews</CardTitle>
-              <CardDescription>
-                Schedule and manage performance reviews
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                Review scheduling coming soon
-              </p>
-            </CardContent>
-          </Card>
+          <ReviewsTab />
         </TabsContent>
       </Tabs>
 
