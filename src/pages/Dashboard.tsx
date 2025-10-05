@@ -63,17 +63,34 @@ const Dashboard = () => {
       const diagnostics = diagnosticDataRes.data || [];
       const employeeRows = employeesRes.data || [];
       const employeeIds = new Set(employeeRows.map((e: any) => e.id));
-      const diagProfileIds = new Set(diagnostics.map((d: any) => d.profile_id).filter(Boolean));
-      let completedByCurrentEmployees = 0;
-      employeeIds.forEach((id: string) => { if (diagProfileIds.has(id)) completedByCurrentEmployees++; });
+
+      // Define a stricter completion rule to avoid counting partial/test rows
+      const completeDiagnostics = diagnostics.filter((d: any) => {
+        if (!d?.profile_id || !employeeIds.has(d.profile_id)) return false;
+        const rc = Number(d.role_clarity_score) || 0;
+        const msq = Number(d.manager_support_quality) || 0;
+        const energy = Number(d.daily_energy_level) || 0;
+        const conf = Number(d.confidence_score) || 0;
+        const engagement = (d.additional_responses as any)?.engagement_scores;
+        const engagementSum = engagement
+          ? [engagement.energy_score, engagement.valued_score, engagement.growth_path_score, engagement.manager_feedback_score]
+              .map((v: any) => Number(v) || 0)
+              .reduce((a: number, b: number) => a + b, 0)
+          : 0;
+        // Consider complete if key scores are present (typical of real submissions)
+        return (rc > 0 && msq > 0 && energy > 0) || (conf > 0 && engagementSum > 0);
+      });
+
+      // Count unique current employees with a completed diagnostic
+      const completedProfileIds = new Set(completeDiagnostics.map((d: any) => d.profile_id));
 
       const employeeCount = employeesRes.count ?? employeeRows.length;
-      const diagnosticsCompleted = completedByCurrentEmployees;
+      const diagnosticsCompleted = completedProfileIds.size;
       
       console.log('Dashboard Stats Debug:', {
         employeeCount,
         totalDiagnostics: diagnostics.length,
-        uniqueDiagProfiles: diagProfileIds.size,
+        uniqueDiagProfiles: new Set(diagnostics.map((d: any) => d.profile_id).filter(Boolean)).size,
         diagnosticsCompleted,
         percentage: employeeCount > 0 ? Math.round((diagnosticsCompleted / employeeCount) * 100) : 0
       });
