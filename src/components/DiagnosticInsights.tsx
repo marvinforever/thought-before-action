@@ -11,6 +11,7 @@ type Insight = {
   title: string;
   description: string;
   actionable?: string;
+  isAI?: boolean;
 };
 
 export function DiagnosticInsights() {
@@ -165,14 +166,50 @@ export function DiagnosticInsights() {
   const generateAIInsights = async () => {
     setGeneratingAI(true);
     try {
-      toast({
-        title: "AI Insights",
-        description: "AI-powered insights generation coming soon",
-      });
+      const { data, error } = await supabase.functions.invoke("generate-team-insights");
+
+      if (error) {
+        if (error.message?.includes("Rate limit")) {
+          toast({
+            title: "Rate Limit",
+            description: "Too many requests. Please wait a moment and try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (error.message?.includes("credits")) {
+          toast({
+            title: "Credits Exhausted",
+            description: "AI credits have been exhausted. Please contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
+
+      if (data?.insights && data.insights.length > 0) {
+        // Add AI-generated insights to the existing insights
+        const aiInsights = data.insights.map((insight: any) => ({
+          ...insight,
+          isAI: true,
+        }));
+        setInsights(prev => [...prev, ...aiInsights]);
+        toast({
+          title: "AI Insights Generated",
+          description: `Generated ${aiInsights.length} new insights based on your team's data`,
+        });
+      } else {
+        toast({
+          title: "No New Insights",
+          description: "AI couldn't generate additional insights at this time",
+        });
+      }
     } catch (error: any) {
+      console.error("Error generating AI insights:", error);
       toast({
         title: "Error generating AI insights",
-        description: error.message,
+        description: error.message || "Failed to generate insights. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -234,6 +271,12 @@ export function DiagnosticInsights() {
                         <Badge variant={insight.type === 'warning' ? 'destructive' : insight.type === 'opportunity' ? 'default' : 'secondary'}>
                           {insight.type}
                         </Badge>
+                        {insight.isAI && (
+                          <Badge variant="outline" className="gap-1">
+                            <Brain className="h-3 w-3" />
+                            AI
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">{insight.description}</p>
                       {insight.actionable && (

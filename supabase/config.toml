@@ -1,5 +1,8 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.generate-team-insights]
+verify_jwt = true
+
 [functions.create-employee]
 verify_jwt = true
 
