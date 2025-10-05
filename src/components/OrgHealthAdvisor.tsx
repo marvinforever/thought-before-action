@@ -222,14 +222,21 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
                   <Bot className="h-4 w-4 text-primary" />
                 </div>
               )}
-              <div
+               <div
                 className={`rounded-lg px-4 py-2 max-w-[80%] ${
                   message.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <p className="text-sm whitespace-pre-wrap">
+                  {message.content}
+                  {message.role === "assistant" && 
+                   isLoading && 
+                   index === messages.length - 1 && (
+                    <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse">|</span>
+                  )}
+                </p>
               </div>
               {message.role === "user" && (
                 <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -244,11 +251,7 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
                 <Bot className="h-4 w-4 text-primary" />
               </div>
               <div className="rounded-lg px-4 py-2 bg-muted">
-                <div className="flex gap-1">
-                  <span className="animate-bounce">●</span>
-                  <span className="animate-bounce delay-100">●</span>
-                  <span className="animate-bounce delay-200">●</span>
-                </div>
+                <p className="text-sm text-muted-foreground italic">Jericho is thinking...</p>
               </div>
             </div>
           )}
