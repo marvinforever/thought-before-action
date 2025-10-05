@@ -96,7 +96,7 @@ const Dashboard = () => {
       });
 
       // 1. RETENTION & FLIGHT RISK
-      const retentionScores = diagnostics.map(d => parseInt(d.would_stay_if_offered_similar) || 0).filter(s => s > 0);
+      const retentionScores = completeDiagnostics.map(d => parseInt(d.would_stay_if_offered_similar) || 0).filter(s => s > 0);
       const highRiskCount = retentionScores.filter(s => s <= 5).length;
       const retentionRisk = retentionScores.length > 0 ? Math.round((highRiskCount / retentionScores.length) * 100) : 0;
       const avgSalary = 75000; // Industry average
@@ -105,7 +105,7 @@ const Dashboard = () => {
       // 2. ENGAGEMENT INDEX - 4-question formula
       // (Q28 + Q29 + Q31 + Q32) / 4 × 10 = Score out of 100
       // Q28: Growth path, Q29: Manager feedback, Q31: Feel valued, Q32: Daily energy
-      const engagementScores = diagnostics.map(d => {
+      const engagementScores = completeDiagnostics.map(d => {
         const scores = (d.additional_responses as any)?.engagement_scores;
         if (scores) {
           // Use raw 1-10 scores from additional_responses (new data)
@@ -126,7 +126,7 @@ const Dashboard = () => {
       const avgEngagement = engagementScores.length > 0 ? parseFloat(((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10).toFixed(2)) : 0;
       
       // Keep energy scores for impact calculation
-      const energyScores = diagnostics.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0);
+      const energyScores = completeDiagnostics.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0);
 
       // 3. BURNOUT
       const burnoutMap: Record<string, number> = {
@@ -136,24 +136,24 @@ const Dashboard = () => {
         'Often (several times a week)': 4,
         'Frequently (daily)': 5,
       };
-      const burnoutScores = diagnostics.map(d => burnoutMap[d.burnout_frequency || ''] || 0).filter(s => s > 0);
+      const burnoutScores = completeDiagnostics.map(d => burnoutMap[d.burnout_frequency || ''] || 0).filter(s => s > 0);
       const burnoutScore = burnoutScores.length > 0 ? Math.round((burnoutScores.reduce((a, b) => a + b, 0) / burnoutScores.length) * 20) : 0;
 
       // 4. MANAGER EFFECTIVENESS
-      const managerScores = diagnostics.map(d => parseInt(d.manager_support_quality) || 0).filter(s => s > 0);
+      const managerScores = completeDiagnostics.map(d => parseInt(d.manager_support_quality) || 0).filter(s => s > 0);
       const managerEffectiveness = managerScores.length > 0 ? Math.round((managerScores.reduce((a, b) => a + b, 0) / managerScores.length) * 10) : 0;
 
       // 5. CAREER DEVELOPMENT
-      const careerPathCount = diagnostics.filter(d => d.sees_growth_path === true).length;
-      const careerPathScore = diagnostics.length > 0 ? Math.round((careerPathCount / diagnostics.length) * 100) : 0;
+      const careerPathCount = completeDiagnostics.filter(d => d.sees_growth_path === true).length;
+      const careerPathScore = completeDiagnostics.length > 0 ? Math.round((careerPathCount / completeDiagnostics.length) * 100) : 0;
 
       // 6. ROLE CLARITY
-      const clarityScores = diagnostics.map(d => d.role_clarity_score || 0).filter(s => s > 0);
+      const clarityScores = completeDiagnostics.map(d => d.role_clarity_score || 0).filter(s => s > 0);
       const roleClarity = clarityScores.length > 0 ? Math.round((clarityScores.reduce((a, b) => a + b, 0) / clarityScores.length) * 10) : 0;
 
       // 7. LEARNING ENGAGEMENT - Blended approach
       // 50% time investment (hours * 25, max 100) + 30% quality rating + 20% needs met
-      const learningScores = diagnostics.map(d => {
+      const learningScores = completeDiagnostics.map(d => {
         const hours = parseFloat(d.weekly_development_hours as any) || 0;
         const learningData = (d.additional_responses as any)?.learning_scores;
         const qualityRating = learningData?.quality_rating || 0;
@@ -168,7 +168,7 @@ const Dashboard = () => {
       const learningEngagement = learningScores.length > 0 ? Math.round(learningScores.reduce((a, b) => a + b, 0) / learningScores.length) : 0;
 
       // 8. SKILLS - Direct confidence score
-      const confidenceScores = diagnostics.map(d => d.confidence_score || 0).filter(s => s > 0);
+      const confidenceScores = completeDiagnostics.map(d => d.confidence_score || 0).filter(s => s > 0);
       const skillsScore = confidenceScores.length > 0 ? Math.round((confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length) * 10) : 0;
 
       // Domain scores with risk levels
@@ -184,7 +184,7 @@ const Dashboard = () => {
         { domain: "Engagement", score: avgEngagement, risk: getRiskLevel(avgEngagement), impact: `${energyScores.filter(s => s <= 5).length} low energy` },
         { domain: "Burnout", score: 100 - burnoutScore, risk: getRiskLevel(100 - burnoutScore), impact: `${burnoutScores.filter(s => s >= 4).length} high burnout` },
         { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: `${managerScores.filter(s => s <= 5).length} low support` },
-        { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: `${diagnostics.length - careerPathCount} no path` },
+        { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: `${completeDiagnostics.length - careerPathCount} no path` },
         { domain: "Clarity", score: roleClarity, risk: getRiskLevel(roleClarity), impact: `${clarityScores.filter(s => s <= 5).length} unclear roles` },
         { domain: "Learning", score: learningEngagement, risk: getRiskLevel(learningEngagement), impact: `${learningScores.filter(s => s < 50).length} low engagement` },
         { domain: "Skills", score: skillsScore, risk: getRiskLevel(skillsScore), impact: `${confidenceScores.filter(s => s <= 5).length} low confidence` },
