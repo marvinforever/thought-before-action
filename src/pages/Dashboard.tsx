@@ -308,24 +308,40 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* 8-Domain Risk Radar */}
+      {/* 8-Domain Health Overview */}
       <Card>
         <CardHeader>
           <CardTitle>8-Domain Organizational Health</CardTitle>
           <p className="text-sm text-muted-foreground">Comprehensive risk assessment across all critical dimensions</p>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={stats.domainScores}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="domain" />
-                <PolarRadiusAxis angle={90} domain={[0, 100]} />
-                <Radar name="Health Score" dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.6} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
+          <div className="space-y-4">
+            {stats.domainScores.map((domain) => (
+              <div key={domain.domain} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{domain.domain}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${getRiskBgColor(domain.risk)} ${getRiskColor(domain.risk)}`}>
+                      {getRiskLabel(domain.risk)}
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold">{domain.score}/100</span>
+                </div>
+                <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className={`absolute inset-y-0 left-0 rounded-full transition-all ${
+                      domain.risk === "critical" ? "bg-destructive" :
+                      domain.risk === "high" ? "bg-orange-500" :
+                      domain.risk === "medium" ? "bg-yellow-500" :
+                      "bg-green-500"
+                    }`}
+                    style={{ width: `${domain.score}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{domain.impact}</p>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
