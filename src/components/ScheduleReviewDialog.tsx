@@ -34,12 +34,19 @@ export function ScheduleReviewDialog({ open, onOpenChange, employee }: ScheduleR
   const handleGenerateReview = async () => {
     setGenerating(true);
     try {
+      const reviewPeriods: Record<string, string> = {
+        monthly: "Last month",
+        quarterly: "Last 3 months",
+        "semi-annual": "Last 6 months",
+        annual: "Last 12 months",
+        onboarding: "Since onboarding",
+        probation: "Probation period"
+      };
+
       const { data, error } = await supabase.functions.invoke("generate-performance-review", {
         body: {
           employeeId: employee.id,
-          reviewPeriod: reviewType === "quarterly" ? "Last 3 months" : 
-                       reviewType === "annual" ? "Last 12 months" : 
-                       "Last 6 months"
+          reviewPeriod: reviewPeriods[reviewType] || "Last 3 months"
         }
       });
 
@@ -132,6 +139,8 @@ export function ScheduleReviewDialog({ open, onOpenChange, employee }: ScheduleR
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
+                  <SelectItem value="onboarding">Onboarding</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="quarterly">Quarterly</SelectItem>
                   <SelectItem value="semi-annual">Semi-Annual</SelectItem>
                   <SelectItem value="annual">Annual</SelectItem>
