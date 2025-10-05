@@ -37,13 +37,15 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    scrollToBottom();
   }, [messages]);
 
   const streamChat = async (userMessage: Message) => {
@@ -208,7 +210,7 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {messages.map((message, index) => (
             <div
@@ -255,6 +257,7 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
       <div className="p-4 border-t">
