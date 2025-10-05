@@ -43,7 +43,7 @@ const Dashboard = () => {
         .from("profiles")
         .select("company_id")
         .eq("id", session.session.user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile?.company_id) return;
 
@@ -52,8 +52,7 @@ const Dashboard = () => {
         supabase
           .from("profiles")
           .select("id", { count: "exact" })
-          .eq("company_id", profile.company_id)
-          .eq("is_active", true),
+          .eq("company_id", profile.company_id),
         supabase
           .from("diagnostic_responses")
           .select("*")
