@@ -182,22 +182,39 @@ export default function ManagerDashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Manager Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage and develop your team
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="px-4 py-2">
-            <Users className="h-4 w-4 mr-2" />
-            {directReports.length} Direct Reports
-          </Badge>
-          <Button onClick={() => setManageTeamDialogOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Manage Team
-          </Button>
+      {/* Hero Section */}
+      <div className="relative overflow-hidden rounded-lg bg-primary p-8 text-primary-foreground shadow-lg">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full -mr-32 -mt-32" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/10 rounded-full -ml-24 -mb-24" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Manager Dashboard</h1>
+              <p className="text-primary-foreground/90 text-lg">
+                Lead, develop, and empower your team
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-accent text-accent-foreground px-6 py-3 rounded-lg shadow-lg">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  <div>
+                    <div className="text-2xl font-bold">{directReports.length}</div>
+                    <div className="text-xs opacity-90">Direct Reports</div>
+                  </div>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setManageTeamDialogOpen(true)}
+                variant="accent"
+                size="lg"
+                className="shadow-lg"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Manage Team
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -228,31 +245,42 @@ export default function ManagerDashboard() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {directReports.map((report) => (
-                <Card key={report.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{report.full_name}</CardTitle>
-                    <CardDescription>{report.email}</CardDescription>
+                <Card key={report.id} className="hover:shadow-lg transition-all hover:border-accent/50 border-l-4 border-l-accent/30">
+                  <CardHeader className="bg-gradient-to-br from-card to-accent/5 pb-4">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                        {report.full_name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                      </div>
+                      <div>
+                        <div>{report.full_name}</div>
+                        <div className="text-xs text-muted-foreground font-normal">{report.role}</div>
+                      </div>
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Capabilities</span>
-                        <Badge variant="secondary">
-                          <Target className="h-3 w-3 mr-1" />
+                  <CardContent className="space-y-4 pt-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Target className="h-4 w-4 text-accent" />
+                          Capabilities
+                        </span>
+                        <Badge variant="secondary" className="font-bold">
                           {report.capability_count}
                         </Badge>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Goals Progress</span>
-                        <Badge variant="secondary">
-                          <TrendingUp className="h-3 w-3 mr-1" />
+                      <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-accent" />
+                          Goals Progress
+                        </span>
+                        <Badge variant="secondary" className="font-bold">
                           {report.completed_goals}/{report.total_goals}
                         </Badge>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Diagnostic</span>
+                      <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <span className="text-sm text-muted-foreground">Diagnostic</span>
                         <Badge variant={report.has_diagnostic ? "default" : "outline"}>
-                          {report.has_diagnostic ? "Complete" : "Pending"}
+                          {report.has_diagnostic ? "✓ Complete" : "⏳ Pending"}
                         </Badge>
                       </div>
                     </div>
@@ -287,6 +315,7 @@ export default function ManagerDashboard() {
                           View Caps
                         </Button>
                         <Button
+                          variant="accent"
                           size="sm"
                           className="flex-1"
                           onClick={() => handleScheduleReview(report)}

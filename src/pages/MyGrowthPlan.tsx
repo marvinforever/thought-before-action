@@ -578,11 +578,16 @@ export default function MyGrowthPlan() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight">My Growth Plan</h1>
-        <p className="text-muted-foreground mt-2">
-          Your personalized development journey, goals, and learning resources
-        </p>
+      {/* Hero Section */}
+      <div className="relative overflow-hidden rounded-lg bg-primary p-8 text-primary-foreground shadow-lg">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full -mr-32 -mt-32" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/10 rounded-full -ml-24 -mb-24" />
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold tracking-tight mb-2">My Growth Plan</h1>
+          <p className="text-primary-foreground/90 text-lg">
+            Your personalized development journey, goals, and learning resources
+          </p>
+        </div>
       </div>
 
       {/* Personal Vision and Greatness Tracker */}
@@ -686,7 +691,8 @@ export default function MyGrowthPlan() {
               <Button
                 onClick={handleGetRecommendations}
                 disabled={isGeneratingRecommendations}
-                className="gap-2"
+                variant="accent"
+                className="gap-2 shadow-lg"
               >
                 {isGeneratingRecommendations ? (
                   <>
@@ -706,28 +712,31 @@ export default function MyGrowthPlan() {
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="border-l-4 border-l-accent bg-gradient-to-br from-card to-accent/5">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total Resources</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Resources</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resources.length}</div>
+            <div className="text-3xl font-bold text-primary">{resources.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">In your learning plan</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-orange-500 bg-gradient-to-br from-card to-orange-50 dark:to-orange-950/20">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingCount}</div>
+            <div className="text-3xl font-bold text-orange-600">{pendingCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">Ready to start</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-green-500 bg-gradient-to-br from-card to-green-50 dark:to-green-950/20">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{completedCount}</div>
+            <div className="text-3xl font-bold text-green-600">{completedCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">Great progress!</p>
           </CardContent>
         </Card>
       </div>
