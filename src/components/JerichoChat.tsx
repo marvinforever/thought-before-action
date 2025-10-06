@@ -146,16 +146,21 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-background border-l border-border shadow-2xl z-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-        <div>
-          <h2 className="text-lg font-semibold">Jericho</h2>
-          <p className="text-xs text-muted-foreground">Your AI Career Coach</p>
+      <div className="flex items-center justify-between p-4 border-b border-sidebar-border bg-primary text-primary-foreground">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
+            <span className="text-xl font-bold text-primary">J</span>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Jericho</h2>
+            <p className="text-xs opacity-90">Your AI Career Coach</p>
+          </div>
         </div>
         <Button
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="hover:bg-accent"
+          className="hover:bg-primary-foreground/20 text-primary-foreground"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -223,6 +228,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
           <Button
             onClick={() => handleSendMessage()}
             disabled={isLoading || !input.trim()}
+            variant="accent"
             size="icon"
           >
             {isLoading ? (

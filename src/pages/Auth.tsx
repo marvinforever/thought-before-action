@@ -108,17 +108,26 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/10 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
+    <div className="min-h-screen flex items-center justify-center bg-primary p-4">
+      <Card className="w-full max-w-md shadow-2xl border-accent/20">
+        <CardHeader className="space-y-3 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center">
+              <span className="text-2xl font-bold text-primary">J</span>
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl font-bold text-primary">Jericho</h1>
+              <p className="text-xs text-muted-foreground">by The Momentum Company</p>
+            </div>
+          </div>
+          <CardTitle className="text-xl font-semibold">
             {isResetPassword ? "Reset password" : isLogin ? "Welcome back" : "Create your account"}
           </CardTitle>
           <CardDescription className="text-center">
             {isResetPassword
               ? "Enter your email to receive a password reset link"
               : isLogin 
-                ? "Sign in to your Jericho admin dashboard"
+                ? "Sign in to your dashboard"
                 : "Start building your team's capabilities"
             }
           </CardDescription>
@@ -188,7 +197,7 @@ const Auth = () => {
                 />
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" variant="accent" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isResetPassword ? "Send Reset Link" : isLogin ? "Sign In" : "Create Account"}
             </Button>

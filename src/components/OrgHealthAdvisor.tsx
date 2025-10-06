@@ -186,6 +186,7 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
     return (
       <Button
         onClick={() => setIsOpen(true)}
+        variant="accent"
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
         size="icon"
       >
@@ -195,17 +196,22 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
   }
 
   return (
-    <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Chat with Jericho</h3>
+    <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col border-accent/20">
+      <div className="flex items-center justify-between p-4 border-b bg-primary text-primary-foreground">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
+            <span className="text-lg font-bold text-primary">J</span>
+          </div>
+          <div>
+            <h3 className="font-semibold">Jericho</h3>
+            <p className="text-xs opacity-90">Your AI Coach</p>
+          </div>
         </div>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsOpen(false)}
-          className="h-8 w-8"
+          className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -220,8 +226,8 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
               }`}
             >
               {message.role === "assistant" && (
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-4 w-4 text-primary" />
+                <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-bold text-primary">J</span>
                 </div>
               )}
                <div
@@ -249,8 +255,8 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
           ))}
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-3 justify-start">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="h-4 w-4 text-primary" />
+              <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
+                <span className="text-sm font-bold text-primary">J</span>
               </div>
               <div className="rounded-lg px-4 py-2 bg-muted">
                 <p className="text-sm text-muted-foreground italic">Jericho is thinking...</p>
@@ -273,6 +279,7 @@ export function OrgHealthAdvisor({ organizationContext }: OrgHealthAdvisorProps)
           <Button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
+            variant="accent"
             size="icon"
           >
             <Send className="h-4 w-4" />
