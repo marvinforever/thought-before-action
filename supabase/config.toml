@@ -23,3 +23,15 @@ verify_jwt = true
 
 [functions.suggest-habits]
 verify_jwt = true
+
+[functions.transcribe-audio]
+verify_jwt = true
+
+[functions.extract-review-content]
+verify_jwt = true
+
+[functions.generate-performance-review]
+verify_jwt = true
+
+[functions.notify-capability-change]
+verify_jwt = true

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, CheckCircle, AlertCircle, FileText, Sparkles } from "lucide-react";
+import { Calendar, Clock, CheckCircle, AlertCircle, FileText, Sparkles, Mic, Upload, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 type Review = {
@@ -36,8 +36,13 @@ export function ReviewsTab() {
   const [managerNotes, setManagerNotes] = useState("");
   const [strengths, setStrengths] = useState("");
   const [areasForImprovement, setAreasForImprovement] = useState("");
-  const [overallRating, setOverallRating] = useState<number>(3);
+  const [overallRating, setOverallRating] = useState<number>(5);
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,7 +99,140 @@ export function ReviewsTab() {
     setManagerNotes(review.manager_notes || "");
     setStrengths(review.strengths || "");
     setAreasForImprovement(review.areas_for_improvement || "");
-    setOverallRating(review.overall_rating || 3);
+    setOverallRating(review.overall_rating || 5);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        await processAudioFile(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setRecording(true);
+      
+      toast({
+        title: "Recording started",
+        description: "Click stop when you're done with the review discussion",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Recording failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && recording) {
+      mediaRecorder.stop();
+      setRecording(false);
+      setMediaRecorder(null);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("audio/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an audio file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await processAudioFile(file);
+  };
+
+  const processAudioFile = async (audioBlob: Blob) => {
+    if (!selectedReview) return;
+
+    setTranscribing(true);
+    try {
+      // Convert audio to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          const base64 = result.split(",")[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+
+      // Transcribe audio
+      toast({
+        title: "Transcribing audio...",
+        description: "This may take a moment",
+      });
+
+      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke(
+        "transcribe-audio",
+        { body: { audio: base64Audio } }
+      );
+
+      if (transcriptionError) throw transcriptionError;
+
+      toast({
+        title: "Extracting review content...",
+        description: "Jericho is analyzing the conversation",
+      });
+
+      // Extract structured content from transcription
+      const { data: extractedData, error: extractionError } = await supabase.functions.invoke(
+        "extract-review-content",
+        { 
+          body: { 
+            transcription: transcriptionData.text,
+            employeeName: selectedReview.profiles.full_name
+          } 
+        }
+      );
+
+      if (extractionError) throw extractionError;
+
+      // Populate form fields
+      if (extractedData?.data) {
+        setManagerNotes(extractedData.data.manager_notes || "");
+        setStrengths(extractedData.data.strengths || "");
+        setAreasForImprovement(extractedData.data.areas_for_improvement || "");
+        setOverallRating(extractedData.data.overall_rating || 5);
+
+        toast({
+          title: "Review content extracted!",
+          description: "Review the extracted content and make any adjustments",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error processing audio:", error);
+      toast({
+        title: "Error processing audio",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setTranscribing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const generateAIDraft = async () => {
@@ -200,6 +338,61 @@ export function ReviewsTab() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Audio Upload Section */}
+          <div className="p-4 bg-accent/5 border-2 border-dashed border-accent/20 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-semibold text-sm">Upload Review Recording</h3>
+                <p className="text-xs text-muted-foreground">Record or upload audio to auto-populate review fields</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={transcribing}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={transcribing || recording}
+                className="flex-1"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Audio
+              </Button>
+              <Button
+                variant={recording ? "destructive" : "outline"}
+                size="sm"
+                onClick={recording ? stopRecording : startRecording}
+                disabled={transcribing}
+                className="flex-1"
+              >
+                {recording ? (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-white animate-pulse mr-2" />
+                    Stop Recording
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-4 w-4 mr-2" />
+                    Record
+                  </>
+                )}
+              </Button>
+            </div>
+            {transcribing && (
+              <div className="mt-3 flex items-center justify-center gap-2 text-sm text-accent">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Processing audio and extracting content...</span>
+              </div>
+            )}
+          </div>
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">Manager Notes</label>
@@ -207,7 +400,7 @@ export function ReviewsTab() {
                 variant="outline"
                 size="sm"
                 onClick={generateAIDraft}
-                disabled={generatingAI}
+                disabled={generatingAI || transcribing}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 {generatingAI ? "Generating..." : "Generate AI Draft"}
@@ -242,21 +435,22 @@ export function ReviewsTab() {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Overall Rating</label>
-            <div className="flex items-center gap-2 mt-2">
-              {[1, 2, 3, 4, 5].map((rating) => (
+            <label className="text-sm font-medium">Overall Rating (1-10)</label>
+            <div className="grid grid-cols-10 gap-1 mt-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
                 <Button
                   key={rating}
-                  variant={overallRating === rating ? "default" : "outline"}
+                  variant={overallRating === rating ? "accent" : "outline"}
                   size="sm"
                   onClick={() => setOverallRating(rating)}
+                  className="px-2"
                 >
                   {rating}
                 </Button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              1 = Needs Improvement, 3 = Meets Expectations, 5 = Exceeds Expectations
+            <p className="text-xs text-muted-foreground mt-2">
+              1-3 = Needs Improvement | 4-6 = Meets Expectations | 7-8 = Exceeds Expectations | 9-10 = Exceptional
             </p>
           </div>
 
@@ -356,7 +550,7 @@ export function ReviewsTab() {
                       <Badge variant="outline">{review.review_type}</Badge>
                       {review.overall_rating && (
                         <Badge variant="secondary">
-                          Rating: {review.overall_rating}/5
+                          Rating: {review.overall_rating}/10
                         </Badge>
                       )}
                     </div>
