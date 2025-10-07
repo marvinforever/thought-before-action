@@ -94,21 +94,44 @@ serve(async (req) => {
       ).map(r => r.resource_id) || []
     );
 
-    // Fetch available resources for matching (exclude already completed/recommended)
-    const { data: allResources, error: resourcesError } = await supabaseClient
+    // Fetch available resources with their capabilities via junction table
+    const { data: resourcesWithCaps, error: resourcesError } = await supabaseClient
       .from('resources')
       .select(`
         id,
         title,
         description,
-        capability_id,
         capability_level,
         content_type,
-        rating
+        rating,
+        resource_capabilities!inner(
+          capability:capabilities(
+            id,
+            name,
+            category
+          )
+        )
       `)
       .eq('company_id', companyId)
       .eq('is_active', true)
       .not('id', 'in', `(${[...completedResourceIds, ...activeRecommendedIds].join(',') || 'null'})`);
+
+    if (resourcesError) throw resourcesError;
+
+    // Transform to include capability info for AI
+    const allResources = resourcesWithCaps?.map(resource => ({
+      id: resource.id,
+      title: resource.title,
+      description: resource.description,
+      capability_level: resource.capability_level,
+      content_type: resource.content_type,
+      rating: resource.rating,
+      capabilities: resource.resource_capabilities.map((rc: any) => ({
+        id: rc.capability.id,
+        name: rc.capability.name,
+        category: rc.capability.category,
+      }))
+    })) || [];
 
     if (resourcesError) throw resourcesError;
 
