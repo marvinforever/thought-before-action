@@ -20,6 +20,7 @@ import { TeamAnalytics } from "@/components/TeamAnalytics";
 import { DiagnosticInsights } from "@/components/DiagnosticInsights";
 import { TeamDiagnosticSnapshot } from "@/components/TeamDiagnosticSnapshot";
 import { ReviewsTab } from "@/components/ReviewsTab";
+import { TeamHealthRisks } from "@/components/TeamHealthRisks";
 
 type DirectReport = {
   id: string;
@@ -340,7 +341,20 @@ export default function ManagerDashboard() {
           <StandardCapWatchlistTab />
         </TabsContent>
 
-        <TabsContent value="diagnostics" className="space-y-4">
+        <TabsContent value="diagnostics" className="space-y-6">
+          <TeamHealthRisks 
+            onScheduleOneOnOne={(employeeId, employeeName) => {
+              const employee = directReports.find(r => r.id === employeeId);
+              if (employee) {
+                setSelectedEmployee({ 
+                  id: employee.id, 
+                  full_name: employee.full_name,
+                  company_id: employee.company_id 
+                });
+                setOneOnOneDialogOpen(true);
+              }
+            }}
+          />
           <TeamDiagnosticSnapshot />
         </TabsContent>
 

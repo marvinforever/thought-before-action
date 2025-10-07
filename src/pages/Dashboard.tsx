@@ -5,6 +5,7 @@ import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Awa
 import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
 import { OrganizationalGrowthDesign } from "@/components/OrganizationalGrowthDesign";
 import { EmployeeInterestIndicators } from "@/components/EmployeeInterestIndicators";
+import { GrowthAtAGlance } from "@/components/GrowthAtAGlance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DomainScore {
@@ -326,6 +327,11 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold">Executive Dashboard</h1>
             <p className="text-muted-foreground">Comprehensive organizational intelligence & risk analysis</p>
           </div>
+
+      {/* Growth at a Glance - Featured for Individual Users */}
+      <div className="mb-6">
+        <GrowthAtAGlance />
+      </div>
 
       {/* Executive Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

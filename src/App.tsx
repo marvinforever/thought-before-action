@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -13,6 +14,8 @@ import Capabilities from "./pages/Capabilities";
 import Resources from "./pages/Resources";
 import AdminResourceImport from "./pages/AdminResourceImport";
 import MyGrowthPlan from "./pages/MyGrowthPlan";
+import GrowthRoadmap from "./pages/GrowthRoadmap";
+import TrainingROI from "./pages/TrainingROI";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import DashboardLayout from "./components/DashboardLayout";
 import NotFound from "./pages/NotFound";
@@ -25,6 +28,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <FloatingJerichoButton />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/auth" element={<Auth />} />
@@ -37,6 +41,8 @@ const App = () => (
           <Route path="resources" element={<Resources />} />
           <Route path="resource-import" element={<AdminResourceImport />} />
           <Route path="my-growth-plan" element={<MyGrowthPlan />} />
+          <Route path="growth-roadmap" element={<GrowthRoadmap />} />
+          <Route path="training-roi" element={<TrainingROI />} />
           <Route path="manager" element={<ManagerDashboard />} />
         </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
