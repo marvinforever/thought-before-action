@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,10 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    loadRoadmap();
+  }, [profileId]);
+
   const loadRoadmap = async () => {
     try {
       const { data, error } = await supabase
@@ -73,6 +77,8 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
   const generateRoadmap = async () => {
     setIsLoading(true);
     try {
+      console.log('Calling generate-learning-roadmap function...', { profileId, companyId });
+      
       const { data, error } = await supabase.functions.invoke('generate-learning-roadmap', {
         body: {
           employeeId: profileId,
@@ -81,15 +87,23 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
         },
       });
 
-      if (error) throw error;
+      console.log('Function response:', { data, error });
+
+      if (error) {
+        console.error('Function error:', error);
+        throw error;
+      }
 
       if (data.success) {
         setRoadmap(data.roadmap);
         setGeneratedAt(data.generatedAt);
+        await loadRoadmap(); // Reload from database
         toast({
           title: "Roadmap Updated",
           description: "Jericho has created your personalized learning roadmap!",
         });
+      } else if (data.error) {
+        throw new Error(data.error);
       }
     } catch (error: any) {
       console.error('Error generating roadmap:', error);
