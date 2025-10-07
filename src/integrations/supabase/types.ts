@@ -1959,6 +1959,42 @@ export type Database = {
           },
         ]
       }
+      resource_capabilities: {
+        Row: {
+          capability_id: string
+          created_at: string
+          id: string
+          resource_id: string
+        }
+        Insert: {
+          capability_id: string
+          created_at?: string
+          id?: string
+          resource_id: string
+        }
+        Update: {
+          capability_id?: string
+          created_at?: string
+          id?: string
+          resource_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_capabilities_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_capabilities_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_ratings: {
         Row: {
           created_at: string

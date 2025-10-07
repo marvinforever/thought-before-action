@@ -13,19 +13,18 @@ import AssignResourceDialog from "@/components/AssignResourceDialog";
 type Resource = {
   id: string;
   title: string;
-  description: string;
-  authors: string | null;
-  publisher: string | null;
-  rating: number | null;
-  external_url: string | null;
+  description: string | null;
   content_type: string;
+  external_url: string | null;
+  rating: number | null;
   capability_level: string | null;
   estimated_time_minutes: number | null;
-  capability: {
+  authors: string | null;
+  publisher: string | null;
+  capabilities: Array<{
     id: string;
     name: string;
-    category: string;
-  } | null;
+  }>;
 };
 
 export default function Resources() {
@@ -36,7 +35,11 @@ export default function Resources() {
   const [selectedContentType, setSelectedContentType] = useState<string>("all");
   const [isAdmin, setIsAdmin] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [selectedResource, setSelectedResource] = useState<{ id: string; title: string; capabilityId: string | null } | null>(null);
+  const [selectedResource, setSelectedResource] = useState<{ 
+    id: string; 
+    title: string; 
+    capabilities: Array<{ id: string; name: string }> 
+  } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -63,42 +66,52 @@ export default function Resources() {
 
   const loadResources = async () => {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to view resources",
-          variant: "destructive",
-        });
-        return;
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      const { data, error } = await supabase
-        .from("resources")
+      // Fetch resources with their capability links
+      const { data: resourceData, error: resourceError } = await supabase
+        .from('resources')
+        .select('*')
+        .eq('is_active', true)
+        .order('title');
+
+      if (resourceError) throw resourceError;
+
+      // Fetch capability links for all resources
+      const resourceIds = resourceData?.map(r => r.id) || [];
+      const { data: capabilityLinks, error: linksError } = await supabase
+        .from('resource_capabilities')
         .select(`
-          id,
-          title,
-          description,
-          authors,
-          publisher,
-          rating,
-          external_url,
-          content_type,
-          capability_level,
-          estimated_time_minutes,
-          capability:capabilities(id, name, category)
+          resource_id,
+          capabilities (
+            id,
+            name
+          )
         `)
-        .eq("is_active", true)
-        .order("title");
+        .in('resource_id', resourceIds);
 
-      if (error) throw error;
-      setResources(data as Resource[]);
-    } catch (error: any) {
-      toast({
-        title: "Error loading resources",
-        description: error.message,
-        variant: "destructive",
+      if (linksError) throw linksError;
+
+      // Group capabilities by resource
+      const capabilitiesByResource = new Map<string, Array<{ id: string; name: string }>>();
+      capabilityLinks?.forEach((link: any) => {
+        if (link.capabilities) {
+          const existing = capabilitiesByResource.get(link.resource_id) || [];
+          existing.push(link.capabilities);
+          capabilitiesByResource.set(link.resource_id, existing);
+        }
       });
+
+      // Combine data
+      const resourcesWithCapabilities = resourceData?.map(resource => ({
+        ...resource,
+        capabilities: capabilitiesByResource.get(resource.id) || []
+      })) || [];
+
+      setResources(resourcesWithCapabilities);
+    } catch (error) {
+      console.error('Error loading resources:', error);
     } finally {
       setLoading(false);
     }
@@ -150,31 +163,36 @@ export default function Resources() {
     return norm.charAt(0).toUpperCase() + norm.slice(1);
   };
 
-  const filteredResources = resources.filter((resource) => {
-    const matchesSearch =
-      searchQuery === "" ||
+  const filteredResources = resources.filter(resource => {
+    const matchesSearch = !searchQuery || 
       resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       resource.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      resource.authors?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      resource.capability?.name.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesLevel =
-      selectedLevel === "all" ||
-      resource.capability_level?.toLowerCase() === selectedLevel.toLowerCase();
-
-    const matchesContentType =
-      selectedContentType === "all" ||
-      resource.content_type === selectedContentType;
-
-    return matchesSearch && matchesLevel && matchesContentType;
+      resource.capabilities.some(cap => cap.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesLevel = selectedLevel === 'all' || resource.capability_level === selectedLevel;
+    const matchesType = selectedContentType === 'all' || resource.content_type === selectedContentType;
+    
+    return matchesSearch && matchesLevel && matchesType;
   });
 
   const groupedByCapability = filteredResources.reduce((acc, resource) => {
-    const capabilityName = resource.capability?.name || "General";
-    if (!acc[capabilityName]) {
-      acc[capabilityName] = [];
+    // A resource can appear under multiple capabilities
+    if (resource.capabilities.length === 0) {
+      if (!acc['Uncategorized']) {
+        acc['Uncategorized'] = [];
+      }
+      acc['Uncategorized'].push(resource);
+    } else {
+      resource.capabilities.forEach(capability => {
+        if (!acc[capability.name]) {
+          acc[capability.name] = [];
+        }
+        // Check if resource is already in this group to avoid duplicates
+        if (!acc[capability.name].find(r => r.id === resource.id)) {
+          acc[capability.name].push(resource);
+        }
+      });
     }
-    acc[capabilityName].push(resource);
     return acc;
   }, {} as Record<string, Resource[]>);
 
@@ -252,21 +270,36 @@ export default function Resources() {
                   {capabilityResources.map((resource) => (
                     <Card key={resource.id} className="hover:shadow-md transition-shadow">
                       <CardHeader>
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {getContentIcon(resource.content_type)}
-                            <Badge className={getLevelColor(resource.capability_level)}>
-                              {getLevelLabel(resource.capability_level)}
-                            </Badge>
+                            <h3 className="font-semibold text-lg">{resource.title}</h3>
                           </div>
-                          {resource.rating && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              <span className="font-medium">{resource.rating}</span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {resource.rating && (
+                              <div className="flex items-center gap-1 text-yellow-500">
+                                <Star className="h-4 w-4 fill-current" />
+                                <span className="text-sm font-medium">{resource.rating}</span>
+                              </div>
+                            )}
+                            {resource.capability_level && (
+                              <Badge className={getLevelColor(resource.capability_level)}>
+                                {getLevelLabel(resource.capability_level)}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <CardTitle className="text-lg line-clamp-2">{resource.title}</CardTitle>
+                        
+                        {resource.capabilities.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {resource.capabilities.map(cap => (
+                              <Badge key={cap.id} variant="outline" className="text-xs">
+                                {cap.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
                         {resource.authors && (
                           <CardDescription className="text-sm">
                             by {resource.authors}
@@ -316,7 +349,7 @@ export default function Resources() {
                                 setSelectedResource({
                                   id: resource.id,
                                   title: resource.title,
-                                  capabilityId: resource.capability?.id || null,
+                                  capabilities: resource.capabilities,
                                 });
                                 setAssignDialogOpen(true);
                               }}
@@ -343,7 +376,7 @@ export default function Resources() {
           onOpenChange={setAssignDialogOpen}
           resourceId={selectedResource.id}
           resourceTitle={selectedResource.title}
-          defaultCapabilityId={selectedResource.capabilityId}
+          resourceCapabilities={selectedResource.capabilities}
         />
       )}
     </div>

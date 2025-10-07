@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 type Employee = {
@@ -31,13 +32,14 @@ type Capability = {
   name: string;
 };
 
-type AssignResourceDialogProps = {
+export interface AssignResourceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   resourceId: string;
   resourceTitle: string;
   defaultCapabilityId?: string | null;
-};
+  resourceCapabilities?: Array<{ id: string; name: string }>;
+}
 
 export default function AssignResourceDialog({
   open,
@@ -45,6 +47,7 @@ export default function AssignResourceDialog({
   resourceId,
   resourceTitle,
   defaultCapabilityId,
+  resourceCapabilities = [],
 }: AssignResourceDialogProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
@@ -67,7 +70,6 @@ export default function AssignResourceDialog({
     try {
       setLoading(true);
 
-      // Get current user's company
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -79,7 +81,6 @@ export default function AssignResourceDialog({
 
       if (!profile?.company_id) return;
 
-      // Load employees in the same company
       const { data: employeeData, error: employeeError } = await supabase
         .from("profiles")
         .select("id, full_name, email")
@@ -90,7 +91,6 @@ export default function AssignResourceDialog({
       if (employeeError) throw employeeError;
       setEmployees(employeeData as Employee[]);
 
-      // Load capabilities
       const { data: capabilityData, error: capabilityError } = await supabase
         .from("capabilities")
         .select("id, name")
@@ -163,6 +163,19 @@ export default function AssignResourceDialog({
             Assign "{resourceTitle}" to an employee's growth plan
           </DialogDescription>
         </DialogHeader>
+
+        {resourceCapabilities.length > 0 && (
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground mb-2">This resource covers:</p>
+            <div className="flex flex-wrap gap-2">
+              {resourceCapabilities.map(cap => (
+                <Badge key={cap.id} variant="outline">
+                  {cap.name}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
