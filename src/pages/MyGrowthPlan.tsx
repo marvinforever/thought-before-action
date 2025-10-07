@@ -93,7 +93,10 @@ export default function MyGrowthPlan() {
       setSelectedStatus(stateTab);
       // Scroll to tabs section after a brief delay to ensure content is rendered
       setTimeout(() => {
-        tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (tabsRef.current) {
+          const elementPosition = tabsRef.current.getBoundingClientRect().top + window.pageYOffset;
+          window.scrollTo({ top: elementPosition - 20, behavior: 'smooth' });
+        }
       }, 100);
       return;
     }
@@ -104,7 +107,10 @@ export default function MyGrowthPlan() {
       setSelectedStatus(tabParam);
       // Scroll to tabs section after a brief delay
       setTimeout(() => {
-        tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (tabsRef.current) {
+          const elementPosition = tabsRef.current.getBoundingClientRect().top + window.pageYOffset;
+          window.scrollTo({ top: elementPosition - 20, behavior: 'smooth' });
+        }
       }, 100);
     }
   }, [searchParams, location.state]);
