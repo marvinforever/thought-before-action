@@ -500,6 +500,56 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
       });
     }
 
+    // Define tools that Jericho can use
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "update_vision",
+          description: "Update the user's 1-year or 3-year vision based on conversation. Use this when the user wants to set or update their career goals.",
+          parameters: {
+            type: "object",
+            properties: {
+              one_year_vision: {
+                type: "string",
+                description: "The user's 1-year career vision. Only include if updating."
+              },
+              three_year_vision: {
+                type: "string",
+                description: "The user's 3-year career vision. Only include if updating."
+              }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "request_capability",
+          description: "Submit a capability level request on behalf of the user. Use this when a user wants to pursue a specific capability that matches their goals.",
+          parameters: {
+            type: "object",
+            properties: {
+              capability_name: {
+                type: "string",
+                description: "The name of the capability to request"
+              },
+              requested_level: {
+                type: "string",
+                enum: ["foundational", "intermediate", "advanced", "expert"],
+                description: "The level they want to achieve"
+              },
+              evidence_text: {
+                type: "string",
+                description: "Brief explanation of why they want this capability and how it connects to their goals"
+              }
+            },
+            required: ["capability_name", "requested_level", "evidence_text"]
+          }
+        }
+      }
+    ];
+
     // Non-streaming response (original behavior)
     console.log('Calling Lovable AI with context type:', contextType);
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -511,6 +561,7 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: aiMessages,
+        tools,
         temperature: 0.8,
         max_tokens: 1000,
       }),
@@ -523,7 +574,92 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
     }
 
     const aiData = await aiResponse.json();
-    const assistantMessage = aiData.choices[0].message.content;
+    const aiMessage = aiData.choices[0].message;
+    let assistantMessage = aiMessage.content || '';
+
+    // Handle tool calls if present
+    if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
+      const toolResults = [];
+      
+      for (const toolCall of aiMessage.tool_calls) {
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+        
+        console.log('Executing tool:', functionName, functionArgs);
+        
+        if (functionName === 'update_vision') {
+          // Update or create personal goals
+          const { data: existingGoal } = await supabase
+            .from('personal_goals')
+            .select('id')
+            .eq('profile_id', user.id)
+            .single();
+          
+          if (existingGoal) {
+            const updateData: any = {};
+            if (functionArgs.one_year_vision) updateData.one_year_vision = functionArgs.one_year_vision;
+            if (functionArgs.three_year_vision) updateData.three_year_vision = functionArgs.three_year_vision;
+            
+            await supabase
+              .from('personal_goals')
+              .update(updateData)
+              .eq('id', existingGoal.id);
+            
+            toolResults.push(`✅ Updated your vision successfully!`);
+          } else {
+            await supabase
+              .from('personal_goals')
+              .insert({
+                profile_id: user.id,
+                company_id: profile.company_id,
+                one_year_vision: functionArgs.one_year_vision,
+                three_year_vision: functionArgs.three_year_vision,
+              });
+            
+            toolResults.push(`✅ Created your vision successfully!`);
+          }
+        } else if (functionName === 'request_capability') {
+          // Find the capability by name
+          const { data: capability } = await supabase
+            .from('capabilities')
+            .select('id')
+            .ilike('name', functionArgs.capability_name)
+            .single();
+          
+          if (capability) {
+            // Check if user already has this capability
+            const { data: existingCap } = await supabase
+              .from('employee_capabilities')
+              .select('id, current_level')
+              .eq('profile_id', user.id)
+              .eq('capability_id', capability.id)
+              .single();
+            
+            // Create the request
+            await supabase
+              .from('capability_level_requests')
+              .insert({
+                profile_id: user.id,
+                company_id: profile.company_id,
+                capability_id: capability.id,
+                current_level: existingCap?.current_level || 'foundational',
+                requested_level: functionArgs.requested_level,
+                evidence_text: functionArgs.evidence_text,
+                status: 'pending'
+              });
+            
+            toolResults.push(`✅ Submitted capability request for "${functionArgs.capability_name}" at ${functionArgs.requested_level} level. Your manager will review it soon!`);
+          } else {
+            toolResults.push(`❌ Couldn't find a capability matching "${functionArgs.capability_name}". Try describing it differently?`);
+          }
+        }
+      }
+      
+      // Append tool results to the response
+      if (toolResults.length > 0) {
+        assistantMessage = assistantMessage + '\n\n' + toolResults.join('\n');
+      }
+    }
 
     // Save assistant message
     await supabase
