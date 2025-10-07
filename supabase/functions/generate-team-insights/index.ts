@@ -90,6 +90,17 @@ serve(async (req) => {
       .select("id, full_name, role")
       .in("id", employeeIds);
 
+    const { data: habits } = await supabaseClient
+      .from("leading_indicators")
+      .select("profile_id, habit_name, current_streak, longest_streak, is_active")
+      .in("profile_id", employeeIds)
+      .eq("is_active", true);
+
+    const { data: habitCompletions } = await supabaseClient
+      .from("habit_completions")
+      .select("profile_id, completed_date")
+      .in("profile_id", employeeIds);
+
     // Build context for AI
     const teamContext = {
       teamSize: employeeIds.length,
@@ -117,6 +128,18 @@ serve(async (req) => {
         proficient: capabilities?.filter((c) => c.current_level === "proficient").length || 0,
         advanced: capabilities?.filter((c) => c.current_level === "advanced").length || 0,
       },
+      habitsSummary: {
+        totalActiveHabits: habits?.length || 0,
+        employeesWithHabits: new Set(habits?.map((h) => h.profile_id)).size,
+        avgCurrentStreak: habits?.length ? Math.round(habits.reduce((sum, h) => sum + h.current_streak, 0) / habits.length) : 0,
+        bestStreak: habits?.length ? Math.max(...habits.map((h) => h.current_streak)) : 0,
+        recentCompletions: habitCompletions?.filter((hc) => {
+          const completionDate = new Date(hc.completed_date);
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          return completionDate >= sevenDaysAgo;
+        }).length || 0,
+      },
     };
 
     console.log("Team context prepared:", teamContext);
@@ -138,6 +161,10 @@ For each insight, provide:
 Focus on:
 - Burnout and engagement patterns
 - Learning and development opportunities
+- Goal completion trends
+- Team capability gaps
+- Daily consistency and habit tracking (Greatness Tracker data)
+- 1-on-1 meeting frequency and quality
 - Manager effectiveness indicators
 - Team capability development
 - Goal achievement patterns

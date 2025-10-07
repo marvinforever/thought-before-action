@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Flame, TrendingUp } from "lucide-react";
+import { Plus, Flame, TrendingUp, Archive, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -244,6 +244,63 @@ export default function GreatnessTracker() {
     return completionStats[habitId]?.totalDays || 0;
   };
 
+  const archiveHabit = async (habitId: string) => {
+    try {
+      const { error } = await supabase
+        .from("leading_indicators")
+        .update({ is_active: false })
+        .eq("id", habitId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Habit Archived",
+        description: "Habit has been archived successfully",
+      });
+
+      await loadHabits();
+    } catch (error: any) {
+      console.error("Error archiving habit:", error);
+      toast({
+        title: "Error",
+        description: "Failed to archive habit",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteHabit = async (habitId: string) => {
+    try {
+      // Delete all completions first
+      await supabase
+        .from("habit_completions")
+        .delete()
+        .eq("habit_id", habitId);
+
+      // Then delete the habit
+      const { error } = await supabase
+        .from("leading_indicators")
+        .delete()
+        .eq("id", habitId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Habit Deleted",
+        description: "Habit and all completion data have been permanently deleted",
+      });
+
+      await loadHabits();
+    } catch (error: any) {
+      console.error("Error deleting habit:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete habit",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -311,10 +368,30 @@ export default function GreatnessTracker() {
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center justify-between">
                           <h4 className="font-semibold">{habit.habit_name}</h4>
-                          <div className="flex items-center gap-1 text-sm">
-                            <Flame className="h-4 w-4 text-orange-500" />
-                            <span className="font-bold">{habit.current_streak}</span>
-                            <span className="text-muted-foreground">day streak</span>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 text-sm">
+                              <Flame className="h-4 w-4 text-orange-500" />
+                              <span className="font-bold">{habit.current_streak}</span>
+                              <span className="text-muted-foreground">day streak</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => archiveHabit(habit.id)}
+                              className="h-8 w-8 p-0"
+                              title="Archive habit"
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteHabit(habit.id)}
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              title="Delete habit permanently"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                         {habit.habit_description && (

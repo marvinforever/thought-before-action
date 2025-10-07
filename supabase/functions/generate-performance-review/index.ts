@@ -71,6 +71,20 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
+    // Get habits (leading indicators) and completions
+    const { data: habits } = await supabase
+      .from("leading_indicators")
+      .select("habit_name, habit_description, current_streak, longest_streak, target_frequency")
+      .eq("profile_id", employeeId)
+      .eq("is_active", true);
+
+    const { data: habitCompletions } = await supabase
+      .from("habit_completions")
+      .select("habit_id, completed_date, leading_indicators!inner(habit_name)")
+      .eq("profile_id", employeeId)
+      .order("completed_date", { ascending: false })
+      .limit(100);
+
     // Construct context for AI
     const context = {
       employee: {
@@ -86,7 +100,9 @@ serve(async (req) => {
         completed: goals?.filter(g => g.completed) || [],
         inProgress: goals?.filter(g => !g.completed) || []
       },
-      capabilityAdjustments: adjustments || []
+      capabilityAdjustments: adjustments || [],
+      habits: habits || [],
+      habitCompletions: habitCompletions || []
     };
 
     // Generate review using Lovable AI
@@ -130,6 +146,16 @@ ${context.capabilityAdjustments.map(adj => `
   Reason: ${adj.adjustment_reason || 'Not specified'}
 `).join('\n')}
 
+DAILY HABITS & CONSISTENCY (Greatness Tracker):
+${context.habits.map((habit: any) => `
+- ${habit.habit_name} (${habit.target_frequency})
+  Description: ${habit.habit_description || 'No description'}
+  Current Streak: ${habit.current_streak} days
+  Best Streak: ${habit.longest_streak} days
+`).join('\n')}
+
+Recent Habit Completions: ${context.habitCompletions.length} completions tracked in review period
+
 Write a comprehensive performance review that includes:
 
 1. **Overall Performance Summary** (2-3 paragraphs)
@@ -147,11 +173,16 @@ Write a comprehensive performance review that includes:
    - Comment on goal completion rate and quality
    - Note any patterns or standout achievements
 
-5. **Development Progress**
+5. **Consistency & Daily Excellence** (Greatness Tracker Analysis)
+   - Assess habit consistency and streak performance
+   - Comment on commitment to daily improvement
+   - Highlight any particularly impressive consistency
+
+6. **Development Progress**
    - Assess capability growth based on the adjustments and targets
    - Highlight progress and remaining development areas
 
-6. **Recommendations for Next Period**
+7. **Recommendations for Next Period**
    - Suggest 2-3 focus areas
    - Recommend development opportunities
 
