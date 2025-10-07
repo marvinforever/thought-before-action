@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock } from "lucide-react";
 import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
+import { OrganizationalGrowthDesign } from "@/components/OrganizationalGrowthDesign";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DomainScore {
   domain: string;
@@ -312,10 +314,17 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Executive Dashboard</h1>
-        <p className="text-muted-foreground">Comprehensive organizational intelligence & risk analysis</p>
-      </div>
+      <Tabs defaultValue="health" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="health">Organizational Health</TabsTrigger>
+          <TabsTrigger value="growth">Strategic Growth Design</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="health" className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Executive Dashboard</h1>
+            <p className="text-muted-foreground">Comprehensive organizational intelligence & risk analysis</p>
+          </div>
 
       {/* Executive Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -519,6 +528,12 @@ const Dashboard = () => {
           domainScores: stats.domainScores,
         }}
       />
+        </TabsContent>
+
+        <TabsContent value="growth">
+          <OrganizationalGrowthDesign />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -13,7 +13,8 @@ import {
   Menu,
   Upload,
   Shield,
-  GraduationCap
+  GraduationCap,
+  Map
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -220,6 +221,15 @@ const DashboardLayout = () => {
               </Button>
             )}
             <div className="flex items-center gap-4">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => navigate("/dashboard/my-growth-plan?tab=roadmap")}
+                className="gap-2"
+              >
+                <Map className="h-4 w-4" />
+                My Roadmap
+              </Button>
               <span className="text-sm text-muted-foreground">
                 {user.email}
               </span>

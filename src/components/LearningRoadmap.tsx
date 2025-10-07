@@ -100,7 +100,7 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
         await loadRoadmap(); // Reload from database
         toast({
           title: "Roadmap Updated",
-          description: "Jericho has created your personalized learning roadmap!",
+          description: "Jericho has created your personalized growth roadmap!",
         });
       } else if (data.error) {
         throw new Error(data.error);
@@ -185,7 +185,7 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle className="text-2xl">Your Strategic Learning Roadmap</CardTitle>
+              <CardTitle className="text-2xl">Your Strategic Growth Roadmap</CardTitle>
               <CardDescription>
                 Jericho's personalized development plan for you
                 {generatedAt && (
@@ -210,7 +210,7 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
           <CardContent>
             <div className="text-center py-12">
               <TrendingUp className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg mb-4">Ready to create your personalized learning roadmap?</p>
+              <p className="text-lg mb-4">Ready to create your personalized growth roadmap?</p>
               <p className="text-sm text-muted-foreground mb-6">
                 Jericho will analyze your capabilities, goals, and progress to recommend the best path forward.
               </p>
