@@ -17,6 +17,8 @@ import { SuggestResourceDialog } from "@/components/SuggestResourceDialog";
 import { ContentTypeFilter } from "@/components/ContentTypeFilter";
 import { RequestCapabilityLevelDialog } from "@/components/RequestCapabilityLevelDialog";
 import { LearningRoadmap } from "@/components/LearningRoadmap";
+import { StrategicRoadmapTab } from "@/components/StrategicRoadmapTab";
+import { OrganizationalContextTab } from "@/components/OrganizationalContextTab";
 
 type GrowthPlanResource = {
   id: string;
@@ -872,23 +874,33 @@ export default function MyGrowthPlan() {
       <div ref={tabsRef}>
         <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
           <div className="flex items-center justify-between mb-4">
-            <TabsList>
-            <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
-            <TabsTrigger value="all">My Plan ({resources.length})</TabsTrigger>
-            <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
-            <TabsTrigger value="clicked">In Progress</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
-            <TabsTrigger value="all-resources">All Resources ({allResources.length})</TabsTrigger>
-          </TabsList>
-          <div className="flex items-center gap-2">
-            <ContentTypeFilter value={contentTypeFilter} onChange={setContentTypeFilter} />
-            <SuggestResourceDialog />
+            <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="strategic">Strategic Roadmap</TabsTrigger>
+              <TabsTrigger value="roadmap">AI Learning Roadmap</TabsTrigger>
+              <TabsTrigger value="all">My Plan ({resources.length})</TabsTrigger>
+              <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
+              <TabsTrigger value="clicked">In Progress</TabsTrigger>
+              <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
+              <TabsTrigger value="all-resources">All Resources ({allResources.length})</TabsTrigger>
+              <TabsTrigger value="organizational">Organizational View</TabsTrigger>
+            </TabsList>
+            <div className="flex items-center gap-2">
+              <ContentTypeFilter value={contentTypeFilter} onChange={setContentTypeFilter} />
+              <SuggestResourceDialog />
+            </div>
           </div>
-        </div>
 
-        <TabsContent value="roadmap" className="mt-6">
-          <LearningRoadmapWrapper />
-        </TabsContent>
+          <TabsContent value="strategic" className="mt-6">
+            <StrategicRoadmapTab />
+          </TabsContent>
+
+          <TabsContent value="roadmap" className="mt-6">
+            <LearningRoadmapWrapper />
+          </TabsContent>
+
+          <TabsContent value="organizational" className="mt-6">
+            <OrganizationalContextTab />
+          </TabsContent>
 
         <TabsContent value="all-resources" className="mt-6">
           {filteredAllResources.length === 0 ? (
