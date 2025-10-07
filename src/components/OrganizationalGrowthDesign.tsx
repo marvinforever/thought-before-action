@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Download, TrendingUp, Users, DollarSign, Target, BookOpen, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StrategicLearningManagement } from "./StrategicLearningManagement";
 
 interface EmployeeGrowthData {
   id: string;
@@ -217,6 +218,7 @@ export const OrganizationalGrowthDesign = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="employees">Employee Details</TabsTrigger>
+          <TabsTrigger value="strategic">Strategic Learning</TabsTrigger>
           <TabsTrigger value="budget">Budget & ROI</TabsTrigger>
         </TabsList>
 
@@ -309,6 +311,10 @@ export const OrganizationalGrowthDesign = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="strategic" className="space-y-4">
+          <StrategicLearningManagement companyId={companyId} />
         </TabsContent>
 
         <TabsContent value="budget" className="space-y-4">

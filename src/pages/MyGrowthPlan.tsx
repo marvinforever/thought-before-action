@@ -19,6 +19,7 @@ import { RequestCapabilityLevelDialog } from "@/components/RequestCapabilityLeve
 import { LearningRoadmap } from "@/components/LearningRoadmap";
 import { StrategicRoadmapTab } from "@/components/StrategicRoadmapTab";
 import { OrganizationalContextTab } from "@/components/OrganizationalContextTab";
+import { CompanyStrategicLearningTab } from "@/components/CompanyStrategicLearningTab";
 
 type GrowthPlanResource = {
   id: string;
@@ -882,6 +883,7 @@ export default function MyGrowthPlan() {
               <TabsTrigger value="clicked">In Progress</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
               <TabsTrigger value="all-resources">All Resources ({allResources.length})</TabsTrigger>
+              <TabsTrigger value="company-learning">Company Learning</TabsTrigger>
               <TabsTrigger value="organizational">Organizational View</TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2">
