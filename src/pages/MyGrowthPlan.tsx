@@ -835,8 +835,8 @@ export default function MyGrowthPlan() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
+      <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
+        <div className="flex items-center justify-between mb-4">
           <TabsList>
             <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="all">My Plan ({resources.length})</TabsTrigger>
@@ -845,14 +845,11 @@ export default function MyGrowthPlan() {
             <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
             <TabsTrigger value="all-resources">All Resources ({allResources.length})</TabsTrigger>
           </TabsList>
-        </Tabs>
-        <div className="flex items-center gap-2">
-          <ContentTypeFilter value={contentTypeFilter} onChange={setContentTypeFilter} />
-          <SuggestResourceDialog />
+          <div className="flex items-center gap-2">
+            <ContentTypeFilter value={contentTypeFilter} onChange={setContentTypeFilter} />
+            <SuggestResourceDialog />
+          </div>
         </div>
-      </div>
-
-      <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
 
         <TabsContent value="roadmap" className="mt-6">
           <LearningRoadmapWrapper />
