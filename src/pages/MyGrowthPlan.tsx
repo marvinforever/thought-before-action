@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,14 +82,23 @@ export default function MyGrowthPlan() {
   const [selectedCapability, setSelectedCapability] = useState<EmployeeCapability | null>(null);
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
 
-  // Check for tab parameter in URL
+  // Check for tab parameter in URL or navigation state
   useEffect(() => {
+    // Check state first (for same-page navigation)
+    const stateTab = (location.state as any)?.tab;
+    if (stateTab) {
+      setSelectedStatus(stateTab);
+      return;
+    }
+    
+    // Fall back to URL parameter
     const tabParam = searchParams.get('tab');
     if (tabParam) {
       setSelectedStatus(tabParam);
     }
-  }, [searchParams]);
+  }, [searchParams, location.state]);
 
   useEffect(() => {
     loadGrowthPlan();

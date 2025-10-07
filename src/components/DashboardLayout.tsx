@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { 
@@ -31,6 +31,7 @@ const DashboardLayout = () => {
   const [isManager, setIsManager] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -224,7 +225,15 @@ const DashboardLayout = () => {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => navigate("/dashboard/my-growth-plan?tab=roadmap")}
+                onClick={() => {
+                  // Force navigation even if already on the page
+                  if (location.pathname === "/dashboard/my-growth-plan") {
+                    // If already on the page, use state to signal tab change
+                    navigate("/dashboard/my-growth-plan", { state: { tab: "roadmap" }, replace: true });
+                  } else {
+                    navigate("/dashboard/my-growth-plan?tab=roadmap");
+                  }
+                }}
                 className="gap-2"
               >
                 <Map className="h-4 w-4" />
