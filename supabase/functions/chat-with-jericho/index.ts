@@ -13,10 +13,10 @@ serve(async (req) => {
 
   try {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream: requestStream } = await req.json();
+    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream } = await req.json();
 
     // Check if this is an org health advisory request (no auth needed, streaming)
-    if (organizationContext && requestStream) {
+    if (organizationContext && stream) {
       const systemPrompt = `You are Jericho, an expert organizational development AI coach helping leaders improve their team's health across 8 key domains.
 
 Your role is to:
@@ -330,8 +330,8 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
         content: message,
       });
 
-    // Check if streaming is requested
-    if (requestStream) {
+    // Check if streaming is requested for personal coaching
+    if (stream && contextType) {
       console.log('Streaming response for context type:', contextType);
       
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

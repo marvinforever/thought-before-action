@@ -126,7 +126,12 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
         }
       );
 
-      if (!response.ok) throw new Error('Failed to get response');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Edge function error:', response.status, errorText);
+        throw new Error(`Failed to get response: ${response.status}`);
+      }
+      
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
@@ -168,7 +173,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
                 break;
               }
             } catch (e) {
-              // Skip invalid JSON
+              console.error('Failed to parse SSE data:', e);
             }
           }
         }
@@ -178,7 +183,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
       setMessages(prev => prev.slice(0, -1)); // Remove placeholder
       toast({
         title: 'Error',
-        description: 'Failed to get response from Jericho. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to get response from Jericho. Please try again.',
         variant: 'destructive',
       });
     } finally {
