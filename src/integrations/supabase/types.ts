@@ -2162,6 +2162,45 @@ export type Database = {
           },
         ]
       }
+      roadmap_interest_indicators: {
+        Row: {
+          admin_viewed: boolean
+          company_id: string
+          created_at: string
+          id: string
+          indicated_at: string
+          item_details: Json | null
+          item_title: string
+          item_type: string
+          manager_viewed: boolean
+          profile_id: string
+        }
+        Insert: {
+          admin_viewed?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          indicated_at?: string
+          item_details?: Json | null
+          item_title: string
+          item_type: string
+          manager_viewed?: boolean
+          profile_id: string
+        }
+        Update: {
+          admin_viewed?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          indicated_at?: string
+          item_details?: Json | null
+          item_title?: string
+          item_type?: string
+          manager_viewed?: boolean
+          profile_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

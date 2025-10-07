@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock } from "lucide-react";
 import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
 import { OrganizationalGrowthDesign } from "@/components/OrganizationalGrowthDesign";
+import { EmployeeInterestIndicators } from "@/components/EmployeeInterestIndicators";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DomainScore {
@@ -528,6 +529,9 @@ const Dashboard = () => {
           domainScores: stats.domainScores,
         }}
       />
+
+      {/* Employee Interest Indicators */}
+      <EmployeeInterestIndicators />
         </TabsContent>
 
         <TabsContent value="growth">

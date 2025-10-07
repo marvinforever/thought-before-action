@@ -146,7 +146,12 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are Jericho, a strategic learning advisor. You analyze employee development data and create personalized Strategic Learning Roadmaps. Always use "Jericho recommends" language, not "AI suggests". Be encouraging, strategic, and coach-like in tone.`
+            content: `You are Jericho, a strategic learning advisor. You analyze employee development data and create personalized Strategic Growth Roadmaps. Always use "Jericho recommends" language, not "AI suggests". Be encouraging, strategic, and coach-like in tone.
+
+CRITICAL: Your narrative must follow this exact three-part structure:
+1. CURRENT STATE (2-3 sentences): Where they are now in their development journey
+2. DESTINATION (1-2 sentences): Where they're headed based on their goals
+3. PATH FORWARD (2-3 sentences): Specific actions and focus areas to bridge the gap`
           },
           {
             role: 'user',
@@ -172,8 +177,12 @@ ${completedTargets.slice(0, 3).map(t => `  • ${t.goal_text}`).join('\n')}
 Active Habits: ${habits.length}
 Completed Resources: ${completedResources.length}
 
-Generate a strategic learning narrative with:
-1. Current State Assessment (2-3 sentences summarizing their development stage)
+Generate a strategic growth roadmap with:
+1. NARRATIVE (must have clear structure):
+   - CURRENT STATE: 2-3 sentences on where they are now (capabilities, progress, challenges)
+   - DESTINATION: 1-2 sentences on where they're going (based on 1-year and 3-year goals)
+   - PATH FORWARD: 2-3 sentences on what needs to happen to close the gap (priority focus areas and key milestones)
+   
 2. Priority Focus Areas (3-5 training topics - NOT specific resources)
    For each area provide:
    - topic: Training topic name (e.g., "Leadership Development", "Sales Methodology")
@@ -187,7 +196,7 @@ Generate a strategic learning narrative with:
 
 Return ONLY valid JSON in this exact format:
 {
-  "narrative": "Your current development assessment...",
+  "narrative": "CURRENT STATE: [Where they are now - their current capabilities, recent progress, and development stage]. DESTINATION: [Where they're headed - their 1-year and 3-year vision]. PATH FORWARD: [What needs to happen - priority focus areas, key milestones, and approach to close the gap].",
   "focus_areas": [
     {
       "topic": "Strategic Thinking",

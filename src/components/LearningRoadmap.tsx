@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, BookOpen, GraduationCap, UserCircle, MessageSquare, Users, TrendingUp, Zap } from "lucide-react";
+import { RefreshCw, BookOpen, GraduationCap, UserCircle, MessageSquare, Users, TrendingUp, Zap, Heart, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -43,11 +43,79 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [indicatedItems, setIndicatedItems] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
     loadRoadmap();
+    loadIndicatedItems();
   }, [profileId]);
+
+  const loadIndicatedItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('roadmap_interest_indicators')
+        .select('item_title')
+        .eq('profile_id', profileId);
+
+      if (error) throw error;
+
+      if (data) {
+        setIndicatedItems(new Set(data.map(item => item.item_title)));
+      }
+    } catch (error) {
+      console.error('Error loading indicated items:', error);
+    }
+  };
+
+  const handleIndicateInterest = async (itemType: string, itemTitle: string, itemDetails: any) => {
+    try {
+      // Check if already indicated
+      if (indicatedItems.has(itemTitle)) {
+        toast({
+          title: "Already indicated",
+          description: "You've already expressed interest in this item.",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('roadmap_interest_indicators')
+        .insert({
+          profile_id: profileId,
+          company_id: companyId,
+          item_type: itemType,
+          item_title: itemTitle,
+          item_details: itemDetails,
+        });
+
+      if (error) throw error;
+
+      setIndicatedItems(prev => new Set(prev).add(itemTitle));
+
+      toast({
+        title: "Interest Recorded",
+        description: "Jericho and your manager have been notified of your interest!",
+      });
+
+      // Trigger Jericho notification (could be another edge function if needed)
+      await supabase.functions.invoke('chat-with-jericho', {
+        body: {
+          message: `User indicated interest in: ${itemTitle} (${itemType})`,
+          conversationId: null,
+          context: { type: 'interest_indicator', itemTitle, itemType }
+        }
+      }).catch(err => console.log('Jericho notification optional:', err));
+
+    } catch (error: any) {
+      console.error('Error indicating interest:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to record interest. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadRoadmap = async () => {
     try {
@@ -283,7 +351,7 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                       <CardContent className="space-y-3">
                         <div>
                           <p className="text-sm font-medium mb-1">Jericho's Reasoning:</p>
                           <p className="text-sm text-muted-foreground">{area.reasoning}</p>
@@ -301,6 +369,25 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
                             </ul>
                           </div>
                         )}
+                        <Button
+                          size="sm"
+                          variant={indicatedItems.has(area.topic) ? "secondary" : "outline"}
+                          onClick={() => handleIndicateInterest('priority_focus', area.topic, area)}
+                          disabled={indicatedItems.has(area.topic)}
+                          className="w-full mt-2"
+                        >
+                          {indicatedItems.has(area.topic) ? (
+                            <>
+                              <Check className="h-4 w-4 mr-2" />
+                              Interest Recorded
+                            </>
+                          ) : (
+                            <>
+                              <Heart className="h-4 w-4 mr-2" />
+                              I'm Interested in This
+                            </>
+                          )}
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}
@@ -323,6 +410,25 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
                             <Badge variant="secondary">{investment.timeline.replace('_', ' ')}</Badge>
                           </div>
                         </div>
+                        <Button
+                          size="sm"
+                          variant={indicatedItems.has(investment.investment) ? "secondary" : "outline"}
+                          onClick={() => handleIndicateInterest('future_investment', investment.investment, investment)}
+                          disabled={indicatedItems.has(investment.investment)}
+                          className="w-full mt-3"
+                        >
+                          {indicatedItems.has(investment.investment) ? (
+                            <>
+                              <Check className="h-4 w-4 mr-2" />
+                              Interest Recorded
+                            </>
+                          ) : (
+                            <>
+                              <Heart className="h-4 w-4 mr-2" />
+                              I'm Interested in This
+                            </>
+                          )}
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}
