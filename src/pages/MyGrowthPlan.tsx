@@ -15,6 +15,7 @@ import { ResourceRatingDialog } from "@/components/ResourceRatingDialog";
 import { SuggestResourceDialog } from "@/components/SuggestResourceDialog";
 import { ContentTypeFilter } from "@/components/ContentTypeFilter";
 import { RequestCapabilityLevelDialog } from "@/components/RequestCapabilityLevelDialog";
+import { LearningRoadmap } from "@/components/LearningRoadmap";
 
 type GrowthPlanResource = {
   id: string;
@@ -115,6 +116,28 @@ export default function MyGrowthPlan() {
       });
     };
 
+    const handleRoadmapTrigger = async (triggerSource: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) return;
+
+      // Trigger roadmap update in background
+      supabase.functions.invoke('generate-learning-roadmap', {
+        body: { 
+          employeeId: user.id,
+          companyId: profile.company_id,
+          triggerSource,
+        }
+      });
+    };
+
     // Listen for changes to triggers
     const capabilitiesChannel = supabase
       .channel('capability-changes')
@@ -122,7 +145,10 @@ export default function MyGrowthPlan() {
         event: '*',
         schema: 'public',
         table: 'employee_capabilities'
-      }, handleDataChange)
+      }, () => {
+        handleDataChange();
+        handleRoadmapTrigger('auto_capability_change');
+      })
       .subscribe();
 
     const goalsChannel = supabase
@@ -131,7 +157,10 @@ export default function MyGrowthPlan() {
         event: 'UPDATE',
         schema: 'public',
         table: 'personal_goals'
-      }, handleDataChange)
+      }, () => {
+        handleDataChange();
+        handleRoadmapTrigger('auto_goal_update');
+      })
       .subscribe();
 
     const targetsChannel = supabase
@@ -140,7 +169,14 @@ export default function MyGrowthPlan() {
         event: '*',
         schema: 'public',
         table: 'ninety_day_targets'
-      }, handleDataChange)
+      }, (payload: any) => {
+        handleDataChange();
+        if (payload.eventType === 'INSERT') {
+          handleRoadmapTrigger('auto_new_target');
+        } else if (payload.eventType === 'UPDATE' && payload.new?.completed && !payload.old?.completed) {
+          handleRoadmapTrigger('auto_target_completed');
+        }
+      })
       .subscribe();
 
     return () => {
@@ -335,6 +371,39 @@ export default function MyGrowthPlan() {
       setAllResources(data || []);
     } catch (error) {
       console.error("Error loading all resources:", error);
+    }
+  };
+
+  const triggerRoadmapUpdate = async (triggerSource: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) return;
+
+    try {
+      console.log(`Triggering roadmap update: ${triggerSource}`);
+      const { error } = await supabase.functions.invoke('generate-learning-roadmap', {
+        body: {
+          employeeId: user.id,
+          companyId: profile.company_id,
+          triggerSource,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Roadmap Updated",
+        description: "Jericho has updated your learning roadmap based on your recent progress!",
+      });
+    } catch (error: any) {
+      console.error('Error updating roadmap:', error);
     }
   };
 
@@ -568,6 +637,31 @@ export default function MyGrowthPlan() {
   const pendingCount = resources.filter(r => r.status === "pending").length;
   const completedCount = resources.filter(r => r.status === "completed").length;
 
+  const LearningRoadmapWrapper = () => {
+    const [user, setUser] = useState<any>(null);
+    const [profile, setProfile] = useState<any>(null);
+
+    useEffect(() => {
+      const fetchUserData = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUser(user);
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("company_id")
+            .eq("id", user.id)
+            .single();
+          setProfile(profileData);
+        }
+      };
+      fetchUserData();
+    }, []);
+
+    if (!user || !profile) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+
+    return <LearningRoadmap profileId={user.id} companyId={profile.company_id} />;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -744,6 +838,7 @@ export default function MyGrowthPlan() {
       <div className="flex items-center justify-between mb-4">
         <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
           <TabsList>
+            <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="all">My Plan ({resources.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
             <TabsTrigger value="clicked">In Progress</TabsTrigger>
@@ -758,6 +853,10 @@ export default function MyGrowthPlan() {
       </div>
 
       <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
+
+        <TabsContent value="roadmap" className="mt-6">
+          <LearningRoadmapWrapper />
+        </TabsContent>
 
         <TabsContent value="all-resources" className="mt-6">
           {filteredAllResources.length === 0 ? (

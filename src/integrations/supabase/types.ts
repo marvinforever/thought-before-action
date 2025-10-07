@@ -1389,6 +1389,57 @@ export type Database = {
           },
         ]
       }
+      learning_roadmaps: {
+        Row: {
+          company_id: string
+          context_snapshot: Json
+          created_at: string
+          expires_at: string
+          generated_at: string
+          id: string
+          profile_id: string
+          roadmap_data: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          context_snapshot?: Json
+          created_at?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          profile_id: string
+          roadmap_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          context_snapshot?: Json
+          created_at?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          profile_id?: string
+          roadmap_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_roadmaps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_roadmaps_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       login_streaks: {
         Row: {
           created_at: string
