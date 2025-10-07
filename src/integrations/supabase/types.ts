@@ -1123,6 +1123,63 @@ export type Database = {
           },
         ]
       }
+      employee_risk_flags: {
+        Row: {
+          auto_generated: boolean
+          company_id: string
+          created_at: string
+          detected_at: string
+          id: string
+          notes: string | null
+          profile_id: string
+          resolved_at: string | null
+          risk_level: string
+          risk_score: number
+          risk_type: string
+        }
+        Insert: {
+          auto_generated?: boolean
+          company_id: string
+          created_at?: string
+          detected_at?: string
+          id?: string
+          notes?: string | null
+          profile_id: string
+          resolved_at?: string | null
+          risk_level: string
+          risk_score: number
+          risk_type: string
+        }
+        Update: {
+          auto_generated?: boolean
+          company_id?: string
+          created_at?: string
+          detected_at?: string
+          id?: string
+          notes?: string | null
+          profile_id?: string
+          resolved_at?: string | null
+          risk_level?: string
+          risk_score?: number
+          risk_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_risk_flags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_risk_flags_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_requests: {
         Row: {
           created_at: string
@@ -2236,6 +2293,53 @@ export type Database = {
           profile_id?: string
         }
         Relationships: []
+      }
+      training_roi_tracking: {
+        Row: {
+          baseline_value: number | null
+          company_id: string
+          created_at: string
+          current_value: number | null
+          id: string
+          measured_at: string
+          metric_type: string
+          notes: string | null
+          period_end: string
+          period_start: string
+        }
+        Insert: {
+          baseline_value?: number | null
+          company_id: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          measured_at?: string
+          metric_type: string
+          notes?: string | null
+          period_end: string
+          period_start: string
+        }
+        Update: {
+          baseline_value?: number | null
+          company_id?: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          measured_at?: string
+          metric_type?: string
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_roi_tracking_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
