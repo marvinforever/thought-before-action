@@ -100,30 +100,82 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
     setInput('');
     setIsLoading(true);
 
+    // Add placeholder assistant message that will be updated
+    const placeholderIndex = messages.length + 1;
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    }]);
+
     try {
-      const { data, error } = await supabase.functions.invoke('chat-with-jericho', {
-        body: {
-          conversationId,
-          message: textToSend,
-          contextType,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-jericho`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            conversationId,
+            message: textToSend,
+            contextType,
+            stream: true,
+          }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to get response');
+      if (!response.body) throw new Error('No response body');
 
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date(),
-      };
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = '';
+      let newConversationId = conversationId;
 
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      if (!conversationId) {
-        setConversationId(data.conversationId);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.conversationId && !newConversationId) {
+                newConversationId = data.conversationId;
+                setConversationId(data.conversationId);
+              }
+              
+              if (data.content) {
+                accumulatedContent += data.content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[placeholderIndex] = {
+                    role: 'assistant',
+                    content: accumulatedContent,
+                    timestamp: new Date(),
+                  };
+                  return newMessages;
+                });
+              }
+              
+              if (data.done) {
+                break;
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error chatting with Jericho:', error);
+      setMessages(prev => prev.slice(0, -1)); // Remove placeholder
       toast({
         title: 'Error',
         description: 'Failed to get response from Jericho. Please try again.',

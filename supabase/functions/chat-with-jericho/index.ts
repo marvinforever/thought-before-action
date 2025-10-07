@@ -13,10 +13,10 @@ serve(async (req) => {
 
   try {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream } = await req.json();
+    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream: requestStream } = await req.json();
 
     // Check if this is an org health advisory request (no auth needed, streaming)
-    if (organizationContext && stream) {
+    if (organizationContext && requestStream) {
       const systemPrompt = `You are Jericho, an expert organizational development AI coach helping leaders improve their team's health across 8 key domains.
 
 Your role is to:
@@ -330,7 +330,102 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
         content: message,
       });
 
-    // Call Lovable AI
+    // Check if streaming is requested
+    if (requestStream) {
+      console.log('Streaming response for context type:', contextType);
+      
+      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: aiMessages,
+          stream: true,
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error('Lovable AI error:', aiResponse.status, errorText);
+        throw new Error(`AI request failed: ${aiResponse.status}`);
+      }
+
+      // Create a transform stream to process chunks and save complete message
+      let fullContent = '';
+      const encoder = new TextEncoder();
+      
+      const stream = new ReadableStream({
+        async start(controller) {
+          const reader = aiResponse.body!.getReader();
+          const decoder = new TextDecoder();
+          
+          // Send conversation ID first
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ conversationId: conversation.id })}\n\n`)
+          );
+          
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n');
+              
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const jsonStr = line.slice(6).trim();
+                  if (jsonStr === '[DONE]') {
+                    // Save complete assistant message to database
+                    await supabase
+                      .from('conversation_messages')
+                      .insert({
+                        conversation_id: conversation.id,
+                        role: 'assistant',
+                        content: fullContent,
+                      });
+                    
+                    await supabase
+                      .from('conversations')
+                      .update({ updated_at: new Date().toISOString() })
+                      .eq('id', conversation.id);
+                    
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+                    continue;
+                  }
+                  
+                  try {
+                    const parsed = JSON.parse(jsonStr);
+                    const content = parsed.choices?.[0]?.delta?.content;
+                    if (content) {
+                      fullContent += content;
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
+                      );
+                    }
+                  } catch (e) {
+                    // Skip invalid JSON
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Stream error:', error);
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+      });
+    }
+
+    // Non-streaming response (original behavior)
     console.log('Calling Lovable AI with context type:', contextType);
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

@@ -249,35 +249,9 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
     }
   };
 
-  const formatRoadmapForChat = () => {
-    if (!roadmap) return "No roadmap generated yet.";
-    
-    let chatContext = `**Current State:**\n${roadmap.narrative}\n\n`;
-    
-    if (roadmap.focus_areas && roadmap.focus_areas.length > 0) {
-      chatContext += `**Priority Focus Areas:**\n`;
-      roadmap.focus_areas.forEach((area, i) => {
-        chatContext += `${i + 1}. ${area.topic} (${area.timeline}, ${area.investment_level} investment)\n   - ${area.reasoning}\n`;
-      });
-      chatContext += '\n';
-    }
-    
-    if (roadmap.quick_wins && roadmap.quick_wins.length > 0) {
-      chatContext += `**Quick Wins:**\n`;
-      roadmap.quick_wins.forEach((win, i) => {
-        chatContext += `${i + 1}. ${win.action}\n`;
-      });
-      chatContext += '\n';
-    }
-    
-    if (roadmap.long_term && roadmap.long_term.length > 0) {
-      chatContext += `**Future Investments:**\n`;
-      roadmap.long_term.forEach((inv, i) => {
-        chatContext += `${i + 1}. ${inv.investment} (${inv.timeline})\n`;
-      });
-    }
-    
-    return chatContext;
+  const getInitialMessage = () => {
+    if (!roadmap) return undefined;
+    return "Hey Jericho! I'm looking at my Strategic Growth Roadmap. Can you help me understand it better or adjust it based on my feedback?";
   };
 
   return (
@@ -491,7 +465,7 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
       isOpen={isChatOpen}
       onClose={() => setIsChatOpen(false)}
       contextType="roadmap"
-      initialMessage={roadmap ? `Hey Jericho! I'm looking at my Strategic Growth Roadmap and would love to discuss it with you. Here's what you recommended:\n\n${formatRoadmapForChat()}\n\nCan you help me understand this better, answer questions, or adjust it based on my feedback?` : undefined}
+      initialMessage={getInitialMessage()}
     />
   </>
   );
