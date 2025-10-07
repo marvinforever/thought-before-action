@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams, useLocation } from "react-router-dom";
@@ -83,6 +83,7 @@ export default function MyGrowthPlan() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   // Check for tab parameter in URL or navigation state
   useEffect(() => {
@@ -90,6 +91,10 @@ export default function MyGrowthPlan() {
     const stateTab = (location.state as any)?.tab;
     if (stateTab) {
       setSelectedStatus(stateTab);
+      // Scroll to tabs section after a brief delay to ensure content is rendered
+      setTimeout(() => {
+        tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
       return;
     }
     
@@ -97,6 +102,10 @@ export default function MyGrowthPlan() {
     const tabParam = searchParams.get('tab');
     if (tabParam) {
       setSelectedStatus(tabParam);
+      // Scroll to tabs section after a brief delay
+      setTimeout(() => {
+        tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     }
   }, [searchParams, location.state]);
 
@@ -854,9 +863,10 @@ export default function MyGrowthPlan() {
         </Card>
       </div>
 
-      <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
-        <div className="flex items-center justify-between mb-4">
-          <TabsList>
+      <div ref={tabsRef}>
+        <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
+          <div className="flex items-center justify-between mb-4">
+            <TabsList>
             <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="all">My Plan ({resources.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
@@ -1062,6 +1072,7 @@ export default function MyGrowthPlan() {
           )}
         </TabsContent>
       </Tabs>
+      </div>
 
       {/* Rating Dialog */}
       {selectedResource && (
