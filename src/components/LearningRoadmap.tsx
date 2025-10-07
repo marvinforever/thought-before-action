@@ -6,6 +6,7 @@ import { RefreshCw, BookOpen, GraduationCap, UserCircle, MessageSquare, Users, T
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { JerichoChat } from "./JerichoChat";
 
 interface FocusArea {
   topic: string;
@@ -44,6 +45,7 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [indicatedItems, setIndicatedItems] = useState<Set<string>>(new Set());
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -247,32 +249,77 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
     }
   };
 
+  const formatRoadmapForChat = () => {
+    if (!roadmap) return "No roadmap generated yet.";
+    
+    let chatContext = `**Current State:**\n${roadmap.narrative}\n\n`;
+    
+    if (roadmap.focus_areas && roadmap.focus_areas.length > 0) {
+      chatContext += `**Priority Focus Areas:**\n`;
+      roadmap.focus_areas.forEach((area, i) => {
+        chatContext += `${i + 1}. ${area.topic} (${area.timeline}, ${area.investment_level} investment)\n   - ${area.reasoning}\n`;
+      });
+      chatContext += '\n';
+    }
+    
+    if (roadmap.quick_wins && roadmap.quick_wins.length > 0) {
+      chatContext += `**Quick Wins:**\n`;
+      roadmap.quick_wins.forEach((win, i) => {
+        chatContext += `${i + 1}. ${win.action}\n`;
+      });
+      chatContext += '\n';
+    }
+    
+    if (roadmap.long_term && roadmap.long_term.length > 0) {
+      chatContext += `**Future Investments:**\n`;
+      roadmap.long_term.forEach((inv, i) => {
+        chatContext += `${i + 1}. ${inv.investment} (${inv.timeline})\n`;
+      });
+    }
+    
+    return chatContext;
+  };
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-2xl">Your Strategic Growth Roadmap</CardTitle>
-              <CardDescription>
-                Jericho's personalized development plan for you
-                {generatedAt && (
-                  <span className="block mt-1 text-xs">
-                    Last updated {formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}
-                  </span>
+    <>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-2xl">Your Strategic Growth Roadmap</CardTitle>
+                <CardDescription>
+                  Jericho's personalized development plan for you
+                  {generatedAt && (
+                    <span className="block mt-1 text-xs">
+                      Last updated {formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}
+                    </span>
+                  )}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                {roadmap && (
+                  <Button
+                    onClick={() => setIsChatOpen(true)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Chat with Jericho
+                  </Button>
                 )}
-              </CardDescription>
+                <Button
+                  onClick={roadmap ? generateRoadmap : () => { loadRoadmap(); if (!roadmap) generateRoadmap(); }}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  {roadmap ? 'Refresh' : 'Generate'}
+                </Button>
+              </div>
             </div>
-            <Button
-              onClick={roadmap ? generateRoadmap : () => { loadRoadmap(); if (!roadmap) generateRoadmap(); }}
-              disabled={isLoading}
-              variant="outline"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              {roadmap ? 'Refresh Roadmap' : 'Generate Roadmap'}
-            </Button>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
         {!roadmap && !isLoading && (
           <CardContent>
@@ -439,5 +486,13 @@ export const LearningRoadmap = ({ profileId, companyId }: LearningRoadmapProps) 
         )}
       </Card>
     </div>
+
+    <JerichoChat
+      isOpen={isChatOpen}
+      onClose={() => setIsChatOpen(false)}
+      contextType="roadmap"
+      initialMessage={roadmap ? `Hey Jericho! I'm looking at my Strategic Growth Roadmap and would love to discuss it with you. Here's what you recommended:\n\n${formatRoadmapForChat()}\n\nCan you help me understand this better, answer questions, or adjust it based on my feedback?` : undefined}
+    />
+  </>
   );
 };
