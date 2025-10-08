@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ImportResult {
   success: number;
@@ -19,8 +20,56 @@ const DiagnosticImport = () => {
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadCompanies();
+  }, []);
+
+  const loadCompanies = async () => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id, is_super_admin")
+        .eq("id", session.session.user.id)
+        .single();
+
+      if (profile?.is_super_admin) {
+        // Super admin can see all companies
+        const { data: allCompanies } = await supabase
+          .from("companies")
+          .select("id, name")
+          .order("name");
+        
+        if (allCompanies) {
+          setCompanies(allCompanies);
+        }
+      } else if (profile?.company_id) {
+        // Regular admin can only see their company
+        const { data: company } = await supabase
+          .from("companies")
+          .select("id, name")
+          .eq("id", profile.company_id)
+          .single();
+        
+        if (company) {
+          setCompanies([company]);
+          setSelectedCompanyId(company.id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading companies:", error);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -208,6 +257,15 @@ const DiagnosticImport = () => {
       return;
     }
 
+    if (!selectedCompanyId) {
+      toast({
+        title: "No company selected",
+        description: "Please select a company to import data for",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setImporting(true);
     const errors: string[] = [];
     let successCount = 0;
@@ -221,13 +279,7 @@ const DiagnosticImport = () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Not authenticated");
 
-      const { data: adminProfile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", session.session.user.id)
-        .single();
-
-      if (!adminProfile?.company_id) throw new Error("Company not found");
+      const companyId = selectedCompanyId;
 
       for (const row of rows) {
         try {
@@ -245,7 +297,7 @@ const DiagnosticImport = () => {
             .from('profiles')
             .select('id')
             .ilike('email', email)
-            .eq('company_id', adminProfile.company_id)
+            .eq('company_id', companyId)
             .maybeSingle();
 
            if (!profile) {
@@ -284,13 +336,13 @@ const DiagnosticImport = () => {
 
           // Insert diagnostic response
           const diagnosticData = mapCSVToDatabase(row);
-          const { error: insertError } = await supabase
-            .from("diagnostic_responses")
-             .insert([{
-               ...diagnosticData,
-               profile_id: profileId,
-               company_id: adminProfile.company_id,
-             }]);
+           const { error: insertError } = await supabase
+             .from("diagnostic_responses")
+              .insert([{
+                ...diagnosticData,
+                profile_id: profileId,
+                company_id: companyId,
+              }]);
 
           if (insertError) {
             errors.push(`Failed to import diagnostic for ${email}: ${insertError.message}`);
@@ -355,6 +407,28 @@ const DiagnosticImport = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Company</label>
+              <Select
+                value={selectedCompanyId}
+                onValueChange={setSelectedCompanyId}
+                disabled={importing || loadingCompanies || companies.length === 1}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="flex items-center gap-4">
             <Input
               type="file"
@@ -364,7 +438,7 @@ const DiagnosticImport = () => {
             />
             <Button 
               onClick={handleImport} 
-              disabled={!file || importing}
+              disabled={!file || importing || !selectedCompanyId}
               className="min-w-32"
             >
               {importing ? (
