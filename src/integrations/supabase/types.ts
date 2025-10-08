@@ -2345,6 +2345,142 @@ export type Database = {
         }
         Relationships: []
       }
+      strategic_learning_notifications: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          message: string | null
+          notification_type: string
+          report_id: string | null
+          sent_to: string[] | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          notification_type: string
+          report_id?: string | null
+          sent_to?: string[] | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          notification_type?: string
+          report_id?: string | null
+          sent_to?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategic_learning_notifications_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_learning_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategic_learning_reports: {
+        Row: {
+          budget_scenarios: Json | null
+          company_id: string
+          executive_summary: Json | null
+          expires_at: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          roi_projections: Json | null
+          timeframe_years: number
+          total_cohorts: number | null
+          total_employees: number | null
+        }
+        Insert: {
+          budget_scenarios?: Json | null
+          company_id: string
+          executive_summary?: Json | null
+          expires_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          roi_projections?: Json | null
+          timeframe_years?: number
+          total_cohorts?: number | null
+          total_employees?: number | null
+        }
+        Update: {
+          budget_scenarios?: Json | null
+          company_id?: string
+          executive_summary?: Json | null
+          expires_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          roi_projections?: Json | null
+          timeframe_years?: number
+          total_cohorts?: number | null
+          total_employees?: number | null
+        }
+        Relationships: []
+      }
+      training_cohorts: {
+        Row: {
+          capability_name: string | null
+          cohort_name: string
+          created_at: string
+          employee_count: number
+          employee_ids: string[]
+          estimated_cost_per_employee: number | null
+          expected_roi_percentage: number | null
+          id: string
+          priority: number | null
+          recommended_solutions: Json | null
+          report_id: string
+          timeline_weeks: number | null
+          total_estimated_cost: number | null
+        }
+        Insert: {
+          capability_name?: string | null
+          cohort_name: string
+          created_at?: string
+          employee_count: number
+          employee_ids: string[]
+          estimated_cost_per_employee?: number | null
+          expected_roi_percentage?: number | null
+          id?: string
+          priority?: number | null
+          recommended_solutions?: Json | null
+          report_id: string
+          timeline_weeks?: number | null
+          total_estimated_cost?: number | null
+        }
+        Update: {
+          capability_name?: string | null
+          cohort_name?: string
+          created_at?: string
+          employee_count?: number
+          employee_ids?: string[]
+          estimated_cost_per_employee?: number | null
+          expected_roi_percentage?: number | null
+          id?: string
+          priority?: number | null
+          recommended_solutions?: Json | null
+          report_id?: string
+          timeline_weeks?: number | null
+          total_estimated_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_cohorts_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_learning_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_roi_tracking: {
         Row: {
           baseline_value: number | null
