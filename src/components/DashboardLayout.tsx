@@ -125,7 +125,6 @@ const DashboardLayout = () => {
     { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
     ...(isManager ? [{ icon: Users, label: "My Team", path: "/dashboard/manager" }] : []),
     { icon: Users, label: "Employees", path: "/dashboard/employees" },
-    { icon: Upload, label: "Import Data", path: "/dashboard/import" },
     { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
     { icon: BookOpen, label: "Resources", path: "/dashboard/resources" },
     { icon: Upload, label: "Import Resources", path: "/dashboard/resource-import" },

@@ -8,7 +8,6 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
-import DiagnosticImport from "./pages/DiagnosticImport";
 import SuperAdmin from "./pages/SuperAdmin";
 import Capabilities from "./pages/Capabilities";
 import Resources from "./pages/Resources";
@@ -36,7 +35,6 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
           <Route path="employees" element={<Employees />} />
-          <Route path="import" element={<DiagnosticImport />} />
           <Route path="capabilities" element={<Capabilities />} />
           <Route path="resources" element={<Resources />} />
           <Route path="resource-import" element={<AdminResourceImport />} />

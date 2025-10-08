@@ -509,10 +509,6 @@ const Employees = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button onClick={() => navigate("/dashboard/import")}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import CSV
-          </Button>
         </div>
       </div>
 

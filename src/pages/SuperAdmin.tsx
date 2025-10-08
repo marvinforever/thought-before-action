@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2 } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PendingCapabilitiesTab } from "@/components/PendingCapabilitiesTab";
 import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
@@ -46,12 +46,18 @@ const SuperAdmin = () => {
   const [newEmployee, setNewEmployee] = useState({ fullName: "", email: "", role: "", phone: "" });
   const [creatingEmployee, setCreatingEmployee] = useState(false);
   
-  // CSV import state
+  // CSV import state (employees)
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importCompanyId, setImportCompanyId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  
+  // Diagnostic import state
+  const [diagnosticFile, setDiagnosticFile] = useState<File | null>(null);
+  const [diagnosticImporting, setDiagnosticImporting] = useState(false);
+  const [diagnosticResult, setDiagnosticResult] = useState<ImportResult | null>(null);
+  const [diagnosticCompanyId, setDiagnosticCompanyId] = useState("");
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -405,6 +411,235 @@ const SuperAdmin = () => {
     }
   };
 
+  const mapWorkloadStatusToEnum = (value: string): 'very_manageable' | 'manageable' | 'stretched' | 'overwhelmed' | 'unsustainable' | null => {
+    const score = parseInt(value);
+    if (isNaN(score)) return null;
+    
+    if (score <= 2) return 'unsustainable';
+    if (score <= 4) return 'overwhelmed';
+    if (score <= 6) return 'stretched';
+    if (score <= 8) return 'manageable';
+    return 'very_manageable';
+  };
+
+  const mapCSVToDatabase = (row: any) => {
+    const growthPathScore = parseInt(row['I see a clear path for growth and advancement in this company.']) || 0;
+    const managerFeedbackScore = parseInt(row['My manager provides useful feedback that helps me grow.']) || 0;
+    const valuedScore = parseInt(row['I feel valued for my contributions.']) || 0;
+    const energyScore = parseInt(row['How energized do you feel about your work most days?']) || 0;
+    const learningQualityScore = parseInt(row['How would you rate the quality of learning and development opportunities currently available to you?']) || 0;
+    const learningNeedsMet = parseInt(row['What percentage of your professional development needs are currently being met by existing programs or resources?']) || 0;
+
+    return {
+      department_or_team: row['Department or Team'],
+      job_title_or_role: row['Job Title or Role'],
+      additional_responses: {
+        company_name: row['Company'] || row['company'] || null,
+        engagement_scores: {
+          growth_path_score: growthPathScore,
+          manager_feedback_score: managerFeedbackScore,
+          valued_score: valuedScore,
+          energy_score: energyScore,
+        },
+        learning_scores: {
+          quality_rating: learningQualityScore,
+          needs_met_percentage: learningNeedsMet,
+        },
+      },
+      years_with_company: row['How long have you been with this company?'],
+      years_in_current_role: row['How long have you been in your current role?'],
+      employment_status: row['Employment Status'],
+      manages_others: row['Do you manage or supervise others?'] === '1',
+      company_size: row['Approximate company size'],
+      has_written_job_description: row['Do you have a written job description that accurately reflects what you actually do?'] === 'Yes',
+      role_clarity_score: parseInt(row['How clear are you on what\'s expected of you in your role?']) || null,
+      confidence_score: parseInt(row['How confident are you that you can consistently meet your role\'s expectations?']) || null,
+      workload_status: mapWorkloadStatusToEnum(row['In a typical week, how manageable is your workload?']),
+      burnout_frequency: row['How often do you feel burned out or exhausted by your work?'],
+      work_life_sacrifice_frequency: row['How often do you sacrifice personal health, rest, or family time to keep up with work?'],
+      manager_support_quality: row['My manager provides useful feedback that helps me grow.'],
+      sees_growth_path: parseInt(row['I see a clear path for growth and advancement in this company.']) >= 7,
+      feels_valued: parseInt(row['I feel valued for my contributions.']) >= 7,
+      sees_leadership_path: row['Do you see yourself growing into a leadership role at this company someday?'] === 'Yes, definitely',
+      daily_energy_level: row['How energized do you feel about your work most days?'],
+      would_stay_if_offered_similar: row['If offered a similar job for similar pay elsewhere today, how likely would you be to stay at this company?'],
+      three_year_goal: row['What\'s a professional goal you\'d love to accomplish in the next 3 years?'],
+      company_supporting_goal: parseInt(row['Do you feel this organization is actively helping you move toward your career goals?']) >= 7,
+      growth_barrier: row['What is the single biggest barrier to your professional growth right now?'],
+      learning_preference: (row['Reading (articles, books, documentation)'] ? 'reading' : 
+                          row['Video content (YouTube, courses, tutorials)'] ? 'visual' :
+                          row['Podcasts or audio content'] ? 'auditory' :
+                          row['Hands-on practice and experimentation'] ? 'hands_on' : 'mixed') as 'reading' | 'visual' | 'auditory' | 'hands_on' | 'mixed',
+      listens_to_podcasts: row['Podcasts or audio content'] === 'Podcasts or audio content',
+      watches_youtube: row['Video content (YouTube, courses, tutorials)'] === 'Video content (YouTube, courses, tutorials)',
+      reads_books_articles: row['Reading (articles, books, documentation)'] === 'Reading (articles, books, documentation)',
+      weekly_development_hours: parseFloat(row['How much time per week can you realistically dedicate to professional development?']?.split('-')[0]) || null,
+      leadership_application_frequency: row['Leadership & People Influence (Examples: Leading projects, delegating, motivating others, managing conflict)'],
+      communication_application_frequency: row['Communication & Collaboration (Examples: Presenting ideas, writing effectively, cross-team coordination, active listening)'],
+      technical_application_frequency: row['Technical or Role-Specific Expertise (Examples: Core job skills, tools mastery, industry knowledge, technical problem-solving)'],
+      strategic_thinking_application_frequency: row['Strategic Thinking & Problem-Solving (Examples: Analyzing complex situations, identifying root causes, developing solutions, planning ahead)'],
+      adaptability_application_frequency: row['Adaptability & Learning Agility (Examples: Handling change, learning new skills quickly, pivoting approaches, staying resilient)'],
+      work_life_integration_score: parseInt(row['How supported do you feel in maintaining healthy integration between work and personal life?']) || null,
+      recent_accomplishment: row['Looking back over the past 3-6 months, what accomplishment are you most proud of at work?'],
+      biggest_work_obstacle: row['If you could change ONE thing about your work experience tomorrow, what would it be?'],
+      support_needed_from_leadership: row['What\'s the best way Jericho and your organization can support your growth right now?'],
+      additional_feedback: row['Is there anything else you\'d like to share that would help us understand your experience and development needs?'],
+      typeform_response_id: row['Network ID'],
+      typeform_start_date: row['Start Date (UTC)'] ? new Date(row['Start Date (UTC)']).toISOString() : null,
+      typeform_submit_date: row['Submit Date (UTC)'] ? new Date(row['Submit Date (UTC)']).toISOString() : null,
+      survey_version: '1.0',
+      submitted_at: row['Submit Date (UTC)'] ? new Date(row['Submit Date (UTC)']).toISOString() : new Date().toISOString(),
+    };
+  };
+
+  const extractDiagnosticEmail = (row: any): string | null => {
+    const keys = ['Email Address','Email address','Email','email'];
+    for (const key of keys) {
+      const val = row[key];
+      if (typeof val === 'string' && val.trim()) {
+        return val.trim().toLowerCase();
+      }
+    }
+    return null;
+  };
+
+  const extractDiagnosticFullName = (row: any): string | null => {
+    const directKeys = ['Full Name','Full name','Name','name'];
+    for (const key of directKeys) {
+      const v = row[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    const first = (row['First Name'] || '').trim();
+    const last = (row['Last Name'] || '').trim();
+    return [first, last].filter(Boolean).join(' ').trim() || null;
+  };
+
+  const extractDiagnosticJobTitle = (row: any): string | null => {
+    const keys = ['Job Title or Role','Job Title','job_title','Title','title','Role','role','Position','position','Job Role','Job role'];
+    for (const key of keys) {
+      const v = row[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
+  const handleDiagnosticImport = async () => {
+    if (!diagnosticFile || !diagnosticCompanyId) {
+      toast({
+        title: "Missing information",
+        description: "Please select both a company and a CSV file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDiagnosticImporting(true);
+    const errors: string[] = [];
+    let successCount = 0;
+    let failedCount = 0;
+    let newProfilesCount = 0;
+
+    try {
+      const text = await diagnosticFile.text();
+      const rows = parseCSV(text);
+
+      for (const row of rows) {
+        try {
+          const email = extractDiagnosticEmail(row);
+          if (!email) {
+            errors.push(`Row missing email address`);
+            failedCount++;
+            continue;
+          }
+
+          let profileId: string;
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('email', email)
+            .eq('company_id', diagnosticCompanyId)
+            .maybeSingle();
+
+          if (!profile) {
+            const fullName = extractDiagnosticFullName(row);
+            const jobTitle = extractDiagnosticJobTitle(row);
+            
+            const { data: newEmployee, error: createError } = await supabase.functions.invoke('create-employee', {
+              body: { 
+                email: email, 
+                full_name: fullName,
+                role: jobTitle || null,
+                company_id: diagnosticCompanyId
+              }
+            });
+
+            if (createError || !newEmployee?.id) {
+              errors.push(`Failed to create employee ${email}: ${createError?.message || 'Unknown error'}`);
+              failedCount++;
+              continue;
+            }
+            profileId = newEmployee.id;
+            newProfilesCount++;
+          } else {
+            profileId = profile.id;
+            
+            const jobTitle = extractDiagnosticJobTitle(row);
+            if (jobTitle) {
+              await supabase
+                .from('profiles')
+                .update({ role: jobTitle })
+                .eq('id', profileId)
+                .or('role.is.null,role.eq.');
+            }
+          }
+
+          const diagnosticData = mapCSVToDatabase(row);
+          const { error: insertError } = await supabase
+            .from("diagnostic_responses")
+            .insert([{
+              ...diagnosticData,
+              profile_id: profileId,
+              company_id: diagnosticCompanyId,
+            }]);
+
+          if (insertError) {
+            errors.push(`Failed to import diagnostic for ${email}: ${insertError.message}`);
+            failedCount++;
+          } else {
+            successCount++;
+          }
+        } catch (error: any) {
+          errors.push(`Error processing row: ${error.message}`);
+          failedCount++;
+        }
+      }
+
+      setDiagnosticResult({
+        success: successCount,
+        failed: failedCount,
+        errors: errors.slice(0, 10),
+        newProfiles: newProfilesCount,
+      });
+
+      if (failedCount === 0 && successCount > 0) {
+        toast({
+          title: "Import completed",
+          description: `Successfully imported all ${successCount} diagnostic responses`,
+        });
+      }
+      
+      loadCompanyData();
+    } catch (error: any) {
+      toast({
+        title: "Import failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDiagnosticImporting(false);
+    }
+  };
+
   if (loading || !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -433,6 +668,7 @@ const SuperAdmin = () => {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="diagnostics">Import Diagnostics</TabsTrigger>
           <TabsTrigger value="pending">Pending Capabilities</TabsTrigger>
           <TabsTrigger value="watchlist">Standard Cap Watchlist</TabsTrigger>
         </TabsList>
@@ -526,6 +762,135 @@ const SuperAdmin = () => {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Import Diagnostic Data</CardTitle>
+              <CardDescription>
+                Upload Typeform CSV export to import employee diagnostic responses
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Company</Label>
+                  <Select
+                    value={diagnosticCompanyId}
+                    onValueChange={setDiagnosticCompanyId}
+                    disabled={diagnosticImporting}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="diagnostic-file" className="text-sm font-medium mb-2 block">
+                    CSV File
+                  </Label>
+                  <Input
+                    id="diagnostic-file"
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setDiagnosticFile(e.target.files[0]);
+                        setDiagnosticResult(null);
+                      }
+                    }}
+                    disabled={diagnosticImporting}
+                  />
+                </div>
+
+                {diagnosticFile && (
+                  <Alert>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription>
+                      File selected: {diagnosticFile.name} ({(diagnosticFile.size / 1024).toFixed(2)} KB)
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <Button 
+                  onClick={handleDiagnosticImport} 
+                  disabled={!diagnosticFile || !diagnosticCompanyId || diagnosticImporting}
+                  className="w-full"
+                >
+                  {diagnosticImporting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <FileUp className="mr-2 h-4 w-4" />
+                      Import Diagnostic Data
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {diagnosticResult && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="text-2xl font-bold">{diagnosticResult.success}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Successfully Imported ({diagnosticResult.newProfiles} new profiles)
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-5 w-5 text-red-600" />
+                          <div>
+                            <p className="text-2xl font-bold">{diagnosticResult.failed}</p>
+                            <p className="text-sm text-muted-foreground">Failed</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {diagnosticResult.errors.length > 0 && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <p className="font-semibold mb-2">Errors encountered:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          {diagnosticResult.errors.map((error, i) => (
+                            <li key={i}>{error}</li>
+                          ))}
+                        </ul>
+                        {diagnosticResult.failed > diagnosticResult.errors.length && (
+                          <p className="mt-2 text-xs">
+                            ... and {diagnosticResult.failed - diagnosticResult.errors.length} more errors
+                          </p>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="pending">
