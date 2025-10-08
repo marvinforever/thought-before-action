@@ -217,11 +217,11 @@ export default function StrategicLearningDesignReport() {
   const roi = report.roi_projections;
 
   const selectedBudget =
-    budgetScenario === "conservative"
-      ? report.total_budget_conservative
+    (budgetScenario === "conservative"
+      ? scenarios?.conservative?.total
       : budgetScenario === "moderate"
-      ? report.total_budget_moderate
-      : report.total_budget_aggressive;
+      ? scenarios?.moderate?.total
+      : scenarios?.aggressive?.total) ?? 0;
 
   return (
     <div className="container mx-auto p-8 space-y-8">
