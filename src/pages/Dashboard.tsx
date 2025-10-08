@@ -395,32 +395,50 @@ const Dashboard = () => {
       </div>
 
 
-      {/* Domain Details Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {stats.domainScores.map((domain) => (
-          <Card key={domain.domain} className={getRiskBgColor(domain.risk)}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{domain.domain}</CardTitle>
-                <span className={`text-sm font-semibold ${getRiskColor(domain.risk)} uppercase`}>{getRiskLabel(domain.risk)}</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-end justify-between">
-                <div>
-                  <div className="text-3xl font-bold">{domain.score}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{domain.impact}</p>
+      {/* Domain Health Gauges */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.domainScores.map((domain) => {
+          const getGaugeColor = (risk: string) => {
+            switch (risk) {
+              case "critical": return "danger";
+              case "high": return "warning";
+              case "medium": return "warning";
+              case "low": return "success";
+              default: return "default";
+            }
+          };
+
+          const getIcon = () => {
+            if (domain.risk === "critical") return <TrendingDown className="h-5 w-5 text-destructive" />;
+            if (domain.risk === "high") return <AlertTriangle className="h-5 w-5 text-orange-500" />;
+            if (domain.risk === "medium") return <Target className="h-5 w-5 text-yellow-500" />;
+            return <TrendingUp className="h-5 w-5 text-green-500" />;
+          };
+
+          return (
+            <Card key={domain.domain}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-center">{domain.domain}</CardTitle>
+                <div className="flex justify-center">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${getRiskBgColor(domain.risk)} ${getRiskColor(domain.risk)}`}>
+                    {getRiskLabel(domain.risk)}
+                  </span>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-background flex items-center justify-center">
-                  {domain.risk === "critical" && <TrendingDown className="h-6 w-6 text-destructive" />}
-                  {domain.risk === "high" && <AlertTriangle className="h-6 w-6 text-orange-600" />}
-                  {domain.risk === "medium" && <Target className="h-6 w-6 text-yellow-600" />}
-                  {domain.risk === "low" && <TrendingUp className="h-6 w-6 text-green-600" />}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent className="flex flex-col items-center pb-6">
+                <Gauge 
+                  value={domain.score} 
+                  max={100}
+                  size={120}
+                  strokeWidth={12}
+                  icon={getIcon()}
+                  description={domain.impact}
+                  colorScheme={getGaugeColor(domain.risk) as any}
+                />
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Organizational Activity */}
