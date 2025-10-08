@@ -52,20 +52,39 @@ export const EmployeeInterestIndicators = () => {
 
       setIsManager((managerAssignments && managerAssignments.length > 0) || profile?.is_admin || false);
 
-      const { data, error } = await supabase
+      // Fetch indicators without FK join (FK is missing in DB schema)
+      const { data: indicatorsData, error } = await supabase
         .from('roadmap_interest_indicators')
-        .select(`
-          *,
-          profile:profiles!roadmap_interest_indicators_profile_id_fkey(
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .order('indicated_at', { ascending: false });
 
       if (error) throw error;
 
-      setIndicators((data as any) || []);
+      let enriched: any[] = (indicatorsData as any) || [];
+
+      // Try to attach profile info in a separate query if possible
+      try {
+        const profileIds = Array.from(new Set(enriched.map((i: any) => i.profile_id).filter(Boolean)));
+        if (profileIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', profileIds);
+
+          const byId = new Map((profilesData || []).map((p: any) => [p.id, p]));
+          enriched = enriched.map((i: any) => ({
+            ...i,
+            profile: byId.get(i.profile_id)
+              ? { full_name: byId.get(i.profile_id).full_name, email: byId.get(i.profile_id).email }
+              : undefined,
+          }));
+        }
+      } catch (_) {
+        // Non-fatal: continue without profile details
+      }
+
+      setIndicators(enriched);
+
     } catch (error) {
       console.error('Error loading indicators:', error);
       toast({
