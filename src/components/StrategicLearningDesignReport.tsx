@@ -376,10 +376,10 @@ export default function StrategicLearningDesignReport() {
           {cohorts.map((cohort) => {
             const cost =
               budgetScenario === "conservative"
-                ? cohort.estimated_cost_conservative
+                ? (cohort.estimated_cost_conservative || 0)
                 : budgetScenario === "moderate"
-                ? cohort.estimated_cost_moderate
-                : cohort.estimated_cost_aggressive;
+                ? (cohort.estimated_cost_moderate || 0)
+                : (cohort.estimated_cost_aggressive || 0);
 
             const solution = cohort.recommended_solutions?.[
               budgetScenario === "conservative" ? 0 : budgetScenario === "moderate" ? 1 : 2
