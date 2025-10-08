@@ -360,9 +360,9 @@ export default function StrategicLearningDesignReport() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="conservative">Conservative (Free)</SelectItem>
-                <SelectItem value="moderate">Moderate (Online)</SelectItem>
-                <SelectItem value="aggressive">Aggressive (Premium)</SelectItem>
+                <SelectItem value="conservative">Conservative ($0-$150)</SelectItem>
+                <SelectItem value="moderate">Moderate ($500-$2K)</SelectItem>
+                <SelectItem value="aggressive">Premium ($2K-$5K)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -451,6 +451,7 @@ export default function StrategicLearningDesignReport() {
               <CardHeader>
                 <CardTitle>Conservative</CardTitle>
                 <p className="text-sm text-muted-foreground">{scenarios.conservative.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">{scenarios.conservative.range}</p>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold mb-4">
@@ -470,6 +471,7 @@ export default function StrategicLearningDesignReport() {
               <CardHeader>
                 <CardTitle>Moderate</CardTitle>
                 <p className="text-sm text-muted-foreground">{scenarios.moderate.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">{scenarios.moderate.range}</p>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold mb-4">
@@ -487,8 +489,9 @@ export default function StrategicLearningDesignReport() {
 
             <Card className={budgetScenario === "aggressive" ? "ring-2 ring-primary" : ""}>
               <CardHeader>
-                <CardTitle>Aggressive</CardTitle>
+                <CardTitle>Premium</CardTitle>
                 <p className="text-sm text-muted-foreground">{scenarios.aggressive.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">{scenarios.aggressive.range}</p>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold mb-4">

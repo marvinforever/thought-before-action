@@ -232,24 +232,26 @@ serve(async (req) => {
     for (const cohort of validCohorts) {
       const solutions = [];
 
-      // Option A: Conservative (Free resources)
+      // Option A: Conservative ($0-$150 per person)
       const matchingFree = freeResources?.filter((r: any) =>
         r.title?.toLowerCase().includes(cohort.capability_name.toLowerCase()) ||
         r.description?.toLowerCase().includes(cohort.capability_name.toLowerCase())
       );
 
-      if (matchingFree && matchingFree.length > 0) {
-        solutions.push({
-          type: "free",
-          title: `Free Resources (${matchingFree.length} items)`,
-          vendor: "Internal Library",
-          cost_per_person: 0,
-          total_cost: 0,
-          link: "",
-        });
-      }
+      const conservativeCostPer = matchingFree && matchingFree.length > 0 ? 0 : 75; // $0 if resources exist, else midpoint of $0-$150
+      solutions.push({
+        type: "conservative",
+        title: matchingFree && matchingFree.length > 0 
+          ? `Free Resources (${matchingFree.length} items)` 
+          : `Low-Cost Training Materials`,
+        vendor: "Internal Library / Free Resources",
+        cost_per_person: conservativeCostPer,
+        cost_range: "$0-$150",
+        total_cost: conservativeCostPer * cohort.employee_count,
+        link: "",
+      });
 
-      // Option B: Moderate (Online courses)
+      // Option B: Moderate ($500-$2,000 per person)
       const matchingCourses = vendors?.flatMap((v: any) =>
         v.vendor_courses?.filter((c: any) =>
           c.capability_tags?.some((tag: string) =>
@@ -258,37 +260,38 @@ serve(async (req) => {
         ) || []
       );
 
+      let moderateCostPer = 1250; // Midpoint of $500-$2,000
       if (matchingCourses && matchingCourses.length > 0) {
         const course = matchingCourses[0];
-        const costPer = Number(course.cost) || 500;
-        solutions.push({
-          type: "paid",
-          title: course.title,
-          vendor: vendors?.find((v: any) => v.id === course.vendor_id)?.name || "Unknown",
-          cost_per_person: costPer,
-          total_cost: costPer * cohort.employee_count,
-          link: course.course_url,
-          duration_hours: course.duration_hours,
-        });
-      } else {
-        // Generic online course estimate
-        solutions.push({
-          type: "paid",
-          title: `${cohort.capability_name} Online Course`,
-          vendor: "To Be Determined",
-          cost_per_person: 500,
-          total_cost: 500 * cohort.employee_count,
-          link: "",
-        });
+        const courseCost = Number(course.cost) || 1250;
+        // Ensure it's within the moderate range
+        moderateCostPer = Math.max(500, Math.min(2000, courseCost));
       }
 
-      // Option C: Aggressive (Premium in-person training)
+      solutions.push({
+        type: "moderate",
+        title: matchingCourses && matchingCourses.length > 0 
+          ? matchingCourses[0].title 
+          : `${cohort.capability_name} Online Course`,
+        vendor: matchingCourses && matchingCourses.length > 0
+          ? vendors?.find((v: any) => v.id === matchingCourses[0].vendor_id)?.name || "Online Provider"
+          : "Online Provider",
+        cost_per_person: moderateCostPer,
+        cost_range: "$500-$2,000",
+        total_cost: moderateCostPer * cohort.employee_count,
+        link: matchingCourses?.[0]?.course_url || "",
+        duration_hours: matchingCourses?.[0]?.duration_hours,
+      });
+
+      // Option C: Premium ($2,000-$5,000 per person)
+      const premiumCostPer = 3500; // Midpoint of $2,000-$5,000
       solutions.push({
         type: "premium",
         title: `${cohort.capability_name} Premium Training`,
         vendor: "Momentum Company / External Facilitator",
-        cost_per_person: 2000,
-        total_cost: 2000 * cohort.employee_count,
+        cost_per_person: premiumCostPer,
+        cost_range: "$2,000-$5,000",
+        total_cost: premiumCostPer * cohort.employee_count,
         link: "",
         delivery_format: "in-person",
       });
@@ -394,7 +397,8 @@ Be specific with numbers and cite research where applicable. Use a confident, da
     const budgetScenarios = {
       conservative: {
         total: totalConservative,
-        description: "Free resources and internal training",
+        range: "$0-$150 per person",
+        description: "Free resources and low-cost materials",
         cohorts: validCohorts.map((c) => ({
           name: c.cohort_name,
           cost: c.estimated_cost_conservative,
@@ -402,6 +406,7 @@ Be specific with numbers and cite research where applicable. Use a confident, da
       },
       moderate: {
         total: totalModerate,
+        range: "$500-$2,000 per person",
         description: "Online courses and blended learning",
         cohorts: validCohorts.map((c) => ({
           name: c.cohort_name,
@@ -410,6 +415,7 @@ Be specific with numbers and cite research where applicable. Use a confident, da
       },
       aggressive: {
         total: totalAggressive,
+        range: "$2,000-$5,000 per person",
         description: "Premium in-person training and coaching",
         cohorts: validCohorts.map((c) => ({
           name: c.cohort_name,
