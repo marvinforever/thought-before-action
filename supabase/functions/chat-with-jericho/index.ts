@@ -166,7 +166,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     }
 
     // Fetch user context for Jericho
-    const [capabilitiesData, goalsData, targetsData, diagnosticData, achievementsData] = await Promise.all([
+    const [capabilitiesData, goalsData, targetsData, diagnosticData, achievementsData, greatnessKeysData] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select('*, capabilities(name, description, category)')
@@ -195,6 +195,11 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .eq('profile_id', user.id)
         .order('achieved_date', { ascending: false })
         .limit(5),
+      supabase
+        .from('greatness_keys')
+        .select('*')
+        .eq('profile_id', user.id)
+        .order('earned_at', { ascending: false }),
     ]);
 
     // Build system prompt based on context
@@ -212,6 +217,7 @@ YOUR APPROACH:
 - Grounded in their actual capabilities, goals, and diagnostic data
 - Personalized to their specific situation with retention and growth in mind
 - Always connecting growth to business drivers AND personal fulfillment
+- Celebrate Greatness Keys (earned through 7-day habit streaks) as proof of consistency and commitment
 
 YOU HAVE ACCESS TO:
 - Current and target capabilities across 5 domains (Leadership, Communication, Technical, Strategic Thinking, Adaptability)
@@ -219,6 +225,7 @@ YOU HAVE ACCESS TO:
 - Diagnostic responses about work environment, burnout signals, growth barriers, and retention risks
 - Recent achievements and development activities
 - Risk flags (burnout, flight risk, disengagement, unclear path)
+- Greatness Keys: Earned when users maintain 7-day habit streaks. The message: "The key to greatness is consistency."
 
 WHEN COACHING:
 1. **Proactive Retention Focus**: If you detect dissatisfaction, lack of clarity, or burnout signals → Flag the retention risk and immediately suggest growth plan actions
@@ -301,6 +308,13 @@ Remember: A clear 3-year plan makes it nearly impossible for recruiters to pull 
         category: a.category,
         date: a.achieved_date,
       })) || [],
+      greatness_keys: {
+        total_keys: greatnessKeysData.data?.length || 0,
+        recent_keys: greatnessKeysData.data?.slice(0, 5).map(k => ({
+          earned_at: k.earned_at,
+          streak_length: k.streak_length,
+        })) || [],
+      },
       diagnostic_insights: diagnosticData.data ? {
         role_clarity: diagnosticData.data.role_clarity_score,
         confidence: diagnosticData.data.confidence_score,

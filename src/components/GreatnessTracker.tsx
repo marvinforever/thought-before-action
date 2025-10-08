@@ -19,6 +19,13 @@ type Habit = {
   is_active: boolean;
 };
 
+type GreatnessKey = {
+  id: string;
+  earned_at: string;
+  streak_length: number;
+  habit_id: string | null;
+};
+
 type HabitCompletion = {
   habit_id: string;
   completed_date: string;
@@ -35,6 +42,7 @@ export default function GreatnessTracker() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<HabitCompletion[]>([]);
   const [completionStats, setCompletionStats] = useState<HabitCompletionStats>({});
+  const [greatnessKeys, setGreatnessKeys] = useState<GreatnessKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const { toast } = useToast();
@@ -43,7 +51,26 @@ export default function GreatnessTracker() {
     loadHabits();
     loadTodayCompletions();
     loadCompletionStats();
+    loadGreatnessKeys();
   }, []);
+
+  const loadGreatnessKeys = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("greatness_keys")
+        .select("*")
+        .eq("profile_id", user.id)
+        .order("earned_at", { ascending: false });
+
+      if (error) throw error;
+      setGreatnessKeys(data || []);
+    } catch (error: any) {
+      console.error("Error loading greatness keys:", error);
+    }
+  };
 
   const loadHabits = async () => {
     try {
@@ -225,8 +252,58 @@ export default function GreatnessTracker() {
         })
         .eq("id", habitId);
 
+      // Check if user earned a Greatness Key (7-day streak)
+      if (completed && currentStreak === 7) {
+        await awardGreatnessKey(habitId, currentStreak);
+      }
+
     } catch (error) {
       console.error("Error updating streak:", error);
+    }
+  };
+
+  const awardGreatnessKey = async (habitId: string, streakLength: number) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) return;
+
+      // Check if key already awarded for this streak
+      const { data: existingKey } = await supabase
+        .from("greatness_keys")
+        .select("id")
+        .eq("habit_id", habitId)
+        .eq("streak_length", streakLength)
+        .single();
+
+      if (existingKey) return; // Already awarded
+
+      const { error } = await supabase
+        .from("greatness_keys")
+        .insert({
+          profile_id: user.id,
+          company_id: profile.company_id,
+          habit_id: habitId,
+          streak_length: streakLength,
+        });
+
+      if (error) throw error;
+
+      await loadGreatnessKeys();
+
+      toast({
+        title: "🔑 Greatness Key Earned!",
+        description: `You've maintained a ${streakLength}-day streak! The key to greatness is consistency.`,
+      });
+    } catch (error: any) {
+      console.error("Error awarding greatness key:", error);
     }
   };
 
@@ -322,10 +399,19 @@ export default function GreatnessTracker() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Greatness Tracker
-            </CardTitle>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Greatness Tracker
+              </CardTitle>
+              {greatnessKeys.length > 0 && (
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <span className="text-2xl">🔑</span>
+                  <span className="font-semibold">{greatnessKeys.length} Greatness Keys</span>
+                  <span className="text-muted-foreground">- The key to greatness is consistency</span>
+                </div>
+              )}
+            </div>
             <Button
               onClick={() => setShowAddDialog(true)}
               size="sm"

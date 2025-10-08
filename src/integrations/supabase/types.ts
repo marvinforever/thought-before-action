@@ -1228,6 +1228,51 @@ export type Database = {
           },
         ]
       }
+      greatness_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          earned_at: string
+          habit_id: string | null
+          id: string
+          profile_id: string
+          streak_length: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          earned_at?: string
+          habit_id?: string | null
+          id?: string
+          profile_id: string
+          streak_length: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          earned_at?: string
+          habit_id?: string | null
+          id?: string
+          profile_id?: string
+          streak_length?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "greatness_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "greatness_keys_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "leading_indicators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       growth_journal: {
         Row: {
           company_id: string
@@ -1589,6 +1634,7 @@ export type Database = {
       }
       ninety_day_targets: {
         Row: {
+          benchmarks: Json | null
           by_when: string | null
           category: string
           company_id: string
@@ -1599,11 +1645,13 @@ export type Database = {
           id: string
           profile_id: string
           quarter: string
+          sprints: Json | null
           support_needed: string | null
           updated_at: string
           year: number
         }
         Insert: {
+          benchmarks?: Json | null
           by_when?: string | null
           category: string
           company_id: string
@@ -1614,11 +1662,13 @@ export type Database = {
           id?: string
           profile_id: string
           quarter: string
+          sprints?: Json | null
           support_needed?: string | null
           updated_at?: string
           year: number
         }
         Update: {
+          benchmarks?: Json | null
           by_when?: string | null
           category?: string
           company_id?: string
@@ -1629,6 +1679,7 @@ export type Database = {
           id?: string
           profile_id?: string
           quarter?: string
+          sprints?: Json | null
           support_needed?: string | null
           updated_at?: string
           year?: number

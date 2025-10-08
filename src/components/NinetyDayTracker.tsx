@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Target, Plus, Check, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { Calendar, Target, Plus, Check, Trash2, Sparkles, Loader2, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TargetBreakdownDialog from "./TargetBreakdownDialog";
 type NinetyDayTarget = {
   id: string;
   quarter: string;
@@ -51,6 +52,8 @@ export default function NinetyDayTracker() {
     category: string;
     number: number;
   } | null>(null);
+  const [breakdownDialogOpen, setBreakdownDialogOpen] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [formData, setFormData] = useState({
     goalText: "",
     byWhen: "",
@@ -409,6 +412,19 @@ export default function NinetyDayTracker() {
               </p>
             </div>
             <div className="flex gap-1">
+              {goal.id && !goal.completed && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setSelectedTarget(goal);
+                    setBreakdownDialogOpen(true);
+                  }}
+                  title="Get Jericho's help breaking this down"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              )}
               {goal.id && <Button variant="ghost" size="sm" onClick={() => handleToggleComplete(goal)}>
                   <Check className={`h-4 w-4 ${goal.completed ? "text-green-500" : ""}`} />
                 </Button>}
@@ -500,5 +516,12 @@ export default function NinetyDayTracker() {
             </TabsContent>)}
         </Tabs>
       </CardContent>
+      
+      <TargetBreakdownDialog
+        open={breakdownDialogOpen}
+        onOpenChange={setBreakdownDialogOpen}
+        target={selectedTarget}
+        onSave={loadTargets}
+      />
     </Card>;
 }

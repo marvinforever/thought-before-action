@@ -98,9 +98,9 @@ export default function MyGrowthPlan() {
       setTimeout(() => {
         if (tabsRef.current) {
           const elementPosition = tabsRef.current.getBoundingClientRect().top + window.pageYOffset;
-          window.scrollTo({ top: elementPosition - 20, behavior: 'smooth' });
+          window.scrollTo({ top: elementPosition - 80, behavior: 'smooth' });
         }
-      }, 100);
+      }, 300);
       return;
     }
     
@@ -112,9 +112,9 @@ export default function MyGrowthPlan() {
       setTimeout(() => {
         if (tabsRef.current) {
           const elementPosition = tabsRef.current.getBoundingClientRect().top + window.pageYOffset;
-          window.scrollTo({ top: elementPosition - 20, behavior: 'smooth' });
+          window.scrollTo({ top: elementPosition - 80, behavior: 'smooth' });
         }
-      }, 100);
+      }, 300);
     }
   }, [searchParams, location.state]);
 
