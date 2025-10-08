@@ -1,5 +1,8 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.generate-strategic-learning-design]
+verify_jwt = true
+
 [functions.generate-learning-roadmap]
 verify_jwt = true
 
