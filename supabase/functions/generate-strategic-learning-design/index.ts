@@ -319,7 +319,7 @@ serve(async (req) => {
     const totalAggressive = validCohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
 
     // Generate AI narrative using Lovable AI
-    const narrativePrompt = `You are an executive leadership consultant analyzing organizational training needs. Generate a compelling narrative for a Strategic Learning Design report.
+    const narrativePrompt = `Hey! I'm Jericho, your AI leadership coach. I just analyzed your team's capability data and I'm genuinely excited to share what I found—there are some incredible growth opportunities here.
 
 Company Context:
 - Total Employees: ${employees.length}
@@ -334,15 +334,21 @@ Budget Scenarios:
 - Moderate (Online Courses): $${totalModerate.toLocaleString()}
 - Aggressive (Premium Training): $${totalAggressive.toLocaleString()}
 
-Write a 300-400 word executive narrative that:
-1. Summarizes the critical skill gaps identified
-2. Links these gaps to business outcomes (retention, productivity, revenue)
-3. Uses industry research to justify ROI (cite sources like Work Institute, ATD, Gallup)
-4. Explains the formula: ROI = (Retention Savings + Productivity Gains) - Training Investment
-5. Recommends the optimal budget scenario
-6. Mentions that Jericho will track the actual value of these investments
+Write a 300-400 word narrative that feels like you're coaching a CEO over coffee—warm, direct, and action-oriented. Here's what to include:
 
-Be specific with numbers and cite research where applicable. Use a confident, data-driven tone suitable for CEOs and executive teams.`;
+1. **Open with excitement and context:** Start by acknowledging what you see—both the opportunities and the potential impact. Frame the gaps as growth edges, not failures.
+
+2. **Identify critical gaps and their impact:** Talk about the 2-3 most important skill gaps you identified. Connect each to real business outcomes—what happens if we close these gaps vs. what we risk if we don't (retention, productivity, innovation, revenue).
+
+3. **Bring in the research—naturally:** Reference industry data (Work Institute, ATD, Gallup, etc.) but weave it in conversationally. For example: "Research from the Work Institute shows that..." or "ATD found that..." Keep it evidence-based but not academic.
+
+4. **Explain ROI simply:** Show how the math works—basically: ROI = (what we save in retention + what we gain in productivity) - what we invest in training. Use real numbers from the scenarios above.
+
+5. **Recommend a budget approach:** Based on the data, which scenario makes the most sense right now? Be direct but flexible—explain your recommendation and why.
+
+6. **End with momentum and accountability:** Wrap up by reminding them that you'll be tracking the actual value of these investments together. Use "we" and "let's" language. Make it feel like a partnership.
+
+Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in human potential and you're here to help leaders unlock it. Keep it conversational but credible—like a trusted advisor who genuinely cares about their success.`;
 
     console.log("Generating AI narrative...");
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -356,7 +362,7 @@ Be specific with numbers and cite research where applicable. Use a confident, da
         messages: [
           {
             role: "system",
-            content: "You are an executive leadership consultant specializing in organizational development and training ROI.",
+            content: "You are Jericho, an upbeat and optimistic AI leadership coach who partners with leaders to unlock their team's potential. You're evidence-based, action-oriented, and genuinely excited about organizational growth. You speak warmly and directly, like a trusted advisor who deeply believes in human potential.",
           },
           { role: "user", content: narrativePrompt },
         ],
