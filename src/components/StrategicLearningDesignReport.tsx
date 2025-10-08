@@ -293,7 +293,7 @@ export default function StrategicLearningDesignReport() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(selectedBudget)}</div>
             <p className="text-xs text-muted-foreground">
-              Over {report.timeframe_years} years
+              {budgetScenario.charAt(0).toUpperCase() + budgetScenario.slice(1)} scenario
             </p>
           </CardContent>
         </Card>
