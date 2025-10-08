@@ -47,12 +47,12 @@ export default function ResourceSuggestions() {
   const loadSuggestions = async () => {
     try {
       const { data, error } = await supabase
-        .from("resource_suggestions")
+        .from("resource_suggestions" as any)
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setSuggestions(data || []);
+      setSuggestions((data as any) || []);
     } catch (error: any) {
       toast({
         title: "Error loading suggestions",
@@ -70,7 +70,7 @@ export default function ResourceSuggestions() {
       if (!user) return;
 
       const { error } = await supabase
-        .from("resource_suggestions")
+        .from("resource_suggestions" as any)
         .update({
           status: "approved",
           reviewed_by: user.id,
@@ -98,7 +98,7 @@ export default function ResourceSuggestions() {
       if (!user) return;
 
       const { error } = await supabase
-        .from("resource_suggestions")
+        .from("resource_suggestions" as any)
         .update({
           status: "rejected",
           reviewed_by: user.id,

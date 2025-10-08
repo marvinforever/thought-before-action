@@ -81,13 +81,13 @@ export default function SuperAdminVendors() {
   const loadVendors = async () => {
     try {
       const { data, error } = await supabase
-        .from("training_vendors")
+        .from("training_vendors" as any)
         .select("*")
         .order("is_preferred", { ascending: false })
         .order("name");
 
       if (error) throw error;
-      setVendors(data || []);
+      setVendors((data as any) || []);
     } catch (error: any) {
       toast({ title: "Error loading vendors", description: error.message, variant: "destructive" });
     } finally {
@@ -98,12 +98,12 @@ export default function SuperAdminVendors() {
   const loadCourses = async () => {
     try {
       const { data, error } = await supabase
-        .from("vendor_courses")
+        .from("vendor_courses" as any)
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setCourses(data || []);
+      setCourses((data as any) || []);
     } catch (error: any) {
       toast({ title: "Error loading courses", description: error.message, variant: "destructive" });
     }
@@ -113,13 +113,13 @@ export default function SuperAdminVendors() {
     try {
       if (editingVendor) {
         const { error } = await supabase
-          .from("training_vendors")
+          .from("training_vendors" as any)
           .update(vendorForm)
           .eq("id", editingVendor.id);
         if (error) throw error;
         toast({ title: "Vendor updated successfully" });
       } else {
-        const { error } = await supabase.from("training_vendors").insert(vendorForm);
+        const { error } = await supabase.from("training_vendors" as any).insert(vendorForm);
         if (error) throw error;
         toast({ title: "Vendor created successfully" });
       }
@@ -142,13 +142,13 @@ export default function SuperAdminVendors() {
 
       if (editingCourse) {
         const { error } = await supabase
-          .from("vendor_courses")
+          .from("vendor_courses" as any)
           .update(courseData)
           .eq("id", editingCourse.id);
         if (error) throw error;
         toast({ title: "Course updated successfully" });
       } else {
-        const { error } = await supabase.from("vendor_courses").insert(courseData);
+        const { error } = await supabase.from("vendor_courses" as any).insert(courseData);
         if (error) throw error;
         toast({ title: "Course created successfully" });
       }

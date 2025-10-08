@@ -79,7 +79,7 @@ export default function StrategicLearningDesignReport() {
 
       // Get latest report
       const { data: latestReport, error: reportError } = await supabase
-        .from("strategic_learning_reports")
+        .from("strategic_learning_reports" as any)
         .select("*")
         .eq("company_id", profile.company_id)
         .order("generated_at", { ascending: false })
@@ -89,18 +89,18 @@ export default function StrategicLearningDesignReport() {
       if (reportError) throw reportError;
 
       if (latestReport) {
-        setReport(latestReport);
-        setTimeframe(latestReport.timeframe_years.toString());
+        setReport(latestReport as any);
+        setTimeframe((latestReport as any).timeframe_years.toString());
 
         // Load cohorts
         const { data: cohortData, error: cohortError } = await supabase
-          .from("training_cohorts")
+          .from("training_cohorts" as any)
           .select("*")
-          .eq("report_id", latestReport.id)
+          .eq("report_id", (latestReport as any).id)
           .order("priority");
 
         if (cohortError) throw cohortError;
-        setCohorts(cohortData || []);
+        setCohorts((cohortData as any) || []);
       }
     } catch (error: any) {
       console.error("Error loading report:", error);
