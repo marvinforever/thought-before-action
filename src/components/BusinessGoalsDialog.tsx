@@ -71,10 +71,10 @@ export default function BusinessGoalsDialog() {
           setMessages(msgs as Message[]);
         }
       } else {
-        // Start with welcome message
+        // Start with welcome message and first question
         setMessages([{
           role: "assistant",
-          content: "Hi! I'm Jericho. Let's talk about your business goals. What are the top 3 strategic priorities for your organization in the next 12 months?"
+          content: "Hi! I'm Jericho. I'd love to learn about your business priorities so I can help you build the most effective training strategy. I have 5 strategic questions that will help us uncover the right priorities.\n\n**Question 1 of 5:**\nWhat are your top 2-3 business priorities for the next 12-18 months, and what needs to happen for you to achieve them?"
         }]);
       }
     } catch (error) {
@@ -132,7 +132,7 @@ export default function BusinessGoalsDialog() {
         body: {
           message: input,
           conversationId: convId,
-          context: "business_goals"
+          contextType: "business_goals"
         }
       });
 
