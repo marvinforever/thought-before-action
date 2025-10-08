@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Flame, TrendingUp, Archive, Trash2 } from "lucide-react";
+import { Plus, Flame, TrendingUp, Archive, Trash2, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import AddHabitDialog from "./AddHabitDialog";
 
 type Habit = {
@@ -45,6 +47,10 @@ export default function GreatnessTracker() {
   const [greatnessKeys, setGreatnessKeys] = useState<GreatnessKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [backdateOpen, setBackdateOpen] = useState(false);
+  const [backdateHabitId, setBackdateHabitId] = useState<string | null>(null);
+  const [backdateStart, setBackdateStart] = useState("");
+  const [backdateSubmitting, setBackdateSubmitting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -307,6 +313,77 @@ export default function GreatnessTracker() {
     }
   };
 
+  const openBackdate = (habitId: string) => {
+    setBackdateHabitId(habitId);
+    setBackdateStart(new Date().toISOString().split('T')[0]);
+    setBackdateOpen(true);
+  };
+
+  const backdateHabit = async () => {
+    try {
+      if (!backdateHabitId || !backdateStart) return;
+      setBackdateSubmitting(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const start = new Date(backdateStart);
+      start.setHours(0,0,0,0);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      if (start > today) {
+        toast({ title: 'Invalid date', description: 'Start date cannot be in the future', variant: 'destructive' });
+        setBackdateSubmitting(false);
+        return;
+      }
+
+      // Build all dates from start to today
+      const dates: string[] = [];
+      for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+        dates.push(d.toISOString().split('T')[0]);
+      }
+
+      // Fetch existing completions to avoid duplicates
+      const { data: existing } = await supabase
+        .from('habit_completions')
+        .select('completed_date')
+        .eq('habit_id', backdateHabitId)
+        .gte('completed_date', dates[0])
+        .lte('completed_date', dates[dates.length - 1]);
+
+      const existingSet = new Set((existing || []).map(e => e.completed_date));
+      const rows = dates
+        .filter(d => !existingSet.has(d))
+        .map(d => ({ habit_id: backdateHabitId, profile_id: user.id, completed_date: d }));
+
+      // Insert in chunks to avoid payload limits
+      const chunkSize = 200;
+      for (let i = 0; i < rows.length; i += chunkSize) {
+        const chunk = rows.slice(i, i + chunkSize);
+        if (chunk.length > 0) {
+          const { error } = await supabase.from('habit_completions').insert(chunk);
+          if (error) throw error;
+        }
+      }
+
+      // Refresh data and streaks
+      await updateStreak(backdateHabitId, true);
+      await loadTodayCompletions();
+      await loadCompletionStats();
+      await loadHabits();
+
+      toast({ title: 'Backdated successfully', description: `Logged ${rows.length} day(s) of consistency.` });
+      setBackdateOpen(false);
+      setBackdateHabitId(null);
+    } catch (e) {
+      console.error('Backdate error', e);
+      toast({ title: 'Error', description: 'Failed to backdate habit', variant: 'destructive' });
+    } finally {
+      setBackdateSubmitting(false);
+    }
+  };
+
   const isHabitCompleted = (habitId: string) => {
     return completions.some(c => c.habit_id === habitId);
   };
@@ -460,6 +537,15 @@ export default function GreatnessTracker() {
                               <span className="font-bold">{habit.current_streak}</span>
                               <span className="text-muted-foreground">day streak</span>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openBackdate(habit.id)}
+                              className="h-8 w-8 p-0"
+                              title="Backdate habit"
+                            >
+                              <Calendar className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
