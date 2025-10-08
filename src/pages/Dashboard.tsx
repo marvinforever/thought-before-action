@@ -7,6 +7,7 @@ import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
 import { OrganizationalGrowthDesign } from "@/components/OrganizationalGrowthDesign";
 import { EmployeeInterestIndicators } from "@/components/EmployeeInterestIndicators";
 import { GrowthAtAGlance } from "@/components/GrowthAtAGlance";
+import StrategicLearningDesignReport from "@/components/StrategicLearningDesignReport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DomainScore {
@@ -321,6 +322,7 @@ const Dashboard = () => {
         <TabsList>
           <TabsTrigger value="health">Organizational Health</TabsTrigger>
           <TabsTrigger value="growth">Strategic Growth Design</TabsTrigger>
+          <TabsTrigger value="learning">Strategic Learning Design</TabsTrigger>
         </TabsList>
 
         <TabsContent value="health" className="space-y-6">
@@ -538,6 +540,10 @@ const Dashboard = () => {
 
         <TabsContent value="growth">
           <OrganizationalGrowthDesign />
+        </TabsContent>
+
+        <TabsContent value="learning">
+          <StrategicLearningDesignReport />
         </TabsContent>
       </Tabs>
     </div>
