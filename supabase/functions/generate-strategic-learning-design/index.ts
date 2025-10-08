@@ -196,7 +196,7 @@ serve(async (req) => {
         );
 
         validCohorts.push({
-          cohort_name: `${capName} Training Cohort`,
+          cohort_name: `${capName} Training Hotspot`,
           capability_id: capInfo?.capability_id || "",
           capability_name: capName,
           employee_ids: employeeIds,
@@ -320,10 +320,10 @@ serve(async (req) => {
 
 Company Context:
 - Total Employees: ${employees.length}
-- Training Cohorts Identified: ${validCohorts.length}
+- Training Hotspots Identified: ${validCohorts.length}
 - Total employees needing training: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
 
-Training Cohorts:
+Training Hotspots:
 ${validCohorts.map((c, i) => `${i + 1}. ${c.cohort_name}: ${c.employee_count} employees (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})`).join("\n")}
 
 Budget Scenarios:

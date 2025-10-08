@@ -276,7 +276,7 @@ export default function StrategicLearningDesignReport() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Training Cohorts</CardTitle>
+            <CardTitle className="text-sm font-medium">Training Hotspots</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -317,7 +317,7 @@ export default function StrategicLearningDesignReport() {
       <Tabs defaultValue="narrative" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="narrative">Executive Summary</TabsTrigger>
-          <TabsTrigger value="cohorts">Training Cohorts</TabsTrigger>
+          <TabsTrigger value="cohorts">Training Hotspots</TabsTrigger>
           <TabsTrigger value="budget">Budget Scenarios</TabsTrigger>
           <TabsTrigger value="roi">ROI Analysis</TabsTrigger>
           <TabsTrigger value="resources">Resource Library</TabsTrigger>
@@ -351,7 +351,7 @@ export default function StrategicLearningDesignReport() {
           </Card>
         </TabsContent>
 
-        {/* Training Cohorts */}
+        {/* Training Hotspots */}
         <TabsContent value="cohorts" className="space-y-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Who Needs What Training</h3>
@@ -579,7 +579,7 @@ export default function StrategicLearningDesignReport() {
             <CardContent>
               <p className="text-muted-foreground">
                 <BookOpen className="inline h-4 w-4 mr-2" />
-                Resources are dynamically matched to training cohorts and displayed in recommended solutions above.
+                Resources are dynamically matched to training hotspots and displayed in recommended solutions above.
               </p>
             </CardContent>
           </Card>
