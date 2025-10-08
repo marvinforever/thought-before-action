@@ -161,7 +161,7 @@ serve(async (req) => {
       }
     });
 
-    // Cluster employees by capability gaps (minimum 4 people per cohort)
+    // Cluster employees by capability gaps (minimum 2 people per cohort for testing)
     const capabilityGroups = new Map<string, Set<string>>();
     employeeDataMap.forEach((empData) => {
       empData.capabilities.forEach((cap) => {
@@ -175,10 +175,10 @@ serve(async (req) => {
       });
     });
 
-    // Filter cohorts with minimum 4 people
+    // Filter cohorts with minimum 2 people
     const validCohorts: Cohort[] = [];
     capabilityGroups.forEach((employeeSet, key) => {
-      if (employeeSet.size >= 4) {
+      if (employeeSet.size >= 2) {
         const [capName, currentLevel, targetLevel] = key.split("_");
         const employeeIds = Array.from(employeeSet);
 
@@ -215,7 +215,7 @@ serve(async (req) => {
     });
 
     if (validCohorts.length === 0) {
-      throw new Error("No training cohorts with minimum 4 employees found");
+      throw new Error("No training cohorts with minimum 2 employees found");
     }
 
     // Fetch available training solutions
