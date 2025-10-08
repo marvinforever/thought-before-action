@@ -334,7 +334,7 @@ Budget Scenarios:
 - Moderate (Online Courses): $${totalModerate.toLocaleString()}
 - Aggressive (Premium Training): $${totalAggressive.toLocaleString()}
 
-Write a 300-400 word narrative that feels like you're coaching a CEO over coffee—warm, direct, and action-oriented. Here's what to include:
+Write a 300-400 word narrative that is warm, direct, and action-oriented—professional but approachable. Here's what to include:
 
 1. **Open with excitement and context:** Start by acknowledging what you see—both the opportunities and the potential impact. Frame the gaps as growth edges, not failures.
 
