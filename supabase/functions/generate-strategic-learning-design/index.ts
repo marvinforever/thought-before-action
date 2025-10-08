@@ -215,7 +215,7 @@ serve(async (req) => {
     });
 
     if (validCohorts.length === 0) {
-      throw new Error("No training cohorts with minimum 2 employees found");
+      console.warn("No cohorts found; continuing with empty cohorts for pilot report");
     }
 
     // Fetch available training solutions
@@ -226,8 +226,7 @@ serve(async (req) => {
 
     const { data: vendors } = await supabase
       .from("training_vendors")
-      .select("*, vendor_courses(*)")
-      .eq("is_active", true);
+      .select("*, vendor_courses(*)");
 
     // Match solutions to cohorts
     for (const cohort of validCohorts) {
@@ -261,14 +260,14 @@ serve(async (req) => {
 
       if (matchingCourses && matchingCourses.length > 0) {
         const course = matchingCourses[0];
+        const costPer = Number(course.cost) || 500;
         solutions.push({
           type: "paid",
           title: course.title,
           vendor: vendors?.find((v: any) => v.id === course.vendor_id)?.name || "Unknown",
-          cost_per_person: course.cost_per_person || 500,
-          total_cost: (course.cost_per_person || 500) * cohort.employee_count,
+          cost_per_person: costPer,
+          total_cost: costPer * cohort.employee_count,
           link: course.course_url,
-          delivery_format: course.delivery_format,
           duration_hours: course.duration_hours,
         });
       } else {
@@ -442,38 +441,56 @@ Be specific with numbers and cite research where applicable. Use a confident, da
       .insert({
         company_id: companyId,
         timeframe_years,
+        total_employees: employees.length,
+        total_cohorts: validCohorts.length,
         executive_summary: executiveSummary,
         budget_scenarios: budgetScenarios,
         roi_projections: roiProjections,
-        total_budget_conservative: totalConservative,
-        total_budget_moderate: totalModerate,
-        total_budget_aggressive: totalAggressive,
-        created_by: user.id,
+        generated_by: user.id,
       })
       .select()
       .single();
 
     if (insertError) throw insertError;
 
-    // Insert cohorts
-    const cohortInserts = validCohorts.map((c) => ({
-      report_id: newReport.id,
-      ...c,
-    }));
+    // Insert cohorts (map to table schema)
+    const cohortInserts = validCohorts.map((c) => {
+      const paid = c.recommended_solutions?.find((s: any) => s.type === "paid") || null;
+      const estPer = paid?.cost_per_person ?? 500;
+      const totalEst = paid?.total_cost ?? estPer * c.employee_count;
+      const expectedRoiPct = totalModerate > 0
+        ? Math.round(((retentionSavings + productivityGains - totalModerate) / totalModerate) * 100)
+        : null;
 
-    const { error: cohortError } = await supabase
-      .from("training_cohorts")
-      .insert(cohortInserts);
+      return {
+        report_id: newReport.id,
+        cohort_name: c.cohort_name,
+        capability_name: c.capability_name,
+        employee_ids: c.employee_ids,
+        employee_count: c.employee_count,
+        priority: c.priority,
+        recommended_solutions: c.recommended_solutions,
+        estimated_cost_per_employee: estPer,
+        total_estimated_cost: totalEst,
+        expected_roi_percentage: expectedRoiPct,
+        timeline_weeks: 8,
+      };
+    });
 
-    if (cohortError) console.error("Cohort insert error:", cohortError);
+    if (cohortInserts.length > 0) {
+      const { error: cohortError } = await supabase
+        .from("training_cohorts")
+        .insert(cohortInserts);
+      if (cohortError) console.error("Cohort insert error:", cohortError);
+    }
 
     // Create notification
     await supabase.from("strategic_learning_notifications").insert({
       company_id: companyId,
       report_id: newReport.id,
-      notification_type: "refresh_completed",
+      notification_type: "report_generated",
       message: "Strategic Learning Design report has been generated",
-      sent_to: user.id,
+      sent_to: [user.id],
     });
 
     console.log("Report generated successfully:", newReport.id);
