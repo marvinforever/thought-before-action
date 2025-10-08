@@ -299,10 +299,6 @@ export default function StrategicLearningDesignReport() {
           </CardContent>
         </Card>
 
-        <div className="md:col-span-4 flex justify-center">
-          <BusinessGoalsDialog />
-        </div>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Expected ROI</CardTitle>
@@ -317,6 +313,11 @@ export default function StrategicLearningDesignReport() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Business Drivers Button */}
+      <div className="flex justify-center -mt-2 mb-4">
+        <BusinessGoalsDialog />
       </div>
 
       <Tabs defaultValue="narrative" className="w-full">
