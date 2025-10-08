@@ -318,6 +318,26 @@ serve(async (req) => {
     const totalModerate = validCohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
     const totalAggressive = validCohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
 
+    // Fetch business goals conversation for context
+    let businessGoalsContext = "";
+    const { data: businessGoalsConv } = await supabase
+      .from("conversations")
+      .select("id, conversation_messages(role, content)")
+      .eq("company_id", companyId)
+      .ilike("title", "%business goals%")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (businessGoalsConv && businessGoalsConv.conversation_messages) {
+      const messages = businessGoalsConv.conversation_messages as any[];
+      businessGoalsContext = "\n\n**Business Goals Context:**\nBased on our conversation about your business goals:\n" +
+        messages
+          .filter((m: any) => m.role === "user")
+          .map((m: any) => `- ${m.content}`)
+          .join("\n");
+    }
+
     // Generate AI narrative using Lovable AI
     const narrativePrompt = `Hey! I'm Jericho, your AI leadership coach. I just analyzed your team's capability data and I'm genuinely excited to share what I found—there are some incredible growth opportunities here.
 
@@ -325,6 +345,7 @@ Company Context:
 - Total Employees: ${employees.length}
 - Training Hotspots Identified: ${validCohorts.length}
 - Total employees needing training: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
+${businessGoalsContext}
 
 Training Hotspots:
 ${validCohorts.map((c, i) => `${i + 1}. ${c.cohort_name}: ${c.employee_count} employees (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})`).join("\n")}
@@ -336,9 +357,9 @@ Budget Scenarios:
 
 Write a 300-400 word narrative that is warm, direct, and action-oriented—professional but approachable. Here's what to include:
 
-1. **Open with excitement and context:** Start by acknowledging what you see—both the opportunities and the potential impact. Frame the gaps as growth edges, not failures.
+1. **Open with excitement and context:** Start by acknowledging what you see—both the opportunities and the potential impact. Frame the gaps as growth edges, not failures. ${businessGoalsContext ? "**IMPORTANT: Connect the training hotspots to the business goals mentioned above.**" : ""}
 
-2. **Identify critical gaps and their impact:** Talk about the 2-3 most important skill gaps you identified. Connect each to real business outcomes—what happens if we close these gaps vs. what we risk if we don't (retention, productivity, innovation, revenue).
+2. **Identify critical gaps and their impact:** Talk about the 2-3 most important skill gaps you identified. Connect each to real business outcomes—what happens if we close these gaps vs. what we risk if we don't (retention, productivity, innovation, revenue). ${businessGoalsContext ? "**Show how closing these gaps will help achieve their business goals.**" : ""}
 
 3. **Bring in the research—naturally:** Reference industry data (Work Institute, ATD, Gallup, etc.) but weave it in conversationally. For example: "Research from the Work Institute shows that..." or "ATD found that..." Keep it evidence-based but not academic.
 

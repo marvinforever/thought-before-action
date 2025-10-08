@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import BusinessGoalsDialog from "@/components/BusinessGoalsDialog";
 
 type Report = {
   id: string;
@@ -238,6 +239,7 @@ export default function StrategicLearningDesignReport() {
           </p>
         </div>
         <div className="flex gap-2">
+          <BusinessGoalsDialog />
           <Select value={timeframe} onValueChange={setTimeframe}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -327,7 +329,7 @@ export default function StrategicLearningDesignReport() {
         <TabsContent value="narrative" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>AI-Generated Executive Narrative</CardTitle>
+              <CardTitle>Strategic Learning Design Overview</CardTitle>
             </CardHeader>
             <CardContent className="prose max-w-none">
               <p className="whitespace-pre-wrap">{summary.narrative}</p>
