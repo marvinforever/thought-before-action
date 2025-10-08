@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock } from "lucide-react";
+import { Gauge } from "@/components/ui/gauge";
 import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
 import { OrganizationalGrowthDesign } from "@/components/OrganizationalGrowthDesign";
 import { EmployeeInterestIndicators } from "@/components/EmployeeInterestIndicators";
@@ -352,70 +353,47 @@ const Dashboard = () => {
             <DollarSign className="h-5 w-5 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">${Math.round(stats.estimatedTurnoverCost / 1000)}</div>
+            <div className="text-3xl font-bold">${Math.round(stats.estimatedTurnoverCost / 1000)}K</div>
             <p className="text-xs text-muted-foreground mt-1">Estimated replacement cost</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-accent">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <Card>
+          <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">Engagement Score</CardTitle>
-            <TrendingUp className="h-5 w-5 text-accent" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.avgEngagement}</div>
-            <p className="text-xs text-muted-foreground mt-1">Average energy level</p>
+          <CardContent className="flex items-center justify-center py-4">
+            <Gauge 
+              value={stats.avgEngagement} 
+              max={100}
+              size={140}
+              strokeWidth={14}
+              icon={<TrendingUp className="h-5 w-5 text-accent" />}
+              description="Average energy level"
+              colorScheme="accent"
+            />
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <Card>
+          <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">Diagnostics Complete</CardTitle>
-            <Users className="h-5 w-5 text-primary" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.diagnosticsCompleted}/{stats.employees}</div>
-            <p className="text-xs text-muted-foreground mt-1">{stats.employees > 0 ? Math.round((stats.diagnosticsCompleted / stats.employees) * 100) : 0}% participation</p>
+          <CardContent className="flex items-center justify-center py-4">
+            <Gauge 
+              value={stats.diagnosticsCompleted} 
+              max={stats.employees}
+              size={140}
+              strokeWidth={14}
+              icon={<Users className="h-5 w-5 text-primary" />}
+              label={`${stats.employees > 0 ? Math.round((stats.diagnosticsCompleted / stats.employees) * 100) : 0}%`}
+              description="participation rate"
+              colorScheme="default"
+            />
           </CardContent>
         </Card>
       </div>
 
-      {/* 8-Domain Health Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>8-Domain Organizational Health</CardTitle>
-          <p className="text-sm text-muted-foreground">Comprehensive risk assessment across all critical dimensions</p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {stats.domainScores.map((domain) => (
-              <div key={domain.domain} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{domain.domain}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${getRiskBgColor(domain.risk)} ${getRiskColor(domain.risk)}`}>
-                      {getRiskLabel(domain.risk)}
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold">{domain.score}/100</span>
-                </div>
-                <div className="relative h-3 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className={`absolute inset-y-0 left-0 rounded-full transition-all ${
-                      domain.risk === "critical" ? "bg-destructive" :
-                      domain.risk === "high" ? "bg-orange-500" :
-                      domain.risk === "medium" ? "bg-yellow-500" :
-                      "bg-green-500"
-                    }`}
-                    style={{ width: `${domain.score}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">{domain.impact}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Domain Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
