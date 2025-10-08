@@ -239,7 +239,6 @@ export default function StrategicLearningDesignReport() {
           </p>
         </div>
         <div className="flex gap-2">
-          <BusinessGoalsDialog />
           <Select value={timeframe} onValueChange={setTimeframe}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -299,6 +298,10 @@ export default function StrategicLearningDesignReport() {
             </p>
           </CardContent>
         </Card>
+
+        <div className="md:col-span-4 flex justify-center">
+          <BusinessGoalsDialog />
+        </div>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

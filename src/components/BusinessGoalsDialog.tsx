@@ -169,7 +169,7 @@ export default function BusinessGoalsDialog() {
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <MessageSquare className="h-4 w-4" />
-          Chat About Business Goals
+          Enter Business Drivers Here
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl h-[600px] flex flex-col">
