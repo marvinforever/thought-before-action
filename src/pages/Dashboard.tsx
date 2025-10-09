@@ -137,24 +137,44 @@ const Dashboard = () => {
 
       // 1. RETENTION & FLIGHT RISK - Two-question formula
       // Formula: ((Q1: would_stay + Q2: growth_path) / 2) × 10 = Score (0-100)
-      // High Risk: < 60, Medium Risk: 60-79, Low Risk: 80+
+      // Thresholds: < 60 = Critical Risk, 60-79 = Watch List, 80+ = Low Risk
       const retentionScores = completeDiagnostics.map(d => {
         const stayScore = parseInt(d.would_stay_if_offered_similar) || 0;
         const growthScore = (d.additional_responses as any)?.engagement_scores?.growth_path_score || 0;
+        
+        // Skip if either score is missing
         if (stayScore === 0 || growthScore === 0) return null;
-        return ((stayScore + growthScore) / 2) * 10; // 0-100 scale
+        
+        // Calculate retention score: average of the two questions, scaled to 0-100
+        const retentionScore = ((stayScore + growthScore) / 2) * 10;
+        return retentionScore;
       }).filter(s => s !== null) as number[];
       
-      const highRiskCount = retentionScores.filter(s => s < 60).length; // < 60 = High Risk
-      const mediumRiskCount = retentionScores.filter(s => s >= 60 && s < 80).length; // 60-79 = Medium Risk
-      const totalAtRisk = highRiskCount + mediumRiskCount; // Both count as "at risk"
+      // Count employees by risk category
+      const highRiskCount = retentionScores.filter(s => s < 60).length; // Critical: < 60
+      const mediumRiskCount = retentionScores.filter(s => s >= 60 && s < 80).length; // Watch List: 60-79
+      const lowRiskCount = retentionScores.filter(s => s >= 80).length; // Low Risk: 80+
+      const totalAtRisk = highRiskCount + mediumRiskCount; // Combined at-risk count
       
+      // Calculate average retention score
       const avgRetentionScore = retentionScores.length > 0 
         ? Math.round(retentionScores.reduce((a, b) => a + b, 0) / retentionScores.length) 
         : 0;
       
-      const avgSalary = 75000; // Industry average
-      const turnoverCost = Math.round(highRiskCount * avgSalary * 1.5);
+      // Calculate turnover cost (only for high risk employees - most likely to leave)
+      const avgSalary = 75000; // Industry average salary
+      const replacementMultiplier = 1.5; // 150% of salary for replacement cost
+      const turnoverCost = highRiskCount * avgSalary * replacementMultiplier;
+      
+      console.log('Retention Breakdown:', {
+        totalEmployees: completeDiagnostics.length,
+        withRetentionData: retentionScores.length,
+        highRisk: highRiskCount,
+        mediumRisk: mediumRiskCount,
+        lowRisk: lowRiskCount,
+        avgScore: avgRetentionScore,
+        estimatedCost: turnoverCost
+      });
 
       // 2. ENGAGEMENT INDEX - 4-question formula
       // (Q28 + Q29 + Q31 + Q32) / 4 × 10 = Score out of 100
@@ -306,11 +326,11 @@ const Dashboard = () => {
         employees: employeeCount,
         diagnosticsCompleted,
         avgEngagement,
-        retentionRisk: 100 - avgRetentionScore, // For display purposes
-        estimatedTurnoverCost: turnoverCost,
+        retentionRisk: 100 - avgRetentionScore, // Inverted for legacy display
+        estimatedTurnoverCost: Math.round(turnoverCost),
         atRiskEmployees: totalAtRisk,
-        highRiskCount, // Add this for breakdown display
-        mediumRiskCount, // Add this for breakdown display
+        highRiskCount,
+        mediumRiskCount,
         domainScores,
         managerEffectiveness,
         burnoutScore,
