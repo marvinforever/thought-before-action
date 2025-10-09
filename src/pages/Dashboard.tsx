@@ -227,10 +227,9 @@ const Dashboard = () => {
 
       // Domain scores with risk levels
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
-        if (score >= 90) return "low";
-        if (score >= 80) return "medium";
-        if (score >= 60) return "high";
-        return "critical";
+        if (score >= 80) return "low";    // 80+ = Low Risk (green)
+        if (score >= 60) return "high";   // 60-79 = Medium Risk (orange)
+        return "critical";                 // <60 = High Risk (red)
       };
 
       const domainScores: DomainScore[] = [
