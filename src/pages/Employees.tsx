@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +19,7 @@ import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDia
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AssignManagerDialog } from "@/components/AssignManagerDialog";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
+import { BatchJobDescriptionDialog } from "@/components/BatchJobDescriptionDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface Employee {
@@ -58,9 +60,33 @@ const Employees = () => {
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
+  const [batchJobDescOpen, setBatchJobDescOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
+
+  const toggleEmployeeSelection = (employeeId: string) => {
+    const newSelection = new Set(selectedEmployees);
+    if (newSelection.has(employeeId)) {
+      newSelection.delete(employeeId);
+    } else {
+      newSelection.add(employeeId);
+    }
+    setSelectedEmployees(newSelection);
+  };
+
+  const toggleAllEmployees = () => {
+    if (selectedEmployees.size === filteredEmployees.length) {
+      setSelectedEmployees(new Set());
+    } else {
+      setSelectedEmployees(new Set(filteredEmployees.map(e => e.id)));
+    }
+  };
+
+  const getSelectedEmployeesData = () => {
+    return employees.filter(e => selectedEmployees.has(e.id));
+  };
 
   useEffect(() => {
     loadEmployees();
@@ -448,6 +474,12 @@ const Employees = () => {
           <p className="text-muted-foreground">Manage your team and their diagnostics</p>
         </div>
         <div className="flex gap-2">
+          {selectedEmployees.size > 0 && (
+            <Button onClick={() => setBatchJobDescOpen(true)} variant="default">
+              <Brain className="mr-2 h-4 w-4" />
+              Batch Assign ({selectedEmployees.size})
+            </Button>
+          )}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -570,6 +602,13 @@ const Employees = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox 
+                      checked={selectedEmployees.size === filteredEmployees.length && filteredEmployees.length > 0}
+                      onCheckedChange={toggleAllEmployees}
+                      aria-label="Select all employees"
+                    />
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
@@ -582,13 +621,20 @@ const Employees = () => {
               <TableBody>
                 {filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={isSuperAdmin ? 8 : 7} className="text-center text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredEmployees.map((employee) => (
                     <TableRow key={employee.id} className={!employee.is_active ? "opacity-50" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedEmployees.has(employee.id)}
+                          onCheckedChange={() => toggleEmployeeSelection(employee.id)}
+                          aria-label={`Select ${employee.full_name}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{employee.full_name}</TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{employee.role || <span className="text-muted-foreground">—</span>}</TableCell>
@@ -855,6 +901,18 @@ const Employees = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BatchJobDescriptionDialog
+        open={batchJobDescOpen}
+        onOpenChange={(open) => {
+          setBatchJobDescOpen(open);
+          if (!open) {
+            setSelectedEmployees(new Set());
+            loadEmployees();
+          }
+        }}
+        employees={getSelectedEmployeesData()}
+      />
     </div>
   );
 };
