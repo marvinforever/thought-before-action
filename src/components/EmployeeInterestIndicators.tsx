@@ -6,6 +6,7 @@ import { Heart, Eye, Users, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface InterestIndicator {
   id: string;
@@ -27,35 +28,47 @@ export const EmployeeInterestIndicators = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isManager, setIsManager] = useState(false);
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadIndicators();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadIndicators = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if user is manager or admin
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
+      // Determine company ID (either from viewAs context or user's profile)
+      let companyId = viewAsCompanyId;
+      
+      if (!companyId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id, is_admin')
+          .eq('id', user.id)
+          .single();
 
-      const { data: managerAssignments } = await supabase
-        .from('manager_assignments')
-        .select('id')
-        .eq('manager_id', user.id)
-        .limit(1);
+        if (!profile?.company_id) return;
+        companyId = profile.company_id;
 
-      setIsManager((managerAssignments && managerAssignments.length > 0) || profile?.is_admin || false);
+        const { data: managerAssignments } = await supabase
+          .from('manager_assignments')
+          .select('id')
+          .eq('manager_id', user.id)
+          .limit(1);
 
-      // Fetch indicators without FK join (FK is missing in DB schema)
+        setIsManager((managerAssignments && managerAssignments.length > 0) || profile?.is_admin || false);
+      } else {
+        // If viewing as another company, user is super admin
+        setIsManager(true);
+      }
+
+      // Fetch indicators filtered by company
       const { data: indicatorsData, error } = await supabase
         .from('roadmap_interest_indicators')
         .select('*')
+        .eq('company_id', companyId)
         .order('indicated_at', { ascending: false });
 
       if (error) throw error;
@@ -69,6 +82,7 @@ export const EmployeeInterestIndicators = () => {
           const { data: profilesData } = await supabase
             .from('profiles')
             .select('id, full_name, email')
+            .eq('company_id', companyId)
             .in('id', profileIds);
 
           const byId = new Map((profilesData || []).map((p: any) => [p.id, p]));
