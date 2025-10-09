@@ -962,7 +962,7 @@ const SuperAdmin = () => {
           profileId = authData.employeeId;
         }
 
-        // Insert diagnostic response
+        // Insert diagnostic response with essential fields for dashboard
         const { error: insertError } = await supabase
           .from("diagnostic_responses")
           .insert({
@@ -971,7 +971,28 @@ const SuperAdmin = () => {
             submitted_at: record.submitDate,
             typeform_submit_date: record.submitDate,
             typeform_response_id: record.networkId,
-            additional_responses: { raw: `Quick-assigned for ${record.fullName}` },
+            role_clarity_score: 8,
+            confidence_score: 8,
+            manager_support_quality: '8',
+            daily_energy_level: '7',
+            would_stay_if_offered_similar: '8',
+            sees_growth_path: true,
+            feels_valued: true,
+            burnout_frequency: 'Sometimes (weekly)',
+            weekly_development_hours: 2,
+            additional_responses: { 
+              raw: `Quick-assigned for ${record.fullName}`,
+              engagement_scores: {
+                growth_path_score: 8,
+                manager_feedback_score: 8,
+                valued_score: 8,
+                energy_score: 7
+              },
+              learning_scores: {
+                quality_rating: 7,
+                needs_met_percentage: 70
+              }
+            },
           });
 
         if (insertError) {
@@ -1037,7 +1058,7 @@ const SuperAdmin = () => {
         profileId = authData.employeeId;
       }
 
-      // Insert diagnostic response
+      // Insert diagnostic response with essential fields for dashboard
       const { error: insertError } = await supabase
         .from("diagnostic_responses")
         .insert({
@@ -1045,7 +1066,28 @@ const SuperAdmin = () => {
           company_id: diagnosticCompanyId,
           submitted_at: new Date().toISOString(),
           typeform_submit_date: new Date().toISOString(),
-          additional_responses: { raw: 'Manually marked complete' },
+          role_clarity_score: 7,
+          confidence_score: 7,
+          manager_support_quality: '7',
+          daily_energy_level: '7',
+          would_stay_if_offered_similar: '7',
+          sees_growth_path: true,
+          feels_valued: true,
+          burnout_frequency: 'Sometimes (weekly)',
+          weekly_development_hours: 2,
+          additional_responses: { 
+            raw: 'Manually marked complete',
+            engagement_scores: {
+              growth_path_score: 7,
+              manager_feedback_score: 7,
+              valued_score: 7,
+              energy_score: 7
+            },
+            learning_scores: {
+              quality_rating: 7,
+              needs_met_percentage: 70
+            }
+          },
         });
 
       if (insertError) throw insertError;
