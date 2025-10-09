@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { ViewAsProvider } from "@/contexts/ViewAsContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -35,15 +36,43 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/dashboard" element={<DashboardLayout />}>
-              <Route index element={<Dashboard />} />
-            <Route path="employees" element={<Employees />} />
-            <Route path="capabilities" element={<Capabilities />} />
-            <Route path="resources" element={<Resources />} />
-            <Route path="resource-import" element={<AdminResourceImport />} />
+              <Route index element={
+                <ProtectedRoute requireAdmin>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+            <Route path="employees" element={
+              <ProtectedRoute requireAdmin>
+                <Employees />
+              </ProtectedRoute>
+            } />
+            <Route path="capabilities" element={
+              <ProtectedRoute requireAdmin>
+                <Capabilities />
+              </ProtectedRoute>
+            } />
+            <Route path="resources" element={
+              <ProtectedRoute requireAdmin>
+                <Resources />
+              </ProtectedRoute>
+            } />
+            <Route path="resource-import" element={
+              <ProtectedRoute requireAdmin>
+                <AdminResourceImport />
+              </ProtectedRoute>
+            } />
             <Route path="my-growth-plan" element={<MyGrowthPlan />} />
             <Route path="growth-roadmap" element={<GrowthRoadmap />} />
-            <Route path="training-roi" element={<TrainingROI />} />
-            <Route path="manager" element={<ManagerDashboard />} />
+            <Route path="training-roi" element={
+              <ProtectedRoute requireAdmin>
+                <TrainingROI />
+              </ProtectedRoute>
+            } />
+            <Route path="manager" element={
+              <ProtectedRoute requireManager>
+                <ManagerDashboard />
+              </ProtectedRoute>
+            } />
           </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

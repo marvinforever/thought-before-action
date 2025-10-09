@@ -128,10 +128,25 @@ export default function StrategicLearningDesignReport() {
       setGenerating(true);
       toast({ title: "Generating report...", description: "This may take a minute" });
 
+      // Determine effective company ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      let effectiveCompanyId = viewAsCompanyId;
+      if (!effectiveCompanyId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
+        effectiveCompanyId = profile?.company_id;
+      }
+
       const { data, error } = await supabase.functions.invoke("generate-strategic-learning-design", {
         body: {
           timeframe_years: parseInt(timeframe),
           force_regenerate: true,
+          viewAsCompanyId: effectiveCompanyId,
         },
       });
 

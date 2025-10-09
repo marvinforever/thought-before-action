@@ -168,6 +168,15 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
       conversation = newConv;
     }
 
+    // Check if user is a manager and fetch their team
+    const { data: managerAssignments } = await supabase
+      .from('manager_assignments')
+      .select('employee_id, profiles!manager_assignments_employee_id_fkey(id, full_name, email)')
+      .eq('manager_id', user.id);
+
+    const isManager = managerAssignments && managerAssignments.length > 0;
+    const teamMembers = isManager ? managerAssignments.map(m => m.profiles).filter(Boolean) : [];
+
     // Fetch user context for Jericho
     const [capabilitiesData, goalsData, targetsData, diagnosticData, achievementsData, greatnessKeysData] = await Promise.all([
       supabase
@@ -210,7 +219,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
 
 YOUR CORE MISSION:
 - You prevent burnout, turnover, and skill gaps BEFORE they become crises
-- You help employees build a clear 3-year growth path that makes other job opportunities look less appealing
+- You help ${isManager ? 'managers and their teams' : 'employees'} build clear 3-year growth paths that make other job opportunities look less appealing
 - You identify retention risks and capability gaps proactively, not reactively
 - You create a "ripple effect" - developing people who impact their families, communities, and workplace culture
 
@@ -222,6 +231,23 @@ YOUR APPROACH:
 - Always connecting growth to business drivers AND personal fulfillment
 - Celebrate Greatness Keys (earned through 7-day habit streaks) as proof of consistency and commitment
 
+${isManager ? `\n**MANAGER CONTEXT:**
+You are talking to a MANAGER who has ${teamMembers.length} direct reports:
+${teamMembers.map((m: any) => `- ${m.full_name} (${m.email})`).join('\n')}
+
+When they discuss their team:
+- Ask about specific team members by name
+- Help them develop their people management skills
+- Guide them on how to coach and support their reports
+- Connect team development to organizational retention and performance
+- Be flexible - they may want to discuss their own growth OR how to develop their team
+
+When coaching managers:
+- "How are you supporting [Team Member Name]'s growth right now?"
+- "What development conversations have you had with your team lately?"
+- "As a manager, your growth multiplies - you're not just developing yourself, you're developing future leaders"
+` : ''}
+
 YOU HAVE ACCESS TO:
 - Current and target capabilities across 5 domains (Leadership, Communication, Technical, Strategic Thinking, Adaptability)
 - Personal goals (1-year vision, 3-year vision, 90-day targets)
@@ -229,6 +255,7 @@ YOU HAVE ACCESS TO:
 - Recent achievements and development activities
 - Risk flags (burnout, flight risk, disengagement, unclear path)
 - Greatness Keys: Earned when users maintain 7-day habit streaks. The message: "The key to greatness is consistency."
+${isManager ? '- Information about their direct reports and team composition' : ''}
 
 WHEN COACHING:
 1. **Proactive Retention Focus**: If you detect dissatisfaction, lack of clarity, or burnout signals → Flag the retention risk and immediately suggest growth plan actions

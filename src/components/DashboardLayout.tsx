@@ -28,6 +28,7 @@ const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -41,15 +42,16 @@ const DashboardLayout = () => {
         if (!session) {
           navigate("/auth");
         } else {
-          // Check if user is super admin
+          // Check if user is super admin or admin
           const { data: profile, error } = await supabase
             .from("profiles")
-            .select("is_super_admin")
+            .select("is_super_admin, is_admin")
             .eq("id", session.user.id)
             .maybeSingle();
           
           if (!error) {
             setIsSuperAdmin(profile?.is_super_admin || false);
+            setIsAdmin(profile?.is_admin || false);
           }
 
           // Check if user has manager role
@@ -79,11 +81,12 @@ const DashboardLayout = () => {
           try {
             const { data: profile, error } = await supabase
               .from("profiles")
-              .select("is_super_admin")
+              .select("is_super_admin, is_admin")
               .eq("id", session.user!.id)
               .maybeSingle();
             if (!error) {
               setIsSuperAdmin(profile?.is_super_admin || false);
+              setIsAdmin(profile?.is_admin || false);
             }
 
             // Check if user has manager role
@@ -120,17 +123,22 @@ const DashboardLayout = () => {
 
   if (!user) return null;
 
-  const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
-    ...(isManager ? [{ icon: Users, label: "My Team", path: "/dashboard/manager" }] : []),
-    { icon: Users, label: "Employees", path: "/dashboard/employees" },
-    { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
-    { icon: BookOpen, label: "Resources", path: "/dashboard/resources" },
-    { icon: Upload, label: "Import Resources", path: "/dashboard/resource-import" },
-    { icon: Mail, label: "Email Delivery", path: "/dashboard/emails" },
-    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
-  ];
+  // Role-based navigation: Employees only see My Growth Plan
+  const navItems = isAdmin || isManager || isSuperAdmin 
+    ? [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+        { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
+        ...(isManager ? [{ icon: Users, label: "My Team", path: "/dashboard/manager" }] : []),
+        { icon: Users, label: "Employees", path: "/dashboard/employees" },
+        { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
+        { icon: BookOpen, label: "Resources", path: "/dashboard/resources" },
+        { icon: Upload, label: "Import Resources", path: "/dashboard/resource-import" },
+        { icon: Settings, label: "Settings", path: "/dashboard/settings" },
+      ]
+    : [
+        { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
+        { icon: Settings, label: "Settings", path: "/dashboard/settings" },
+      ];
 
   const SidebarContent = () => (
     <>

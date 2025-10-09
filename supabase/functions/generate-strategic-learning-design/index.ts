@@ -67,18 +67,19 @@ serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Unauthorized");
 
-    const { timeframe_years = 3, force_regenerate = false } = await req.json();
+    const { timeframe_years = 3, force_regenerate = false, viewAsCompanyId } = await req.json();
 
-    // Get user's company
+    // Get user's company and determine effective company ID
     const { data: profile } = await supabase
       .from("profiles")
-      .select("company_id, is_admin")
+      .select("company_id, is_admin, is_super_admin")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_admin) throw new Error("Admin access required");
+    if (!profile?.is_admin && !profile?.is_super_admin) throw new Error("Admin access required");
 
-    const companyId = profile.company_id;
+    // Use viewAsCompanyId if provided (for super admins), otherwise use user's company
+    const companyId = viewAsCompanyId || profile.company_id;
 
     // Check for existing valid report
     if (!force_regenerate) {
@@ -129,6 +130,13 @@ serve(async (req) => {
       .select("*")
       .eq("company_id", companyId);
 
+    // Fetch 90-day targets
+    const { data: targets } = await supabase
+      .from("ninety_day_targets")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("completed", false);
+
     // Fetch job descriptions
     const { data: jobDescriptions } = await supabase
       .from("job_descriptions")
@@ -145,6 +153,7 @@ serve(async (req) => {
         email: emp.email || "",
         capabilities: [],
         diagnostic: diagnostics?.find((d) => d.profile_id === emp.id),
+        goals: targets?.filter((t) => t.profile_id === emp.id) || [],
       });
     });
 
@@ -338,17 +347,30 @@ serve(async (req) => {
           .join("\n");
     }
 
+    // Build context about employee goals
+    const goalsContext = targets && targets.length > 0
+      ? `\n\n**Employee 90-Day Goals:**\n${targets.map(t => `- ${t.goal_text} (${employeeDataMap.get(t.profile_id)?.full_name || 'Unknown'})`).join('\n')}`
+      : '';
+
     // Generate AI narrative using Lovable AI
-    const narrativePrompt = `Hey! I'm Jericho, your AI leadership coach. I just analyzed your team's capability data and I'm genuinely excited to share what I found—there are some incredible growth opportunities here.
+    const narrativePrompt = `Hey! I'm Jericho, your AI leadership coach. I just analyzed your team's capability data, 90-day goals, and diagnostic responses. I'm genuinely excited to share what I found—there are some incredible growth opportunities here.
 
 Company Context:
 - Total Employees: ${employees.length}
 - Training Hotspots Identified: ${validCohorts.length}
 - Total employees needing training: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
 ${businessGoalsContext}
+${goalsContext}
 
 Training Hotspots:
-${validCohorts.map((c, i) => `${i + 1}. ${c.cohort_name}: ${c.employee_count} employees (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})`).join("\n")}
+${validCohorts.map((c, i) => {
+  const cohortEmployees = c.employee_ids.map(id => employeeDataMap.get(id));
+  const cohortGoals = cohortEmployees.flatMap(e => e?.goals || []).filter(g => g);
+  const goalsText = cohortGoals.length > 0 
+    ? ` (Related goals: ${cohortGoals.slice(0, 2).map(g => g.goal_text).join('; ')})` 
+    : '';
+  return `${i + 1}. ${c.cohort_name}: ${c.employee_count} employees (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})${goalsText}`;
+}).join("\n")}
 
 Budget Scenarios:
 - Conservative (Free Resources): $${totalConservative.toLocaleString()}
@@ -359,7 +381,7 @@ Write a 300-400 word narrative that is warm, direct, and action-oriented—profe
 
 1. **Open with excitement and context:** Start by acknowledging what you see—both the opportunities and the potential impact. Frame the gaps as growth edges, not failures. ${businessGoalsContext ? "**IMPORTANT: Connect the training hotspots to the business goals mentioned above.**" : ""}
 
-2. **Identify critical gaps and their impact:** Talk about the 2-3 most important skill gaps you identified. Connect each to real business outcomes—what happens if we close these gaps vs. what we risk if we don't (retention, productivity, innovation, revenue). ${businessGoalsContext ? "**Show how closing these gaps will help achieve their business goals.**" : ""}
+2. **Identify critical gaps and their impact:** Talk about the 2-3 most important skill gaps you identified. Connect each to real business outcomes—what happens if we close these gaps vs. what we risk if we don't (retention, productivity, innovation, revenue). ${businessGoalsContext ? "**Show how closing these gaps will help achieve their business goals.**" : ""} ${goalsContext ? "**CRITICAL: When recommending training, explicitly reference the employees' 90-day goals and explain HOW the training will help them achieve those specific goals. For example, if someone wants to become a better fiddle player, explain why fiddle lessons are recommended.**" : ""}
 
 3. **Bring in the research—naturally:** Reference industry data (Work Institute, ATD, Gallup, etc.) but weave it in conversationally. For example: "Research from the Work Institute shows that..." or "ATD found that..." Keep it evidence-based but not academic.
 
