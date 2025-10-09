@@ -2432,6 +2432,9 @@ export type Database = {
           created_at: string
           employee_count: number
           employee_ids: string[]
+          estimated_cost_aggressive: number | null
+          estimated_cost_conservative: number | null
+          estimated_cost_moderate: number | null
           estimated_cost_per_employee: number | null
           expected_roi_percentage: number | null
           id: string
@@ -2447,6 +2450,9 @@ export type Database = {
           created_at?: string
           employee_count: number
           employee_ids: string[]
+          estimated_cost_aggressive?: number | null
+          estimated_cost_conservative?: number | null
+          estimated_cost_moderate?: number | null
           estimated_cost_per_employee?: number | null
           expected_roi_percentage?: number | null
           id?: string
@@ -2462,6 +2468,9 @@ export type Database = {
           created_at?: string
           employee_count?: number
           employee_ids?: string[]
+          estimated_cost_aggressive?: number | null
+          estimated_cost_conservative?: number | null
+          estimated_cost_moderate?: number | null
           estimated_cost_per_employee?: number | null
           expected_roi_percentage?: number | null
           id?: string

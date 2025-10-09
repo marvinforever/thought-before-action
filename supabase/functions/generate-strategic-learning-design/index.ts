@@ -488,9 +488,9 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in
 
     // Insert cohorts (map to table schema)
     const cohortInserts = validCohorts.map((c) => {
-      const paid = c.recommended_solutions?.find((s: any) => s.type === "paid") || null;
-      const estPer = paid?.cost_per_person ?? 500;
-      const totalEst = paid?.total_cost ?? estPer * c.employee_count;
+      const moderateSolution = c.recommended_solutions?.find((s: any) => s.type === "moderate");
+      const estPer = moderateSolution?.cost_per_person ?? 1250;
+      const totalEst = moderateSolution?.total_cost ?? estPer * c.employee_count;
       const expectedRoiPct = totalModerate > 0
         ? Math.round(((retentionSavings + productivityGains - totalModerate) / totalModerate) * 100)
         : null;
@@ -505,6 +505,9 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in
         recommended_solutions: c.recommended_solutions,
         estimated_cost_per_employee: estPer,
         total_estimated_cost: totalEst,
+        estimated_cost_conservative: c.estimated_cost_conservative,
+        estimated_cost_moderate: c.estimated_cost_moderate,
+        estimated_cost_aggressive: c.estimated_cost_aggressive,
         expected_roi_percentage: expectedRoiPct,
         timeline_weeks: 8,
       };
