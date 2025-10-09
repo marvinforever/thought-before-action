@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface LearningPriority {
   id: string;
@@ -76,10 +77,11 @@ export const CompanyStrategicLearningTab = () => {
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<string>("");
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadData = async () => {
     try {

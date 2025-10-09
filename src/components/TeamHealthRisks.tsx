@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Flame, Frown, HelpCircle, Calendar, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface RiskFlag {
   id: string;
@@ -28,30 +29,44 @@ export function TeamHealthRisks({ onScheduleOneOnOne }: TeamHealthRisksProps) {
   const [loading, setLoading] = useState(true);
   const [riskFlags, setRiskFlags] = useState<RiskFlag[]>([]);
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadRiskFlags();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadRiskFlags = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get direct reports
-      const { data: assignments } = await supabase
-        .from("manager_assignments")
-        .select("employee_id")
-        .eq("manager_id", user.id);
+      let employeeIds: string[] = [];
+      let companyId = viewAsCompanyId;
 
-      const employeeIds = assignments?.map(a => a.employee_id) || [];
+      if (companyId) {
+        // Super admin viewing as company - get all employees in that company
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", companyId);
+        
+        employeeIds = profiles?.map(p => p.id) || [];
+      } else {
+        // Regular manager - get their direct reports
+        const { data: assignments } = await supabase
+          .from("manager_assignments")
+          .select("employee_id")
+          .eq("manager_id", user.id);
+
+        employeeIds = assignments?.map(a => a.employee_id) || [];
+      }
 
       if (employeeIds.length === 0) {
         setLoading(false);
         return;
       }
 
-      // Get unresolved risk flags for direct reports
+      // Get unresolved risk flags for team members
       const { data: risks, error } = await supabase
         .from("employee_risk_flags")
         .select(`

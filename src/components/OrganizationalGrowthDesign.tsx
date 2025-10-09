@@ -10,6 +10,7 @@ import { Download, TrendingUp, Users, DollarSign, Target, BookOpen, Sparkles } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StrategicLearningManagement } from "./StrategicLearningManagement";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface EmployeeGrowthData {
   id: string;
@@ -31,30 +32,38 @@ export const OrganizationalGrowthDesign = () => {
     estimatedRetentionImpact: 15,
   });
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadOrganizationalData();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadOrganizationalData = async () => {
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", session.session.user.id)
-        .maybeSingle();
+      // Determine company ID (either from viewAs context or user's profile)
+      let companyId = viewAsCompanyId;
+      
+      if (!companyId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", session.session.user.id)
+          .maybeSingle();
 
-      if (!profile?.company_id) return;
-      setCompanyId(profile.company_id);
+        if (!profile?.company_id) return;
+        companyId = profile.company_id;
+      }
+      
+      setCompanyId(companyId);
 
       // Get all employees in company
       const { data: employeeProfiles } = await supabase
         .from("profiles")
         .select("id, full_name, email")
-        .eq("company_id", profile.company_id);
+        .eq("company_id", companyId);
 
       if (!employeeProfiles) return;
 

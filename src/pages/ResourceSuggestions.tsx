@@ -13,6 +13,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 type ResourceSuggestion = {
   id: string;
@@ -39,16 +41,35 @@ export default function ResourceSuggestions() {
   const [selectedSuggestion, setSelectedSuggestion] = useState<ResourceSuggestion | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadSuggestions();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadSuggestions = async () => {
     try {
+      // Determine company ID (from viewAs or user's profile)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let companyId = viewAsCompanyId;
+
+      if (!companyId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile?.company_id) return;
+        companyId = profile.company_id;
+      }
+
       const { data, error } = await supabase
         .from("resource_suggestions" as any)
         .select("*")
+        .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

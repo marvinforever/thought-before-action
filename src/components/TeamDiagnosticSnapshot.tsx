@@ -5,6 +5,7 @@ import { AlertTriangle, TrendingUp, TrendingDown, Target, Users } from "lucide-r
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface DomainScore {
   domain: string;
@@ -24,10 +25,11 @@ export function TeamDiagnosticSnapshot() {
   });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadTeamStats();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadTeamStats = async () => {
     setLoading(true);
@@ -35,13 +37,27 @@ export function TeamDiagnosticSnapshot() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get manager's direct reports
-      const { data: assignments } = await supabase
-        .from("manager_assignments")
-        .select("employee_id, company_id")
-        .eq("manager_id", user.id);
+      let employeeIds: string[] = [];
+      let companyId = viewAsCompanyId;
 
-      const employeeIds = assignments?.map(a => a.employee_id) || [];
+      if (companyId) {
+        // Super admin viewing as company - get all employees in that company
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", companyId);
+        
+        employeeIds = profiles?.map(p => p.id) || [];
+      } else {
+        // Regular manager - get their direct reports
+        const { data: assignments } = await supabase
+          .from("manager_assignments")
+          .select("employee_id, company_id")
+          .eq("manager_id", user.id);
+
+        employeeIds = assignments?.map(a => a.employee_id) || [];
+        companyId = assignments?.[0]?.company_id;
+      }
       
       if (employeeIds.length === 0) {
         setLoading(false);
@@ -53,6 +69,7 @@ export function TeamDiagnosticSnapshot() {
         .from("diagnostic_responses")
         .select("*")
         .in("profile_id", employeeIds)
+        .eq("company_id", companyId)
         .not("submitted_at", "is", null);
 
       const diagnosticData = diagnostics || [];

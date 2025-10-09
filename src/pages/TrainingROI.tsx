@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useViewAs } from "@/contexts/ViewAsContext";
+import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 
 interface ROIMetric {
   id: string;
@@ -37,16 +39,23 @@ export default function TrainingROI() {
   const [generating, setGenerating] = useState(false);
   const [metrics, setMetrics] = useState<ROIMetric[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     checkAccess();
     loadMetrics();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const checkAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       navigate('/auth');
+      return;
+    }
+
+    // Check if viewing as another company or using own profile
+    if (viewAsCompanyId) {
+      setCompanyId(viewAsCompanyId);
       return;
     }
 
@@ -74,18 +83,24 @@ export default function TrainingROI() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', user.id)
-        .single();
+      // Determine company ID
+      let targetCompanyId = viewAsCompanyId;
+      
+      if (!targetCompanyId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single();
 
-      if (!profile?.company_id) return;
+        if (!profile?.company_id) return;
+        targetCompanyId = profile.company_id;
+      }
 
       const { data, error } = await supabase
         .from('training_roi_tracking')
         .select('*')
-        .eq('company_id', profile.company_id)
+        .eq('company_id', targetCompanyId)
         .order('measured_at', { ascending: false });
 
       if (error) throw error;
@@ -171,6 +186,8 @@ export default function TrainingROI() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ViewAsCompanyBanner />
+      
       {/* Header */}
       <div className="border-b bg-card/50">
         <div className="container max-w-7xl py-6">

@@ -46,33 +46,17 @@ export default function ManagerDashboard() {
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     checkManagerAccess();
-    loadDirectReports();
   }, []);
 
-  const checkManagerAccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate("/auth");
-      return;
+  useEffect(() => {
+    if (isManager) {
+      loadDirectReports();
     }
-
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .in("role", ["manager", "admin", "super_admin"]);
-
-    if (!roles || roles.length === 0) {
-      toast({
-        title: "Access Denied",
-        description: "You need manager access to view this page",
-        variant: "destructive",
-      });
-      navigate("/dashboard");
-    }
+  }, [viewAsCompanyId, isManager]);
   };
 
   const loadDirectReports = async () => {
@@ -81,8 +65,7 @@ export default function ManagerDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get direct reports
-      const { data: assignments, error: assignError } = await supabase
+      let assignmentsQuery = supabase
         .from("manager_assignments")
         .select(`
           employee_id,
@@ -93,8 +76,16 @@ export default function ManagerDashboard() {
             email,
             role
           )
-        `)
-        .eq("manager_id", user.id);
+        `);
+
+      // Filter by company if super admin is viewing as a company
+      if (viewAsCompanyId) {
+        assignmentsQuery = assignmentsQuery.eq("company_id", viewAsCompanyId);
+      } else {
+        assignmentsQuery = assignmentsQuery.eq("manager_id", user.id);
+      }
+
+      const { data: assignments, error: assignError } = await assignmentsQuery;
 
       if (assignError) throw assignError;
 
@@ -183,6 +174,8 @@ export default function ManagerDashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <ViewAsCompanyBanner />
+      
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-lg bg-primary p-8 text-primary-foreground shadow-lg">
         <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full -mr-32 -mt-32" />
