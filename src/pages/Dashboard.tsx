@@ -261,7 +261,7 @@ const Dashboard = () => {
 
       const domainScores: DomainScore[] = [
         { domain: "Retention", score: avgRetentionScore, risk: getRiskLevel(avgRetentionScore), impact: `${totalAtRisk} at risk (${highRiskCount} high, ${mediumRiskCount} medium)` },
-        { domain: "Engagement", score: avgEngagement, risk: getEngagementRisk(avgEngagement), impact: `${energyScores.filter(s => s <= 5).length} low energy` },
+        { domain: "Engagement", score: avgEngagement, risk: getEngagementRisk(avgEngagement), impact: ">75 = Low, 26-74 = Moderate, <26 = High" },
         { domain: "Burnout", score: 100 - burnoutScore, risk: getRiskLevel(100 - burnoutScore), impact: `${burnoutScores.filter(s => s >= 4).length} high burnout` },
         { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: `${managerScores.filter(s => s <= 5).length} low support` },
         { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: `${completeDiagnostics.length - careerPathCount} no path` },
