@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface CompanyStats {
@@ -57,6 +58,7 @@ const SuperAdmin = () => {
   const [diagnosticImporting, setDiagnosticImporting] = useState(false);
   const [diagnosticResult, setDiagnosticResult] = useState<ImportResult | null>(null);
   const [diagnosticCompanyId, setDiagnosticCompanyId] = useState("");
+  const [diagnosticText, setDiagnosticText] = useState("");
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -65,6 +67,13 @@ const SuperAdmin = () => {
   useEffect(() => {
     checkSuperAdminAccess();
   }, []);
+  
+  useEffect(() => {
+    if (!diagnosticCompanyId && companies.length) {
+      const winfield = companies.find(c => c.name.toLowerCase().includes('winfield'));
+      if (winfield) setDiagnosticCompanyId(winfield.id);
+    }
+  }, [companies, diagnosticCompanyId]);
 
   // One-time effect to create Winfield employees
   useEffect(() => {
@@ -465,6 +474,138 @@ const SuperAdmin = () => {
       });
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleDiagnosticImportFromText = async () => {
+    if (!diagnosticText.trim() || !diagnosticCompanyId) {
+      toast({
+        title: "Missing information",
+        description: "Please select a company and paste CSV data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDiagnosticImporting(true);
+    const errors: string[] = [];
+    let successCount = 0;
+    let failedCount = 0;
+    let newProfilesCount = 0;
+
+    try {
+      const rows = parseCSV(diagnosticText);
+
+      for (const row of rows) {
+        try {
+          let email = extractDiagnosticEmail(row);
+          if (!email) {
+            const name = extractDiagnosticFullName(row);
+            if (name) {
+              const { data: nameProfile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('company_id', diagnosticCompanyId)
+                .ilike('full_name', name)
+                .maybeSingle();
+              if (nameProfile?.email) {
+                email = nameProfile.email.toLowerCase();
+              }
+            }
+            if (!email) {
+              errors.push(`Row missing email address`);
+              failedCount++;
+              continue;
+            }
+          }
+
+          let profileId: string;
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('email', email)
+            .eq('company_id', diagnosticCompanyId)
+            .maybeSingle();
+
+          if (!profile) {
+            const fullName = extractDiagnosticFullName(row);
+            const jobTitle = extractDiagnosticJobTitle(row);
+
+            const { data: newEmployee, error: createError } = await supabase.functions.invoke('create-employee', {
+              body: {
+                email: email,
+                full_name: fullName,
+                role: jobTitle || null,
+                company_id: diagnosticCompanyId
+              }
+            });
+
+            if (createError || !newEmployee?.id) {
+              errors.push(`Failed to create employee ${email}: ${createError?.message || 'Unknown error'}`);
+              failedCount++;
+              continue;
+            }
+            profileId = newEmployee.id;
+            newProfilesCount++;
+          } else {
+            profileId = profile.id;
+
+            const jobTitle = extractDiagnosticJobTitle(row);
+            if (jobTitle) {
+              await supabase
+                .from('profiles')
+                .update({ role: jobTitle })
+                .eq('id', profileId)
+                .or('role.is.null,role.eq.');
+            }
+          }
+
+          const diagnosticData = mapCSVToDatabase(row);
+          const { error: insertError } = await supabase
+            .from("diagnostic_responses")
+            .insert([
+              {
+                ...diagnosticData,
+                profile_id: profileId,
+                company_id: diagnosticCompanyId,
+              }
+            ]);
+
+          if (insertError) {
+            errors.push(`Failed to import diagnostic for ${email}: ${insertError.message}`);
+            failedCount++;
+          } else {
+            successCount++;
+          }
+        } catch (error: any) {
+          errors.push(`Error processing row: ${error.message}`);
+          failedCount++;
+        }
+      }
+
+      setDiagnosticResult({
+        success: successCount,
+        failed: failedCount,
+        errors: errors.slice(0, 10),
+        newProfiles: newProfilesCount,
+      });
+
+      if (failedCount === 0 && successCount > 0) {
+        toast({
+          title: "Import completed",
+          description: `Successfully imported all ${successCount} diagnostic responses`,
+        });
+      }
+
+      loadCompanyData();
+    } catch (error: any) {
+      toast({
+        title: "Import failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDiagnosticImporting(false);
     }
   };
 
@@ -966,6 +1107,34 @@ const SuperAdmin = () => {
                     </>
                   )}
                 </Button>
+
+                <div className="pt-4 space-y-2">
+                  <Label className="text-sm font-medium">Or paste CSV data</Label>
+                  <Textarea
+                    value={diagnosticText}
+                    onChange={(e) => setDiagnosticText(e.target.value)}
+                    placeholder="Paste CSV rows here..."
+                    rows={8}
+                  />
+                  <Button
+                    onClick={handleDiagnosticImportFromText}
+                    disabled={!diagnosticText.trim() || !diagnosticCompanyId || diagnosticImporting}
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    {diagnosticImporting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <FileUp className="mr-2 h-4 w-4" />
+                        Import Pasted CSV
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {diagnosticResult && (
