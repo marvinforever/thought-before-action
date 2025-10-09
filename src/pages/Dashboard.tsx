@@ -11,6 +11,7 @@ import StrategicLearningDesignReport from "@/components/StrategicLearningDesignR
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { DomainDrilldownDialog } from "@/components/DomainDrilldownDialog";
 
 interface DomainScore {
   domain: string;
@@ -39,6 +40,9 @@ const Dashboard = () => {
     recentActivity: [] as Array<{ type: string; description: string; timestamp: Date; icon: string }>,
   });
   const [loading, setLoading] = useState(true);
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [selectedDomain, setSelectedDomain] = useState<DomainScore | null>(null);
+  const [employeeDetails, setEmployeeDetails] = useState<any[]>([]);
   const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
@@ -354,6 +358,126 @@ const Dashboard = () => {
     }
   };
 
+  const handleDomainClick = async (domain: DomainScore) => {
+    setSelectedDomain(domain);
+    
+    // Fetch employee details for this domain
+    const { data: session } = await supabase.auth.getSession();
+    if (!session.session) return;
+
+    let companyId = viewAsCompanyId;
+    if (!companyId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", session.session.user.id)
+        .maybeSingle();
+      if (!profile?.company_id) return;
+      companyId = profile.company_id;
+    }
+
+    const { data: diagnostics } = await supabase
+      .from("diagnostic_responses")
+      .select("*, profiles(full_name)")
+      .eq("company_id", companyId)
+      .not("submitted_at", "is", null);
+
+    if (!diagnostics) return;
+
+    // Calculate scores based on domain type
+    const employees = diagnostics.map((d: any) => {
+      let score = 0;
+      let risk: "low" | "medium" | "high" | "critical" = "low";
+
+      if (domain.domain === "Retention") {
+        const stayScore = parseInt(d.would_stay_if_offered_similar) || 0;
+        const growthScore = (d.additional_responses as any)?.engagement_scores?.growth_path_score || 0;
+        if (stayScore && growthScore) {
+          score = Math.round(((stayScore + growthScore) / 2) * 10);
+          if (score < 60) risk = "critical";
+          else if (score < 80) risk = "high";
+          else risk = "low";
+        }
+      } else if (domain.domain === "Engagement") {
+        const scores = (d.additional_responses as any)?.engagement_scores;
+        if (scores) {
+          score = Math.round(((scores.growth_path_score + scores.manager_feedback_score + scores.valued_score + scores.energy_score) / 4) * 10);
+          if (score >= 75) risk = "low";
+          else if (score >= 26) risk = "high";
+          else risk = "critical";
+        }
+      }
+
+      return {
+        id: d.profile_id,
+        name: (d.profiles as any)?.full_name || "Unknown",
+        score,
+        risk,
+      };
+    }).filter((e: any) => e.score > 0);
+
+    setEmployeeDetails(employees);
+    setDrilldownOpen(true);
+  };
+
+  const getDomainInsights = (domain: string, score: number) => {
+    if (domain === "Retention") {
+      if (score < 60) return "Critical retention risk detected. Immediate action required to prevent turnover.";
+      if (score < 80) return "Moderate retention concerns. Proactive engagement recommended.";
+      return "Retention is stable. Continue monitoring and supporting team members.";
+    }
+    if (domain === "Engagement") {
+      if (score < 26) return "Engagement is critically low. Team members may be disengaged or burnt out.";
+      if (score < 75) return "Engagement levels are moderate. There's room for improvement.";
+      return "High engagement detected. Team is energized and connected.";
+    }
+    return `${domain} score is ${score}. Monitor trends and take action as needed.`;
+  };
+
+  const getDomainRecommendations = (domain: string, score: number) => {
+    if (domain === "Retention") {
+      if (score < 60) return [
+        "Schedule immediate 1-on-1s with at-risk employees",
+        "Review compensation and career development opportunities",
+        "Conduct exit interviews to understand root causes",
+        "Implement retention bonuses or incentives where appropriate"
+      ];
+      if (score < 80) return [
+        "Increase frequency of check-ins with team members",
+        "Review workload and work-life balance",
+        "Clarify career paths and growth opportunities",
+        "Strengthen recognition and appreciation programs"
+      ];
+      return [
+        "Maintain current engagement practices",
+        "Continue regular 1-on-1 meetings",
+        "Celebrate wins and recognize contributions",
+        "Monitor for any changes in team dynamics"
+      ];
+    }
+    if (domain === "Engagement") {
+      if (score < 26) return [
+        "Conduct team engagement survey to identify issues",
+        "Address burnout and workload concerns immediately",
+        "Rebuild trust through transparent communication",
+        "Consider team-building activities and morale boosters"
+      ];
+      if (score < 75) return [
+        "Increase recognition and appreciation frequency",
+        "Create more opportunities for meaningful work",
+        "Improve communication and feedback loops",
+        "Invest in professional development programs"
+      ];
+      return [
+        "Sustain high engagement through continued support",
+        "Share success stories and celebrate achievements",
+        "Provide growth opportunities and challenges",
+        "Foster innovation and creative problem-solving"
+      ];
+    }
+    return ["Monitor this metric regularly", "Take action if trends worsen", "Communicate with your team"];
+  };
+
   const getRiskColor = (risk: string) => {
     switch (risk) {
       case "critical": return "text-destructive";
@@ -498,7 +622,11 @@ const Dashboard = () => {
           };
 
           return (
-            <Card key={domain.domain}>
+            <Card 
+              key={domain.domain} 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => handleDomainClick(domain)}
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-center">{domain.domain}</CardTitle>
                 <div className="flex justify-center">
@@ -622,6 +750,20 @@ const Dashboard = () => {
           <StrategicLearningDesignReport />
         </TabsContent>
       </Tabs>
+
+      {/* Domain Drilldown Dialog */}
+      {selectedDomain && (
+        <DomainDrilldownDialog
+          open={drilldownOpen}
+          onOpenChange={setDrilldownOpen}
+          domain={selectedDomain.domain}
+          score={selectedDomain.score}
+          risk={selectedDomain.risk}
+          employees={employeeDetails}
+          insights={getDomainInsights(selectedDomain.domain, selectedDomain.score)}
+          recommendations={getDomainRecommendations(selectedDomain.domain, selectedDomain.score)}
+        />
+      )}
     </div>
   );
 };
