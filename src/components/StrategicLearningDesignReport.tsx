@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import BusinessGoalsDialog from "@/components/BusinessGoalsDialog";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 type Report = {
   id: string;
@@ -59,10 +60,11 @@ export default function StrategicLearningDesignReport() {
   const [timeframe, setTimeframe] = useState<string>("3");
   const [budgetScenario, setBudgetScenario] = useState<"conservative" | "moderate" | "aggressive">("moderate");
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadReport();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadReport = async () => {
     try {
@@ -70,19 +72,25 @@ export default function StrategicLearningDesignReport() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
+      // Determine company ID (either from viewAs context or user's profile)
+      let companyId = viewAsCompanyId;
+      
+      if (!companyId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
 
-      if (!profile) return;
+        if (!profile?.company_id) return;
+        companyId = profile.company_id;
+      }
 
-      // Get latest report
+      // Get latest report for this company
       const { data: latestReport, error: reportError } = await supabase
         .from("strategic_learning_reports" as any)
         .select("*")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .order("generated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
