@@ -93,112 +93,55 @@ export function DomainDrilldownDialog({
           </CardContent>
         </Card>
 
+        {/* What This Means */}
+        <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-primary" />
+              What This Means
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm leading-relaxed">
+              {domain === "Retention" && "Retention reflects how connected your team feels to their work and the company. It's about belonging, purpose, and whether people see a future here. Low scores? That's your canary in the coal mine—people are mentally checking out before they physically leave."}
+              {domain === "Engagement" && "Engagement is the heartbeat of your team—it measures energy, motivation, and how much people genuinely care about their work. High engagement means people are fired up and bringing their A-game. Low engagement? That's the sound of people going through the motions."}
+              {domain === "Burnout" && "Burnout is the silent killer of performance. It shows up when demands consistently outpace capacity—when your team is running on fumes. High burnout means you're heading for a crash: mistakes, turnover, and a toxic ripple effect across the organization."}
+              {domain === "Manager" && "Manager Support measures whether your leaders are actually leading—providing clarity, removing obstacles, and helping people grow. Great managers multiply team performance. Weak ones? They're often the #1 reason talented people walk out the door."}
+              {domain === "Career" && "Career Development is about growth and possibility. Can people see where they're headed? Do they believe they're building skills that matter? When this score drops, it signals stagnation—and talented people don't stick around for stagnation."}
+              {domain === "Clarity" && "Role Clarity determines whether people know what's expected of them and how their work connects to the bigger picture. Confusion creates chaos. Clarity creates confidence. Low scores here mean your team is guessing instead of executing."}
+              {domain === "Learning" && "Learning Opportunities show whether your team is growing or stagnating. People want to get better, not just busier. When learning flatlines, motivation follows—and your best people start looking for challenges elsewhere."}
+              {domain === "Skills" && "Skills Confidence measures whether your team believes they have what it takes to succeed. Low confidence isn't just a morale issue—it's a performance killer. When people doubt their abilities, they play it safe, avoid challenges, and underperform."}
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Key Insights */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Key Insights
+              What's Really Happening
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm">{insights}</p>
-          </CardContent>
-        </Card>
-
-        {/* Employee Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Employee Breakdown ({employees.length} total)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {criticalEmployees.length > 0 && (
-              <div>
-                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                  Critical Risk ({criticalEmployees.length})
-                </h4>
-                <div className="space-y-1">
-                  {criticalEmployees.map(emp => (
-                    <div key={emp.id} className="text-sm flex justify-between items-center p-2 rounded bg-destructive/5">
-                      <span>{emp.name}</span>
-                      <span className="font-semibold text-destructive">{emp.score}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {highRiskEmployees.length > 0 && (
-              <div>
-                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                  High Risk ({highRiskEmployees.length})
-                </h4>
-                <div className="space-y-1">
-                  {highRiskEmployees.map(emp => (
-                    <div key={emp.id} className="text-sm flex justify-between items-center p-2 rounded bg-orange-100 dark:bg-orange-950">
-                      <span>{emp.name}</span>
-                      <span className="font-semibold text-orange-600">{emp.score}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {mediumRiskEmployees.length > 0 && (
-              <div>
-                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  Moderate Risk ({mediumRiskEmployees.length})
-                </h4>
-                <div className="space-y-1">
-                  {mediumRiskEmployees.slice(0, 5).map(emp => (
-                    <div key={emp.id} className="text-sm flex justify-between items-center p-2 rounded bg-yellow-100 dark:bg-yellow-950">
-                      <span>{emp.name}</span>
-                      <span className="font-semibold text-yellow-600">{emp.score}</span>
-                    </div>
-                  ))}
-                  {mediumRiskEmployees.length > 5 && (
-                    <p className="text-xs text-muted-foreground pl-2">
-                      + {mediumRiskEmployees.length - 5} more
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {lowRiskEmployees.length > 0 && (
-              <div>
-                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                  Low Risk ({lowRiskEmployees.length})
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  These employees are performing well in this area.
-                </p>
-              </div>
-            )}
+            <p className="text-sm leading-relaxed">{insights}</p>
           </CardContent>
         </Card>
 
         {/* Recommendations */}
-        <Card>
+        <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Recommended Actions
+              <TrendingUp className="h-5 w-5 text-primary" />
+              What You Should Do About It
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {recommendations.map((rec, idx) => (
-                <li key={idx} className="text-sm flex gap-2">
-                  <span className="text-primary font-bold">•</span>
-                  <span>{rec}</span>
+                <li key={idx} className="text-sm flex gap-3 items-start">
+                  <span className="text-primary font-bold text-lg leading-none mt-0.5">→</span>
+                  <span className="leading-relaxed">{rec}</span>
                 </li>
               ))}
             </ul>
