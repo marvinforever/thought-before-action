@@ -595,6 +595,15 @@ const SuperAdmin = () => {
       }
     }
 
+    // Final fallback: scan all cell values for an email-like pattern
+    const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+    for (const val of Object.values(row)) {
+      if (typeof val === 'string') {
+        const match = val.match(emailRegex);
+        if (match) return match[0].toLowerCase();
+      }
+    }
+
     return null;
   };
   const extractDiagnosticFullName = (row: any): string | null => {
@@ -639,11 +648,25 @@ const SuperAdmin = () => {
 
       for (const row of rows) {
         try {
-          const email = extractDiagnosticEmail(row);
+          let email = extractDiagnosticEmail(row);
           if (!email) {
-            errors.push(`Row missing email address`);
-            failedCount++;
-            continue;
+            const name = extractDiagnosticFullName(row);
+            if (name) {
+              const { data: nameProfile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('company_id', diagnosticCompanyId)
+                .ilike('full_name', name)
+                .maybeSingle();
+              if (nameProfile?.email) {
+                email = nameProfile.email.toLowerCase();
+              }
+            }
+            if (!email) {
+              errors.push(`Row missing email address`);
+              failedCount++;
+              continue;
+            }
           }
 
           let profileId: string;
