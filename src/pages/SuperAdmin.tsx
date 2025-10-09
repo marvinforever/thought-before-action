@@ -550,16 +550,53 @@ const SuperAdmin = () => {
   };
 
   const extractDiagnosticEmail = (row: any): string | null => {
-    const keys = ['Email Address','Email address','Email','email'];
-    for (const key of keys) {
+    // Try common exact header names first
+    const preferredKeys = [
+      'Email Address',
+      'Email address',
+      'Email',
+      'email',
+      'Work Email',
+      'Work email',
+      'Email (work)',
+      'Email Address (work)',
+      'Email Address (Work)',
+      'Email (hidden)',
+      'Email Address (hidden)',
+      'Hidden Fields: email',
+      'Hidden fields: email',
+      'hidden_email',
+      'work_email',
+    ];
+
+    const clean = (v: string) => {
+      let s = v.trim();
+      if (s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
+      if (s.toLowerCase().startsWith('mailto:')) s = s.slice(7).trim();
+      return s;
+    };
+
+    for (const key of preferredKeys) {
       const val = row[key];
       if (typeof val === 'string' && val.trim()) {
-        return val.trim().toLowerCase();
+        const s = clean(val);
+        if (s && s.includes('@')) return s.toLowerCase();
       }
     }
+
+    // Fallback: find any column whose header contains "email"
+    for (const k of Object.keys(row)) {
+      if (k.toLowerCase().includes('email')) {
+        const val = row[k];
+        if (typeof val === 'string' && val.trim()) {
+          const s = clean(val);
+          if (s && s.includes('@')) return s.toLowerCase();
+        }
+      }
+    }
+
     return null;
   };
-
   const extractDiagnosticFullName = (row: any): string | null => {
     const directKeys = ['Full Name','Full name','Name','name'];
     for (const key of directKeys) {
