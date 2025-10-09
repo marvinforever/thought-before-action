@@ -321,7 +321,6 @@ const Dashboard = () => {
       <Tabs defaultValue="health" className="space-y-6">
         <TabsList>
           <TabsTrigger value="health">Organizational Health</TabsTrigger>
-          <TabsTrigger value="growth">Strategic Growth Design</TabsTrigger>
           <TabsTrigger value="learning">Strategic Learning Design</TabsTrigger>
         </TabsList>
 
@@ -337,26 +336,42 @@ const Dashboard = () => {
       </div>
 
       {/* Executive Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-destructive">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className={`border-l-4 ${stats.atRiskEmployees === 0 ? 'border-l-green-600' : 'border-l-destructive'}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Employees at Risk</CardTitle>
-            <AlertTriangle className="h-5 w-5 text-destructive" />
+            {stats.atRiskEmployees === 0 ? (
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            )}
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.atRiskEmployees}</div>
-            <p className="text-xs text-muted-foreground mt-1">High retention risk</p>
+            <div className={`text-3xl font-bold ${stats.atRiskEmployees === 0 ? 'text-green-600' : ''}`}>
+              {stats.atRiskEmployees}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.atRiskEmployees === 0 ? 'No retention concerns' : 'High retention risk'}
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-600">
+        <Card className={`border-l-4 ${stats.estimatedTurnoverCost === 0 ? 'border-l-green-600' : 'border-l-orange-600'}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Turnover Cost Risk</CardTitle>
-            <DollarSign className="h-5 w-5 text-orange-600" />
+            {stats.estimatedTurnoverCost === 0 ? (
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            ) : (
+              <DollarSign className="h-5 w-5 text-orange-600" />
+            )}
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">${Math.round(stats.estimatedTurnoverCost / 1000)}K</div>
-            <p className="text-xs text-muted-foreground mt-1">Estimated replacement cost</p>
+            <div className={`text-3xl font-bold ${stats.estimatedTurnoverCost === 0 ? 'text-green-600' : ''}`}>
+              ${stats.estimatedTurnoverCost === 0 ? '0' : `${Math.round(stats.estimatedTurnoverCost / 1000)}K`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.estimatedTurnoverCost === 0 ? 'No cost exposure' : 'Estimated replacement cost'}
+            </p>
           </CardContent>
         </Card>
 
@@ -373,24 +388,6 @@ const Dashboard = () => {
               icon={<TrendingUp className="h-5 w-5 text-accent" />}
               description="Average energy level"
               colorScheme="accent"
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground">Diagnostics Complete</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center py-4">
-            <Gauge 
-              value={stats.diagnosticsCompleted} 
-              max={stats.employees}
-              size={140}
-              strokeWidth={14}
-              icon={<Users className="h-5 w-5 text-primary" />}
-              label={`${stats.employees > 0 ? Math.round((stats.diagnosticsCompleted / stats.employees) * 100) : 0}%`}
-              description="participation rate"
-              colorScheme="default"
             />
           </CardContent>
         </Card>
@@ -536,10 +533,6 @@ const Dashboard = () => {
 
       {/* Employee Interest Indicators */}
       <EmployeeInterestIndicators />
-        </TabsContent>
-
-        <TabsContent value="growth">
-          <OrganizationalGrowthDesign />
         </TabsContent>
 
         <TabsContent value="learning">

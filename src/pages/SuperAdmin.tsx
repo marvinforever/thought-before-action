@@ -13,8 +13,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { PendingCapabilitiesTab } from "@/components/PendingCapabilitiesTab";
-import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
 
 interface CompanyStats {
   id: string;
@@ -669,8 +667,6 @@ const SuperAdmin = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="diagnostics">Import Diagnostics</TabsTrigger>
-          <TabsTrigger value="pending">Pending Capabilities</TabsTrigger>
-          <TabsTrigger value="watchlist">Standard Cap Watchlist</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -891,14 +887,6 @@ const SuperAdmin = () => {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="pending">
-          <PendingCapabilitiesTab />
-        </TabsContent>
-
-        <TabsContent value="watchlist">
-          <StandardCapWatchlistTab />
         </TabsContent>
       </Tabs>
 

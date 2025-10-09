@@ -162,9 +162,9 @@ export default function InteractiveCapabilityCard({
                           </span>
                         </div>
                         {resource.rating && (
-                          <div className="flex items-center gap-1 text-xs">
+                          <div className="flex items-center gap-1 text-xs flex-shrink-0">
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span>{resource.rating}</span>
+                            <span className="font-medium">{resource.rating.toFixed(1)}</span>
                           </div>
                         )}
                       </div>

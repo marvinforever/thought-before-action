@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles, X } from "lucide-react";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
@@ -613,6 +613,32 @@ export default function MyGrowthPlan() {
     }
   };
 
+  const removeResource = async (recommendationId: string) => {
+    try {
+      const { error } = await supabase
+        .from("content_recommendations")
+        .update({ 
+          expires_at: new Date().toISOString() // Set to expire immediately to hide it
+        })
+        .eq("id", recommendationId);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Resource removed",
+        description: "This resource has been removed from your plan.",
+      });
+      
+      loadGrowthPlan();
+    } catch (error: any) {
+      toast({
+        title: "Error removing resource",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getContentIcon = (type: string) => {
     switch (type) {
       case "book":
@@ -649,7 +675,9 @@ export default function MyGrowthPlan() {
   };
 
   const filteredResources = resources.filter((item) => {
-    if (selectedStatus === "all") return true;
+    // For "My Plan", exclude completed resources
+    if (selectedStatus === "all") return item.status !== "completed";
+    if (selectedStatus === "completed") return item.status === "completed";
     return item.status === selectedStatus;
   }).filter((item) => {
     if (contentTypeFilter === "all") return true;
@@ -818,26 +846,6 @@ export default function MyGrowthPlan() {
                 />
               ))}
             </div>
-            <div className="mt-4 flex justify-end">
-              <Button
-                onClick={handleGetRecommendations}
-                disabled={isGeneratingRecommendations}
-                variant="accent"
-                className="gap-2 shadow-lg"
-              >
-                {isGeneratingRecommendations ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Jericho is thinking...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    Get Recommendations
-                  </>
-                )}
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -866,19 +874,47 @@ export default function MyGrowthPlan() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">{completedCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Great progress!</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-3xl font-bold text-green-600">{completedCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {completedCount > 0 ? `${Math.round((completedCount / resources.length) * 100)}% complete` : 'Start learning!'}
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Get Recommendations Button - Relocated */}
+      <div className="flex justify-end">
+        <Button
+          onClick={handleGetRecommendations}
+          disabled={isGeneratingRecommendations}
+          variant="accent"
+          size="lg"
+          className="gap-2 shadow-lg"
+        >
+          {isGeneratingRecommendations ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Jericho is thinking...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" />
+              Get Recommendations
+            </>
+          )}
+        </Button>
       </div>
 
       <div ref={tabsRef}>
         <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
           <div className="flex items-center justify-between mb-4">
             <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="strategic">Strategic Roadmap</TabsTrigger>
-              <TabsTrigger value="roadmap">AI Learning Roadmap</TabsTrigger>
-              <TabsTrigger value="all">My Plan ({resources.length})</TabsTrigger>
+              <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
+              <TabsTrigger value="all">My Plan ({resources.filter(r => r.status !== "completed").length})</TabsTrigger>
               <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
               <TabsTrigger value="clicked">In Progress</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
@@ -892,19 +928,22 @@ export default function MyGrowthPlan() {
             </div>
           </div>
 
-          <TabsContent value="strategic" className="mt-6">
-            <StrategicRoadmapTab />
+          <TabsContent value="roadmap" className="mt-6">
+            <div className="space-y-6">
+              <StrategicRoadmapTab />
+              <LearningRoadmapWrapper />
+            </div>
           </TabsContent>
 
-          <TabsContent value="roadmap" className="mt-6">
-            <LearningRoadmapWrapper />
+          <TabsContent value="company-learning" className="mt-6">
+            <CompanyStrategicLearningTab />
           </TabsContent>
 
           <TabsContent value="organizational" className="mt-6">
             <OrganizationalContextTab />
           </TabsContent>
 
-        <TabsContent value="all-resources" className="mt-6">
+          <TabsContent value="all-resources" className="mt-6">
           {filteredAllResources.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
@@ -1001,8 +1040,8 @@ export default function MyGrowthPlan() {
                 return (
                   <Card key={item.id} className="hover:shadow-md transition-shadow">
                     <CardHeader>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
+                       <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
                           {getContentIcon(resource.content_type)}
                           <Badge className={getLevelColor(resource.capability_level)}>
                             {getLevelLabel(resource.capability_level)}
@@ -1014,12 +1053,24 @@ export default function MyGrowthPlan() {
                             </Badge>
                           )}
                         </div>
-                        {resource.rating && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                            <span className="font-medium">{resource.rating}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {resource.rating && (
+                            <div className="flex items-center gap-1 text-sm">
+                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              <span className="font-medium">{resource.rating.toFixed(1)}</span>
+                            </div>
+                          )}
+                          {item.status !== "completed" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => removeResource(item.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <CardTitle className="text-lg line-clamp-2">{resource.title}</CardTitle>
                       {resource.authors && (

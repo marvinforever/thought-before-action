@@ -233,16 +233,19 @@ export const EmployeeInterestIndicators = () => {
                         )}
                       </div>
                     </div>
-                    {(!indicator.manager_viewed || !indicator.admin_viewed) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => markAsViewed(indicator.id, true)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Mark Viewed
-                      </Button>
-                    )}
+                    <div className="flex gap-2 flex-shrink-0">
+                      {/* TODO: Add Approve functionality to auto-assign capability */}
+                      {(!indicator.manager_viewed || !indicator.admin_viewed) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => markAsViewed(indicator.id, true)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Mark Viewed
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
