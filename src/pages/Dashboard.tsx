@@ -9,6 +9,8 @@ import { EmployeeInterestIndicators } from "@/components/EmployeeInterestIndicat
 import { GrowthAtAGlance } from "@/components/GrowthAtAGlance";
 import StrategicLearningDesignReport from "@/components/StrategicLearningDesignReport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface DomainScore {
   domain: string;
@@ -35,34 +37,41 @@ const Dashboard = () => {
     recentActivity: [] as Array<{ type: string; description: string; timestamp: Date; icon: string }>,
   });
   const [loading, setLoading] = useState(true);
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadStats = async () => {
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", session.session.user.id)
-        .maybeSingle();
+      // Check if viewing as another company (super admin feature)
+      let companyId = viewAsCompanyId;
+      
+      if (!companyId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", session.session.user.id)
+          .maybeSingle();
 
-      if (!profile?.company_id) return;
+        if (!profile?.company_id) return;
+        companyId = profile.company_id;
+      }
 
       // Only get employees and diagnostics for THIS specific company
       const [employeesRes, diagnosticDataRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("id", { count: "exact" })
-          .eq("company_id", profile.company_id),
+          .eq("company_id", companyId),
         supabase
           .from("diagnostic_responses")
           .select("*")
-          .eq("company_id", profile.company_id)
+          .eq("company_id", companyId)
           .not("submitted_at", "is", null),
       ]);
 
@@ -201,26 +210,26 @@ const Dashboard = () => {
         supabase
           .from("one_on_one_notes")
           .select("meeting_date, manager_id, employee_id, profiles!one_on_one_notes_employee_id_fkey(full_name)")
-          .eq("company_id", profile.company_id)
+          .eq("company_id", companyId)
           .order("created_at", { ascending: false })
           .limit(5),
         supabase
           .from("capability_level_requests")
           .select("created_at, status, profiles!capability_level_requests_profile_id_fkey(full_name)")
-          .eq("company_id", profile.company_id)
+          .eq("company_id", companyId)
           .order("created_at", { ascending: false })
           .limit(5),
         supabase
           .from("ninety_day_targets")
           .select("updated_at, completed, goal_text, profiles(full_name)")
-          .eq("company_id", profile.company_id)
+          .eq("company_id", companyId)
           .eq("completed", true)
           .order("updated_at", { ascending: false })
           .limit(5),
         supabase
           .from("one_on_one_notes")
           .select("created_at, wins, profiles!one_on_one_notes_employee_id_fkey(full_name)")
-          .eq("company_id", profile.company_id)
+          .eq("company_id", companyId)
           .not("wins", "is", null)
           .order("created_at", { ascending: false })
           .limit(5),
@@ -318,6 +327,8 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      <ViewAsCompanyBanner />
+      
       <Tabs defaultValue="health" className="space-y-6">
         <TabsList>
           <TabsTrigger value="health">Organizational Health</TabsTrigger>

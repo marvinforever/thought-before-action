@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface CompanyStats {
   id: string;
@@ -59,6 +60,7 @@ const SuperAdmin = () => {
   
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { setViewAsCompany } = useViewAs();
 
   useEffect(() => {
     checkSuperAdminAccess();
@@ -740,14 +742,14 @@ const SuperAdmin = () => {
                 <TableHead>Employees</TableHead>
                 <TableHead>Responses</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {companies.map((company) => (
                 <TableRow 
                   key={company.id} 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => navigate("/dashboard/employees")}
+                  className="hover:bg-muted/50 transition-colors"
                 >
                   <TableCell className="font-medium">{company.name}</TableCell>
                   <TableCell>
@@ -755,6 +757,19 @@ const SuperAdmin = () => {
                   </TableCell>
                   <TableCell>{company.totalResponses}</TableCell>
                   <TableCell>{new Date(company.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        setViewAsCompany(company.id, company.name);
+                        navigate("/dashboard");
+                      }}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View As
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

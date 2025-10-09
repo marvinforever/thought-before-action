@@ -17,6 +17,8 @@ import { JobDescriptionDialog } from "@/components/JobDescriptionDialog";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AssignManagerDialog } from "@/components/AssignManagerDialog";
+import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface Employee {
   id: string;
@@ -58,25 +60,41 @@ const Employees = () => {
   const [resettingPassword, setResettingPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     loadEmployees();
-  }, []);
+  }, [viewAsCompanyId]);
 
   const loadEmployees = async () => {
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id, is_super_admin")
-        .eq("id", session.session.user.id)
-        .single();
+      // Check if viewing as another company (super admin feature)
+      let companyId = viewAsCompanyId;
+      let superAdminStatus = false;
+      
+      if (!companyId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id, is_super_admin")
+          .eq("id", session.session.user.id)
+          .single();
 
-      if (!profile) return;
+        if (!profile) return;
+        
+        superAdminStatus = profile.is_super_admin || false;
+        setIsSuperAdmin(superAdminStatus);
 
-      setIsSuperAdmin(profile.is_super_admin || false);
+        // If super admin and not viewing as a company, show all
+        if (!superAdminStatus) {
+          companyId = profile.company_id;
+        }
+      } else {
+        // When viewing as a company, we're in super admin mode
+        setIsSuperAdmin(true);
+      }
 
       let query = supabase
         .from("profiles")
@@ -91,9 +109,9 @@ const Employees = () => {
           diagnostic_responses (id)
         `);
 
-      // If not super admin, filter by company
-      if (!profile.is_super_admin) {
-        query = query.eq("company_id", profile.company_id);
+      // Filter by company if specified
+      if (companyId) {
+        query = query.eq("company_id", companyId);
       }
 
       const { data: profilesData } = await query;
@@ -381,6 +399,8 @@ const Employees = () => {
 
   return (
     <div className="space-y-6">
+      <ViewAsCompanyBanner />
+      
       {/* Password Display Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent>
