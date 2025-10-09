@@ -27,6 +27,8 @@ const Dashboard = () => {
     retentionRisk: 0,
     estimatedTurnoverCost: 0,
     atRiskEmployees: 0,
+    highRiskCount: 0,
+    mediumRiskCount: 0,
     domainScores: [] as DomainScore[],
     managerEffectiveness: 0,
     burnoutScore: 0,
@@ -133,10 +135,24 @@ const Dashboard = () => {
         percentage: employeeCount > 0 ? Math.round((diagnosticsCompleted / employeeCount) * 100) : 0
       });
 
-      // 1. RETENTION & FLIGHT RISK
-      const retentionScores = completeDiagnostics.map(d => parseInt(d.would_stay_if_offered_similar) || 0).filter(s => s > 0);
-      const highRiskCount = retentionScores.filter(s => s <= 5).length;
-      const retentionRisk = retentionScores.length > 0 ? Math.round((highRiskCount / retentionScores.length) * 100) : 0;
+      // 1. RETENTION & FLIGHT RISK - Two-question formula
+      // Formula: ((Q1: would_stay + Q2: growth_path) / 2) × 10 = Score (0-100)
+      // High Risk: < 60, Medium Risk: 60-79, Low Risk: 80+
+      const retentionScores = completeDiagnostics.map(d => {
+        const stayScore = parseInt(d.would_stay_if_offered_similar) || 0;
+        const growthScore = (d.additional_responses as any)?.engagement_scores?.growth_path_score || 0;
+        if (stayScore === 0 || growthScore === 0) return null;
+        return ((stayScore + growthScore) / 2) * 10; // 0-100 scale
+      }).filter(s => s !== null) as number[];
+      
+      const highRiskCount = retentionScores.filter(s => s < 60).length; // < 60 = High Risk
+      const mediumRiskCount = retentionScores.filter(s => s >= 60 && s < 80).length; // 60-79 = Medium Risk
+      const totalAtRisk = highRiskCount + mediumRiskCount; // Both count as "at risk"
+      
+      const avgRetentionScore = retentionScores.length > 0 
+        ? Math.round(retentionScores.reduce((a, b) => a + b, 0) / retentionScores.length) 
+        : 0;
+      
       const avgSalary = 75000; // Industry average
       const turnoverCost = Math.round(highRiskCount * avgSalary * 1.5);
 
@@ -211,14 +227,14 @@ const Dashboard = () => {
 
       // Domain scores with risk levels
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
-        if (score >= 75) return "low";
-        if (score >= 50) return "medium";
-        if (score >= 25) return "high";
+        if (score >= 90) return "low";
+        if (score >= 80) return "medium";
+        if (score >= 60) return "high";
         return "critical";
       };
 
       const domainScores: DomainScore[] = [
-        { domain: "Retention", score: 100 - retentionRisk, risk: getRiskLevel(100 - retentionRisk), impact: `$${Math.round(turnoverCost / 1000)}K at risk` },
+        { domain: "Retention", score: avgRetentionScore, risk: getRiskLevel(avgRetentionScore), impact: `${totalAtRisk} at risk (${highRiskCount} high, ${mediumRiskCount} medium)` },
         { domain: "Engagement", score: avgEngagement, risk: getRiskLevel(avgEngagement), impact: `${energyScores.filter(s => s <= 5).length} low energy` },
         { domain: "Burnout", score: 100 - burnoutScore, risk: getRiskLevel(100 - burnoutScore), impact: `${burnoutScores.filter(s => s >= 4).length} high burnout` },
         { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: `${managerScores.filter(s => s <= 5).length} low support` },
@@ -291,9 +307,11 @@ const Dashboard = () => {
         employees: employeeCount,
         diagnosticsCompleted,
         avgEngagement,
-        retentionRisk,
+        retentionRisk: 100 - avgRetentionScore, // For display purposes
         estimatedTurnoverCost: turnoverCost,
-        atRiskEmployees: highRiskCount,
+        atRiskEmployees: totalAtRisk,
+        highRiskCount, // Add this for breakdown display
+        mediumRiskCount, // Add this for breakdown display
         domainScores,
         managerEffectiveness,
         burnoutScore,
@@ -385,7 +403,7 @@ const Dashboard = () => {
               {stats.atRiskEmployees}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.atRiskEmployees === 0 ? 'No retention concerns' : 'High retention risk'}
+              {stats.atRiskEmployees === 0 ? 'No retention concerns' : `${stats.highRiskCount} high risk, ${stats.mediumRiskCount} medium risk`}
             </p>
           </CardContent>
         </Card>

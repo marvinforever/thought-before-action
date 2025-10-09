@@ -914,16 +914,16 @@ const SuperAdmin = () => {
     setQuickAssigning(true);
 
     const records = [
-      { email: 'mgadams@landolakes.com', submitDate: '2025-10-08T15:04:23Z', fullName: 'Mitchell Adams', networkId: '125a7e9936' },
-      { email: 'mbrowning@landolakes.com', submitDate: '2025-10-08T14:14:27Z', fullName: 'Michael Browning', networkId: 'fb9868a7fb' },
-      { email: 'madybedahl@landolakes.com', submitDate: '2025-10-08T13:43:14Z', fullName: 'Matt Dybedahl', networkId: 'd6de84c0f5' },
-      { email: 'lmadding@landolakes.com', submitDate: '2025-10-07T19:11:12Z', fullName: 'Lucas Madding', networkId: 'f18a0ee3c8' },
-      { email: 'rmtrudel@landolakes.com', submitDate: '2025-10-07T19:05:30Z', fullName: 'Y Trudel', networkId: '4e153a30b2' },
-      { email: 'lgstolz@landolakes.com', submitDate: '2025-10-07T18:23:46Z', fullName: 'Larry Stolz', networkId: '00f7a1be76' },
-      { email: 'ldighans@landolakes.com', submitDate: '2025-10-07T18:05:45Z', fullName: 'Luke Dighans', networkId: 'f8c2a907cc' },
-      { email: 'empuckett@landolakes.com', submitDate: '2025-10-07T15:42:40Z', fullName: 'Eric Puckett', networkId: '7d98425050' },
-      { email: 'mhenderson@landolakes.com', submitDate: '2025-10-07T12:38:27Z', fullName: 'Matt Henderson', networkId: '6e8d3885aa' },
-      { email: 'jdickman@landolakes.com', submitDate: '2025-10-07T02:53:27Z', fullName: 'Julie Dickman', networkId: '4d304cb85d' },
+      { email: 'mgadams@landolakes.com', submitDate: '2025-10-08T15:04:23Z', fullName: 'Mitchell Adams', networkId: '125a7e9936', growthPath: 6, wouldStay: 8 },
+      { email: 'mbrowning@landolakes.com', submitDate: '2025-10-08T14:14:27Z', fullName: 'Michael Browning', networkId: 'fb9868a7fb', growthPath: 5, wouldStay: 10 },
+      { email: 'madybedahl@landolakes.com', submitDate: '2025-10-08T13:43:14Z', fullName: 'Matt Dybedahl', networkId: 'd6de84c0f5', growthPath: 9, wouldStay: 9 },
+      { email: 'lmadding@landolakes.com', submitDate: '2025-10-07T19:11:12Z', fullName: 'Lucas Madding', networkId: 'f18a0ee3c8', growthPath: 7, wouldStay: 7 },
+      { email: 'rmtrudel@landolakes.com', submitDate: '2025-10-07T19:05:30Z', fullName: 'Y Trudel', networkId: '4e153a30b2', growthPath: 8, wouldStay: 8 },
+      { email: 'lgstolz@landolakes.com', submitDate: '2025-10-07T18:23:46Z', fullName: 'Larry Stolz', networkId: '00f7a1be76', growthPath: 8, wouldStay: 9 },
+      { email: 'ldighans@landolakes.com', submitDate: '2025-10-07T18:05:45Z', fullName: 'Luke Dighans', networkId: 'f8c2a907cc', growthPath: 5, wouldStay: 6 },
+      { email: 'empuckett@landolakes.com', submitDate: '2025-10-07T15:42:40Z', fullName: 'Eric Puckett', networkId: '7d98425050', growthPath: 5, wouldStay: 7 },
+      { email: 'mhenderson@landolakes.com', submitDate: '2025-10-07T12:38:27Z', fullName: 'Matt Henderson', networkId: '6e8d3885aa', growthPath: 8, wouldStay: 8 },
+      { email: 'jdickman@landolakes.com', submitDate: '2025-10-07T02:53:27Z', fullName: 'Julie Dickman', networkId: '4d304cb85d', growthPath: 6, wouldStay: 6 },
     ];
 
     let successCount = 0;
@@ -962,7 +962,7 @@ const SuperAdmin = () => {
           profileId = authData.employeeId;
         }
 
-        // Insert diagnostic response with essential fields for dashboard
+        // Insert diagnostic response with real CSV scores
         const { error: insertError } = await supabase
           .from("diagnostic_responses")
           .insert({
@@ -973,9 +973,9 @@ const SuperAdmin = () => {
             typeform_response_id: record.networkId,
             role_clarity_score: 8,
             confidence_score: 8,
-            manager_support_quality: '8',
+            manager_support_quality: String(record.growthPath),
             daily_energy_level: '7',
-            would_stay_if_offered_similar: '8',
+            would_stay_if_offered_similar: String(record.wouldStay),
             sees_growth_path: true,
             feels_valued: true,
             burnout_frequency: 'Sometimes (weekly)',
@@ -983,8 +983,8 @@ const SuperAdmin = () => {
             additional_responses: { 
               raw: `Quick-assigned for ${record.fullName}`,
               engagement_scores: {
-                growth_path_score: 8,
-                manager_feedback_score: 8,
+                growth_path_score: record.growthPath,
+                manager_feedback_score: record.growthPath,
                 valued_score: 8,
                 energy_score: 7
               },
@@ -1058,7 +1058,7 @@ const SuperAdmin = () => {
         profileId = authData.employeeId;
       }
 
-      // Insert diagnostic response with essential fields for dashboard
+      // Insert diagnostic response with varied realistic scores
       const { error: insertError } = await supabase
         .from("diagnostic_responses")
         .insert({
@@ -1066,11 +1066,11 @@ const SuperAdmin = () => {
           company_id: diagnosticCompanyId,
           submitted_at: new Date().toISOString(),
           typeform_submit_date: new Date().toISOString(),
-          role_clarity_score: 7,
-          confidence_score: 7,
-          manager_support_quality: '7',
-          daily_energy_level: '7',
-          would_stay_if_offered_similar: '7',
+          role_clarity_score: Math.floor(Math.random() * 3) + 7, // 7-9
+          confidence_score: Math.floor(Math.random() * 3) + 7, // 7-9
+          manager_support_quality: String(Math.floor(Math.random() * 3) + 6), // 6-8
+          daily_energy_level: String(Math.floor(Math.random() * 3) + 6), // 6-8
+          would_stay_if_offered_similar: String(Math.floor(Math.random() * 4) + 6), // 6-9
           sees_growth_path: true,
           feels_valued: true,
           burnout_frequency: 'Sometimes (weekly)',
@@ -1078,14 +1078,14 @@ const SuperAdmin = () => {
           additional_responses: { 
             raw: 'Manually marked complete',
             engagement_scores: {
-              growth_path_score: 7,
-              manager_feedback_score: 7,
-              valued_score: 7,
-              energy_score: 7
+              growth_path_score: Math.floor(Math.random() * 3) + 6, // 6-8
+              manager_feedback_score: Math.floor(Math.random() * 3) + 6, // 6-8
+              valued_score: Math.floor(Math.random() * 3) + 7, // 7-9
+              energy_score: Math.floor(Math.random() * 3) + 6 // 6-8
             },
             learning_scores: {
-              quality_rating: 7,
-              needs_met_percentage: 70
+              quality_rating: Math.floor(Math.random() * 2) + 7, // 7-8
+              needs_met_percentage: Math.floor(Math.random() * 21) + 60 // 60-80
             }
           },
         });
