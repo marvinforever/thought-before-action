@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
@@ -62,6 +62,9 @@ const SuperAdmin = () => {
   const [quickAssigning, setQuickAssigning] = useState(false);
   const [manualEmail, setManualEmail] = useState("");
   const [manualMarking, setManualMarking] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+  const [createdPassword, setCreatedPassword] = useState("");
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -260,11 +263,39 @@ const SuperAdmin = () => {
     }
   };
 
+  const generateStrongPassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setTempPassword(password);
+  };
+
   const handleCreateEmployee = async () => {
     if (!newEmployee.email || !newEmployee.fullName || !selectedCompanyId) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields and select a company",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!tempPassword) {
+      toast({
+        title: "Validation error",
+        description: "Password is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (tempPassword.length < 8) {
+      toast({
+        title: "Validation error",
+        description: "Password must be at least 8 characters",
         variant: "destructive",
       });
       return;
@@ -279,18 +310,17 @@ const SuperAdmin = () => {
           role: newEmployee.role || null,
           phone: newEmployee.phone || null,
           company_id: selectedCompanyId,
+          password: tempPassword,
         }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Employee created successfully",
-      });
-
+      setCreatedPassword(tempPassword);
+      setShowPasswordDialog(true);
       setNewEmployee({ fullName: "", email: "", role: "", phone: "" });
       setSelectedCompanyId("");
+      setTempPassword("");
       setIsAddEmployeeOpen(false);
       loadCompanyData();
     } catch (error: any) {
@@ -420,12 +450,19 @@ const SuperAdmin = () => {
           if (!profile) {
             const fullName = extractFullName(row);
             const jobTitle = extractJobTitle(row);
+            // Generate a temporary password for CSV imports
+            const tempPass = Array.from({length: 12}, () => 
+              "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+              .charAt(Math.floor(Math.random() * 70))
+            ).join('');
+            
             const { data: newEmp, error: createError } = await supabase.functions.invoke('create-employee', {
               body: { 
                 email: email, 
                 full_name: fullName,
                 role: jobTitle || null,
-                company_id: importCompanyId
+                company_id: importCompanyId,
+                password: tempPass
               }
             });
 
@@ -1124,6 +1161,53 @@ const SuperAdmin = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Password Display Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              Employee Created Successfully
+            </DialogTitle>
+            <DialogDescription>
+              Save this password now - it won't be shown again
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={createdPassword}
+                  readOnly
+                  className="font-mono bg-muted"
+                />
+                <Button type="button" variant="outline" onClick={() => {
+                  navigator.clipboard.writeText(createdPassword);
+                  toast({
+                    title: "Copied!",
+                    description: "Password copied to clipboard",
+                  });
+                }}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>Important:</strong> Share this password securely with the employee. They should change it after their first login.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowPasswordDialog(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Super Admin Portal</h1>
@@ -1555,6 +1639,24 @@ const SuperAdmin = () => {
                 placeholder="+1 (555) 123-4567"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Temporary Password *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="password"
+                  type="text"
+                  value={tempPassword}
+                  onChange={(e) => setTempPassword(e.target.value)}
+                  placeholder="Enter or generate password"
+                />
+                <Button type="button" variant="outline" onClick={generateStrongPassword}>
+                  Generate
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Minimum 8 characters. This password will be shown once after creation.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -1563,6 +1665,7 @@ const SuperAdmin = () => {
                 setIsAddEmployeeOpen(false);
                 setNewEmployee({ fullName: "", email: "", role: "", phone: "" });
                 setSelectedCompanyId("");
+                setTempPassword("");
               }}
             >
               Cancel
