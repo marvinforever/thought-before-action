@@ -69,7 +69,7 @@ export default function Resources() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch resources with their capability links
+      // Resources are global/shared, no company filtering needed
       const { data: resourceData, error: resourceError } = await supabase
         .from('resources')
         .select('*')

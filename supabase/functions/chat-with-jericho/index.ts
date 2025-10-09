@@ -13,7 +13,7 @@ serve(async (req) => {
 
   try {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream } = await req.json();
+    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream, viewAsCompanyId } = await req.json();
 
     // Check if this is an org health advisory request (no auth needed, streaming)
     if (organizationContext && stream) {
@@ -117,7 +117,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
       });
     }
 
-    // Get user profile and company info
+    // Get user profile and determine effective company ID
     const { data: profile } = await supabase
       .from('profiles')
       .select('*, companies(name)')
@@ -127,6 +127,9 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     if (!profile) {
       throw new Error('Profile not found');
     }
+
+    // Use viewAsCompanyId if provided (super admin viewing as another company)
+    const effectiveCompanyId = viewAsCompanyId || profile.company_id;
 
     let conversation;
     let conversationMessages = [];
@@ -155,7 +158,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .from('conversations')
         .insert({
           profile_id: user.id,
-          company_id: profile.company_id,
+          company_id: effectiveCompanyId,
           title: message.substring(0, 50),
         })
         .select()

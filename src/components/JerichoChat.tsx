@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useViewAs } from '@/contexts/ViewAsContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -25,6 +26,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -128,6 +130,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
             conversationId,
             message: textToSend,
             contextType,
+            viewAsCompanyId,
             stream: true,
           }),
         }

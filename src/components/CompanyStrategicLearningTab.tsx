@@ -88,15 +88,31 @@ export const CompanyStrategicLearningTab = () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id, is_admin")
-        .eq("id", session.session.user.id)
-        .maybeSingle();
+      // Determine company ID (either from viewAs context or user's profile)
+      let effectiveCompanyId = viewAsCompanyId;
+      
+      if (!effectiveCompanyId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id, is_admin")
+          .eq("id", session.session.user.id)
+          .maybeSingle();
 
-      if (!profile?.company_id) return;
-      setCompanyId(profile.company_id);
-      setIsAdmin(profile.is_admin || false);
+        if (!profile?.company_id) return;
+        effectiveCompanyId = profile.company_id;
+        setIsAdmin(profile.is_admin || false);
+      } else {
+        // When viewing as another company, check if current user is super admin
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_super_admin")
+          .eq("id", session.session.user.id)
+          .maybeSingle();
+        
+        setIsAdmin(profile?.is_super_admin || false);
+      }
+      
+      setCompanyId(effectiveCompanyId);
 
       // Load learning priorities
       const { data: prioritiesData } = await supabase
@@ -108,7 +124,7 @@ export const CompanyStrategicLearningTab = () => {
             category
           )
         `)
-        .eq("company_id", profile.company_id)
+        .eq("company_id", effectiveCompanyId)
         .order("priority_level", { ascending: true });
 
       setPriorities(prioritiesData as any || []);
@@ -117,7 +133,7 @@ export const CompanyStrategicLearningTab = () => {
       const { data: investmentsData } = await supabase
         .from("learning_investments" as any)
         .select("*")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", effectiveCompanyId)
         .order("created_at", { ascending: false });
 
       setInvestments(investmentsData as any || []);
