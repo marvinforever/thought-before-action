@@ -35,9 +35,29 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
   const [priority, setPriority] = useState(String(employeeCapability.priority));
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [differenceReason, setDifferenceReason] = useState("");
   const { toast } = useToast();
 
+  const selfAssessedLevel = (employeeCapability as any).self_assessed_level;
+  const selfAssessmentNotes = (employeeCapability as any).self_assessment_notes;
+  const hasSelfAssessment = !!selfAssessedLevel;
+  const levelsDiffer = hasSelfAssessment && selfAssessedLevel !== currentLevel;
+
+  const getLevelLabel = (level: string) => {
+    const found = LEVELS.find(l => l.value === level);
+    return found ? found.label : level;
+  };
+
   const handleSubmit = async () => {
+    if (levelsDiffer && !differenceReason.trim()) {
+      toast({
+        title: "Explanation required",
+        description: "Please explain why your assessment differs from the employee's self-assessment",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -57,12 +77,18 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
           current_level: currentLevel as any,
           target_level: targetLevel as any,
           priority: parseInt(priority),
+          manager_assessed_at: new Date().toISOString(),
         })
         .eq("id", employeeCapability.id);
 
       if (updateError) throw updateError;
 
       // Log the adjustment
+      let adjustmentReason = reason || "";
+      if (levelsDiffer) {
+        adjustmentReason += ` | Manager vs Self-Assessment: ${differenceReason}`;
+      }
+
       const { error: logError } = await supabase
         .from("capability_adjustments")
         .insert({
@@ -73,7 +99,7 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
           new_level: currentLevel,
           previous_priority: employeeCapability.priority,
           new_priority: parseInt(priority),
-          adjustment_reason: reason || null,
+          adjustment_reason: adjustmentReason || null,
         });
 
       if (logError) throw logError;
@@ -129,6 +155,20 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
         </DialogHeader>
 
         <div className="space-y-4">
+          {hasSelfAssessment && (
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <h4 className="font-semibold text-sm">Employee's Self-Assessment</h4>
+              <p className="text-sm">
+                <span className="font-medium">Level:</span> {getLevelLabel(selfAssessedLevel)}
+              </p>
+              {selfAssessmentNotes && (
+                <p className="text-sm">
+                  <span className="font-medium">Notes:</span> {selfAssessmentNotes}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Current Level</Label>
             <Select value={currentLevel} onValueChange={setCurrentLevel}>
@@ -186,6 +226,24 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
               rows={3}
             />
           </div>
+
+          {levelsDiffer && (
+            <div className="space-y-2">
+              <Label className="text-orange-600">
+                Reason for Difference from Self-Assessment *
+              </Label>
+              <Textarea
+                placeholder="Explain why your assessment differs from the employee's self-assessment..."
+                value={differenceReason}
+                onChange={(e) => setDifferenceReason(e.target.value)}
+                rows={2}
+                className="border-orange-300 focus:border-orange-500"
+              />
+              <p className="text-xs text-muted-foreground">
+                Employee assessed as {getLevelLabel(selfAssessedLevel)}, you're setting as {getLevelLabel(currentLevel)}
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

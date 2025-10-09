@@ -20,6 +20,7 @@ import { LearningRoadmap } from "@/components/LearningRoadmap";
 import { StrategicRoadmapTab } from "@/components/StrategicRoadmapTab";
 import { OrganizationalContextTab } from "@/components/OrganizationalContextTab";
 import { CompanyStrategicLearningTab } from "@/components/CompanyStrategicLearningTab";
+import { SelfAssessCapabilitiesDialog } from "@/components/SelfAssessCapabilitiesDialog";
 
 type GrowthPlanResource = {
   id: string;
@@ -83,6 +84,8 @@ export default function MyGrowthPlan() {
   const [selectedResource, setSelectedResource] = useState<any>(null);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [selectedCapability, setSelectedCapability] = useState<EmployeeCapability | null>(null);
+  const [selfAssessDialogOpen, setSelfAssessDialogOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -819,13 +822,26 @@ export default function MyGrowthPlan() {
       {capabilities.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              My Capabilities
-            </CardTitle>
-            <CardDescription>
-              Focus areas for your professional development
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  My Capabilities
+                </CardTitle>
+                <CardDescription>
+                  Focus areas for your professional development
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => setSelfAssessDialogOpen(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Self-Assess
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 md:grid-cols-2">
@@ -1169,6 +1185,13 @@ export default function MyGrowthPlan() {
           }}
         />
       )}
+
+      {/* Self-Assess Capabilities Dialog */}
+      <SelfAssessCapabilitiesDialog
+        open={selfAssessDialogOpen}
+        onOpenChange={setSelfAssessDialogOpen}
+        profileId={currentUserId}
+      />
     </div>
   );
 }

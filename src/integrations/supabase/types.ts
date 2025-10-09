@@ -1080,8 +1080,12 @@ export type Database = {
           current_level: Database["public"]["Enums"]["capability_level"] | null
           id: string
           last_updated: string | null
+          manager_assessed_at: string | null
           priority: number | null
           profile_id: string | null
+          self_assessed_at: string | null
+          self_assessed_level: string | null
+          self_assessment_notes: string | null
           target_level: Database["public"]["Enums"]["capability_level"] | null
         }
         Insert: {
@@ -1091,8 +1095,12 @@ export type Database = {
           current_level?: Database["public"]["Enums"]["capability_level"] | null
           id?: string
           last_updated?: string | null
+          manager_assessed_at?: string | null
           priority?: number | null
           profile_id?: string | null
+          self_assessed_at?: string | null
+          self_assessed_level?: string | null
+          self_assessment_notes?: string | null
           target_level?: Database["public"]["Enums"]["capability_level"] | null
         }
         Update: {
@@ -1102,8 +1110,12 @@ export type Database = {
           current_level?: Database["public"]["Enums"]["capability_level"] | null
           id?: string
           last_updated?: string | null
+          manager_assessed_at?: string | null
           priority?: number | null
           profile_id?: string | null
+          self_assessed_at?: string | null
+          self_assessed_level?: string | null
+          self_assessment_notes?: string | null
           target_level?: Database["public"]["Enums"]["capability_level"] | null
         }
         Relationships: [

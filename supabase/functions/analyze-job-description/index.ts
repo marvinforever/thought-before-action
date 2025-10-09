@@ -48,12 +48,20 @@ ${capabilityContext}
 
 CRITICAL: You MUST use the EXACT UUID from the "ID:" field for each capability. Do NOT generate or modify capability IDs.
 
-Identify the top 3-7 most relevant capabilities for this job description.
+Identify up to 25 relevant capabilities for this job description (only include truly relevant ones - quality over quantity).
+
+IMPORTANT: Use a multi-pass analysis approach:
+1. First identify CRITICAL capabilities (absolutely essential for the role)
+2. Then identify IMPORTANT capabilities (needed for success)
+3. Finally identify DEVELOPMENTAL capabilities (valuable for growth)
+
+Try to cover multiple categories (Leadership, Communication, Technical, Strategic Thinking, etc.) where relevant.
+
 For each capability, provide:
 - Confidence score (0-100) indicating relevance
 - Current proficiency level the person likely has
 - Target proficiency level they should reach
-- Priority (1-5, where 5 is highest)
+- Priority (1-5, where 1 is HIGHEST priority and 5 is lowest)
 - Reasoning for why this capability is relevant`;
 
     const matchResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
