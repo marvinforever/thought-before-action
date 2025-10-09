@@ -43,6 +43,29 @@ const Dashboard = () => {
     loadStats();
   }, [viewAsCompanyId]);
 
+  // Real-time subscription for diagnostic data updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-diagnostics-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'diagnostic_responses'
+        },
+        (payload) => {
+          console.log('New diagnostic data received, refreshing dashboard...');
+          loadStats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [viewAsCompanyId]);
+
   const loadStats = async () => {
     try {
       const { data: session } = await supabase.auth.getSession();

@@ -54,6 +54,29 @@ export default function ManagerDashboard() {
     loadDirectReports();
   }, [viewAsCompanyId]);
 
+  // Real-time subscription for diagnostic data updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('manager-diagnostics-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'diagnostic_responses'
+        },
+        (payload) => {
+          console.log('New diagnostic data received, refreshing manager dashboard...');
+          loadDirectReports();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [viewAsCompanyId]);
+
   const loadDirectReports = async () => {
     setLoading(true);
     try {
