@@ -199,6 +199,29 @@ For each capability, provide:
         });
     }
 
+    // Actually assign the capabilities to the employee
+    const capabilitiesToInsert = sanitized.map((s: any) => ({
+      profile_id: employeeId,
+      capability_id: s.capability_id,
+      current_level: s.current_level,
+      target_level: s.target_level,
+      priority: s.priority,
+      ai_reasoning: s.reasoning,
+      assigned_at: new Date().toISOString(),
+      last_updated: new Date().toISOString()
+    }));
+
+    const { error: insertError } = await supabase
+      .from('employee_capabilities')
+      .insert(capabilitiesToInsert);
+
+    if (insertError) {
+      console.error('Error inserting employee capabilities:', insertError);
+      throw new Error('Failed to assign capabilities to employee');
+    }
+
+    console.log(`Successfully assigned ${sanitized.length} capabilities to employee ${employeeId}`);
+
     return new Response(JSON.stringify({ suggestions: sanitized }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
