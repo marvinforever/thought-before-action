@@ -59,6 +59,9 @@ const SuperAdmin = () => {
   const [diagnosticResult, setDiagnosticResult] = useState<ImportResult | null>(null);
   const [diagnosticCompanyId, setDiagnosticCompanyId] = useState("");
   const [diagnosticText, setDiagnosticText] = useState("");
+  const [quickAssigning, setQuickAssigning] = useState(false);
+  const [manualEmail, setManualEmail] = useState("");
+  const [manualMarking, setManualMarking] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -898,6 +901,173 @@ const SuperAdmin = () => {
     }
   };
 
+  const handleQuickAssignWinfield = async () => {
+    if (!diagnosticCompanyId) {
+      toast({
+        title: "No company selected",
+        description: "Please select Winfield United",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setQuickAssigning(true);
+
+    const records = [
+      { email: 'mgadams@landolakes.com', submitDate: '2025-10-08T15:04:23Z', fullName: 'Mitchell Adams', networkId: '125a7e9936' },
+      { email: 'mbrowning@landolakes.com', submitDate: '2025-10-08T14:14:27Z', fullName: 'Michael Browning', networkId: 'fb9868a7fb' },
+      { email: 'madybedahl@landolakes.com', submitDate: '2025-10-08T13:43:14Z', fullName: 'Matt Dybedahl', networkId: 'd6de84c0f5' },
+      { email: 'lmadding@landolakes.com', submitDate: '2025-10-07T19:11:12Z', fullName: 'Lucas Madding', networkId: 'f18a0ee3c8' },
+      { email: 'rmtrudel@landolakes.com', submitDate: '2025-10-07T19:05:30Z', fullName: 'Y Trudel', networkId: '4e153a30b2' },
+      { email: 'lgstolz@landolakes.com', submitDate: '2025-10-07T18:23:46Z', fullName: 'Larry Stolz', networkId: '00f7a1be76' },
+      { email: 'ldighans@landolakes.com', submitDate: '2025-10-07T18:05:45Z', fullName: 'Luke Dighans', networkId: 'f8c2a907cc' },
+      { email: 'empuckett@landolakes.com', submitDate: '2025-10-07T15:42:40Z', fullName: 'Eric Puckett', networkId: '7d98425050' },
+      { email: 'mhenderson@landolakes.com', submitDate: '2025-10-07T12:38:27Z', fullName: 'Matt Henderson', networkId: '6e8d3885aa' },
+      { email: 'jdickman@landolakes.com', submitDate: '2025-10-07T02:53:27Z', fullName: 'Julie Dickman', networkId: '4d304cb85d' },
+    ];
+
+    let successCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
+
+    for (const record of records) {
+      try {
+        // Find or create employee
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", diagnosticCompanyId)
+          .ilike("email", record.email)
+          .maybeSingle();
+
+        let profileId = existing?.id;
+
+        if (!profileId) {
+          // Create new employee
+          const { data: authData, error: authError } = await supabase.functions.invoke("create-employee", {
+            body: {
+              email: record.email,
+              full_name: record.fullName,
+              company_id: diagnosticCompanyId,
+              password: Math.random().toString(36).slice(-12),
+            },
+          });
+
+          if (authError) {
+            errors.push(`Failed to create ${record.email}: ${authError.message}`);
+            failedCount++;
+            continue;
+          }
+
+          profileId = authData.employeeId;
+        }
+
+        // Insert diagnostic response
+        const { error: insertError } = await supabase
+          .from("diagnostic_responses")
+          .insert({
+            profile_id: profileId,
+            company_id: diagnosticCompanyId,
+            submitted_at: record.submitDate,
+            typeform_submit_date: record.submitDate,
+            typeform_response_id: record.networkId,
+            additional_responses: { raw: `Quick-assigned for ${record.fullName}` },
+          });
+
+        if (insertError) {
+          errors.push(`Failed to insert diagnostic for ${record.email}: ${insertError.message}`);
+          failedCount++;
+        } else {
+          successCount++;
+        }
+      } catch (error: any) {
+        errors.push(`Error processing ${record.email}: ${error.message}`);
+        failedCount++;
+      }
+    }
+
+    setQuickAssigning(false);
+    
+    toast({
+      title: failedCount === 0 ? "Success!" : "Partial success",
+      description: `Assigned ${successCount} of 10 records. ${failedCount} failed.`,
+      variant: failedCount === 0 ? "default" : "destructive",
+    });
+
+    if (errors.length > 0) {
+      console.error("Quick assign errors:", errors);
+    }
+
+    loadCompanyData();
+  };
+
+  const handleManualMarkComplete = async () => {
+    if (!manualEmail.trim() || !diagnosticCompanyId) {
+      toast({
+        title: "Missing information",
+        description: "Please enter an email and select a company",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setManualMarking(true);
+
+    try {
+      // Find or create employee
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("company_id", diagnosticCompanyId)
+        .ilike("email", manualEmail.trim())
+        .maybeSingle();
+
+      let profileId = existing?.id;
+
+      if (!profileId) {
+        const { data: authData, error: authError } = await supabase.functions.invoke("create-employee", {
+          body: {
+            email: manualEmail.trim(),
+            company_id: diagnosticCompanyId,
+            password: Math.random().toString(36).slice(-12),
+          },
+        });
+
+        if (authError) throw new Error(authError.message);
+        profileId = authData.employeeId;
+      }
+
+      // Insert diagnostic response
+      const { error: insertError } = await supabase
+        .from("diagnostic_responses")
+        .insert({
+          profile_id: profileId,
+          company_id: diagnosticCompanyId,
+          submitted_at: new Date().toISOString(),
+          typeform_submit_date: new Date().toISOString(),
+          additional_responses: { raw: 'Manually marked complete' },
+        });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Success",
+        description: `Marked ${manualEmail.trim()} as complete`,
+      });
+
+      setManualEmail("");
+      loadCompanyData();
+    } catch (error: any) {
+      toast({
+        title: "Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setManualMarking(false);
+    }
+  };
+
   if (loading || !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1134,6 +1304,54 @@ const SuperAdmin = () => {
                       </>
                     )}
                   </Button>
+                </div>
+
+                <div className="pt-6 border-t space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium mb-2 block">Quick Actions for Demo</Label>
+                    <Button
+                      onClick={handleQuickAssignWinfield}
+                      disabled={!diagnosticCompanyId || quickAssigning}
+                      variant="default"
+                      className="w-full"
+                    >
+                      {quickAssigning ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Assigning...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Quick Assign for Winfield United (10)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Manual Mark Complete</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="email"
+                        placeholder="Enter email..."
+                        value={manualEmail}
+                        onChange={(e) => setManualEmail(e.target.value)}
+                        disabled={manualMarking}
+                      />
+                      <Button
+                        onClick={handleManualMarkComplete}
+                        disabled={!manualEmail.trim() || !diagnosticCompanyId || manualMarking}
+                        size="sm"
+                      >
+                        {manualMarking ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Mark Complete"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
