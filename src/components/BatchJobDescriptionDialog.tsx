@@ -30,48 +30,53 @@ export function BatchJobDescriptionDialog({ open, onOpenChange, employees }: Bat
     }
 
     setAnalyzing(true);
-    setProgress({ current: 0, total: employees.length });
+    setProgress({ current: 1, total: 1 });
     
-    let successCount = 0;
-    let failCount = 0;
+    try {
+      // Get company_id from the first employee's profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', employees[0].id)
+        .single();
 
-    for (let i = 0; i < employees.length; i++) {
-      const employee = employees[i];
-      setProgress({ current: i + 1, total: employees.length });
-
-      try {
-        const { error } = await supabase.functions.invoke("analyze-job-description", {
-          body: { 
-            employeeId: employee.id, 
-            jobDescription: description 
-          },
-        });
-
-        if (error) throw error;
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to analyze for ${employee.full_name}:`, error);
-        failCount++;
-      }
-    }
-
-    setAnalyzing(false);
-    
-    if (successCount > 0) {
-      toast({
-        title: "Analysis Complete",
-        description: `Successfully analyzed ${successCount} employee(s). ${failCount > 0 ? `${failCount} failed.` : ''}`,
+      const { data, error } = await supabase.functions.invoke("batch-analyze-job-description", {
+        body: { 
+          employeeIds: employees.map(e => e.id),
+          jobDescription: description,
+          companyId: profileData?.company_id
+        },
       });
-    } else {
+
+      if (error) throw error;
+
+      const { successCount, totalCount, failedEmployees } = data;
+      
+      if (successCount > 0) {
+        toast({
+          title: "Analysis Complete",
+          description: `Successfully assigned capabilities to ${successCount} of ${totalCount} employee(s). ${failedEmployees?.length > 0 ? `${failedEmployees.length} failed.` : 'All employees received identical capability assignments.'}`,
+        });
+      } else {
+        toast({
+          title: "Analysis Failed",
+          description: "Could not analyze any employees. Please try again.",
+          variant: "destructive",
+        });
+      }
+
+      setDescription("");
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Batch analysis failed:', error);
       toast({
         title: "Analysis Failed",
-        description: "Could not analyze any employees. Please try again.",
+        description: "An error occurred during analysis. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setAnalyzing(false);
     }
-
-    setDescription("");
-    onOpenChange(false);
   };
 
   return (
@@ -108,17 +113,11 @@ export function BatchJobDescriptionDialog({ open, onOpenChange, employees }: Bat
 
           {analyzing && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  Analyzing employee {progress.current} of {progress.total}...
+                  Analyzing job description and assigning capabilities to all {employees.length} employee(s)...
                 </p>
-              </div>
-              <div className="w-full bg-amber-200 rounded-full h-2 dark:bg-amber-900">
-                <div 
-                  className="bg-amber-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                />
               </div>
             </div>
           )}

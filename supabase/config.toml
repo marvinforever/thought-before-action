@@ -24,6 +24,9 @@ verify_jwt = true
 [functions.analyze-job-description]
 verify_jwt = true
 
+[functions.batch-analyze-job-description]
+verify_jwt = true
+
 [functions.recommend-resources]
 verify_jwt = true
 
