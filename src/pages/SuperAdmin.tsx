@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { createWinfieldEmployees } from "@/utils/createWinfieldEmployees";
 
 interface CompanyStats {
   id: string;
@@ -662,10 +663,35 @@ const SuperAdmin = () => {
           <h1 className="text-3xl font-bold">Super Admin Portal</h1>
           <p className="text-muted-foreground">Manage all companies and view platform-wide metrics</p>
         </div>
-        <Button onClick={() => setIsAddCompanyOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Company
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={async () => {
+              try {
+                toast({ title: "Creating employees...", description: "This may take a moment" });
+                const result = await createWinfieldEmployees();
+                toast({
+                  title: "Success!",
+                  description: `Created ${result.summary.successful} employees for Winfield`,
+                });
+                loadCompanyData();
+              } catch (error: any) {
+                toast({
+                  title: "Error",
+                  description: error.message,
+                  variant: "destructive",
+                });
+              }
+            }}
+            variant="outline"
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Winfield Employees
+          </Button>
+          <Button onClick={() => setIsAddCompanyOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Company
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">

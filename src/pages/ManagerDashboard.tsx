@@ -21,6 +21,8 @@ import { DiagnosticInsights } from "@/components/DiagnosticInsights";
 import { TeamDiagnosticSnapshot } from "@/components/TeamDiagnosticSnapshot";
 import { ReviewsTab } from "@/components/ReviewsTab";
 import { TeamHealthRisks } from "@/components/TeamHealthRisks";
+import { useViewAs } from "@/contexts/ViewAsContext";
+import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 
 type DirectReport = {
   id: string;
@@ -49,15 +51,8 @@ export default function ManagerDashboard() {
   const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
-    checkManagerAccess();
-  }, []);
-
-  useEffect(() => {
-    if (isManager) {
-      loadDirectReports();
-    }
-  }, [viewAsCompanyId, isManager]);
-  };
+    loadDirectReports();
+  }, [viewAsCompanyId]);
 
   const loadDirectReports = async () => {
     setLoading(true);
