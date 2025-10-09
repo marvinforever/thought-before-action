@@ -252,9 +252,16 @@ const Dashboard = () => {
         return "critical";                 // <60 = High Risk (red)
       };
 
+      // Engagement uses quartile-based risk assessment
+      const getEngagementRisk = (score: number): "low" | "medium" | "high" | "critical" => {
+        if (score >= 75) return "low";       // Top quartile = Low risk
+        if (score >= 25) return "high";      // Middle quartiles = Moderate risk (orange)
+        return "critical";                   // Bottom quartile = High risk (red)
+      };
+
       const domainScores: DomainScore[] = [
         { domain: "Retention", score: avgRetentionScore, risk: getRiskLevel(avgRetentionScore), impact: `${totalAtRisk} at risk (${highRiskCount} high, ${mediumRiskCount} medium)` },
-        { domain: "Engagement", score: avgEngagement, risk: getRiskLevel(avgEngagement), impact: `${energyScores.filter(s => s <= 5).length} low energy` },
+        { domain: "Engagement", score: avgEngagement, risk: getEngagementRisk(avgEngagement), impact: `${energyScores.filter(s => s <= 5).length} low energy` },
         { domain: "Burnout", score: 100 - burnoutScore, risk: getRiskLevel(100 - burnoutScore), impact: `${burnoutScores.filter(s => s >= 4).length} high burnout` },
         { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: `${managerScores.filter(s => s <= 5).length} low support` },
         { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: `${completeDiagnostics.length - careerPathCount} no path` },
