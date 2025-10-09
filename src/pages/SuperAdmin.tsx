@@ -118,14 +118,17 @@ const SuperAdmin = () => {
         const totalEmployees = profiles?.length || 0;
         const activeEmployees = profiles?.filter(p => p.is_active).length || 0;
 
-        // Get diagnostic responses
+        // Get diagnostic responses - count unique submitted diagnostics by profile
         const { data: responses } = await supabase
-          .from("diagnostic_responses")
-          .select("id")
-          .eq("company_id", company.id)
-          .not("submitted_at", "is", null);
+          .from('diagnostic_responses')
+          .select('profile_id')
+          .eq('company_id', company.id)
+          .not('profile_id', 'is', null)
+          .not('typeform_submit_date', 'is', null);
 
-        const totalResponses = responses?.length || 0;
+        const totalResponses = Array.isArray(responses)
+          ? new Set(responses.map(r => r.profile_id).filter(Boolean)).size
+          : 0;
 
         return {
           id: company.id,
