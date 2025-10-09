@@ -387,59 +387,64 @@ const Dashboard = () => {
       </div>
 
       {/* Executive Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className={`border-l-4 ${stats.atRiskEmployees === 0 ? 'border-l-green-600' : 'border-l-destructive'}`}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* High Risk - Critical (< 60) */}
+        <Card className={`border-l-4 transition-all hover:shadow-lg ${stats.highRiskCount === 0 ? 'border-l-green-600' : 'border-l-destructive'}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Employees at Risk</CardTitle>
-            {stats.atRiskEmployees === 0 ? (
+            {stats.highRiskCount === 0 ? (
               <TrendingUp className="h-5 w-5 text-green-600" />
             ) : (
               <AlertTriangle className="h-5 w-5 text-destructive" />
             )}
           </CardHeader>
           <CardContent>
-            <div className={`text-3xl font-bold ${stats.atRiskEmployees === 0 ? 'text-green-600' : ''}`}>
-              {stats.atRiskEmployees}
+            <div className={`text-4xl font-bold ${stats.highRiskCount === 0 ? 'text-green-600' : 'text-destructive'}`}>
+              {stats.highRiskCount}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.atRiskEmployees === 0 ? 'No retention concerns' : `${stats.highRiskCount} high risk, ${stats.mediumRiskCount} medium risk`}
+              {stats.highRiskCount === 0 ? 'No critical retention concerns' : 'Retention score < 60'}
             </p>
           </CardContent>
         </Card>
 
-        <Card className={`border-l-4 ${stats.estimatedTurnoverCost === 0 ? 'border-l-green-600' : 'border-l-orange-600'}`}>
+        {/* Medium Risk - Watch List (60-79) */}
+        <Card className={`border-l-4 transition-all hover:shadow-lg ${stats.mediumRiskCount === 0 ? 'border-l-green-600' : 'border-l-orange-600'}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Turnover Cost Risk</CardTitle>
-            {stats.estimatedTurnoverCost === 0 ? (
+            <CardTitle className="text-sm font-medium text-muted-foreground">Watch List</CardTitle>
+            {stats.mediumRiskCount === 0 ? (
               <TrendingUp className="h-5 w-5 text-green-600" />
             ) : (
-              <DollarSign className="h-5 w-5 text-orange-600" />
+              <Clock className="h-5 w-5 text-orange-600" />
             )}
           </CardHeader>
           <CardContent>
-            <div className={`text-3xl font-bold ${stats.estimatedTurnoverCost === 0 ? 'text-green-600' : ''}`}>
-              ${stats.estimatedTurnoverCost === 0 ? '0' : `${Math.round(stats.estimatedTurnoverCost / 1000)}K`}
+            <div className={`text-4xl font-bold ${stats.mediumRiskCount === 0 ? 'text-green-600' : 'text-orange-600'}`}>
+              {stats.mediumRiskCount}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.estimatedTurnoverCost === 0 ? 'No cost exposure' : 'Estimated replacement cost'}
+              {stats.mediumRiskCount === 0 ? 'No moderate risk employees' : 'Retention score 60-79'}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground">Engagement Score</CardTitle>
+        {/* Turnover Cost */}
+        <Card className={`border-l-4 transition-all hover:shadow-lg ${stats.estimatedTurnoverCost === 0 ? 'border-l-green-600' : 'border-l-destructive'}`}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Turnover Risk</CardTitle>
+            {stats.estimatedTurnoverCost === 0 ? (
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            ) : (
+              <DollarSign className="h-5 w-5 text-destructive" />
+            )}
           </CardHeader>
-          <CardContent className="flex items-center justify-center py-4">
-            <Gauge 
-              value={stats.avgEngagement} 
-              max={100}
-              size={140}
-              strokeWidth={14}
-              icon={<TrendingUp className="h-5 w-5 text-accent" />}
-              description="Average energy level"
-              colorScheme="accent"
-            />
+          <CardContent>
+            <div className={`text-4xl font-bold ${stats.estimatedTurnoverCost === 0 ? 'text-green-600' : ''}`}>
+              ${stats.estimatedTurnoverCost === 0 ? '0' : `${Math.round(stats.estimatedTurnoverCost / 1000)}K`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.estimatedTurnoverCost === 0 ? 'No cost exposure' : 'Estimated cost if high risk leave'}
+            </p>
           </CardContent>
         </Card>
       </div>
