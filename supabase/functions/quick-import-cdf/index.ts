@@ -272,28 +272,127 @@ async function insertDiagnostics(supabase: any, companyId: string) {
         energy_drain_area: 'keeping everyone busy and sales calls',
         daily_energy_level: '8', manager_support_quality: 'Good'
       }
+    },
+    {
+      email: "amuslanddfc@ndsupernet.com",
+      data: {
+        role_clarity_score: 10, has_written_job_description: true,
+        most_important_job_aspect: 'Maintaining and growing an agronomy business',
+        confidence_score: 8, natural_strength: 'Selling to people I know',
+        biggest_difficulty: 'Selling to people I\'ve never met',
+        skill_to_master: 'Getting sales from people I\'ve never met',
+        workload_status: 'very_manageable', burnout_frequency: 'Rarely (less than monthly)',
+        learning_preference: 'hands_on', weekly_development_hours: 2, learning_motivation: 'Skill improvement',
+        needed_training: 'Rejection comebacks',
+        growth_barrier: 'I have a lot of tools to be successful, not sure',
+        listens_to_podcasts: false, watches_youtube: true, reads_books_articles: true,
+        sees_growth_path: true, feels_valued: true, would_stay_if_offered_similar: '10',
+        retention_improvement_suggestion: 'They already are, DFC has been great',
+        sees_leadership_path: false,
+        three_year_goal: 'Grow my locations soybean bags and corn bags by 10-15% per year',
+        company_supporting_goal: true,
+        biggest_work_obstacle: 'Self doubt and confidence with new people',
+        biggest_frustration: 'Not sure',
+        why_people_leave_opinion: 'I think the company is growing and people aren\'t leaving anymore with new management',
+        what_enjoy_most: 'A solid support base from management and peers on random problems and things needed solutions',
+        leadership_should_understand: 'Transitional customer base maintenance',
+        additional_feedback: 'Nope! I\'ve had offers to leave and I choose to stay. I love the culture of DFC now!',
+        recent_accomplishment: 'Growing revenue with new customers over 1 million from previous year',
+        recent_challenge: 'Butting heads with co workers',
+        needed_training_for_effectiveness: 'How to be good at cold calling new customers and how to respond and react to rejection',
+        twelve_month_growth_goal: 'Make more sales calls on new customers base and try to get more business out of current customer base',
+        support_needed_from_leadership: 'Customer lists from surrounding area. Don\'t really know who to target',
+        one_year_vision: 'Continued growth of seed, chemical & fertilizer with a staff of employees that work great together',
+        typeform_response_id: 'q1z6z5uhwudvqbjoq1z6frkinudmtp3x',
+        typeform_start_date: '2025-10-09 14:14:40', typeform_submit_date: '2025-10-09 14:28:04',
+        mental_drain_frequency: 'Sometimes', focus_quality: 'Very well',
+        work_life_sacrifice_frequency: 'Rarely',
+        energy_drain_area: 'Fear of the unknown',
+        daily_energy_level: '10', manager_support_quality: 'Excellent'
+      }
     }
   ]
 
+  const errors = []
   let count = 0
+  
   for (const diag of diagnostics) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', diag.email)
-      .eq('company_id', companyId)
-      .single()
+    try {
+      console.log(`Processing diagnostic for: ${diag.email}`)
+      
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('email', diag.email)
+        .eq('company_id', companyId)
+        .single()
 
-    if (profile) {
-      await supabase.from('diagnostic_responses').insert({
-        company_id: companyId,
-        profile_id: profile.id,
-        submitted_at: new Date().toISOString(),
-        ...diag.data
-      })
-      count++
+      if (profileError) {
+        console.error(`Profile lookup error for ${diag.email}:`, profileError)
+        errors.push({ email: diag.email, error: 'Profile not found', details: profileError })
+        continue
+      }
+
+      if (!profile) {
+        console.error(`No profile found for ${diag.email}`)
+        errors.push({ email: diag.email, error: 'Profile not found' })
+        continue
+      }
+
+      console.log(`Found profile for ${diag.email}, ID: ${profile.id}`)
+
+      // Check if diagnostic already exists
+      const { data: existing } = await supabase
+        .from('diagnostic_responses')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .eq('company_id', companyId)
+        .single()
+
+      if (existing) {
+        console.log(`Diagnostic already exists for ${diag.email}, updating...`)
+        const { error: updateError } = await supabase
+          .from('diagnostic_responses')
+          .update({
+            ...diag.data,
+            submitted_at: new Date().toISOString()
+          })
+          .eq('id', existing.id)
+
+        if (updateError) {
+          console.error(`Update error for ${diag.email}:`, updateError)
+          errors.push({ email: diag.email, error: 'Update failed', details: updateError })
+        } else {
+          count++
+        }
+      } else {
+        console.log(`Inserting new diagnostic for ${diag.email}`)
+        const { error: insertError } = await supabase
+          .from('diagnostic_responses')
+          .insert({
+            company_id: companyId,
+            profile_id: profile.id,
+            submitted_at: new Date().toISOString(),
+            ...diag.data
+          })
+
+        if (insertError) {
+          console.error(`Insert error for ${diag.email}:`, insertError)
+          errors.push({ email: diag.email, error: 'Insert failed', details: insertError })
+        } else {
+          count++
+        }
+      }
+    } catch (error: any) {
+      console.error(`Exception processing ${diag.email}:`, error)
+      errors.push({ email: diag.email, error: error.message })
     }
   }
   
-  return count
+  console.log(`Diagnostics processed: ${count} successful, ${errors.length} failed`)
+  if (errors.length > 0) {
+    console.error('Errors:', JSON.stringify(errors, null, 2))
+  }
+  
+  return { count, errors }
 }
