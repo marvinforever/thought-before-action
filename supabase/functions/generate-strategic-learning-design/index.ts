@@ -60,17 +60,22 @@ serve(async (req) => {
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
     const authHeader = req.headers.get("Authorization")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
+    
+    // Create a client with user auth for user verification
+    const supabaseWithAuth = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // Create a service role client for database operations (bypasses RLS)
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: { user } } = await supabaseWithAuth.auth.getUser();
     if (!user) throw new Error("Unauthorized");
 
     const { timeframe_years = 3, force_regenerate = false, viewAsCompanyId } = await req.json();
 
     // Get user's company and determine effective company ID
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseWithAuth
       .from("profiles")
       .select("company_id, is_admin, is_super_admin")
       .eq("id", user.id)
@@ -495,18 +500,20 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in
       .from("strategic_learning_reports")
       .insert({
         company_id: companyId,
-        timeframe_years,
-        total_employees: employees.length,
-        total_cohorts: validCohorts.length,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         executive_summary: executiveSummary,
+        cohorts: validCohorts,
+        narrative: narrative,
         budget_scenarios: budgetScenarios,
         roi_projections: roiProjections,
-        generated_by: user.id,
       })
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error("Error in generate-strategic-learning-design:", insertError);
+      throw insertError;
+    }
 
     // Insert cohorts (map to table schema)
     const cohortInserts = validCohorts.map((c) => {
@@ -535,21 +542,21 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in
       };
     });
 
-    if (cohortInserts.length > 0) {
-      const { error: cohortError } = await supabase
-        .from("training_cohorts")
-        .insert(cohortInserts);
-      if (cohortError) console.error("Cohort insert error:", cohortError);
-    }
+    // Note: Cohort and notification inserts removed - those tables can be added later if needed
+    // if (cohortInserts.length > 0) {
+    //   const { error: cohortError } = await supabase
+    //     .from("training_cohorts")
+    //     .insert(cohortInserts);
+    //   if (cohortError) console.error("Cohort insert error:", cohortError);
+    // }
 
-    // Create notification
-    await supabase.from("strategic_learning_notifications").insert({
-      company_id: companyId,
-      report_id: newReport.id,
-      notification_type: "report_generated",
-      message: "Strategic Learning Design report has been generated",
-      sent_to: [user.id],
-    });
+    // await supabase.from("strategic_learning_notifications").insert({
+    //   company_id: companyId,
+    //   report_id: newReport.id,
+    //   notification_type: "report_generated",
+    //   message: "Strategic Learning Design report has been generated",
+    //   sent_to: [user.id],
+    // });
 
     console.log("Report generated successfully:", newReport.id);
 
