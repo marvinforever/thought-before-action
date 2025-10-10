@@ -329,7 +329,7 @@ export default function StrategicLearningDesignReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(roi.total_roi_moderate)}
+              {formatCurrency(roi.net_roi)}
             </div>
             <p className="text-xs text-muted-foreground">
               Break-even in {roi.break_even_months} months
@@ -559,9 +559,9 @@ export default function StrategicLearningDesignReport() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total ROI (Moderate Plan)</p>
+                  <p className="text-sm text-muted-foreground">Net ROI (Moderate Plan)</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(roi.total_roi_moderate)}
+                    {formatCurrency(roi.net_roi)}
                   </p>
                 </div>
               </div>
@@ -576,7 +576,7 @@ export default function StrategicLearningDesignReport() {
                     <strong>Productivity Gains:</strong> {roi.formulas?.productivity_gains}
                   </li>
                   <li>
-                    <strong>Total ROI:</strong> {roi.formulas?.total_roi}
+                    <strong>Net ROI:</strong> {roi.formulas?.net_roi}
                   </li>
                 </ul>
               </div>
