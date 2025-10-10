@@ -425,22 +425,52 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in
     const aiData = await aiResponse.json();
     const narrative = aiData.choices[0]?.message?.content || "Narrative generation failed.";
 
-    // Calculate ROI projections
-    const avgTurnoverCost = 50000; // Industry average
-    const estimatedRetentionImpact = 0.15; // 15% reduction in turnover
-    const retentionSavings = employees.length * avgTurnoverCost * estimatedRetentionImpact;
-    const productivityGains = employees.length * 5000; // $5k per employee productivity gain
-    const roiModerate = retentionSavings + productivityGains - totalModerate;
-    const breakEvenMonths = Math.ceil((totalModerate / (retentionSavings + productivityGains)) * 12);
+    // Calculate ROI projections based on actual data
+    const avgTurnoverCost = 75000; // Updated: includes recruiting, training, productivity loss
+    
+    // Calculate actual retention risk from diagnostics
+    const retentionScores = diagnostics?.map(d => parseInt(d.would_stay_if_offered_similar) || 5) || [];
+    const avgRetentionScore = retentionScores.length > 0 
+      ? retentionScores.reduce((a, b) => a + b, 0) / retentionScores.length 
+      : 5;
+    
+    // Employees at risk (score < 7 out of 10)
+    const atRiskCount = retentionScores.filter(s => s < 7).length;
+    
+    // More realistic retention impact based on training
+    // If training addresses key gaps, we can prevent 30-50% of at-risk turnover
+    const retentionImpactRate = 0.4; // 40% of at-risk employees retained
+    const employeesRetained = Math.max(1, Math.round(atRiskCount * retentionImpactRate));
+    const retentionSavings = employeesRetained * avgTurnoverCost;
+    
+    // Productivity gains scale with training impact
+    // Employees moving up capability levels see 10-20% productivity boost
+    const avgProductivityGain = 8000; // $8k per employee trained (conservative)
+    const employeesTrained = new Set(validCohorts.flatMap(c => c.employee_ids)).size;
+    const productivityGains = employeesTrained * avgProductivityGain;
+    
+    // Engagement boost value (reduced absenteeism, higher discretionary effort)
+    const engagementBoost = employees.length * 2000; // $2k per employee
+    
+    const totalBenefits = retentionSavings + productivityGains + engagementBoost;
+    const roiModerate = totalBenefits - totalModerate;
+    const roiPercentage = totalModerate > 0 ? Math.round((roiModerate / totalModerate) * 100) : 0;
+    const breakEvenMonths = totalModerate > 0 && totalBenefits > 0
+      ? Math.ceil((totalModerate / (totalBenefits / 12)))
+      : null;
 
     const executiveSummary = {
       total_employees: employees.length,
       employees_analyzed: employees.length,
-      employees_needing_training: new Set(validCohorts.flatMap((c) => c.employee_ids)).size,
+      employees_at_risk: atRiskCount,
+      employees_needing_training: employeesTrained,
       total_cohorts: validCohorts.length,
       total_investment_conservative: totalConservative,
       total_investment_moderate: totalModerate,
       total_investment_aggressive: totalAggressive,
+      expected_roi_moderate: roiModerate,
+      expected_roi_percentage: roiPercentage,
+      break_even_months: breakEvenMonths,
       narrative,
       top_priorities: validCohorts
         .sort((a, b) => a.priority - b.priority)
@@ -479,19 +509,35 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in
     };
 
     const roiProjections = {
+      at_risk_employees: atRiskCount,
+      employees_retained: employeesRetained,
       retention_savings: retentionSavings,
+      employees_trained: employeesTrained,
       productivity_gains: productivityGains,
-      total_roi_moderate: roiModerate,
+      engagement_boost: engagementBoost,
+      total_benefits: totalBenefits,
+      training_investment: totalModerate,
+      net_roi: roiModerate,
+      roi_percentage: roiPercentage,
       break_even_months: breakEvenMonths,
       formulas: {
-        retention_savings: "Employees × Avg Turnover Cost × Estimated Retention Impact",
-        productivity_gains: "Employees × $5,000 (industry benchmark)",
-        total_roi: "(Retention Savings + Productivity Gains) - Training Investment",
+        retention_savings: `${employeesRetained} employees retained × $${avgTurnoverCost.toLocaleString()} avg turnover cost`,
+        productivity_gains: `${employeesTrained} employees trained × $${avgProductivityGain.toLocaleString()} productivity boost`,
+        engagement_boost: `${employees.length} employees × $2,000 engagement value`,
+        total_roi: "Total Benefits - Training Investment",
+        roi_percentage: "(Net ROI ÷ Training Investment) × 100",
+      },
+      assumptions: {
+        avg_turnover_cost: avgTurnoverCost,
+        retention_impact_rate: `${Math.round(retentionImpactRate * 100)}% of at-risk employees retained`,
+        productivity_gain_per_employee: avgProductivityGain,
+        engagement_value: 2000,
       },
       sources: [
+        "Society for Human Resource Management (SHRM) 2024",
         "Work Institute 2023 Retention Report",
         "ATD State of the Industry 2023",
-        "Gallup Workplace Research",
+        "Gallup Employee Engagement Research",
       ],
     };
 
