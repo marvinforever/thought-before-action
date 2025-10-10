@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 const DashboardLayout = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +35,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { clearViewAsCompany } = useViewAs();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -108,6 +110,7 @@ const DashboardLayout = () => {
   }, [navigate]);
 
   const handleLogout = async () => {
+    clearViewAsCompany(); // Clear ViewAs state on logout
     await supabase.auth.signOut();
     toast({ title: "Logged out successfully" });
     navigate("/auth");

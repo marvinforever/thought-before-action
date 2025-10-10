@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 const Auth = () => {
+  const { clearViewAsCompany } = useViewAs();
   const [isLogin, setIsLogin] = useState(true);
   const [isResetPassword, setIsResetPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -24,6 +26,9 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Clear any persisted ViewAs state on login
+      clearViewAsCompany();
+      
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,

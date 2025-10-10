@@ -37,7 +37,7 @@ const App = () => (
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={
-                <ProtectedRoute requireAdmin>
+                <ProtectedRoute requireManager>
                   <Dashboard />
                 </ProtectedRoute>
               } />
