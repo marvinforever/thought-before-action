@@ -101,7 +101,7 @@ export default function StrategicLearningDesignReport() {
         // timeframe_years was removed from schema, default to 3 years
         setTimeframe("3");
 
-        // Load cohorts
+        // Load cohorts from table; fallback to report.cohorts JSON if table is empty
         const { data: cohortData, error: cohortError } = await supabase
           .from("training_cohorts" as any)
           .select("*")
@@ -109,18 +109,23 @@ export default function StrategicLearningDesignReport() {
           .order("priority");
 
         if (cohortError) throw cohortError;
-        setCohorts((cohortData as any) || []);
+
+        const sourceCohorts = (cohortData && cohortData.length > 0)
+          ? cohortData
+          : ((latestReport as any).cohorts || []);
+
+        setCohorts((sourceCohorts as any) || []);
 
         // Extract all unique employee IDs from cohorts and fetch their profiles
-        if (cohortData && cohortData.length > 0) {
+        if (sourceCohorts && sourceCohorts.length > 0) {
           const allEmployeeIds = new Set<string>();
-          cohortData.forEach((cohort: any) => {
+          (sourceCohorts as any[]).forEach((cohort: any) => {
             if (cohort.employee_ids && Array.isArray(cohort.employee_ids)) {
               cohort.employee_ids.forEach((id: string) => allEmployeeIds.add(id));
             }
           });
 
-          if (allEmployeeIds.size > 0) {
+        if (allEmployeeIds.size > 0) {
             const { data: profilesData, error: profilesError } = await supabase
               .from("profiles")
               .select("id, full_name, email")
