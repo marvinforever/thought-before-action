@@ -395,14 +395,44 @@ const SuperAdmin = () => {
       const v = row[key];
       if (typeof v === 'string' && v.trim()) return v.trim();
     }
-    const first = (row['First Name'] || '').trim();
-    const last = (row['Last Name'] || '').trim();
+    // Check for both "First Name" and "First name" variations
+    const firstKeys = ['First Name', 'First name', 'first name', 'FirstName', 'firstname'];
+    const lastKeys = ['Last Name', 'Last name', 'last name', 'LastName', 'lastname'];
+    
+    let first = '';
+    let last = '';
+    
+    for (const key of firstKeys) {
+      if (row[key]) {
+        first = (row[key] || '').trim();
+        break;
+      }
+    }
+    
+    for (const key of lastKeys) {
+      if (row[key]) {
+        last = (row[key] || '').trim();
+        break;
+      }
+    }
+    
     return [first, last].filter(Boolean).join(' ').trim() || null;
   };
 
   const extractJobTitle = (row: any): string | null => {
     const keys = [
       'Job Title or Role','Job Title','job_title','Title','title','Role','role','Position','position','Job Role','Job role'
+    ];
+    for (const key of keys) {
+      const v = row[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
+  const extractPhone = (row: any): string | null => {
+    const keys = [
+      'Phone number', 'Phone Number', 'Phone', 'phone', 'Mobile', 'mobile', 'Cell', 'cell', 'Telephone', 'telephone'
     ];
     for (const key of keys) {
       const v = row[key];
@@ -450,6 +480,14 @@ const SuperAdmin = () => {
           if (!profile) {
             const fullName = extractFullName(row);
             const jobTitle = extractJobTitle(row);
+            const phone = extractPhone(row);
+            
+            if (!fullName) {
+              errors.push(`Row with email ${email} missing full name`);
+              failedCount++;
+              continue;
+            }
+            
             // Generate a temporary password for CSV imports
             const tempPass = Array.from({length: 12}, () => 
               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
@@ -461,6 +499,7 @@ const SuperAdmin = () => {
                 email: email, 
                 full_name: fullName,
                 role: jobTitle || null,
+                phone: phone || null,
                 company_id: importCompanyId,
                 password: tempPass
               }
