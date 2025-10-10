@@ -494,6 +494,8 @@ const SuperAdmin = () => {
               .charAt(Math.floor(Math.random() * 70))
             ).join('');
             
+            console.log('Creating employee:', { email, fullName, phone: phone, jobTitle });
+            
             const { data: newEmp, error: createError } = await supabase.functions.invoke('create-employee', {
               body: { 
                 email: email, 
@@ -505,8 +507,12 @@ const SuperAdmin = () => {
               }
             });
 
-            if (createError || !newEmp?.id) {
-              errors.push(`Failed to create ${email}: ${createError?.message || 'Unknown error'}`);
+            console.log('Create employee response:', { newEmp, createError });
+
+            // Check for errors in both the error object and the response data
+            const errorMsg = createError?.message || newEmp?.error || (!newEmp?.id ? 'No ID returned' : null);
+            if (errorMsg) {
+              errors.push(`Failed to create ${email}: ${errorMsg}`);
               failedCount++;
               continue;
             }
