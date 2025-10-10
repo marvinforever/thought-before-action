@@ -30,7 +30,8 @@ Deno.serve(async (req) => {
       { email: "cschmitzdfc@bektel.com", full_name: "Cordell Schmitz", phone: "+17014267520" },
       { email: "apeppledfc@bektel.com", full_name: "Aaron Pepple", phone: "+17015705882" },
       { email: "tstantondfc@bektel.com", full_name: "Travis Stanton", phone: "+12188495668" },
-      { email: "andrewkreidt@gmail.com", full_name: "Andrew Kreidt", phone: "+17012265980" }
+      { email: "andrewkreidt@gmail.com", full_name: "Andrew Kreidt", phone: "+17012265980" },
+      { email: "amuslanddfc@ndsupernet.com", full_name: "Austin Musland", phone: "+17018906223" }
     ]
 
     const results = []
