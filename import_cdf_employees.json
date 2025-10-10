@@ -1,0 +1,35 @@
+{
+  "employees": [
+    {
+      "email": "tfloreydfc@bektel.com",
+      "full_name": "Tristan Florey",
+      "role": "Manager",
+      "phone": "+17012090535"
+    },
+    {
+      "email": "cschmitzdfc@bektel.com",
+      "full_name": "Cordell Schmitz",
+      "role": "Manager",
+      "phone": "+17014267520"
+    },
+    {
+      "email": "apeppledfc@bektel.com",
+      "full_name": "Aaron Pepple",
+      "role": "Manager",
+      "phone": "+17015705882"
+    },
+    {
+      "email": "tstantondfc@bektel.com",
+      "full_name": "Travis Stanton",
+      "role": "Manager",
+      "phone": "+12188495668"
+    },
+    {
+      "email": "andrewkreidt@gmail.com",
+      "full_name": "Andrew Kreidt",
+      "role": "Manager",
+      "phone": "+17012265980"
+    }
+  ],
+  "company_id": "971e5580-4c3f-4645-b25d-74d92ba7083a"
+}
