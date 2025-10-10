@@ -56,12 +56,12 @@ const Dashboard = () => {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen to INSERT and UPDATE so dashboard refreshes on edits too
           schema: 'public',
           table: 'diagnostic_responses'
         },
         (payload) => {
-          console.log('New diagnostic data received, refreshing dashboard...');
+          console.log('Diagnostic data changed, refreshing dashboard...', payload.eventType);
           loadStats();
         }
       )
