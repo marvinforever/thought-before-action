@@ -21,6 +21,7 @@ import { StrategicRoadmapTab } from "@/components/StrategicRoadmapTab";
 import { OrganizationalContextTab } from "@/components/OrganizationalContextTab";
 import { CompanyStrategicLearningTab } from "@/components/CompanyStrategicLearningTab";
 import { SelfAssessCapabilitiesDialog } from "@/components/SelfAssessCapabilitiesDialog";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 type GrowthPlanResource = {
   id: string;
@@ -90,6 +91,7 @@ export default function MyGrowthPlan() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const tabsRef = useRef<HTMLDivElement>(null);
+  const { viewAsCompanyId } = useViewAs();
 
   // Check for tab parameter in URL or navigation state
   useEffect(() => {
@@ -127,7 +129,7 @@ export default function MyGrowthPlan() {
     loadJobDescriptions();
     loadCapabilityResources();
     loadAllResources();
-  }, []);
+  }, [viewAsCompanyId]);
 
   // Auto-trigger recommendations when key data changes
   useEffect(() => {
@@ -238,6 +240,24 @@ export default function MyGrowthPlan() {
         return;
       }
 
+      // Determine which user's data to load
+      let targetUserId = user.id;
+      
+      if (viewAsCompanyId) {
+        // If viewing as a company, load data for that company's admin
+        const { data: adminProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", viewAsCompanyId)
+          .eq("is_admin", true)
+          .limit(1)
+          .single();
+        
+        if (adminProfile) {
+          targetUserId = adminProfile.id;
+        }
+      }
+
       const { data, error } = await supabase
         .from("content_recommendations")
         .select(`
@@ -263,7 +283,7 @@ export default function MyGrowthPlan() {
             capability:capabilities(id, name)
           )
         `)
-        .eq("profile_id", user.id)
+        .eq("profile_id", targetUserId)
         .gt("expires_at", new Date().toISOString()) // Filter expired
         .order("sent_at", { ascending: false });
 
@@ -292,6 +312,23 @@ export default function MyGrowthPlan() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Determine which user's data to load
+      let targetUserId = user.id;
+      
+      if (viewAsCompanyId) {
+        const { data: adminProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", viewAsCompanyId)
+          .eq("is_admin", true)
+          .limit(1)
+          .single();
+        
+        if (adminProfile) {
+          targetUserId = adminProfile.id;
+        }
+      }
+
       const { data, error } = await supabase
         .from("employee_capabilities")
         .select(`
@@ -307,7 +344,7 @@ export default function MyGrowthPlan() {
             description
           )
         `)
-        .eq("profile_id", user.id)
+        .eq("profile_id", targetUserId)
         .order("priority", { ascending: true });
 
       if (error) throw error;
@@ -322,10 +359,27 @@ export default function MyGrowthPlan() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Determine which user's data to load
+      let targetUserId = user.id;
+      
+      if (viewAsCompanyId) {
+        const { data: adminProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", viewAsCompanyId)
+          .eq("is_admin", true)
+          .limit(1)
+          .single();
+        
+        if (adminProfile) {
+          targetUserId = adminProfile.id;
+        }
+      }
+
       const { data, error } = await supabase
         .from("job_descriptions")
         .select("*")
-        .eq("profile_id", user.id)
+        .eq("profile_id", targetUserId)
         .order("created_at", { ascending: false })
         .limit(5);
 
@@ -341,11 +395,28 @@ export default function MyGrowthPlan() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Determine which user's data to load
+      let targetUserId = user.id;
+      
+      if (viewAsCompanyId) {
+        const { data: adminProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", viewAsCompanyId)
+          .eq("is_admin", true)
+          .limit(1)
+          .single();
+        
+        if (adminProfile) {
+          targetUserId = adminProfile.id;
+        }
+      }
+
       // Get all employee capabilities with their IDs
       const { data: empCaps } = await supabase
         .from("employee_capabilities")
         .select("id, capability_id")
-        .eq("profile_id", user.id);
+        .eq("profile_id", targetUserId);
 
       if (!empCaps) return;
 
@@ -365,7 +436,7 @@ export default function MyGrowthPlan() {
             capability_level
           )
         `)
-        .eq("profile_id", user.id)
+        .eq("profile_id", targetUserId)
         .gt("expires_at", new Date().toISOString())
         .in("employee_capability_id", empCaps.map(c => c.id));
 

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Search, UserPlus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 type Employee = {
   id: string;
@@ -31,12 +32,13 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [initialAssignments, setInitialAssignments] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   useEffect(() => {
     if (open) {
       loadEmployees();
     }
-  }, [open]);
+  }, [open, viewAsCompanyId]);
 
   const loadEmployees = async () => {
     setLoading(true);
@@ -44,20 +46,26 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Get manager's company
-      const { data: managerProfile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
+      // Determine which company to use
+      let companyId = viewAsCompanyId;
+      
+      if (!companyId) {
+        // Get manager's company if not viewing as another company
+        const { data: managerProfile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
 
-      if (!managerProfile?.company_id) throw new Error("Company not found");
+        if (!managerProfile?.company_id) throw new Error("Company not found");
+        companyId = managerProfile.company_id;
+      }
 
       // Get all employees in the company (except the manager themselves)
       const { data: allEmployees, error: employeesError } = await supabase
         .from("profiles")
         .select("id, full_name, email, role")
-        .eq("company_id", managerProfile.company_id)
+        .eq("company_id", companyId)
         .eq("is_active", true)
         .neq("id", user.id)
         .order("full_name");
