@@ -2398,42 +2398,36 @@ export type Database = {
       strategic_learning_reports: {
         Row: {
           budget_scenarios: Json | null
+          cohorts: Json
           company_id: string
           executive_summary: Json | null
           expires_at: string
           generated_at: string
-          generated_by: string | null
           id: string
+          narrative: string | null
           roi_projections: Json | null
-          timeframe_years: number
-          total_cohorts: number | null
-          total_employees: number | null
         }
         Insert: {
           budget_scenarios?: Json | null
+          cohorts?: Json
           company_id: string
           executive_summary?: Json | null
           expires_at?: string
           generated_at?: string
-          generated_by?: string | null
           id?: string
+          narrative?: string | null
           roi_projections?: Json | null
-          timeframe_years?: number
-          total_cohorts?: number | null
-          total_employees?: number | null
         }
         Update: {
           budget_scenarios?: Json | null
+          cohorts?: Json
           company_id?: string
           executive_summary?: Json | null
           expires_at?: string
           generated_at?: string
-          generated_by?: string | null
           id?: string
+          narrative?: string | null
           roi_projections?: Json | null
-          timeframe_years?: number
-          total_cohorts?: number | null
-          total_employees?: number | null
         }
         Relationships: []
       }
