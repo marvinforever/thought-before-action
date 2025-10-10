@@ -53,6 +53,7 @@ type Cohort = {
 export default function StrategicLearningDesignReport() {
   const [report, setReport] = useState<Report | null>(null);
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [employeeProfiles, setEmployeeProfiles] = useState<Map<string, { full_name: string; email: string }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [timeframe, setTimeframe] = useState<string>("3");
@@ -109,6 +110,36 @@ export default function StrategicLearningDesignReport() {
 
         if (cohortError) throw cohortError;
         setCohorts((cohortData as any) || []);
+
+        // Extract all unique employee IDs from cohorts and fetch their profiles
+        if (cohortData && cohortData.length > 0) {
+          const allEmployeeIds = new Set<string>();
+          cohortData.forEach((cohort: any) => {
+            if (cohort.employee_ids && Array.isArray(cohort.employee_ids)) {
+              cohort.employee_ids.forEach((id: string) => allEmployeeIds.add(id));
+            }
+          });
+
+          if (allEmployeeIds.size > 0) {
+            const { data: profilesData, error: profilesError } = await supabase
+              .from("profiles")
+              .select("id, full_name, email")
+              .in("id", Array.from(allEmployeeIds));
+
+            if (profilesError) {
+              console.error("Error fetching employee profiles:", profilesError);
+            } else if (profilesData) {
+              const profileMap = new Map<string, { full_name: string; email: string }>();
+              profilesData.forEach((profile: any) => {
+                profileMap.set(profile.id, {
+                  full_name: profile.full_name || profile.email?.split('@')[0] || 'Unknown',
+                  email: profile.email || '',
+                });
+              });
+              setEmployeeProfiles(profileMap);
+            }
+          }
+        }
       }
     } catch (error: any) {
       console.error("Error loading report:", error);
@@ -456,11 +487,15 @@ export default function StrategicLearningDesignReport() {
                   <div>
                     <p className="font-semibold mb-2">Employees in this cohort:</p>
                     <div className="flex flex-wrap gap-2">
-                      {cohort.employee_ids.slice(0, 10).map((id, i) => (
-                        <Badge key={i} variant="secondary">
-                          Employee {i + 1}
-                        </Badge>
-                      ))}
+                      {cohort.employee_ids.slice(0, 10).map((id, i) => {
+                        const profile = employeeProfiles.get(id);
+                        const displayName = profile?.full_name || `Employee ${i + 1}`;
+                        return (
+                          <Badge key={id} variant="secondary" title={profile?.email}>
+                            {displayName}
+                          </Badge>
+                        );
+                      })}
                       {cohort.employee_ids.length > 10 && (
                         <Badge variant="outline">+{cohort.employee_ids.length - 10} more</Badge>
                       )}
