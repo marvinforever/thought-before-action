@@ -617,8 +617,8 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.domainScores.map((domain) => {
           const getGaugeColor = (risk: string) => {
-            // Special case: Retention at 0 means no risk (green)
-            if (domain.domain === "Retention" && domain.score === 0) return "success";
+            // Special case: Retention score of 100 or >= 80 means low/no risk (green)
+            if (domain.domain === "Retention" && domain.score >= 80) return "success";
             
             switch (risk) {
               case "critical": return "danger";

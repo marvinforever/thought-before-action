@@ -24,13 +24,11 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 type Report = {
   id: string;
   company_id: string;
-  timeframe_years: number;
   executive_summary: any;
   budget_scenarios: any;
   roi_projections: any;
-  total_budget_conservative: number;
-  total_budget_moderate: number;
-  total_budget_aggressive: number;
+  cohorts: any;
+  narrative: string;
   generated_at: string;
   expires_at: string;
 };
@@ -99,7 +97,8 @@ export default function StrategicLearningDesignReport() {
 
       if (latestReport) {
         setReport(latestReport as any);
-        setTimeframe((latestReport as any).timeframe_years.toString());
+        // timeframe_years was removed from schema, default to 3 years
+        setTimeframe("3");
 
         // Load cohorts
         const { data: cohortData, error: cohortError } = await supabase
@@ -254,7 +253,7 @@ export default function StrategicLearningDesignReport() {
         <div>
           <h1 className="text-4xl font-bold mb-2">Strategic Learning Design</h1>
           <p className="text-muted-foreground">
-            {report.timeframe_years}-Year Organizational Training Roadmap
+            Organizational Training Roadmap
           </p>
           <p className="text-sm text-muted-foreground mt-1">
             Generated: {new Date(report.generated_at).toLocaleDateString()} • 
