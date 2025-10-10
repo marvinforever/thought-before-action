@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2 } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2, Shield } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -20,6 +20,7 @@ import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog"
 import { AssignManagerDialog } from "@/components/AssignManagerDialog";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 import { BatchJobDescriptionDialog } from "@/components/BatchJobDescriptionDialog";
+import { AssignRoleDialog } from "@/components/AssignRoleDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface Employee {
@@ -62,6 +63,8 @@ const Employees = () => {
   const [resettingPassword, setResettingPassword] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [batchJobDescOpen, setBatchJobDescOpen] = useState(false);
+  const [roleDialogEmployee, setRoleDialogEmployee] = useState<Employee | null>(null);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
@@ -692,6 +695,13 @@ const Employees = () => {
                               Assign Manager
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
+                              setRoleDialogEmployee(employee);
+                              setRoleDialogOpen(true);
+                            }}>
+                              <Shield className="mr-2 h-4 w-4" />
+                              Manage Roles
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
                               setResetPasswordEmployee(employee);
                               setResetPasswordDialogOpen(true);
                             }}>
@@ -901,6 +911,20 @@ const Employees = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {roleDialogEmployee && (
+        <AssignRoleDialog
+          open={roleDialogOpen}
+          onOpenChange={(open) => {
+            setRoleDialogOpen(open);
+            if (!open) {
+              setRoleDialogEmployee(null);
+            }
+          }}
+          employeeId={roleDialogEmployee.id}
+          employeeName={roleDialogEmployee.full_name}
+        />
+      )}
 
       <BatchJobDescriptionDialog
         open={batchJobDescOpen}
