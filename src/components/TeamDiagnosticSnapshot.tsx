@@ -27,6 +27,19 @@ export function TeamDiagnosticSnapshot() {
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
 
+  const parseSupportQuality = (v: any): number => {
+    if (v === null || v === undefined) return 0;
+    const n = Number(v);
+    if (!Number.isNaN(n) && n > 0) return n;
+    const s = String(v).toLowerCase();
+    if (s.includes('excellent')) return 10;
+    if (s.includes('very good')) return 9;
+    if (s.includes('good')) return 8;
+    if (s.includes('fair')) return 6;
+    if (s.includes('poor')) return 3;
+    return 0;
+  };
+
   useEffect(() => {
     loadTeamStats();
   }, [viewAsCompanyId]);
@@ -91,9 +104,9 @@ export function TeamDiagnosticSnapshot() {
           return (growthPath + managerFeedback + valued + energy) / 4;
         } else {
           const growthPath = d.sees_growth_path ? 10 : 0;
-          const managerFeedback = parseInt(d.manager_support_quality) || 0;
+          const managerFeedback = parseSupportQuality(d.manager_support_quality);
           const valued = d.feels_valued ? 10 : 0;
-          const energy = parseInt(d.daily_energy_level) || 0;
+          const energy = Number(d.daily_energy_level) || 0;
           return (growthPath + managerFeedback + valued + energy) / 4;
         }
       }).filter(s => s > 0);

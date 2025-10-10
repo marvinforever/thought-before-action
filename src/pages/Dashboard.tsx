@@ -45,6 +45,20 @@ const Dashboard = () => {
   const [employeeDetails, setEmployeeDetails] = useState<any[]>([]);
   const { viewAsCompanyId } = useViewAs();
 
+  // Normalize manager support quality to a 1-10 number even if stored as text labels
+  const parseSupportQuality = (v: any): number => {
+    if (v === null || v === undefined) return 0;
+    const n = Number(v);
+    if (!Number.isNaN(n) && n > 0) return n; // already numeric 1-10
+    const s = String(v).toLowerCase();
+    if (s.includes('excellent')) return 10;
+    if (s.includes('very good')) return 9;
+    if (s.includes('good')) return 8;
+    if (s.includes('fair')) return 6;
+    if (s.includes('poor')) return 3;
+    return 0;
+  };
+
   useEffect(() => {
     loadStats();
   }, [viewAsCompanyId]);
@@ -112,7 +126,7 @@ const Dashboard = () => {
       const completeDiagnostics = diagnostics.filter((d: any) => {
         if (!d?.profile_id || !employeeIds.has(d.profile_id)) return false;
         const rc = Number(d.role_clarity_score) || 0;
-        const msq = Number(d.manager_support_quality) || 0;
+        const msq = parseSupportQuality(d.manager_support_quality);
         const energy = Number(d.daily_energy_level) || 0;
         const conf = Number(d.confidence_score) || 0;
         const engagement = (d.additional_responses as any)?.engagement_scores;
@@ -195,9 +209,9 @@ const Dashboard = () => {
         } else {
           // Fallback for old data without engagement_scores
           const growthPath = d.sees_growth_path ? 10 : 0;
-          const managerFeedback = parseInt(d.manager_support_quality) || 0;
+          const managerFeedback = parseSupportQuality(d.manager_support_quality);
           const valued = d.feels_valued ? 10 : 0;
-          const energy = parseInt(d.daily_energy_level) || 0;
+          const energy = Number(d.daily_energy_level) || 0;
           return (growthPath + managerFeedback + valued + energy) / 4;
         }
       }).filter(s => s > 0);
@@ -218,7 +232,7 @@ const Dashboard = () => {
       const burnoutScore = burnoutScores.length > 0 ? Math.round((burnoutScores.reduce((a, b) => a + b, 0) / burnoutScores.length) * 20) : 0;
 
       // 4. MANAGER EFFECTIVENESS
-      const managerScores = completeDiagnostics.map(d => parseInt(d.manager_support_quality) || 0).filter(s => s > 0);
+      const managerScores = completeDiagnostics.map(d => parseSupportQuality(d.manager_support_quality)).filter(s => s > 0);
       const managerEffectiveness = managerScores.length > 0 ? Math.round((managerScores.reduce((a, b) => a + b, 0) / managerScores.length) * 10) : 0;
 
       // 5. CAREER DEVELOPMENT
@@ -599,8 +613,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
-
-
       {/* Domain Health Gauges */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.domainScores.map((domain) => {
