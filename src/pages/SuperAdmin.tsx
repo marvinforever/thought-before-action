@@ -460,6 +460,8 @@ const SuperAdmin = () => {
     try {
       const text = await file.text();
       const rows = parseCSV(text);
+      
+      console.log(`Parsed ${rows.length} rows from CSV`);
 
       for (const row of rows) {
         try {
