@@ -143,7 +143,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
         if (deleteError) throw deleteError;
       }
 
-      // Add new assignments
+      // Add new assignments (use upsert to handle reassignments)
       if (toAdd.length > 0) {
         const newAssignments = toAdd.map(employeeId => ({
           manager_id: user.id,
@@ -154,7 +154,9 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
         const { error: insertError } = await supabase
           .from("manager_assignments")
-          .insert(newAssignments);
+          .upsert(newAssignments, {
+            onConflict: 'employee_id'
+          });
 
         if (insertError) throw insertError;
       }
