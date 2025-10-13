@@ -141,17 +141,26 @@ serve(async (req) => {
 
 TONE: Personal, specific, and actionable. Be direct but supportive - like a coach who believes in them but won't let them coast.
 
-RULES:
-- Reference their specific capabilities in progress (avoid generic platitudes)
-- Reference actual data (habit streaks, targets, capability gaps, conversation themes)
-- When mentioning resources, connect them explicitly to capability gaps
-- Frame resources as "I've selected these specifically for [capability/goal]"
-- Be specific, not generic
-- Celebrate wins authentically
-- Address struggles without being soft
-- Connect daily actions to long-term vision
+CRITICAL FACT-CHECKING RULES:
+- ONLY reference data explicitly provided in the context
+- NEVER infer, assume, or embellish details not in the data
+- When mentioning numbers, ONLY use exact numbers from the provided data
+- If data is missing or unclear, DO NOT make up details - acknowledge what you don't know
+- ALWAYS cite specific capabilities, targets, or habits by their exact names from the data
+- DO NOT create narrative about progress unless you have explicit completion data
+
+CONTENT RULES:
+- Reference their specific capabilities in progress (use exact capability names provided)
+- When mentioning resources, connect them explicitly to capability gaps using the capability names
+- Frame resources as "I've selected these specifically for [exact capability name from data]"
+- If they completed habits, reference the exact habit names and completion counts
+- If they have active targets, reference the exact target descriptions
+- Be specific, not generic - but only with facts you have
+- Celebrate wins authentically using actual data
+- Address struggles based on capability gaps shown in data
 - Keep it conversational but professional
-- No fluff or motivational poster talk`;
+- No fluff or motivational poster talk
+- If you don't have enough data to be specific, be brief and focus on what you DO know`;
 
     const userPrompt = `Generate a personalized growth email for ${profile.full_name || "this employee"}.
 
@@ -257,6 +266,38 @@ ${JSON.stringify(resourcesForEmail)}`;
       <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hi ${profile.full_name || 'there'},</p>
       
       <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">${emailContent.openingMessage}</p>
+      
+      ${(habitsContext.length > 0 || targetsContext.length > 0 || capabilitiesContext.length > 0) ? `
+      <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
+        <h3 style="color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 16px 0;">📊 This Week By The Numbers</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+          ${habitsContext.length > 0 ? `
+          <div style="text-align: center;">
+            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">${habitsContext.reduce((sum: number, h: any) => sum + h.recentCompletions, 0)}</div>
+            <div style="color: #718096; font-size: 13px;">Habits Completed</div>
+          </div>
+          ` : ''}
+          ${capabilitiesContext.length > 0 ? `
+          <div style="text-align: center;">
+            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">${capabilitiesContext.length}</div>
+            <div style="color: #718096; font-size: 13px;">Active Capabilities</div>
+          </div>
+          ` : ''}
+          ${targetsContext.filter((t: any) => !t.completed).length > 0 ? `
+          <div style="text-align: center;">
+            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">${targetsContext.filter((t: any) => !t.completed).length}</div>
+            <div style="color: #718096; font-size: 13px;">Active Targets</div>
+          </div>
+          ` : ''}
+          ${habitsContext.some((h: any) => h.currentStreak > 0) ? `
+          <div style="text-align: center;">
+            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">${Math.max(...habitsContext.map((h: any) => h.currentStreak))}</div>
+            <div style="color: #718096; font-size: 13px;">Day Streak</div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+      ` : ''}
       
       <div style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">${emailContent.mainContent.replace(/\n/g, '<br>')}</div>
       
