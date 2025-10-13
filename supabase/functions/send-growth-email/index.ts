@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { Resend } from "npm:resend@4.0.0";
-import React from "npm:react@18.3.1";
-import { renderAsync } from "npm:@react-email/components@0.0.22";
-import { GrowthEmail } from "./_templates/growth-email.tsx";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +22,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
     // Fetch user profile
@@ -201,31 +197,81 @@ Generate the email content now.`;
     const aiData = await aiResponse.json();
     const emailContent = JSON.parse(aiData.choices[0].message.content);
 
-    // Render email HTML
-    const html = await renderAsync(
-      React.createElement(GrowthEmail, {
-        userName: profile.full_name || "there",
-        subject: emailContent.subject,
-        openingMessage: emailContent.openingMessage,
-        mainContent: emailContent.mainContent,
-        actionableChallenge: emailContent.actionableChallenge,
-        resources: resourcesForEmail,
-        closingMessage: emailContent.closingMessage,
-      })
-    );
+    // Build email HTML
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; background-color: #f6f9fc; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <div style="padding: 40px;">
+      <h1 style="color: #1a1a1a; font-size: 24px; font-weight: bold; margin: 0 0 24px 0;">${emailContent.subject}</h1>
+      
+      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hi ${profile.full_name || 'there'},</p>
+      
+      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">${emailContent.openingMessage}</p>
+      
+      <div style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">${emailContent.mainContent.replace(/\n/g, '<br>')}</div>
+      
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 24px; margin: 24px 0;">
+        <h2 style="color: #ffffff; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">🎯 This Week's Challenge</h2>
+        <p style="color: #ffffff; font-size: 15px; line-height: 1.6; margin: 0;">${emailContent.actionableChallenge}</p>
+      </div>
+      
+      ${resourcesForEmail.length > 0 ? `
+      <div style="margin: 32px 0;">
+        <h2 style="color: #1a1a1a; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">📚 Curated Resources for You</h2>
+        ${resourcesForEmail.map(resource => `
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px;">
+          <div style="color: #667eea; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">${resource.type}</div>
+          <h3 style="color: #2d3748; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">${resource.title}</h3>
+          <p style="color: #4a5568; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">${resource.description}</p>
+          <a href="${resource.url}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">View Resource →</a>
+        </div>
+        `).join('')}
+      </div>
+      ` : ''}
+      
+      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">${emailContent.closingMessage}</p>
+      
+      <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+        <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">Keep growing,<br><strong>Your Growth Team</strong></p>
+        <div style="margin-top: 20px;">
+          <a href="${supabaseUrl}" style="display: inline-block; background-color: #667eea; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; margin-right: 12px;">View Dashboard</a>
+          <a href="${supabaseUrl}" style="color: #667eea; text-decoration: none; font-size: 14px;">Email Preferences</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+    `;
 
-    // Send email via Resend
-    const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "Jericho <jericho@resend.dev>",
-      to: [profile.email],
-      subject: emailContent.subject,
-      html,
+    // Send email via Resend API directly
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Jericho <onboarding@resend.dev>",
+        to: [profile.email],
+        subject: emailContent.subject,
+        html: html,
+      }),
     });
 
-    if (emailError) {
-      console.error("Resend error:", emailError);
-      throw emailError;
+    if (!resendResponse.ok) {
+      const errorText = await resendResponse.text();
+      console.error("Resend error:", resendResponse.status, errorText);
+      throw new Error(`Email sending failed: ${resendResponse.status}`);
     }
+
+    const emailData = await resendResponse.json();
 
     // Log email delivery
     const { error: logError } = await supabase
@@ -257,8 +303,9 @@ Generate the email content now.`;
     );
   } catch (error) {
     console.error("Error in send-growth-email:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

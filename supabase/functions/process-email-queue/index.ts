@@ -113,7 +113,8 @@ serve(async (req) => {
           return { userId: user.id, success: true, data };
         } catch (err) {
           console.error(`Exception sending email to ${user.email}:`, err);
-          return { userId: user.id, success: false, error: err.message };
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          return { userId: user.id, success: false, error: errorMessage };
         }
       });
 
@@ -145,8 +146,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error in process-email-queue:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
