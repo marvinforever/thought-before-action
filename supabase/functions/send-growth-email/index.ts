@@ -93,7 +93,7 @@ serve(async (req) => {
       .order("match_score", { ascending: false })
       .limit(5);
 
-    // Build context for AI - Focus on TOP 3 CAPABILITIES
+    // Build context for AI - Focus on TOP 1 CAPABILITY
     const allCapabilities = capabilities?.map(c => ({
       id: c.capability_id,
       name: c.capability?.name,
@@ -103,10 +103,10 @@ serve(async (req) => {
       priority: c.priority || 999
     })) || [];
 
-    // Select top 3 capabilities by priority
-    const top3Capabilities = allCapabilities
+    // Select top 1 capability by priority
+    const topCapability = allCapabilities
       .sort((a, b) => a.priority - b.priority)
-      .slice(0, 3);
+      .slice(0, 1);
 
     const targetsContext = targets?.map(t => ({
       description: t.target_description,
@@ -134,14 +134,14 @@ serve(async (req) => {
       }))
     ) || [];
 
-    // Map resources to the top 3 capabilities
-    const top3CapIds = top3Capabilities.map(c => c.id);
-    const resourcesForTop3 = recommendations
-      ?.filter(r => r.employee_capability_id && top3CapIds.includes(r.employee_capability_id))
-      .slice(0, 6) // Max 2 per capability
+    // Get 1 resource for the top capability or general resource
+    const topCapId = topCapability[0]?.id;
+    const resourceForTopCap = recommendations
+      ?.filter(r => !topCapId || r.employee_capability_id === topCapId)
+      .slice(0, 1) // Just 1 resource
       .map(r => ({
         capabilityId: r.employee_capability_id,
-        capabilityName: top3Capabilities.find(c => c.id === r.employee_capability_id)?.name || "Unknown",
+        capabilityName: topCapability.find(c => c.id === r.employee_capability_id)?.name || "General",
         title: r.resource?.title || "Resource",
         description: r.resource?.description || "",
         url: r.resource?.url || "#",
@@ -156,7 +156,7 @@ TONE: Personal, specific, and actionable. Be direct but supportive - like a coac
 
 CRITICAL - THIS IS A PROACTIVE WEEKLY ASSIGNMENT:
 - This email is their MAIN interaction with you this week - they may not log into the app
-- You are PRESCRIBING their 3 focus areas and giving them resources to work on
+- You are PRESCRIBING their 1 priority focus area and giving them 1 resource to work on
 - Frame this as "here's what you're working on this week" not "here's what you've done"
 - The goal is to give them a complete, actionable growth plan they can execute from the email alone
 
@@ -164,15 +164,15 @@ FACT-CHECKING RULES:
 - ONLY reference data explicitly provided in the context
 - NEVER infer, assume, or embellish details not in the data
 - When mentioning numbers, ONLY use exact numbers from the provided data
-- ALWAYS cite specific capabilities by their exact names from the data
-- The top 3 capabilities are already selected - focus your message on WHY these 3 matter this week
-- Resources are already mapped to capabilities - explain how each resource helps with that specific capability
+- ALWAYS cite the specific capability by its exact name from the data
+- The top priority capability is already selected - focus your message on WHY this matters most this week
+- One resource is provided - explain how it helps develop this specific capability
 
 CONTENT RULES:
 - Open with brief acknowledgment if they have recent activity data
-- Introduce the 3 focus capabilities as this week's assignment (explain why these 3 matter)
-- Connect resources explicitly to each capability using exact capability names
-- Frame resources as "To develop [exact capability name], start with [resource]"
+- Introduce the 1 focus capability as this week's primary assignment (explain why this matters most right now)
+- Connect the resource explicitly to the capability using the exact capability name
+- Frame the resource as "To develop [exact capability name], start with [resource]"
 - Make the weekly challenge actionable without requiring app login
 - Be brief if data is sparse - focus on what you DO know
 - Keep it conversational but professional
@@ -180,18 +180,18 @@ CONTENT RULES:
 
     const userPrompt = `Generate a personalized weekly growth email for ${profile.full_name || "this employee"}.
 
-THIS WEEK'S FOCUS: These are their TOP 3 capabilities to work on this week (in priority order):
-${JSON.stringify(top3Capabilities)}
+THIS WEEK'S FOCUS: This is their TOP priority capability to work on this week:
+${JSON.stringify(topCapability)}
 
 THEIR CURRENT STATUS:
 90-Day Targets: ${JSON.stringify(targetsContext)}
 Habit Progress (last 7 days): ${JSON.stringify(habitsContext)}
 Recent Conversation Themes: ${JSON.stringify(conversationContext)}
 
-CURATED RESOURCES (mapped to their top 3 capabilities):
-${JSON.stringify(resourcesForTop3)}
+CURATED RESOURCE (for their top capability):
+${JSON.stringify(resourceForTopCap)}
 
-Frame this as a proactive weekly assignment. They may not log into the app - this email should be their complete growth experience for the week.`;
+Frame this as a proactive weekly assignment focused on this one priority. They may not log into the app - this email should be their complete growth experience for the week.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -287,7 +287,7 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
       
       <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">${emailContent.openingMessage}</p>
       
-      ${(habitsContext.length > 0 || targetsContext.length > 0 || top3Capabilities.length > 0) ? `
+      ${(habitsContext.length > 0 || targetsContext.length > 0 || topCapability.length > 0) ? `
       <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
         <h3 style="color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 16px 0;">📊 This Week By The Numbers</h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
@@ -297,10 +297,10 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
             <div style="color: #718096; font-size: 13px;">Habits Completed</div>
           </div>
           ` : ''}
-          ${top3Capabilities.length > 0 ? `
+          ${topCapability.length > 0 ? `
           <div style="text-align: center;">
-            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">${top3Capabilities.length}</div>
-            <div style="color: #718096; font-size: 13px;">Priority Capabilities</div>
+            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">1</div>
+            <div style="color: #718096; font-size: 13px;">Priority Focus</div>
           </div>
           ` : ''}
           ${targetsContext.filter((t: any) => !t.completed).length > 0 ? `
@@ -321,12 +321,12 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
       
       <div style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">${emailContent.mainContent.replace(/\n/g, '<br>')}</div>
       
-      ${top3Capabilities.length > 0 ? `
+      ${topCapability.length > 0 ? `
       <div style="margin: 24px 0; padding: 20px; background-color: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
         <h3 style="color: #2d3748; font-size: 16px; font-weight: 600; margin: 0 0 16px 0;">
-          🎯 Your 3 Focus Areas This Week
+          🎯 Your Priority Focus This Week
         </h3>
-        ${top3Capabilities.map((cap: any) => {
+        ${topCapability.map((cap: any) => {
           const levelMap: any = { 'foundational': 1, 'developing': 2, 'proficient': 3, 'advanced': 4, 'expert': 5 };
           const current = levelMap[cap.currentLevel] || 1;
           const target = levelMap[cap.targetLevel] || 5;
@@ -351,10 +351,10 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
         <p style="color: #ffffff; font-size: 15px; line-height: 1.6; margin: 0;">${emailContent.actionableChallenge}</p>
       </div>
       
-      ${resourcesForTop3.length > 0 ? `
+      ${resourceForTopCap.length > 0 ? `
       <div style="margin: 32px 0;">
-        <h2 style="color: #1a1a1a; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">📚 Your Growth Playlist</h2>
-        ${resourcesForTop3.map((resource: any) => `
+        <h2 style="color: #1a1a1a; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">📚 This Week's Resource</h2>
+        ${resourceForTopCap.map((resource: any) => `
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px;">
           <div style="color: #667eea; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">${resource.type}</div>
           <div style="color: #9ca3af; font-size: 11px; font-weight: 500; margin-bottom: 8px;">FOR: ${resource.capabilityName}</div>
@@ -444,7 +444,7 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
         subject: emailContent.subject,
         body: html,
         status: "sent",
-        resources_included: resourcesForTop3,
+        resources_included: resourceForTopCap,
       });
 
     if (logError) {
