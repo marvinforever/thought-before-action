@@ -31,7 +31,7 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
       console.log("Message received:", message);
       // Add messages to transcript for display
       setTranscript(prev => [...prev, {
-        role: message.role || 'assistant',
+        role: message.source === 'user' ? 'user' : 'assistant',
         content: message.message || ''
       }]);
     },
@@ -73,8 +73,10 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
       const { signedUrl, conversationId: convId } = data;
       setConversationId(convId);
 
-      // Start ElevenLabs conversation
-      await conversation.startSession({ url: signedUrl });
+      // Start ElevenLabs conversation with signed URL
+      await conversation.startSession({
+        signedUrl: signedUrl
+      });
       
     } catch (error: any) {
       console.error("Failed to start voice conversation:", error);
