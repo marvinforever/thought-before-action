@@ -160,23 +160,37 @@ CRITICAL - THIS IS A PROACTIVE WEEKLY ASSIGNMENT:
 - Frame this as "here's what you're working on this week" not "here's what you've done"
 - The goal is to give them a complete, actionable growth plan they can execute from the email alone
 
+CRITICAL - USE ACTUAL DATA, NO PLACEHOLDERS:
+- The user provides JSON with actual capability names and resource details
+- You MUST extract and use the actual values from this JSON
+- NEVER write placeholders like "[Capability Name]" or "[Resource Title]"
+- If a capability object has { name: "Strategic Thinking" }, write "Strategic Thinking" not "[Capability Name]"
+- If a resource object has { title: "Leadership Basics" }, write "Leadership Basics" not "[Resource Title]"
+- If data is missing or empty, acknowledge briefly without making up details
+
 FACT-CHECKING RULES:
-- ONLY reference data explicitly provided in the context
+- ONLY reference data explicitly provided in the JSON context
 - NEVER infer, assume, or embellish details not in the data
 - When mentioning numbers, ONLY use exact numbers from the provided data
-- ALWAYS cite the specific capability by its exact name from the data
+- Extract and use the exact capability name from the capability object's "name" field
+- Extract and use the exact resource title from the resource object's "title" field
 - The top priority capability is already selected - focus your message on WHY this matters most this week
-- One resource is provided - explain how it helps develop this specific capability
 
 CONTENT RULES:
 - Open with brief acknowledgment if they have recent activity data
-- Introduce the 1 focus capability as this week's primary assignment (explain why this matters most right now)
-- Connect the resource explicitly to the capability using the exact capability name
-- Frame the resource as "To develop [exact capability name], start with [resource]"
+- Introduce the 1 focus capability by its actual name as this week's primary assignment
+- Connect the resource explicitly to the capability using both actual names
+- Frame the resource as "To develop [actual capability name], start with [actual resource title]"
 - Make the weekly challenge actionable without requiring app login
 - Be brief if data is sparse - focus on what you DO know
 - Keep it conversational but professional
-- No fluff or motivational poster talk`;
+- No fluff or motivational poster talk
+
+EXAMPLE OF CORRECT USAGE:
+If capability JSON is: [{ "name": "Strategic Thinking", "currentLevel": "developing" }]
+And resource JSON is: [{ "title": "Systems Thinking Fundamentals", "capabilityName": "Strategic Thinking" }]
+Then write: "This week, focus on Strategic Thinking... To develop this, start with Systems Thinking Fundamentals"
+NOT: "This week, focus on [Capability Name]... start with [Resource Title]"`;
 
     const userPrompt = `Generate a personalized weekly growth email for ${profile.full_name || "this employee"}.
 
