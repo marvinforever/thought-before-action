@@ -717,6 +717,42 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
             required: ["habit_text", "frequency"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "read_user_capabilities",
+          description: "Read back the user's current capabilities and levels to help them understand their progress. Use this when they want to see what they're working on or don't know what to talk about.",
+          parameters: {
+            type: "object",
+            properties: {
+              category_filter: {
+                type: "string",
+                enum: ["all", "leadership", "communication", "technical", "strategic_thinking", "adaptability"],
+                description: "Which category to focus on. Use 'all' to give a complete overview."
+              }
+            },
+            required: ["category_filter"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "explain_platform_feature",
+          description: "Provide a guided explanation of how to use a specific platform feature. Use this when users ask how something works or when they seem uncertain about platform navigation.",
+          parameters: {
+            type: "object",
+            properties: {
+              feature: {
+                type: "string",
+                enum: ["capabilities", "90_day_goals", "habits", "achievements", "learning_roadmap", "diagnostics", "one_on_ones"],
+                description: "Which feature to explain"
+              }
+            },
+            required: ["feature"]
+          }
+        }
       }
     ];
 
@@ -864,15 +900,74 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
           toolResults.push(`✅ Goal completed! That's real progress.`);
         } else if (functionName === 'add_habit') {
           await supabase
-            .from('habits')
+            .from('leading_indicators')
             .insert({
               profile_id: user.id,
               company_id: profile.company_id,
-              habit_text: functionArgs.habit_text,
-              frequency: functionArgs.frequency
+              habit_name: functionArgs.habit_text,
+              target_frequency: functionArgs.frequency,
+              is_active: true
             });
           
           toolResults.push(`✅ Added habit: "${functionArgs.habit_text}" (${functionArgs.frequency}) - Consistency is the key to greatness!`);
+        } else if (functionName === 'read_user_capabilities') {
+          const { category_filter } = functionArgs;
+          
+          let query = supabase
+            .from('employee_capabilities')
+            .select(`
+              *,
+              capabilities:capability_id (
+                name,
+                category,
+                full_definition
+              )
+            `)
+            .eq('profile_id', user.id);
+
+          if (category_filter && category_filter !== 'all') {
+            query = query.eq('capabilities.category', category_filter);
+          }
+
+          const { data: userCapabilities, error: capError } = await query;
+
+          if (capError) {
+            console.error('Error fetching capabilities:', capError);
+            toolResults.push('❌ Failed to fetch capabilities data');
+          } else {
+            const summary = {
+              total_count: userCapabilities?.length || 0,
+              by_category: {} as Record<string, number>,
+              capabilities: userCapabilities?.map(cap => ({
+                name: cap.capabilities?.name,
+                category: cap.capabilities?.category,
+                current_level: cap.current_level,
+                target_level: cap.target_level,
+                self_assessed: cap.self_assessed_level,
+              }))
+            };
+
+            userCapabilities?.forEach(cap => {
+              const category = cap.capabilities?.category || 'uncategorized';
+              summary.by_category[category] = (summary.by_category[category] || 0) + 1;
+            });
+
+            toolResults.push(`📊 Found ${summary.total_count} capabilities. Present these conversationally: ${JSON.stringify(summary.capabilities)}`);
+          }
+        } else if (functionName === 'explain_platform_feature') {
+          const { feature } = functionArgs;
+          
+          const explanations: Record<string, string> = {
+            capabilities: "Capabilities are the skills and competencies you're developing. You can self-assess your level (Foundational, Intermediate, Advanced, Expert), and your manager can assign target levels. Request increases when you have evidence of growth.",
+            "90_day_goals": "90-day goals are quarterly objectives that break down your bigger vision. Set 3 goals per quarter with clear deadlines. You can track progress with benchmarks and sprints. Mark them complete when done, and I'll celebrate with you!",
+            habits: "Habits are daily or weekly actions that compound over time. Create habits linked to your goals or capabilities. Track completions to build streaks. Small, consistent actions lead to big results.",
+            achievements: "Achievements are wins you want to remember. Record them as they happen - completed projects, positive feedback, solved problems. These become evidence for capability growth and fuel for 1-on-1s.",
+            learning_roadmap: "Your learning roadmap suggests resources (books, videos, courses) based on your capabilities and goals. Rate resources you try to help others. Suggest new resources if you find something great!",
+            diagnostics: "The diagnostic is a comprehensive survey about your role, workload, and growth. Complete it to get personalized insights and help your company understand how to support you better.",
+            one_on_ones: "One-on-ones are documented conversations with your manager. They capture wins, concerns, action items, and next meeting dates. This creates a shared record of your development journey."
+          };
+
+          toolResults.push(`📚 ${explanations[feature] || "Feature explanation not available."}`);
         }
       }
       

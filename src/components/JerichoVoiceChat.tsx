@@ -16,6 +16,11 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
   const [isInitializing, setIsInitializing] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<Array<{ role: string; content: string }>>([]);
+  const [completeness, setCompleteness] = useState<{
+    percentage: number;
+    missingItems: string[];
+    onboardingPhase: string;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const conversation = useConversation({
@@ -70,8 +75,9 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
 
       if (error) throw error;
 
-      const { signedUrl, conversationId: convId } = data;
+      const { signedUrl, conversationId: convId, completeness: userCompleteness } = data;
       setConversationId(convId);
+      setCompleteness(userCompleteness);
 
       // Start ElevenLabs conversation with signed URL
       await conversation.startSession({
@@ -113,27 +119,53 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl h-[600px] flex flex-col bg-background border-2">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${conversation.status === 'connected' ? 'bg-green-500/20' : 'bg-gray-500/20'}`}>
-              <Phone className={`h-5 w-5 ${conversation.status === 'connected' ? 'text-green-500' : 'text-gray-500'}`} />
+        <div className="flex flex-col gap-3 p-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-full ${conversation.status === 'connected' ? 'bg-green-500/20' : 'bg-gray-500/20'}`}>
+                <Phone className={`h-5 w-5 ${conversation.status === 'connected' ? 'text-green-500' : 'text-gray-500'}`} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Voice Chat with Jericho</h3>
+                <p className="text-sm text-muted-foreground">
+                  {conversation.status === 'connected' ? '🟢 Connected' : 
+                   conversation.status === 'connecting' ? '🟡 Connecting...' : 
+                   '⚪ Not connected'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg">Voice Chat with Jericho</h3>
-              <p className="text-sm text-muted-foreground">
-                {conversation.status === 'connected' ? '🟢 Connected' : 
-                 conversation.status === 'connecting' ? '🟡 Connecting...' : 
-                 '⚪ Not connected'}
-              </p>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-          >
-            <X className="h-5 w-5" />
-          </Button>
+          
+          {completeness && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                Profile: {completeness.percentage}% Complete
+              </span>
+              {completeness.onboardingPhase && (
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  completeness.onboardingPhase === 'complete' ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 
+                  completeness.onboardingPhase === 'in_progress' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400' : 
+                  'bg-gray-500/10 text-gray-700 dark:text-gray-400'
+                }`}>
+                  {completeness.onboardingPhase === 'complete' ? '✓ Setup Complete' :
+                   completeness.onboardingPhase === 'in_progress' ? '⏳ Getting Started' :
+                   '🆕 New User'}
+                </span>
+              )}
+              {completeness.missingItems.length > 0 && (
+                <span className="text-xs px-2 py-1 rounded-full bg-accent text-accent-foreground">
+                  Jericho can help: {completeness.missingItems[0].replace('_', ' ')}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Transcript Area */}

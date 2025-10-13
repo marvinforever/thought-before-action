@@ -2552,6 +2552,59 @@ export type Database = {
           },
         ]
       }
+      user_data_completeness: {
+        Row: {
+          created_at: string | null
+          has_90_day_goals: boolean | null
+          has_active_habits: boolean | null
+          has_completed_diagnostic: boolean | null
+          has_personal_vision: boolean | null
+          has_recent_achievements: boolean | null
+          has_self_assessed_capabilities: boolean | null
+          id: string
+          last_jericho_prompt: string | null
+          onboarding_phase: string | null
+          profile_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          has_90_day_goals?: boolean | null
+          has_active_habits?: boolean | null
+          has_completed_diagnostic?: boolean | null
+          has_personal_vision?: boolean | null
+          has_recent_achievements?: boolean | null
+          has_self_assessed_capabilities?: boolean | null
+          id?: string
+          last_jericho_prompt?: string | null
+          onboarding_phase?: string | null
+          profile_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          has_90_day_goals?: boolean | null
+          has_active_habits?: boolean | null
+          has_completed_diagnostic?: boolean | null
+          has_personal_vision?: boolean | null
+          has_recent_achievements?: boolean | null
+          has_self_assessed_capabilities?: boolean | null
+          id?: string
+          last_jericho_prompt?: string | null
+          onboarding_phase?: string | null
+          profile_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_data_completeness_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2673,6 +2726,10 @@ export type Database = {
       is_super_admin: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      refresh_user_completeness: {
+        Args: { user_id: string }
+        Returns: undefined
       }
     }
     Enums: {
