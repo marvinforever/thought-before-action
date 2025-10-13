@@ -75,21 +75,13 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
 
       if (error) throw error;
 
-      const { signedUrl, conversationId: convId, completeness: userCompleteness, systemPrompt, firstMessage } = data;
+      const { signedUrl, conversationId: convId, completeness: userCompleteness } = data;
       setConversationId(convId);
       setCompleteness(userCompleteness);
 
-      // Start ElevenLabs conversation with signed URL and overrides
+      // Start ElevenLabs conversation with signed URL
       await conversation.startSession({
-        signedUrl: signedUrl,
-        overrides: {
-          agent: {
-            prompt: {
-              prompt: systemPrompt
-            },
-            firstMessage: firstMessage
-          }
-        }
+        signedUrl: signedUrl
       });
       
     } catch (error: any) {

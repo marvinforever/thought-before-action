@@ -215,9 +215,6 @@ Remember: You're not just a coach - you're a GUIDE who helps them get the most o
       JSON.stringify({
         signedUrl: signed_url,
         conversationId: conversation.id,
-        userName: profile.full_name || 'there',
-        systemPrompt: voiceSystemPrompt,
-        firstMessage: `Hey ${profile.full_name || 'there'}! I'm Jericho, your AI coach. ${missingData.length > 0 ? "I can help you get set up on the platform, or we can dive into whatever's on your mind." : "Great to see you again! What would you like to work on today?"}`,
         completeness: {
           percentage: Math.round(((hasData.length) / 6) * 100),
           missingItems: missingData,
