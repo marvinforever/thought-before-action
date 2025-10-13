@@ -93,14 +93,20 @@ serve(async (req) => {
       .order("match_score", { ascending: false })
       .limit(5);
 
-    // Build context for AI
-    const capabilitiesContext = capabilities?.map(c => ({
+    // Build context for AI - Focus on TOP 3 CAPABILITIES
+    const allCapabilities = capabilities?.map(c => ({
+      id: c.capability_id,
       name: c.capability?.name,
       category: c.capability?.category,
       currentLevel: c.current_level,
       targetLevel: c.target_level,
-      priority: c.priority
+      priority: c.priority || 999
     })) || [];
+
+    // Select top 3 capabilities by priority
+    const top3Capabilities = allCapabilities
+      .sort((a, b) => a.priority - b.priority)
+      .slice(0, 3);
 
     const targetsContext = targets?.map(t => ({
       description: t.target_description,
@@ -128,50 +134,64 @@ serve(async (req) => {
       }))
     ) || [];
 
-    const resourcesForEmail = recommendations?.slice(0, 5).map(r => ({
-      title: r.resource?.title || "Resource",
-      description: r.resource?.description || "",
-      url: r.resource?.url || "#",
-      type: r.resource?.content_type || "article",
-      reasoning: r.ai_reasoning || ""
-    })) || [];
+    // Map resources to the top 3 capabilities
+    const top3CapIds = top3Capabilities.map(c => c.id);
+    const resourcesForTop3 = recommendations
+      ?.filter(r => r.employee_capability_id && top3CapIds.includes(r.employee_capability_id))
+      .slice(0, 6) // Max 2 per capability
+      .map(r => ({
+        capabilityId: r.employee_capability_id,
+        capabilityName: top3Capabilities.find(c => c.id === r.employee_capability_id)?.name || "Unknown",
+        title: r.resource?.title || "Resource",
+        description: r.resource?.description || "",
+        url: r.resource?.url || "#",
+        type: r.resource?.content_type || "article",
+        reasoning: r.ai_reasoning || ""
+      })) || [];
 
     // Generate email content via Lovable AI using tool calling for structured output
-    const systemPrompt = `You are Jericho, a firm but encouraging executive coach writing a daily growth email. 
+    const systemPrompt = `You are Jericho, a firm but encouraging executive coach writing a weekly growth prescription email. 
 
 TONE: Personal, specific, and actionable. Be direct but supportive - like a coach who believes in them but won't let them coast.
 
-CRITICAL FACT-CHECKING RULES:
+CRITICAL - THIS IS A PROACTIVE WEEKLY ASSIGNMENT:
+- This email is their MAIN interaction with you this week - they may not log into the app
+- You are PRESCRIBING their 3 focus areas and giving them resources to work on
+- Frame this as "here's what you're working on this week" not "here's what you've done"
+- The goal is to give them a complete, actionable growth plan they can execute from the email alone
+
+FACT-CHECKING RULES:
 - ONLY reference data explicitly provided in the context
 - NEVER infer, assume, or embellish details not in the data
 - When mentioning numbers, ONLY use exact numbers from the provided data
-- If data is missing or unclear, DO NOT make up details - acknowledge what you don't know
-- ALWAYS cite specific capabilities, targets, or habits by their exact names from the data
-- DO NOT create narrative about progress unless you have explicit completion data
+- ALWAYS cite specific capabilities by their exact names from the data
+- The top 3 capabilities are already selected - focus your message on WHY these 3 matter this week
+- Resources are already mapped to capabilities - explain how each resource helps with that specific capability
 
 CONTENT RULES:
-- Reference their specific capabilities in progress (use exact capability names provided)
-- When mentioning resources, connect them explicitly to capability gaps using the capability names
-- Frame resources as "I've selected these specifically for [exact capability name from data]"
-- If they completed habits, reference the exact habit names and completion counts
-- If they have active targets, reference the exact target descriptions
-- Be specific, not generic - but only with facts you have
-- Celebrate wins authentically using actual data
-- Address struggles based on capability gaps shown in data
+- Open with brief acknowledgment if they have recent activity data
+- Introduce the 3 focus capabilities as this week's assignment (explain why these 3 matter)
+- Connect resources explicitly to each capability using exact capability names
+- Frame resources as "To develop [exact capability name], start with [resource]"
+- Make the weekly challenge actionable without requiring app login
+- Be brief if data is sparse - focus on what you DO know
 - Keep it conversational but professional
-- No fluff or motivational poster talk
-- If you don't have enough data to be specific, be brief and focus on what you DO know`;
+- No fluff or motivational poster talk`;
 
-    const userPrompt = `Generate a personalized growth email for ${profile.full_name || "this employee"}.
+    const userPrompt = `Generate a personalized weekly growth email for ${profile.full_name || "this employee"}.
+
+THIS WEEK'S FOCUS: These are their TOP 3 capabilities to work on this week (in priority order):
+${JSON.stringify(top3Capabilities)}
 
 THEIR CURRENT STATUS:
-Capability Gaps: ${JSON.stringify(capabilitiesContext)}
 90-Day Targets: ${JSON.stringify(targetsContext)}
 Habit Progress (last 7 days): ${JSON.stringify(habitsContext)}
 Recent Conversation Themes: ${JSON.stringify(conversationContext)}
 
-Resources to include in "Your Growth Playlist":
-${JSON.stringify(resourcesForEmail)}`;
+CURATED RESOURCES (mapped to their top 3 capabilities):
+${JSON.stringify(resourcesForTop3)}
+
+Frame this as a proactive weekly assignment. They may not log into the app - this email should be their complete growth experience for the week.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -267,7 +287,7 @@ ${JSON.stringify(resourcesForEmail)}`;
       
       <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">${emailContent.openingMessage}</p>
       
-      ${(habitsContext.length > 0 || targetsContext.length > 0 || capabilitiesContext.length > 0) ? `
+      ${(habitsContext.length > 0 || targetsContext.length > 0 || top3Capabilities.length > 0) ? `
       <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
         <h3 style="color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 16px 0;">📊 This Week By The Numbers</h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
@@ -277,10 +297,10 @@ ${JSON.stringify(resourcesForEmail)}`;
             <div style="color: #718096; font-size: 13px;">Habits Completed</div>
           </div>
           ` : ''}
-          ${capabilitiesContext.length > 0 ? `
+          ${top3Capabilities.length > 0 ? `
           <div style="text-align: center;">
-            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">${capabilitiesContext.length}</div>
-            <div style="color: #718096; font-size: 13px;">Active Capabilities</div>
+            <div style="color: #667eea; font-size: 32px; font-weight: bold; margin: 0 0 4px 0;">${top3Capabilities.length}</div>
+            <div style="color: #718096; font-size: 13px;">Priority Capabilities</div>
           </div>
           ` : ''}
           ${targetsContext.filter((t: any) => !t.completed).length > 0 ? `
@@ -301,12 +321,12 @@ ${JSON.stringify(resourcesForEmail)}`;
       
       <div style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">${emailContent.mainContent.replace(/\n/g, '<br>')}</div>
       
-      ${capabilitiesContext.length > 0 ? `
+      ${top3Capabilities.length > 0 ? `
       <div style="margin: 24px 0; padding: 20px; background-color: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
         <h3 style="color: #2d3748; font-size: 16px; font-weight: 600; margin: 0 0 16px 0;">
-          🎯 Your Active Growth Areas
+          🎯 Your 3 Focus Areas This Week
         </h3>
-        ${capabilitiesContext.slice(0, 5).map(cap => {
+        ${top3Capabilities.map((cap: any) => {
           const levelMap: any = { 'foundational': 1, 'developing': 2, 'proficient': 3, 'advanced': 4, 'expert': 5 };
           const current = levelMap[cap.currentLevel] || 1;
           const target = levelMap[cap.targetLevel] || 5;
@@ -331,12 +351,13 @@ ${JSON.stringify(resourcesForEmail)}`;
         <p style="color: #ffffff; font-size: 15px; line-height: 1.6; margin: 0;">${emailContent.actionableChallenge}</p>
       </div>
       
-      ${resourcesForEmail.length > 0 ? `
+      ${resourcesForTop3.length > 0 ? `
       <div style="margin: 32px 0;">
         <h2 style="color: #1a1a1a; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">📚 Your Growth Playlist</h2>
-        ${resourcesForEmail.map(resource => `
+        ${resourcesForTop3.map((resource: any) => `
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px;">
-          <div style="color: #667eea; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">${resource.type}</div>
+          <div style="color: #667eea; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">${resource.type}</div>
+          <div style="color: #9ca3af; font-size: 11px; font-weight: 500; margin-bottom: 8px;">FOR: ${resource.capabilityName}</div>
           <h3 style="color: #2d3748; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">${resource.title}</h3>
           <p style="color: #4a5568; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">${resource.description}</p>
           ${resource.reasoning ? `
@@ -414,7 +435,7 @@ ${JSON.stringify(resourcesForEmail)}`;
         subject: emailContent.subject,
         body: html,
         status: "sent",
-        resources_included: resourcesForEmail,
+        resources_included: resourcesForTop3,
       });
 
     if (logError) {
