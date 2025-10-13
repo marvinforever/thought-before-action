@@ -142,7 +142,10 @@ serve(async (req) => {
 TONE: Personal, specific, and actionable. Be direct but supportive - like a coach who believes in them but won't let them coast.
 
 RULES:
+- Reference their specific capabilities in progress (avoid generic platitudes)
 - Reference actual data (habit streaks, targets, capability gaps, conversation themes)
+- When mentioning resources, connect them explicitly to capability gaps
+- Frame resources as "I've selected these specifically for [capability/goal]"
 - Be specific, not generic
 - Celebrate wins authentically
 - Address struggles without being soft
@@ -257,6 +260,31 @@ ${JSON.stringify(resourcesForEmail)}`;
       
       <div style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">${emailContent.mainContent.replace(/\n/g, '<br>')}</div>
       
+      ${capabilitiesContext.length > 0 ? `
+      <div style="margin: 24px 0; padding: 20px; background-color: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
+        <h3 style="color: #2d3748; font-size: 16px; font-weight: 600; margin: 0 0 16px 0;">
+          🎯 Your Active Growth Areas
+        </h3>
+        ${capabilitiesContext.slice(0, 5).map(cap => {
+          const levelMap: any = { 'foundational': 1, 'developing': 2, 'proficient': 3, 'advanced': 4, 'expert': 5 };
+          const current = levelMap[cap.currentLevel] || 1;
+          const target = levelMap[cap.targetLevel] || 5;
+          const progress = ((current - 1) / (target - 1)) * 100;
+          return `
+          <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #4a5568; font-size: 14px; font-weight: 500;">${cap.name}</span>
+              <span style="color: #718096; font-size: 13px;">${cap.currentLevel} → ${cap.targetLevel}</span>
+            </div>
+            <div style="background-color: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: ${progress}%;"></div>
+            </div>
+          </div>
+          `;
+        }).join('')}
+      </div>
+      ` : ''}
+      
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 24px; margin: 24px 0;">
         <h2 style="color: #ffffff; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">🎯 This Week's Challenge</h2>
         <p style="color: #ffffff; font-size: 15px; line-height: 1.6; margin: 0;">${emailContent.actionableChallenge}</p>
@@ -264,12 +292,17 @@ ${JSON.stringify(resourcesForEmail)}`;
       
       ${resourcesForEmail.length > 0 ? `
       <div style="margin: 32px 0;">
-        <h2 style="color: #1a1a1a; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">📚 Curated Resources for You</h2>
+        <h2 style="color: #1a1a1a; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">📚 Your Growth Playlist</h2>
         ${resourcesForEmail.map(resource => `
         <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px;">
           <div style="color: #667eea; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">${resource.type}</div>
           <h3 style="color: #2d3748; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">${resource.title}</h3>
           <p style="color: #4a5568; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">${resource.description}</p>
+          ${resource.reasoning ? `
+          <p style="color: #667eea; font-size: 13px; font-style: italic; line-height: 1.4; margin: 0 0 8px 0; padding-left: 12px; border-left: 2px solid #667eea;">
+            💡 ${resource.reasoning}
+          </p>
+          ` : ''}
           <a href="${resource.url}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">View Resource →</a>
         </div>
         `).join('')}
@@ -279,7 +312,7 @@ ${JSON.stringify(resourcesForEmail)}`;
       <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 24px 0;">${emailContent.closingMessage}</p>
       
       <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-        <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">Keep growing,<br><strong>Your Growth Team</strong></p>
+        <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">Keep growing,<br><strong>Jericho</strong></p>
         <div style="margin-top: 20px;">
           <a href="${supabaseUrl}" style="display: inline-block; background-color: #667eea; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; margin-right: 12px;">View Dashboard</a>
           <a href="${supabaseUrl}" style="color: #667eea; text-decoration: none; font-size: 14px;">Email Preferences</a>
