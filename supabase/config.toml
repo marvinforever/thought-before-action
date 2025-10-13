@@ -1,5 +1,8 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.elevenlabs-voice-agent]
+verify_jwt = true
+
 [functions.send-growth-email]
 verify_jwt = false
 

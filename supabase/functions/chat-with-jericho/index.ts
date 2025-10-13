@@ -631,6 +631,92 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
             required: ["capability_name", "requested_level", "evidence_text"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "add_90_day_goal",
+          description: "Add a new 90-day goal for the user. Use this when they mention wanting to achieve something specific in the next 90 days.",
+          parameters: {
+            type: "object",
+            properties: {
+              goal_text: {
+                type: "string",
+                description: "Specific, measurable goal statement"
+              },
+              category: {
+                type: "string",
+                enum: ["career", "skills", "leadership"],
+                description: "Goal category"
+              },
+              by_when: {
+                type: "string",
+                description: "Target completion date (YYYY-MM-DD format)"
+              }
+            },
+            required: ["goal_text", "category"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "add_achievement",
+          description: "Record an achievement in the user's greatness tracker. Use this when they mention accomplishing something worth celebrating.",
+          parameters: {
+            type: "object",
+            properties: {
+              achievement_text: {
+                type: "string",
+                description: "What the user accomplished"
+              },
+              category: {
+                type: "string",
+                description: "Achievement category or tag (e.g., 'leadership', 'technical', 'communication')"
+              }
+            },
+            required: ["achievement_text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "mark_goal_complete",
+          description: "Mark a 90-day goal as completed. Use this when the user confirms they've finished a goal.",
+          parameters: {
+            type: "object",
+            properties: {
+              goal_id: {
+                type: "string",
+                description: "ID of the goal to mark complete"
+              }
+            },
+            required: ["goal_id"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "add_habit",
+          description: "Add a new habit the user wants to track. Use this when they want to build consistency around a specific behavior.",
+          parameters: {
+            type: "object",
+            properties: {
+              habit_text: {
+                type: "string",
+                description: "The habit to track (e.g., 'Review my 90-day goals', 'Read for 30 minutes')"
+              },
+              frequency: {
+                type: "string",
+                enum: ["daily", "weekly"],
+                description: "How often to track this habit"
+              }
+            },
+            required: ["habit_text", "frequency"]
+          }
+        }
       }
     ];
 
@@ -736,6 +822,57 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
           } else {
             toolResults.push(`❌ Couldn't find a capability matching "${functionArgs.capability_name}". Try describing it differently?`);
           }
+        } else if (functionName === 'add_90_day_goal') {
+          const quarterEnd = new Date();
+          quarterEnd.setDate(quarterEnd.getDate() + 90);
+          
+          await supabase
+            .from('ninety_day_targets')
+            .insert({
+              profile_id: user.id,
+              company_id: profile.company_id,
+              goal_text: functionArgs.goal_text,
+              category: functionArgs.category,
+              quarter: `Q${Math.ceil((new Date().getMonth() + 1) / 3)}`,
+              by_when: functionArgs.by_when || quarterEnd.toISOString().split('T')[0],
+              completed: false
+            });
+          
+          toolResults.push(`✅ Added 90-day goal: "${functionArgs.goal_text}" - Let's make it happen!`);
+        } else if (functionName === 'add_achievement') {
+          await supabase
+            .from('achievements')
+            .insert({
+              profile_id: user.id,
+              company_id: profile.company_id,
+              achievement_text: functionArgs.achievement_text,
+              category: functionArgs.category || 'general',
+              achieved_date: new Date().toISOString().split('T')[0]
+            });
+          
+          toolResults.push(`🎉 Recorded your achievement! Keep building that momentum.`);
+        } else if (functionName === 'mark_goal_complete') {
+          await supabase
+            .from('ninety_day_targets')
+            .update({ 
+              completed: true, 
+              completed_at: new Date().toISOString() 
+            })
+            .eq('id', functionArgs.goal_id)
+            .eq('profile_id', user.id);
+          
+          toolResults.push(`✅ Goal completed! That's real progress.`);
+        } else if (functionName === 'add_habit') {
+          await supabase
+            .from('habits')
+            .insert({
+              profile_id: user.id,
+              company_id: profile.company_id,
+              habit_text: functionArgs.habit_text,
+              frequency: functionArgs.frequency
+            });
+          
+          toolResults.push(`✅ Added habit: "${functionArgs.habit_text}" (${functionArgs.frequency}) - Consistency is the key to greatness!`);
         }
       }
       

@@ -74,12 +74,55 @@ serve(async (req) => {
       .from("conversations")
       .select(`
         id,
+        source,
+        title,
         messages:conversation_messages(role, content, created_at)
       `)
       .eq("profile_id", profileId)
       .gte("updated_at", sevenDaysAgo.toISOString())
       .order("updated_at", { ascending: false })
       .limit(3);
+
+    // Fetch voice conversations specifically for detailed summary
+    const { data: voiceMessages } = await supabase
+      .from("conversation_messages")
+      .select(`
+        content,
+        role,
+        created_at,
+        conversation:conversations!inner(id, title, source, created_at)
+      `)
+      .eq("conversation.profile_id", profileId)
+      .eq("conversation.source", "voice")
+      .gte("created_at", sevenDaysAgo.toISOString())
+      .order("created_at", { ascending: true })
+      .limit(20);
+
+    // Build voice conversation summary
+    let voiceConversationSummary = '';
+    if (voiceMessages && voiceMessages.length > 0) {
+      const conversationsBySession = voiceMessages.reduce((acc: any, msg: any) => {
+        const convId = msg.conversation.id;
+        if (!acc[convId]) {
+          acc[convId] = {
+            title: msg.conversation.title,
+            date: msg.conversation.created_at,
+            messages: []
+          };
+        }
+        acc[convId].messages.push({
+          role: msg.role,
+          content: msg.content
+        });
+        return acc;
+      }, {});
+
+      const sessions = Object.values(conversationsBySession) as any[];
+      voiceConversationSummary = `Voice Conversations (${sessions.length} session${sessions.length > 1 ? 's' : ''}):\n`;
+      sessions.slice(0, 2).forEach((session: any) => {
+        voiceConversationSummary += `- ${new Date(session.date).toLocaleDateString()}: Topics discussed included ${session.messages.filter((m: any) => m.role === 'user').slice(0, 2).map((m: any) => m.content.substring(0, 60)).join(', ')}...\n`;
+      });
+    }
 
     // Fetch recommended resources
     const { data: recommendations } = await supabase
@@ -201,11 +244,13 @@ THEIR CURRENT STATUS:
 90-Day Targets: ${JSON.stringify(targetsContext)}
 Habit Progress (last 7 days): ${JSON.stringify(habitsContext)}
 Recent Conversation Themes: ${JSON.stringify(conversationContext)}
+${voiceConversationSummary ? `\nVOICE COACHING INSIGHTS:\n${voiceConversationSummary}` : ''}
 
 CURATED RESOURCE (for their top capability):
 ${JSON.stringify(resourceForTopCap)}
 
-Frame this as a proactive weekly assignment focused on this one priority. They may not log into the app - this email should be their complete growth experience for the week.`;
+Frame this as a proactive weekly assignment focused on this one priority. They may not log into the app - this email should be their complete growth experience for the week.
+${voiceConversationSummary ? '\n\nNOTE: They had voice conversations with you this week - acknowledge topics they discussed verbally and connect them to this week\'s focus.' : ''}`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

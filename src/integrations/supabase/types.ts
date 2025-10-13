@@ -598,30 +598,36 @@ export type Database = {
           company_id: string
           context_snapshot: Json | null
           created_at: string
+          duration_seconds: number | null
           id: string
           profile_id: string
           source: string | null
           title: string | null
+          transcript_summary: string | null
           updated_at: string
         }
         Insert: {
           company_id: string
           context_snapshot?: Json | null
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           profile_id: string
           source?: string | null
           title?: string | null
+          transcript_summary?: string | null
           updated_at?: string
         }
         Update: {
           company_id?: string
           context_snapshot?: Json | null
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           profile_id?: string
           source?: string | null
           title?: string | null
+          transcript_summary?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2569,6 +2575,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      voice_sessions: {
+        Row: {
+          audio_minutes_used: number | null
+          conversation_id: string
+          created_at: string
+          duration_seconds: number | null
+          elevenlabs_session_id: string | null
+          ended_at: string | null
+          id: string
+          profile_id: string
+          started_at: string
+        }
+        Insert: {
+          audio_minutes_used?: number | null
+          conversation_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          elevenlabs_session_id?: string | null
+          ended_at?: string | null
+          id?: string
+          profile_id: string
+          started_at?: string
+        }
+        Update: {
+          audio_minutes_used?: number | null
+          conversation_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          elevenlabs_session_id?: string | null
+          ended_at?: string | null
+          id?: string
+          profile_id?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_voice_sessions_conversation"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_voice_sessions_profile"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_sessions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
