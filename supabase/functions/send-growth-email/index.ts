@@ -136,19 +136,10 @@ serve(async (req) => {
       reasoning: r.ai_reasoning || ""
     })) || [];
 
-    // Generate email content via Lovable AI
+    // Generate email content via Lovable AI using tool calling for structured output
     const systemPrompt = `You are Jericho, a firm but encouraging executive coach writing a daily growth email. 
 
 TONE: Personal, specific, and actionable. Be direct but supportive - like a coach who believes in them but won't let them coast.
-
-STRUCTURE YOUR RESPONSE AS JSON:
-{
-  "subject": "Personalized subject line referencing something specific",
-  "openingMessage": "1-2 sentences acknowledging something recent or specific",
-  "mainContent": "2-3 paragraphs addressing their growth journey, acknowledging wins, addressing gaps, connecting to bigger vision",
-  "actionableChallenge": "One clear, specific action they should take today/this week",
-  "closingMessage": "Encouraging but firm closing statement"
-}
 
 RULES:
 - Reference actual data (habit streaks, targets, capability gaps, conversation themes)
@@ -168,9 +159,7 @@ Habit Progress (last 7 days): ${JSON.stringify(habitsContext)}
 Recent Conversation Themes: ${JSON.stringify(conversationContext)}
 
 Resources to include in "Your Growth Playlist":
-${JSON.stringify(resourcesForEmail)}
-
-Generate the email content now.`;
+${JSON.stringify(resourcesForEmail)}`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -184,7 +173,43 @@ Generate the email content now.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        temperature: 0.8,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "generate_email",
+              description: "Generate a personalized growth email with structured content",
+              parameters: {
+                type: "object",
+                properties: {
+                  subject: {
+                    type: "string",
+                    description: "Personalized subject line referencing something specific"
+                  },
+                  openingMessage: {
+                    type: "string",
+                    description: "1-2 sentences acknowledging something recent or specific"
+                  },
+                  mainContent: {
+                    type: "string",
+                    description: "2-3 paragraphs addressing their growth journey, acknowledging wins, addressing gaps, connecting to bigger vision"
+                  },
+                  actionableChallenge: {
+                    type: "string",
+                    description: "One clear, specific action they should take today/this week"
+                  },
+                  closingMessage: {
+                    type: "string",
+                    description: "Encouraging but firm closing statement"
+                  }
+                },
+                required: ["subject", "openingMessage", "mainContent", "actionableChallenge", "closingMessage"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "generate_email" } }
       }),
     });
 
@@ -195,7 +220,11 @@ Generate the email content now.`;
     }
 
     const aiData = await aiResponse.json();
-    const emailContent = JSON.parse(aiData.choices[0].message.content);
+    const toolCall = aiData.choices[0].message.tool_calls?.[0];
+    if (!toolCall) {
+      throw new Error("AI did not return structured email content");
+    }
+    const emailContent = JSON.parse(toolCall.function.arguments);
 
     // Build test banner if this is a test email
     const testBanner = testRecipient ? `
