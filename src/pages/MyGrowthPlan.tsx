@@ -93,6 +93,17 @@ export default function MyGrowthPlan() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const { viewAsCompanyId } = useViewAs();
 
+  // Get current user ID on mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+      }
+    };
+    getCurrentUser();
+  }, []);
+
   // Check for tab parameter in URL or navigation state
   useEffect(() => {
     // Check state first (for same-page navigation)
