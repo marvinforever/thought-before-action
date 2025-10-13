@@ -166,23 +166,14 @@ ${missingData.length > 0 ? `1. You should help them with: ${missingData[0].repla
 
 Remember: You're not just a coach - you're a GUIDE who helps them get the most out of the platform. Make them feel supported and empowered.`;
 
-    // Get signed URL for ElevenLabs conversation with custom system prompt
+    // Get signed URL for ElevenLabs conversation
     const signedUrlResponse = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsAgentId}`,
       {
-        method: 'POST',
+        method: 'GET',
         headers: {
           'xi-api-key': elevenLabsApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          agent: {
-            prompt: {
-              prompt: voiceSystemPrompt
-            },
-            first_message: `Hey ${profile.full_name || 'there'}! I'm Jericho, your AI coach. ${missingData.length > 0 ? "I can help you get set up on the platform, or we can dive into whatever's on your mind." : "Great to see you again! What would you like to work on today?"}`
-          }
-        })
+        }
       }
     );
 
@@ -225,6 +216,8 @@ Remember: You're not just a coach - you're a GUIDE who helps them get the most o
         signedUrl: signed_url,
         conversationId: conversation.id,
         userName: profile.full_name || 'there',
+        systemPrompt: voiceSystemPrompt,
+        firstMessage: `Hey ${profile.full_name || 'there'}! I'm Jericho, your AI coach. ${missingData.length > 0 ? "I can help you get set up on the platform, or we can dive into whatever's on your mind." : "Great to see you again! What would you like to work on today?"}`,
         completeness: {
           percentage: Math.round(((hasData.length) / 6) * 100),
           missingItems: missingData,
