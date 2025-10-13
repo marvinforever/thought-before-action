@@ -6,6 +6,15 @@ verify_jwt = false
 [functions.process-email-queue]
 verify_jwt = false
 
+[functions.receive-email-reply]
+verify_jwt = false
+
+[functions.process-email-reply]
+verify_jwt = false
+
+[functions.send-email-reply]
+verify_jwt = false
+
 [functions.generate-strategic-learning-design]
 verify_jwt = true
 

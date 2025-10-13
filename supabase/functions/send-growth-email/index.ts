@@ -375,6 +375,9 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
       
       <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
         <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">Keep growing,<br><strong>Jericho</strong></p>
+        <p style="color: #718096; font-size: 13px; line-height: 1.5; margin: 16px 0 20px 0; font-style: italic;">
+          <strong>P.S.</strong> Have a question or feedback? Just reply to this email—I'm here to help!
+        </p>
         <div style="margin-top: 20px;">
           <a href="${supabaseUrl}" style="display: inline-block; background-color: #667eea; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; margin-right: 12px;">View Dashboard</a>
           <a href="${supabaseUrl}" style="color: #667eea; text-decoration: none; font-size: 14px;">Email Preferences</a>
@@ -404,6 +407,8 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
 
     // Send email via Resend API directly
     const recipientEmail = testRecipient || profile.email;
+    const messageId = `<${profile.id}-${Date.now()}@yourdomain.com>`;
+    
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -415,6 +420,10 @@ Frame this as a proactive weekly assignment. They may not log into the app - thi
         to: [recipientEmail],
         subject: emailContent.subject,
         html: html,
+        headers: {
+          "Reply-To": "jericho@yourdomain.com",
+          "Message-ID": messageId,
+        },
       }),
     });
 
