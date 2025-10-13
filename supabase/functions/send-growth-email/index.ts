@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { profileId } = await req.json();
+    const { profileId, preview = false, testRecipient = null } = await req.json();
 
     if (!profileId) {
       throw new Error("profileId is required");
@@ -197,6 +197,17 @@ Generate the email content now.`;
     const aiData = await aiResponse.json();
     const emailContent = JSON.parse(aiData.choices[0].message.content);
 
+    // Build test banner if this is a test email
+    const testBanner = testRecipient ? `
+      <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin-bottom: 24px; border-radius: 4px;">
+        <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0;">🧪 TEST EMAIL</p>
+        <p style="color: #78350f; font-size: 13px; margin: 8px 0 0 0;">
+          Sent to <strong>${testRecipient}</strong><br>
+          Generated for <strong>${profile.full_name}</strong> (${profile.email})
+        </p>
+      </div>
+    ` : '';
+
     // Build email HTML
     const html = `
 <!DOCTYPE html>
@@ -208,6 +219,7 @@ Generate the email content now.`;
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; background-color: #f6f9fc; margin: 0; padding: 0;">
   <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
     <div style="padding: 40px;">
+      ${testBanner}
       <h1 style="color: #1a1a1a; font-size: 24px; font-weight: bold; margin: 0 0 24px 0;">${emailContent.subject}</h1>
       
       <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hi ${profile.full_name || 'there'},</p>
@@ -250,7 +262,24 @@ Generate the email content now.`;
 </html>
     `;
 
+    // If preview mode, return HTML without sending
+    if (preview) {
+      console.log(`Preview mode - returning HTML for ${profile.email}`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          preview: true,
+          html: html,
+          subject: emailContent.subject 
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Send email via Resend API directly
+    const recipientEmail = testRecipient || profile.email;
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -259,7 +288,7 @@ Generate the email content now.`;
       },
       body: JSON.stringify({
         from: "Jericho <onboarding@resend.dev>",
-        to: [profile.email],
+        to: [recipientEmail],
         subject: emailContent.subject,
         html: html,
       }),
@@ -289,13 +318,17 @@ Generate the email content now.`;
       console.error("Failed to log email delivery:", logError);
     }
 
-    console.log(`Growth email sent to ${profile.email}`, emailData);
+    const logMessage = testRecipient 
+      ? `Test email sent to ${recipientEmail} (generated for ${profile.email})`
+      : `Growth email sent to ${profile.email}`;
+    console.log(logMessage, emailData);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         emailId: emailData?.id,
-        subject: emailContent.subject 
+        subject: emailContent.subject,
+        recipient: recipientEmail
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
@@ -65,6 +65,17 @@ const SuperAdmin = () => {
   const [tempPassword, setTempPassword] = useState("");
   const [createdPassword, setCreatedPassword] = useState("");
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  
+  // Email testing state
+  const [allUsers, setAllUsers] = useState<Array<{id: string, full_name: string, email: string, company_name: string}>>([]);
+  const [selectedTestUserId, setSelectedTestUserId] = useState<string>("");
+  const [testEmailAddress, setTestEmailAddress] = useState<string>("");
+  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewSubject, setPreviewSubject] = useState<string>("");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [lastTestResult, setLastTestResult] = useState<{timestamp: string, email: string, subject: string} | null>(null);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -1106,6 +1117,126 @@ const SuperAdmin = () => {
     loadCompanyData();
   };
 
+  const loadAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          full_name,
+          email,
+          company:companies(name)
+        `)
+        .order("full_name");
+
+      if (error) throw error;
+
+      const formattedUsers = (data || []).map((profile: any) => ({
+        id: profile.id,
+        full_name: profile.full_name || "Unknown",
+        email: profile.email || "",
+        company_name: profile.company?.name || "No Company"
+      }));
+
+      setAllUsers(formattedUsers);
+    } catch (error) {
+      console.error("Error loading users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load users",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePreviewEmail = async () => {
+    if (!selectedTestUserId) {
+      toast({
+        title: "Missing selection",
+        description: "Please select a user to generate email for",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingPreview(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-growth-email', {
+        body: { 
+          profileId: selectedTestUserId,
+          preview: true 
+        }
+      });
+
+      if (error) throw error;
+
+      setPreviewHtml(data.html);
+      setPreviewSubject(data.subject);
+      setIsPreviewOpen(true);
+    } catch (error: any) {
+      console.error("Preview generation error:", error);
+      toast({
+        title: "Failed to generate preview",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!selectedTestUserId) {
+      toast({
+        title: "Missing selection",
+        description: "Please select a user to generate email for",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!testEmailAddress || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmailAddress)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid test email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-growth-email', {
+        body: { 
+          profileId: selectedTestUserId,
+          testRecipient: testEmailAddress 
+        }
+      });
+
+      if (error) throw error;
+
+      setLastTestResult({
+        timestamp: new Date().toLocaleTimeString(),
+        email: testEmailAddress,
+        subject: data.subject
+      });
+
+      toast({
+        title: "Test email sent!",
+        description: `Sent to ${testEmailAddress}`,
+      });
+    } catch (error: any) {
+      console.error("Send test error:", error);
+      toast({
+        title: "Failed to send test email",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   const handleManualMarkComplete = async () => {
     if (!manualEmail.trim() || !diagnosticCompanyId) {
       toast({
@@ -1270,6 +1401,10 @@ const SuperAdmin = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="diagnostics">Import Diagnostics</TabsTrigger>
+          <TabsTrigger value="email-testing">
+            <Mail className="h-4 w-4 mr-2" />
+            Email Testing
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -1580,7 +1715,142 @@ const SuperAdmin = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="email-testing" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Testing</CardTitle>
+              <CardDescription>
+                Test the personalized growth email system with preview and send capabilities
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Select User to Test</Label>
+                  <Button
+                    variant="outline"
+                    onClick={loadAllUsers}
+                    className="mb-2"
+                    disabled={allUsers.length > 0}
+                  >
+                    {allUsers.length > 0 ? `${allUsers.length} Users Loaded` : 'Load All Users'}
+                  </Button>
+                  <Select
+                    value={selectedTestUserId}
+                    onValueChange={setSelectedTestUserId}
+                    disabled={allUsers.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a user to generate email for" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.full_name} ({user.email}) - {user.company_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    The email will be generated based on this user's data
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="test-email">Test Email Address</Label>
+                  <Input
+                    id="test-email"
+                    type="email"
+                    value={testEmailAddress}
+                    onChange={(e) => setTestEmailAddress(e.target.value)}
+                    placeholder="your-email@example.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The test email will be sent to this address
+                  </p>
+                </div>
+
+                <div className="flex gap-4">
+                  <Button
+                    onClick={handlePreviewEmail}
+                    disabled={!selectedTestUserId || isGeneratingPreview}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    {isGeneratingPreview ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Preview Email
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    onClick={handleSendTestEmail}
+                    disabled={!selectedTestUserId || !testEmailAddress || isSendingTest}
+                    className="flex-1"
+                  >
+                    {isSendingTest ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Send Test Email
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {lastTestResult && (
+                  <Alert>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription>
+                      <p className="font-semibold">Last Test Result</p>
+                      <p className="text-sm mt-1">
+                        ✓ Sent at {lastTestResult.timestamp} to {lastTestResult.email}
+                      </p>
+                      <p className="text-sm">Subject: "{lastTestResult.subject}"</p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Email Preview Dialog */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{previewSubject}</DialogTitle>
+            <DialogDescription>
+              Email preview - This is how the email will look to recipients
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[70vh] border rounded-lg">
+            <iframe
+              srcDoc={previewHtml}
+              className="w-full h-[600px] border-0"
+              title="Email Preview"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Company Dialog */}
       <Dialog open={isAddCompanyOpen} onOpenChange={setIsAddCompanyOpen}>
