@@ -1,0 +1,156 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+
+    console.log(`Processing email queue at ${now.toISOString()}`);
+
+    // Fetch all users with email preferences
+    const { data: preferences, error: prefError } = await supabase
+      .from("email_preferences")
+      .select(`
+        *,
+        profile:profiles(id, email, full_name, company_id)
+      `)
+      .eq("email_enabled", true);
+
+    if (prefError) {
+      throw new Error(`Failed to fetch preferences: ${prefError.message}`);
+    }
+
+    if (!preferences || preferences.length === 0) {
+      console.log("No users with email enabled");
+      return new Response(
+        JSON.stringify({ message: "No users to process" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const eligibleUsers: any[] = [];
+
+    for (const pref of preferences) {
+      // Parse preferred time (format: HH:MM:SS)
+      const [prefHour] = pref.preferred_time.split(':').map(Number);
+      
+      // Check if it's time to send based on frequency
+      if (pref.frequency === 'daily') {
+        // For daily, check if current hour matches preferred hour
+        if (currentHour === prefHour) {
+          // Check if already sent today
+          const { data: todayEmails } = await supabase
+            .from("email_deliveries")
+            .select("id")
+            .eq("profile_id", pref.profile_id)
+            .gte("sent_at", new Date(now.setHours(0, 0, 0, 0)).toISOString())
+            .limit(1);
+
+          if (!todayEmails || todayEmails.length === 0) {
+            eligibleUsers.push(pref.profile);
+          }
+        }
+      } else if (pref.frequency === 'weekly') {
+        // For weekly, check if current day matches preferred day AND hour matches
+        if (currentDay.toLowerCase() === pref.preferred_day?.toLowerCase() && currentHour === prefHour) {
+          // Check if already sent this week
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay());
+          weekStart.setHours(0, 0, 0, 0);
+
+          const { data: weekEmails } = await supabase
+            .from("email_deliveries")
+            .select("id")
+            .eq("profile_id", pref.profile_id)
+            .gte("sent_at", weekStart.toISOString())
+            .limit(1);
+
+          if (!weekEmails || weekEmails.length === 0) {
+            eligibleUsers.push(pref.profile);
+          }
+        }
+      }
+    }
+
+    console.log(`Found ${eligibleUsers.length} eligible users for emails`);
+
+    // Send emails with rate limiting (process in batches)
+    const results = [];
+    const batchSize = 5; // Process 5 at a time to avoid overwhelming Resend
+
+    for (let i = 0; i < eligibleUsers.length; i += batchSize) {
+      const batch = eligibleUsers.slice(i, i + batchSize);
+      
+      const batchPromises = batch.map(async (user) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("send-growth-email", {
+            body: { profileId: user.id },
+          });
+
+          if (error) {
+            console.error(`Failed to send email to ${user.email}:`, error);
+            return { userId: user.id, success: false, error: error.message };
+          }
+
+          console.log(`Email sent successfully to ${user.email}`);
+          return { userId: user.id, success: true, data };
+        } catch (err) {
+          console.error(`Exception sending email to ${user.email}:`, err);
+          return { userId: user.id, success: false, error: err.message };
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+
+      // Wait 2 seconds between batches to respect rate limits
+      if (i + batchSize < eligibleUsers.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    console.log(`Email processing complete: ${successCount} sent, ${failCount} failed`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        processed: eligibleUsers.length,
+        sent: successCount,
+        failed: failCount,
+        results,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    console.error("Error in process-email-queue:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+});

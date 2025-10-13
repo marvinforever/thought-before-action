@@ -1,5 +1,11 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.send-growth-email]
+verify_jwt = false
+
+[functions.process-email-queue]
+verify_jwt = false
+
 [functions.generate-strategic-learning-design]
 verify_jwt = true
 
