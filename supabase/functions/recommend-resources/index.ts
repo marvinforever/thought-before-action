@@ -62,6 +62,25 @@ serve(async (req) => {
 
     if (targetsError) throw targetsError;
 
+    // Fetch diagnostic response for learning preferences
+    const { data: diagnostic, error: diagnosticError } = await supabaseClient
+      .from('diagnostic_responses')
+      .select(`
+        learning_preference,
+        weekly_development_hours,
+        listens_to_podcasts,
+        watches_youtube,
+        reads_books_articles,
+        needed_training,
+        learning_motivation
+      `)
+      .eq('profile_id', employeeId)
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (diagnosticError && diagnosticError.code !== 'PGRST116') throw diagnosticError;
+
     // Build context for AI
     const capabilitiesContext = capabilities?.map(cap => ({
       name: cap.capability.name,
@@ -146,20 +165,27 @@ serve(async (req) => {
     Your task is to recommend 3-5 highly relevant learning resources based on:
     1. Their current and target capabilities (showing the path from where they are to where they want to be)
     2. Their personal goals (1-year vision, 3-year vision, 90-day targets) - THIS IS CRITICAL FOR RETENTION
-    3. Available learning resources in our library (articles, videos, podcasts, courses, books, mentorship)
-    4. Their burnout/retention risk flags (if present)
+    3. Their learning preferences and available time (from diagnostic survey)
+    4. Available learning resources in our library (articles, videos, podcasts, courses, books, mentorship)
+    
+    PERSONALIZATION REQUIREMENTS (from Diagnostic Survey):
+    - Prioritize content types that match their preferences (podcasts, YouTube, books/articles)
+    - Respect their weekly development hours - don't recommend 10-hour courses if they only have 2 hours/week
+    - Address specific training needs they identified in their diagnostic
+    - Consider their learning motivation and style
     
     For each recommendation:
     - Choose resources that DIRECTLY address their capability gaps AND move them toward their 1-year/3-year vision
+    - Match the content type to their stated preferences
+    - Estimate time investment and ensure it fits their available hours
     - Prioritize resources that build confidence and career clarity (retention factors)
-    - Consider the investment level (time required) relative to their weekly development hours
     - Explain WHY THIS MATTERS for their growth journey and career goals
     - Connect the resource explicitly to their retention: "Building this skill makes you more valuable and confident in your role"
     
-    DIVERSIFY content types:
-    - Quick wins: YouTube videos, podcast episodes (15-30 min)
-    - Skill building: Online courses, books (1-4 weeks)
-    - Deep expertise: Books, mentorship programs (1-3 months)
+    DIVERSIFY content types based on their preferences:
+    - Quick wins: YouTube videos, podcast episodes (15-30 min) - prioritize if they prefer these
+    - Skill building: Online courses, books (1-4 weeks) - match to their time availability
+    - Deep expertise: Books, mentorship programs (1-3 months) - only if they have time and prefer deep learning
     
     Return your recommendations as a JSON array with this structure:
     [
@@ -167,11 +193,11 @@ serve(async (req) => {
         "resource_id": "uuid-of-resource",
         "employee_capability_id": "uuid-or-null",
         "match_score": 95,
-        "reasoning": "WHY THIS MATTERS: This resource helps you close the gap toward [their 1-year vision]. It develops [specific capability] from [current level] to [target level], which is essential for [their stated goal]. Building this skill makes you more valuable and positions you for [next career step]."
+        "reasoning": "WHY THIS MATTERS: This resource helps you close the gap toward [their 1-year vision]. It develops [specific capability] from [current level] to [target level], which is essential for [their stated goal]. This [content type] format matches your learning preference and fits your [X hours/week] available for development. Building this skill makes you more valuable and positions you for [next career step]."
       }
     ]
     
-    Keep reasoning specific and vision-focused. Every recommendation should answer: "How does this move me toward my 1-year and 3-year goals?"`;
+    Keep reasoning specific, vision-focused, and personalized to their learning style. Every recommendation should answer: "How does this move me toward my goals AND fit my learning preferences and time?"`;
 
     const userPrompt = `Employee Context:
 Capabilities: ${JSON.stringify(capabilitiesContext, null, 2)}
@@ -181,13 +207,20 @@ Goals:
 - 3-Year Vision: ${goalsContext.threeYear || 'Not set'}
 - 90-Day Goals: ${goalsContext.quarterlyGoals.join(', ') || 'None set'}
 
+Learning Profile (from Diagnostic Survey):
+- Learning Preference: ${diagnostic?.learning_preference || 'Not specified'}
+- Weekly Development Hours: ${diagnostic?.weekly_development_hours || 'Not specified'}
+- Content Preferences: ${diagnostic?.listens_to_podcasts ? 'Podcasts' : ''}${diagnostic?.watches_youtube ? ', YouTube' : ''}${diagnostic?.reads_books_articles ? ', Books/Articles' : ''}
+- Specific Training Needs: ${diagnostic?.needed_training || 'Not specified'}
+- Learning Motivation: ${diagnostic?.learning_motivation || 'Not specified'}
+
 Available Resources:
 ${JSON.stringify(allResources, null, 2)}
 
 Employee Capabilities IDs for reference:
 ${JSON.stringify(capabilities?.map(c => ({ id: c.id, capability: c.capability.name })), null, 2)}
 
-Provide recommendations now:`;
+Provide recommendations now, ensuring they match the employee's learning preferences and time availability:`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

@@ -38,7 +38,7 @@ serve(async (req) => {
     // Fetch all relevant data
     console.log('Fetching employee data...');
     
-    const [capabilitiesResult, goalsResult, targetsResult, habitsResult, resourcesResult, profileResult, jobDescResult] = await Promise.all([
+    const [capabilitiesResult, goalsResult, targetsResult, habitsResult, resourcesResult, profileResult, jobDescResult, diagnosticResult] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select(`
@@ -91,7 +91,26 @@ serve(async (req) => {
         .select('title, description')
         .eq('profile_id', employeeId)
         .eq('is_current', true)
-        .single()
+        .single(),
+      
+      supabase
+        .from('diagnostic_responses')
+        .select(`
+          learning_preference,
+          weekly_development_hours,
+          listens_to_podcasts,
+          watches_youtube,
+          reads_books_articles,
+          needed_training,
+          learning_motivation,
+          burnout_frequency,
+          mental_drain_frequency,
+          daily_energy_level
+        `)
+        .eq('profile_id', employeeId)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
     ]);
 
     if (capabilitiesResult.error) console.error('Capabilities error:', capabilitiesResult.error);
@@ -105,6 +124,7 @@ serve(async (req) => {
     const completedResources = resourcesResult.data || [];
     const profile = profileResult.data;
     const jobDescription = jobDescResult.data;
+    const diagnostic = diagnosticResult.data;
 
     // Build context for AI
     const capabilitiesContext = capabilities.map(cap => ({
@@ -130,7 +150,19 @@ serve(async (req) => {
       completedTargets: completedTargets.length,
       activeHabits: habits.length,
       completedResources: completedResources.length,
-      role: jobDescription?.title || 'Not specified'
+      role: jobDescription?.title || 'Not specified',
+      learningPreference: diagnostic?.learning_preference || 'Not specified',
+      weeklyDevelopmentHours: diagnostic?.weekly_development_hours || 'Not specified',
+      contentPreferences: {
+        podcasts: diagnostic?.listens_to_podcasts || false,
+        youtube: diagnostic?.watches_youtube || false,
+        books: diagnostic?.reads_books_articles || false
+      },
+      burnoutIndicators: {
+        burnoutFrequency: diagnostic?.burnout_frequency || 'Not specified',
+        mentalDrain: diagnostic?.mental_drain_frequency || 'Not specified',
+        energyLevel: diagnostic?.daily_energy_level || 'Not specified'
+      }
     };
 
     console.log('Calling Lovable AI to generate roadmap...');
@@ -151,7 +183,14 @@ serve(async (req) => {
 CRITICAL: Your narrative must follow this exact three-part structure:
 1. CURRENT STATE (2-3 sentences): Where they are now in their development journey
 2. DESTINATION (1-2 sentences): Where they're headed based on their goals
-3. PATH FORWARD (2-3 sentences): Specific actions and focus areas to bridge the gap`
+3. PATH FORWARD (2-3 sentences): Specific actions and focus areas to bridge the gap
+
+PERSONALIZATION REQUIREMENTS:
+- Respect their learning preferences and content type preferences (podcasts, videos, books)
+- Match recommendations to their available weekly development hours
+- Consider their energy levels and burnout indicators when suggesting timeline/intensity
+- Address any specific training needs they identified in their diagnostic survey
+- Adapt resource types to their stated learning style`
           },
           {
             role: 'user',
@@ -176,6 +215,17 @@ ${completedTargets.slice(0, 3).map(t => `  • ${t.goal_text}`).join('\n')}
 
 Active Habits: ${habits.length}
 Completed Resources: ${completedResources.length}
+
+Learning Profile (from Diagnostic Survey):
+- Learning Preference: ${diagnostic?.learning_preference || 'Not specified'}
+- Weekly Development Hours Available: ${diagnostic?.weekly_development_hours || 'Not specified'}
+- Content Type Preferences: ${diagnostic?.listens_to_podcasts ? 'Podcasts' : ''}${diagnostic?.watches_youtube ? ', YouTube videos' : ''}${diagnostic?.reads_books_articles ? ', Books/Articles' : ''}
+- Specific Training Needs: ${diagnostic?.needed_training || 'Not specified'}
+- Learning Motivation: ${diagnostic?.learning_motivation || 'Not specified'}
+- Energy/Burnout Indicators:
+  * Burnout Frequency: ${diagnostic?.burnout_frequency || 'Not specified'}
+  * Mental Drain: ${diagnostic?.mental_drain_frequency || 'Not specified'}
+  * Daily Energy Level: ${diagnostic?.daily_energy_level || 'Not specified'}
 
 Generate a strategic growth roadmap with:
 1. NARRATIVE (must have clear structure):
