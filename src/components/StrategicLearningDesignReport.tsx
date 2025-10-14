@@ -670,31 +670,10 @@ export default function StrategicLearningDesignReport() {
                                 <p className="text-2xl font-bold text-primary">
                                   {formatCurrency(cohort.estimated_cost_moderate || 0)}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatCurrency(costPerPerson)}/person
-                                </p>
                               </div>
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-4">
-                            {/* Format & Delivery */}
-                            {moderateSolution && (
-                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-xs font-semibold text-blue-900 uppercase mb-1">Recommended Format</p>
-                                <p className="font-medium">{moderateSolution.title}</p>
-                                {moderateSolution.vendor && (
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    Provider: {moderateSolution.vendor}
-                                  </p>
-                                )}
-                                {moderateSolution.duration_hours && (
-                                  <p className="text-sm text-muted-foreground">
-                                    Duration: {moderateSolution.duration_hours} hours
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
                             {/* Why This Cohort (based on priority/severity) */}
                             <div>
                               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Why This Training</p>
