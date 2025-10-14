@@ -327,14 +327,54 @@ serve(async (req) => {
       cohort.delivery_quarter = `Q${targetQuarter} ${targetYear}`;
     }
 
-    // Calculate budget scenarios BY YEAR
-    // Year 1: ~40% of cohorts (highest priority)
-    // Year 2: ~35% of cohorts (medium priority)
-    // Year 3: ~25% of cohorts (lower priority)
+    // Calculate budget scenarios BY YEAR - SPECIFIC COHORTS PER YEAR
+    // Year 1 (2026): FOUNDATION — $165K (5 major cohorts only)
+    const year1CapabilityNames = [
+      "Leadership",
+      "People Management",
+      "CRM System Proficiency",
+      "Agronomy Sales Excellence",
+      "Written Communication"
+    ];
     
-    const year1Cohorts = validCohorts.filter(c => c.priority <= 2); // Priority 1-2 = Year 1
-    const year2Cohorts = validCohorts.filter(c => c.priority === 3); // Priority 3 = Year 2
-    const year3Cohorts = validCohorts.filter(c => c.priority >= 4); // Priority 4-5 = Year 3
+    // Year 2 (2027): SCALE — $120K
+    const year2CapabilityNames = [
+      "Project Management",
+      "Coaching & Mentoring",
+      "Domain Expertise",
+      "Data Analysis & Management",
+      "Stakeholder Communication",
+      "Strategic Business Thinking",
+      "Tool Proficiency",
+      "Verbal Communication",
+      "Problem Solving",
+      "Training & Development",
+      "Performance Management"
+    ];
+    
+    // Year 3 (2028): OPTIMIZE — $80K
+    const year3CapabilityNames = [
+      "Precision Ag Training & Support",
+      "Sales Forecasting & Metrics Tracking",
+      "GPS/GIS Software Proficiency",
+      "Precision Hardware Knowledge",
+      "Market Intelligence & Competitive Analysis",
+      "Process Improvement",
+      "Risk Management",
+      "Change Leadership",
+      "Commercial Acumen",
+      "Solution-Based Selling"
+    ];
+    
+    const year1Cohorts = validCohorts.filter(c => 
+      year1CapabilityNames.some(name => c.capability_name.toLowerCase().includes(name.toLowerCase()))
+    );
+    const year2Cohorts = validCohorts.filter(c => 
+      year2CapabilityNames.some(name => c.capability_name.toLowerCase().includes(name.toLowerCase()))
+    );
+    const year3Cohorts = validCohorts.filter(c => 
+      year3CapabilityNames.some(name => c.capability_name.toLowerCase().includes(name.toLowerCase()))
+    );
     
     const year1Conservative = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
     const year1Moderate = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
