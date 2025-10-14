@@ -514,35 +514,14 @@ export default function StrategicLearningDesignReport() {
         <TabsContent value="cohorts" className="space-y-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Who Needs What Training</h3>
-            <Select value={budgetScenario} onValueChange={(v: any) => setBudgetScenario(v)}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="conservative">Conservative ($0-$150)</SelectItem>
-                <SelectItem value="moderate">Moderate ($500-$2K)</SelectItem>
-                <SelectItem value="aggressive">Premium ($2K-$5K)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {cohorts.map((cohort) => {
-            const cost =
-              budgetScenario === "conservative"
-                ? (cohort.estimated_cost_conservative || 0)
-                : budgetScenario === "moderate"
-                ? (cohort.estimated_cost_moderate || 0)
-                : (cohort.estimated_cost_aggressive || 0);
-
-            const solution = cohort.recommended_solutions?.[
-              budgetScenario === "conservative" ? 0 : budgetScenario === "moderate" ? 1 : 2
-            ];
-
             return (
               <Card key={cohort.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="flex items-center gap-2">
                         {cohort.cohort_name}
                         <Badge className={getSeverityColor(cohort.gap_severity || 'low')}>
@@ -555,7 +534,6 @@ export default function StrategicLearningDesignReport() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold">{formatCurrency(cost)}</p>
                       <p className="text-sm text-muted-foreground">
                         <Calendar className="inline h-3 w-3 mr-1" />
                         {cohort.delivery_quarter}
@@ -564,26 +542,6 @@ export default function StrategicLearningDesignReport() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {solution && (
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="font-semibold mb-2">💡 Recommended Solution:</p>
-                      <p className="text-lg">{solution.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {solution.vendor} • {formatCurrency(solution.cost_per_person)}/person
-                      </p>
-                      {solution.link && (
-                        <a
-                          href={solution.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline"
-                        >
-                          View Course →
-                        </a>
-                      )}
-                    </div>
-                  )}
-
                   <div>
                     <p className="font-semibold mb-2">Employees in this cohort:</p>
                     <div className="flex flex-wrap gap-2">
