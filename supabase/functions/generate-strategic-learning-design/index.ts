@@ -328,21 +328,21 @@ serve(async (req) => {
     }
 
     // Calculate budget scenarios BY YEAR - SPECIFIC COHORTS PER YEAR
-    // Year 1 (2026): FOUNDATION — $165K (5 major cohorts only)
-    const year1CapabilityNames = [
+    // Year 1 (2026): FOUNDATION — $165K (ONLY 5 cohorts)
+    const year1CapabilityNames = new Set([
       "Leadership",
-      "People Management",
+      "People Management", 
       "CRM System Proficiency",
       "Agronomy Sales Excellence",
       "Written Communication"
-    ];
+    ]);
     
     // Year 2 (2027): SCALE — $120K
-    const year2CapabilityNames = [
+    const year2CapabilityNames = new Set([
       "Project Management",
       "Coaching & Mentoring",
       "Domain Expertise",
-      "Data Analysis & Management",
+      "Data Analysis",
       "Stakeholder Communication",
       "Strategic Business Thinking",
       "Tool Proficiency",
@@ -350,31 +350,26 @@ serve(async (req) => {
       "Problem Solving",
       "Training & Development",
       "Performance Management"
-    ];
+    ]);
     
-    // Year 3 (2028): OPTIMIZE — $80K
-    const year3CapabilityNames = [
-      "Precision Ag Training & Support",
-      "Sales Forecasting & Metrics Tracking",
-      "GPS/GIS Software Proficiency",
-      "Precision Hardware Knowledge",
-      "Market Intelligence & Competitive Analysis",
-      "Process Improvement",
-      "Risk Management",
-      "Change Leadership",
-      "Commercial Acumen",
-      "Solution-Based Selling"
-    ];
+    // Everything else goes to Year 3 (2028)
+    
+    console.log('Total cohorts:', validCohorts.length);
+    console.log('Cohort names:', validCohorts.map(c => c.capability_name));
     
     const year1Cohorts = validCohorts.filter(c => 
-      year1CapabilityNames.some(name => c.capability_name.toLowerCase().includes(name.toLowerCase()))
+      year1CapabilityNames.has(c.capability_name)
     );
     const year2Cohorts = validCohorts.filter(c => 
-      year2CapabilityNames.some(name => c.capability_name.toLowerCase().includes(name.toLowerCase()))
+      year2CapabilityNames.has(c.capability_name)
     );
     const year3Cohorts = validCohorts.filter(c => 
-      year3CapabilityNames.some(name => c.capability_name.toLowerCase().includes(name.toLowerCase()))
+      !year1CapabilityNames.has(c.capability_name) && !year2CapabilityNames.has(c.capability_name)
     );
+    
+    console.log('Year 1 cohorts:', year1Cohorts.length, year1Cohorts.map(c => c.capability_name));
+    console.log('Year 2 cohorts:', year2Cohorts.length);
+    console.log('Year 3 cohorts:', year3Cohorts.length);
     
     const year1Conservative = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
     const year1Moderate = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
