@@ -441,14 +441,49 @@ export default function StrategicLearningDesignReport() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Investment Needed</CardTitle>
+            <CardTitle className="text-sm font-medium">3-Year Investment</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(selectedBudget)}</div>
-            <p className="text-xs text-muted-foreground">
-              {budgetScenario.charAt(0).toUpperCase() + budgetScenario.slice(1)} scenario
-            </p>
+            <div className="text-xs text-muted-foreground space-y-1 mt-2">
+              <div className="flex justify-between">
+                <span>2026 (Year 1):</span>
+                <span className="font-semibold">
+                  {formatCurrency(
+                    budgetScenario === "conservative"
+                      ? scenarios?.conservative?.year1 || 0
+                      : budgetScenario === "moderate"
+                      ? scenarios?.moderate?.year1 || 0
+                      : scenarios?.aggressive?.year1 || 0
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>2027 (Year 2):</span>
+                <span className="font-semibold">
+                  {formatCurrency(
+                    budgetScenario === "conservative"
+                      ? scenarios?.conservative?.year2 || 0
+                      : budgetScenario === "moderate"
+                      ? scenarios?.moderate?.year2 || 0
+                      : scenarios?.aggressive?.year2 || 0
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>2028 (Year 3):</span>
+                <span className="font-semibold">
+                  {formatCurrency(
+                    budgetScenario === "conservative"
+                      ? scenarios?.conservative?.year3 || 0
+                      : budgetScenario === "moderate"
+                      ? scenarios?.moderate?.year3 || 0
+                      : scenarios?.aggressive?.year3 || 0
+                  )}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -474,11 +509,12 @@ export default function StrategicLearningDesignReport() {
       </div>
 
       <Tabs defaultValue="narrative" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="narrative">Executive Summary</TabsTrigger>
           <TabsTrigger value="cohorts">Training Hotspots</TabsTrigger>
           <TabsTrigger value="budget">Budget Scenarios</TabsTrigger>
           <TabsTrigger value="roi">ROI Analysis</TabsTrigger>
+          <TabsTrigger value="always-available">Always Available</TabsTrigger>
           <TabsTrigger value="resources">Resource Library</TabsTrigger>
         </TabsList>
 
@@ -508,6 +544,32 @@ export default function StrategicLearningDesignReport() {
               </ul>
             </CardContent>
           </Card>
+
+          {summary.heavy_load_employees && summary.heavy_load_employees.length > 0 && (
+            <Card className="border-yellow-500 bg-yellow-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  Heavy Training Load Warning
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-3 text-sm">
+                  These employees are scheduled for 3+ Year 1 cohorts. Consider spreading their development across multiple years:
+                </p>
+                <div className="space-y-2">
+                  {summary.heavy_load_employees.map((emp: any) => (
+                    <div key={emp.id} className="flex items-center justify-between p-2 bg-white rounded">
+                      <span className="font-medium">{emp.name}</span>
+                      <Badge variant="outline" className="bg-yellow-100">
+                        {emp.cohort_count} cohorts
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Training Hotspots */}
@@ -708,6 +770,88 @@ export default function StrategicLearningDesignReport() {
                 <p className="text-sm">
                   <strong>Track Real Value with Jericho:</strong> Monitor completion rates, employee feedback, and actual performance improvements to validate these projections.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Always Available - Self-Serve Resources */}
+        <TabsContent value="always-available" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Always Available: Self-Serve Learning</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Universal skills that don't require formal cohorts - available on-demand via curated resources
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-blue-900">Implementation Model</h4>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-start gap-2">
+                    <BookOpen className="h-4 w-4 mt-0.5 text-blue-600" />
+                    <span>Curate LinkedIn Learning playlists or similar platforms (~$300/person/year)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Users className="h-4 w-4 mt-0.5 text-blue-600" />
+                    <span>Managers assign resources as needed based on individual development plans</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Calendar className="h-4 w-4 mt-0.5 text-blue-600" />
+                    <span>Check-ins during 1-on-1s for accountability and progress tracking</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-semibold mb-3">Universal Skills (No Formal Training Needed)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[
+                    'Time Management',
+                    'Prioritization',
+                    'Multi-tasking',
+                    'Collaboration (basic)',
+                    'Resilience',
+                    'Conflict Resolution (basic)',
+                    'Cross-functional Partnership',
+                    'Influencing (basic)',
+                    'Decision Making (basic)',
+                    'Organizational Awareness',
+                    'Basic Tool Proficiency',
+                    'Email & Calendar Management'
+                  ].map((skill) => (
+                    <div key={skill} className="p-3 bg-white border rounded-lg">
+                      <span className="text-sm">{skill}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-green-900">Estimated Cost</h4>
+                <p className="text-2xl font-bold text-green-700 mb-2">
+                  {formatCurrency(summary.total_employees * 300)} annually
+                </p>
+                <p className="text-sm text-green-800">
+                  ${300}/person/year × {summary.total_employees} employees = {formatCurrency(summary.total_employees * 300 * 3)} over 3 years
+                </p>
+                <p className="text-xs text-green-700 mt-2">
+                  This is NOT included in the Year 1-3 training budget above - it's a separate ongoing operational expense
+                </p>
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <h4 className="font-semibold mb-2">Why Self-Serve vs. Formal Cohorts?</h4>
+                <p className="text-sm">
+                  These are foundational professional skills that:
+                </p>
+                <ul className="text-sm space-y-1 mt-2 ml-4 list-disc">
+                  <li>Apply universally across all roles</li>
+                  <li>Can be learned effectively through self-paced content</li>
+                  <li>Don't require specialized facilitation or group learning</li>
+                  <li>Are better reinforced through practice and manager coaching</li>
+                  <li>Would dilute focus from mission-critical skill gaps if formalized</li>
+                </ul>
               </div>
             </CardContent>
           </Card>

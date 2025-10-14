@@ -327,10 +327,46 @@ serve(async (req) => {
       cohort.delivery_quarter = `Q${targetQuarter} ${targetYear}`;
     }
 
-    // Calculate budget scenarios
-    const totalConservative = validCohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
-    const totalModerate = validCohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
-    const totalAggressive = validCohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
+    // Calculate budget scenarios BY YEAR
+    // Year 1: ~40% of cohorts (highest priority)
+    // Year 2: ~35% of cohorts (medium priority)
+    // Year 3: ~25% of cohorts (lower priority)
+    
+    const year1Cohorts = validCohorts.filter(c => c.priority <= 2); // Priority 1-2 = Year 1
+    const year2Cohorts = validCohorts.filter(c => c.priority === 3); // Priority 3 = Year 2
+    const year3Cohorts = validCohorts.filter(c => c.priority >= 4); // Priority 4-5 = Year 3
+    
+    const year1Conservative = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
+    const year1Moderate = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
+    const year1Aggressive = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
+    
+    const year2Conservative = year2Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
+    const year2Moderate = year2Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
+    const year2Aggressive = year2Cohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
+    
+    const year3Conservative = year3Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
+    const year3Moderate = year3Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
+    const year3Aggressive = year3Cohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
+    
+    const totalConservative = year1Conservative + year2Conservative + year3Conservative;
+    const totalModerate = year1Moderate + year2Moderate + year3Moderate;
+    const totalAggressive = year1Aggressive + year2Aggressive + year3Aggressive;
+    
+    // Identify "Heavy Load" employees (in 3+ Year 1 cohorts)
+    const employeeLoadMap = new Map<string, number>();
+    year1Cohorts.forEach(cohort => {
+      cohort.employee_ids.forEach(empId => {
+        employeeLoadMap.set(empId, (employeeLoadMap.get(empId) || 0) + 1);
+      });
+    });
+    
+    const heavyLoadEmployees = Array.from(employeeLoadMap.entries())
+      .filter(([_, count]) => count >= 3)
+      .map(([empId, count]) => ({
+        id: empId,
+        name: employeeDataMap.get(empId)?.full_name || 'Unknown',
+        cohort_count: count
+      }));
 
     // Fetch business goals conversation for context
     let businessGoalsContext = "";
@@ -509,13 +545,20 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
       employees_at_risk: atRiskCount,
       employees_needing_training: employeesTrained,
       total_cohorts: validCohorts.length,
+      year1_cohorts: year1Cohorts.length,
+      year2_cohorts: year2Cohorts.length,
+      year3_cohorts: year3Cohorts.length,
       total_investment_conservative: totalConservative,
       total_investment_moderate: totalModerate,
       total_investment_aggressive: totalAggressive,
+      year1_investment_moderate: year1Moderate,
+      year2_investment_moderate: year2Moderate,
+      year3_investment_moderate: year3Moderate,
       expected_roi_moderate: roiModerate,
       expected_roi_percentage: roiPercentage,
       break_even_months: breakEvenMonths,
       narrative,
+      heavy_load_employees: heavyLoadEmployees,
       top_priorities: validCohorts
         .sort((a, b) => a.priority - b.priority)
         .slice(0, 3)
@@ -525,6 +568,9 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
     const budgetScenarios = {
       conservative: {
         total: totalConservative,
+        year1: year1Conservative,
+        year2: year2Conservative,
+        year3: year3Conservative,
         range: "$0-$150 per person",
         description: "Free resources and low-cost materials",
         cohorts: validCohorts.map((c) => ({
@@ -534,6 +580,9 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
       },
       moderate: {
         total: totalModerate,
+        year1: year1Moderate,
+        year2: year2Moderate,
+        year3: year3Moderate,
         range: "$500-$2,000 per person",
         description: "Online courses and blended learning",
         cohorts: validCohorts.map((c) => ({
@@ -543,6 +592,9 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
       },
       aggressive: {
         total: totalAggressive,
+        year1: year1Aggressive,
+        year2: year2Aggressive,
+        year3: year3Aggressive,
         range: "$2,000-$5,000 per person",
         description: "Premium in-person training and coaching",
         cohorts: validCohorts.map((c) => ({
