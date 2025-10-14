@@ -9,71 +9,127 @@ import { Upload } from "lucide-react";
 export default function AdminDiagnosticImport() {
   const [csvText, setCsvText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const parseCSV = (text: string) => {
     const lines = text.split('\n');
-    const headers = lines[0].split(',');
+    
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current);
+      return result;
+    };
     
     const data = [];
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       
-      const values = lines[i].split(',');
+      const values = parseCSVLine(lines[i]);
       const row: any = {};
       
       // Map CSV columns to our data structure
-      row.firstName = values[1];
-      row.lastName = values[2];
-      row.phone = values[3];
-      row.email = values[4];
-      row.company = values[5];
-      row.roleClarity = values[6];
-      row.hasJobDescription = values[7];
-      row.mostImportantJob = values[8];
-      row.confidence = values[9];
-      row.naturalStrength = values[10];
-      row.biggestDifficulty = values[11];
-      row.skillToMaster = values[12];
-      row.workload = values[13];
-      row.mentalDrain = values[14];
-      row.focus = values[15];
-      row.workLifeSacrifice = values[16];
-      row.energyDrain = values[17];
-      row.burnout = values[18];
-      row.learningPreference = values[19];
-      row.weeklyDevHours = values[20];
-      row.learningMotivation = values[21];
-      row.neededTraining = values[22];
-      row.growthBarrier = values[23];
-      row.listens_podcasts = values[24];
-      row.watches_youtube = values[25];
-      row.reads_books = values[26];
-      row.seesGrowthPath = values[27];
-      row.managerSupport = values[28];
-      row.feelsValued = values[29];
-      row.energyLevel = values[30];
-      row.wouldStay = values[31];
-      row.retentionImprovement = values[32];
-      row.seesLeadership = values[33];
-      row.threeYearGoal = values[34];
-      row.companySupportingGoal = values[35];
-      row.workObstacle = values[36];
-      row.biggestFrustration = values[37];
-      row.whyPeopleLeave = values[38];
-      row.whatEnjoyMost = values[39];
-      row.leadershipShouldUnderstand = values[40];
-      row.additionalFeedback = values[41];
-      row.recentAccomplishment = values[42];
-      row.recentChallenge = values[43];
-      row.neededTrainingEffectiveness = values[44];
-      row.twelveMonthGoal = values[45];
-      row.supportFromLeadership = values[46];
-      row.oneYearVision = values[47];
+      row.firstName = values[1]?.trim() || '';
+      row.lastName = values[2]?.trim() || '';
+      row.phone = values[3]?.trim() || '';
+      row.email = values[4]?.trim() || '';
+      row.company = values[5]?.trim() || '';
+      row.roleClarity = values[6]?.trim() || '';
+      row.hasJobDescription = values[7]?.trim() || '';
+      row.mostImportantJob = values[8]?.trim() || '';
+      row.confidence = values[9]?.trim() || '';
+      row.naturalStrength = values[10]?.trim() || '';
+      row.biggestDifficulty = values[11]?.trim() || '';
+      row.skillToMaster = values[12]?.trim() || '';
+      row.workload = values[13]?.trim() || '';
+      row.mentalDrain = values[14]?.trim() || '';
+      row.focus = values[15]?.trim() || '';
+      row.workLifeSacrifice = values[16]?.trim() || '';
+      row.energyDrain = values[17]?.trim() || '';
+      row.burnout = values[18]?.trim() || '';
+      row.learningPreference = values[19]?.trim() || '';
+      row.weeklyDevHours = values[20]?.trim() || '';
+      row.learningMotivation = values[21]?.trim() || '';
+      row.neededTraining = values[22]?.trim() || '';
+      row.growthBarrier = values[23]?.trim() || '';
+      row.listens_podcasts = values[24]?.trim() || '';
+      row.watches_youtube = values[25]?.trim() || '';
+      row.reads_books = values[26]?.trim() || '';
+      row.seesGrowthPath = values[27]?.trim() || '';
+      row.managerSupport = values[28]?.trim() || '';
+      row.feelsValued = values[29]?.trim() || '';
+      row.energyLevel = values[30]?.trim() || '';
+      row.wouldStay = values[31]?.trim() || '';
+      row.retentionImprovement = values[32]?.trim() || '';
+      row.seesLeadership = values[33]?.trim() || '';
+      row.threeYearGoal = values[34]?.trim() || '';
+      row.companySupportingGoal = values[35]?.trim() || '';
+      row.workObstacle = values[36]?.trim() || '';
+      row.biggestFrustration = values[37]?.trim() || '';
+      row.whyPeopleLeave = values[38]?.trim() || '';
+      row.whatEnjoyMost = values[39]?.trim() || '';
+      row.leadershipShouldUnderstand = values[40]?.trim() || '';
+      row.additionalFeedback = values[41]?.trim() || '';
+      row.recentAccomplishment = values[42]?.trim() || '';
+      row.recentChallenge = values[43]?.trim() || '';
+      row.neededTrainingEffectiveness = values[44]?.trim() || '';
+      row.twelveMonthGoal = values[45]?.trim() || '';
+      row.supportFromLeadership = values[46]?.trim() || '';
+      row.oneYearVision = values[47]?.trim() || '';
       
       data.push(row);
     }
     
     return data;
+  };
+
+  const handleClear = async () => {
+    if (!confirm('Delete all diagnostic responses for Stateline Cooperative? This cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setClearing(true);
+      
+      const { data: company } = await supabase
+        .from('companies')
+        .select('id')
+        .ilike('name', '%stateline%')
+        .single();
+      
+      if (!company) {
+        toast.error('Stateline Cooperative company not found');
+        return;
+      }
+      
+      const { error } = await supabase
+        .from('diagnostic_responses')
+        .delete()
+        .eq('company_id', company.id);
+      
+      if (error) throw error;
+      
+      toast.success('Cleared all diagnostic responses for Stateline Cooperative');
+    } catch (error: any) {
+      console.error('Clear error:', error);
+      toast.error(error.message || "Failed to clear data");
+    } finally {
+      setClearing(false);
+    }
   };
 
   const handleImport = async () => {
@@ -125,12 +181,22 @@ export default function AdminDiagnosticImport() {
             className="font-mono text-sm"
           />
           
-          <Button 
-            onClick={handleImport} 
-            disabled={loading || !csvText.trim()}
-          >
-            {loading ? "Importing..." : "Import Diagnostic Data"}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleImport} 
+              disabled={loading || !csvText.trim()}
+            >
+              {loading ? "Importing..." : "Import Diagnostic Data"}
+            </Button>
+            
+            <Button 
+              onClick={handleClear} 
+              disabled={clearing}
+              variant="destructive"
+            >
+              {clearing ? "Clearing..." : "Clear Stateline Data"}
+            </Button>
+          </div>
         </div>
       </Card>
     </div>
