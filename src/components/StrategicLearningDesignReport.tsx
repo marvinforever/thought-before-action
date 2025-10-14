@@ -229,6 +229,101 @@ export default function StrategicLearningDesignReport() {
     }).format(amount);
   };
 
+  const exportForClaude = () => {
+    // Build comprehensive export with all data
+    const exportData = {
+      metadata: {
+        export_date: new Date().toISOString(),
+        report_generated: report.generated_at,
+        report_expires: report.expires_at,
+        timeframe_years: parseInt(timeframe),
+      },
+      executive_summary: {
+        total_employees: summary.total_employees,
+        employees_needing_training: summary.employees_needing_training,
+        total_cohorts: summary.total_cohorts,
+        narrative: summary.narrative,
+        top_priorities: summary.top_priorities,
+      },
+      training_cohorts: cohorts.map(cohort => ({
+        cohort_name: cohort.cohort_name,
+        capability_name: cohort.capability_name,
+        employee_count: cohort.employee_count,
+        priority: cohort.priority,
+        current_level: cohort.current_level,
+        target_level: cohort.target_level,
+        gap_severity: cohort.gap_severity,
+        delivery_quarter: cohort.delivery_quarter,
+        employees: cohort.employee_ids.map(id => {
+          const profile = employeeProfiles.get(id);
+          return {
+            name: profile?.full_name || 'Unknown',
+            email: profile?.email || '',
+          };
+        }),
+        recommended_solutions: {
+          conservative: {
+            ...cohort.recommended_solutions?.[0],
+            cost: cohort.estimated_cost_conservative,
+          },
+          moderate: {
+            ...cohort.recommended_solutions?.[1],
+            cost: cohort.estimated_cost_moderate,
+          },
+          aggressive: {
+            ...cohort.recommended_solutions?.[2],
+            cost: cohort.estimated_cost_aggressive,
+          },
+        },
+      })),
+      budget_scenarios: {
+        conservative: {
+          total: scenarios?.conservative?.total,
+          per_employee: scenarios?.conservative?.per_employee,
+          description: "Free to low-cost solutions ($0-$150/person)",
+        },
+        moderate: {
+          total: scenarios?.moderate?.total,
+          per_employee: scenarios?.moderate?.per_employee,
+          description: "Balanced investment ($500-$2K/person)",
+        },
+        aggressive: {
+          total: scenarios?.aggressive?.total,
+          per_employee: scenarios?.aggressive?.per_employee,
+          description: "Premium programs ($2K-$5K/person)",
+        },
+      },
+      roi_projections: {
+        training_cost: roi.training_cost,
+        retention_savings: roi.retention_savings,
+        productivity_gains: roi.productivity_gains,
+        net_roi: roi.net_roi,
+        roi_percentage: roi.roi_percentage,
+        break_even_months: roi.break_even_months,
+        methodology: roi.methodology,
+      },
+      full_narrative: report.narrative,
+      instructions_for_claude: "This is a strategic learning design report for an organization. Please analyze this data and create a comprehensive, professional report suitable for sharing with clients. Include: 1) Executive summary, 2) Detailed analysis of each training cohort with business justification, 3) Budget recommendations with ROI analysis, 4) Implementation roadmap, and 5) Success metrics. Make it executive-ready and persuasive.",
+    };
+
+    // Create and download JSON file
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `strategic-learning-design-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export complete",
+      description: "Load this JSON file into Claude for a detailed report",
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -311,9 +406,9 @@ export default function StrategicLearningDesignReport() {
             <RefreshCw className={`h-4 w-4 mr-2 ${generating ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={exportForClaude}>
             <Download className="h-4 w-4 mr-2" />
-            Export PDF
+            Export for Claude
           </Button>
         </div>
       </div>
