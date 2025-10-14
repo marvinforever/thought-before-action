@@ -383,21 +383,46 @@ Budget Scenarios:
 - Moderate (Online Courses): $${totalModerate.toLocaleString()}
 - Aggressive (Premium Training): $${totalAggressive.toLocaleString()}
 
-Write a 300-400 word narrative that is warm, direct, and action-oriented—professional but approachable. Here's what to include:
+**STRATEGIC PRIORITIES FRAMEWORK (3-Year Roadmap):**
+
+Year 1 - Foundation:
+- Align learning strategy with business priorities (stakeholder interviews)
+- Audit current state (what's working, what's not, where are gaps)
+- Implement core tech stack (LXP/LMS)
+- Launch manager effectiveness program (highest ROI)
+- Build measurement framework
+
+Year 2 - Scale:
+- Expand to all critical skills
+- Build skills architecture and career pathing integration
+- Launch learning culture initiatives
+- Develop internal SME network
+- Pilot AI coaching and emerging tech
+
+Year 3 - Optimize:
+- Predictive analytics for skills planning
+- Full learning-in-flow-of-work integration
+- External partnerships (universities, industry orgs)
+- Thought leadership (speaking, publishing)
+- Continuous improvement engine (always iterating)
+
+Write a 350-450 word narrative that is warm, direct, and action-oriented—professional but approachable. Here's what to include:
 
 1. **Open with excitement and context:** Start by acknowledging what you see—both the opportunities and the potential impact. Frame the gaps as growth edges, not failures. ${businessGoalsContext ? "**IMPORTANT: Connect the training hotspots to the business goals mentioned above.**" : ""}
 
 2. **Identify critical gaps and their impact:** Talk about the 2-3 most important skill gaps you identified. Connect each to real business outcomes—what happens if we close these gaps vs. what we risk if we don't (retention, productivity, innovation, revenue). ${businessGoalsContext ? "**Show how closing these gaps will help achieve their business goals.**" : ""} ${goalsContext ? "**CRITICAL: When recommending training, explicitly reference the employees' 90-day goals and explain HOW the training will help them achieve those specific goals. For example, if someone wants to become a better fiddle player, explain why fiddle lessons are recommended.**" : ""}
 
-3. **Bring in the research—naturally:** Reference industry data (Work Institute, ATD, Gallup, etc.) but weave it in conversationally. For example: "Research from the Work Institute shows that..." or "ATD found that..." Keep it evidence-based but not academic.
+3. **Map to the 3-Year Strategic Priorities Framework:** **CRITICAL - You MUST contextualize the identified training hotspots within the 3-year roadmap provided above.** Explain which cohorts fit into Year 1 (Foundation), Year 2 (Scale), and Year 3 (Optimize). For example: "Based on priority and business impact, the [cohort name] training belongs in Year 1 as part of building our foundation, specifically supporting our manager effectiveness program." Be specific about WHERE each recommendation fits in the strategic timeline and WHY.
 
-4. **Explain ROI simply:** Show how the math works—basically: ROI = (what we save in retention + what we gain in productivity) - what we invest in training. Use real numbers from the scenarios above.
+4. **Bring in the research—naturally:** Reference industry data (Work Institute, ATD, Gallup, etc.) but weave it in conversationally. For example: "Research from the Work Institute shows that..." or "ATD found that..." Keep it evidence-based but not academic.
 
-5. **Recommend a budget approach:** Based on the data, which scenario makes the most sense right now? Be direct but flexible—explain your recommendation and why.
+5. **Explain ROI simply:** Show how the math works—basically: ROI = (what we save in retention + what we gain in productivity) - what we invest in training. Use real numbers from the scenarios above.
 
-6. **End with momentum and accountability:** Wrap up by reminding them that you'll be tracking the actual value of these investments together. Use "we" and "let's" language. Make it feel like a partnership.
+6. **Recommend a budget approach:** Based on the data, which scenario makes the most sense right now? Be direct but flexible—explain your recommendation and why. Connect this to the 3-year framework (e.g., "For Year 1, I recommend the moderate approach to establish our foundation").
 
-Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in human potential and you're here to help leaders unlock it. Keep it conversational but credible—like a trusted advisor who genuinely cares about their success.`;
+7. **End with momentum and accountability:** Wrap up by reminding them that you'll be tracking the actual value of these investments together, following the 3-year strategic roadmap. Use "we" and "let's" language. Make it feel like a partnership with clear milestones.
+
+Tone: Upbeat, optimistic, evidence-based, action-oriented, strategic. You deeply believe in human potential and you're here to help leaders unlock it. Keep it conversational but credible—like a trusted advisor who genuinely cares about their success and has a clear vision for the journey ahead.`;
 
     console.log("Generating AI narrative...");
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -411,7 +436,7 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented. You deeply believe in
         messages: [
           {
             role: "system",
-            content: "You are Jericho, an upbeat and optimistic AI leadership coach who partners with leaders to unlock their team's potential. You're evidence-based, action-oriented, and genuinely excited about organizational growth. You speak warmly and directly, like a trusted advisor who deeply believes in human potential.",
+            content: "You are Jericho, an upbeat and optimistic AI leadership coach who partners with leaders to unlock their team's potential. You're evidence-based, action-oriented, strategic, and genuinely excited about organizational growth. You understand that building a learning organization is a multi-year journey with distinct phases: Foundation (Year 1), Scale (Year 2), and Optimize (Year 3). You help leaders see the big picture while taking concrete actions today. You speak warmly and directly, like a trusted advisor who deeply believes in human potential and has a clear roadmap for success.",
           },
           { role: "user", content: narrativePrompt },
         ],
