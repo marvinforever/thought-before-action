@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
@@ -29,6 +30,8 @@ interface CapabilityAssessment {
   self_assessed_level?: string;
   self_assessment_notes?: string;
   level_descriptions?: CapabilityLevel[];
+  marked_not_relevant?: boolean;
+  not_relevant_reason?: string;
 }
 
 const LEVELS = ["foundational", "advancing", "independent", "mastery"];
@@ -55,7 +58,7 @@ const getLevelNumber = (level: string) => {
 
 export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: SelfAssessCapabilitiesDialogProps) {
   const [capabilities, setCapabilities] = useState<CapabilityAssessment[]>([]);
-  const [assessments, setAssessments] = useState<Record<string, { level: string; notes: string }>>({});
+  const [assessments, setAssessments] = useState<Record<string, { level: string; notes: string; notRelevant: boolean; notRelevantReason: string }>>({});
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [expandedCapability, setExpandedCapability] = useState<string | null>(null);
@@ -78,6 +81,8 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
           target_level,
           self_assessed_level,
           self_assessment_notes,
+          marked_not_relevant,
+          not_relevant_reason,
           capabilities (
             name
           )
@@ -117,17 +122,21 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
         target_level: ec.target_level,
         self_assessed_level: ec.self_assessed_level,
         self_assessment_notes: ec.self_assessment_notes,
+        marked_not_relevant: ec.marked_not_relevant,
+        not_relevant_reason: ec.not_relevant_reason,
         level_descriptions: levelsByCapability.get(ec.capability_id) || []
       })) || [];
 
       setCapabilities(formatted);
 
       // Initialize assessments with existing self-assessments
-      const initialAssessments: Record<string, { level: string; notes: string }> = {};
+      const initialAssessments: Record<string, { level: string; notes: string; notRelevant: boolean; notRelevantReason: string }> = {};
       formatted.forEach((cap) => {
         initialAssessments[cap.id] = {
           level: cap.self_assessed_level || cap.current_level,
-          notes: cap.self_assessment_notes || ""
+          notes: cap.self_assessment_notes || "",
+          notRelevant: cap.marked_not_relevant || false,
+          notRelevantReason: cap.not_relevant_reason || ""
         };
       });
       setAssessments(initialAssessments);
@@ -153,13 +162,29 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
     }));
   };
 
+  const handleNotRelevantChange = (capabilityId: string, notRelevant: boolean) => {
+    setAssessments((prev) => ({
+      ...prev,
+      [capabilityId]: { ...prev[capabilityId], notRelevant, notRelevantReason: notRelevant ? prev[capabilityId]?.notRelevantReason || "" : "" }
+    }));
+  };
+
+  const handleNotRelevantReasonChange = (capabilityId: string, reason: string) => {
+    setAssessments((prev) => ({
+      ...prev,
+      [capabilityId]: { ...prev[capabilityId], notRelevantReason: reason }
+    }));
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
       const updates = Object.entries(assessments).map(([id, assessment]) => ({
         id,
-        self_assessed_level: assessment.level,
+        self_assessed_level: assessment.notRelevant ? null : assessment.level,
         self_assessment_notes: assessment.notes,
+        marked_not_relevant: assessment.notRelevant,
+        not_relevant_reason: assessment.notRelevantReason,
         self_assessed_at: new Date().toISOString()
       }));
 
@@ -263,34 +288,62 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
                   </CollapsibleContent>
                 </Collapsible>
 
-                <div className="space-y-2">
-                  <Label>Where are you today?</Label>
-                  <Select
-                    value={assessments[cap.id]?.level || cap.current_level}
-                    onValueChange={(value) => handleLevelChange(cap.id, value)}
+                <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-md">
+                  <Checkbox
+                    id={`not-relevant-${cap.id}`}
+                    checked={assessments[cap.id]?.notRelevant || false}
+                    onCheckedChange={(checked) => handleNotRelevantChange(cap.id, checked as boolean)}
+                  />
+                  <label
+                    htmlFor={`not-relevant-${cap.id}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LEVELS.map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {getLevelLabel(level)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    This capability is not relevant to my role
+                  </label>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
-                  <Textarea
-                    placeholder="Share examples or context about your current skill level..."
-                    value={assessments[cap.id]?.notes || ""}
-                    onChange={(e) => handleNotesChange(cap.id, e.target.value)}
-                    rows={2}
-                  />
-                </div>
+                {assessments[cap.id]?.notRelevant ? (
+                  <div className="space-y-2">
+                    <Label>Why is this not relevant? (Optional)</Label>
+                    <Textarea
+                      placeholder="Briefly explain why this capability doesn't apply to your role..."
+                      value={assessments[cap.id]?.notRelevantReason || ""}
+                      onChange={(e) => handleNotRelevantReasonChange(cap.id, e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Where are you today?</Label>
+                      <Select
+                        value={assessments[cap.id]?.level || cap.current_level}
+                        onValueChange={(value) => handleLevelChange(cap.id, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LEVELS.map((level) => (
+                            <SelectItem key={level} value={level}>
+                              {getLevelLabel(level)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Notes (Optional)</Label>
+                      <Textarea
+                        placeholder="Share examples or context about your current skill level..."
+                        value={assessments[cap.id]?.notes || ""}
+                        onChange={(e) => handleNotesChange(cap.id, e.target.value)}
+                        rows={2}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             ))}
 

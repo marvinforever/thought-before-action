@@ -1090,6 +1090,8 @@ export type Database = {
           id: string
           last_updated: string | null
           manager_assessed_at: string | null
+          marked_not_relevant: boolean | null
+          not_relevant_reason: string | null
           priority: number | null
           profile_id: string | null
           self_assessed_at: string | null
@@ -1105,6 +1107,8 @@ export type Database = {
           id?: string
           last_updated?: string | null
           manager_assessed_at?: string | null
+          marked_not_relevant?: boolean | null
+          not_relevant_reason?: string | null
           priority?: number | null
           profile_id?: string | null
           self_assessed_at?: string | null
@@ -1120,6 +1124,8 @@ export type Database = {
           id?: string
           last_updated?: string | null
           manager_assessed_at?: string | null
+          marked_not_relevant?: boolean | null
+          not_relevant_reason?: string | null
           priority?: number | null
           profile_id?: string | null
           self_assessed_at?: string | null
