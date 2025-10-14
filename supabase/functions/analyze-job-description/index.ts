@@ -151,7 +151,18 @@ For each capability, provide:
       })
       .filter((s: any) => validCapabilityIds.has(s.capability_id));
 
-    if (sanitized.length === 0) {
+    // Deduplicate by capability_id - keep first occurrence
+    const seen = new Set();
+    const deduplicated = sanitized.filter((s: any) => {
+      if (seen.has(s.capability_id)) {
+        console.log(`Removing duplicate capability: ${s.capability_name} (${s.capability_id})`);
+        return false;
+      }
+      seen.add(s.capability_id);
+      return true;
+    });
+
+    if (deduplicated.length === 0) {
       throw new Error('No valid capability matches found');
     }
 
@@ -163,8 +174,8 @@ For each capability, provide:
         company_id: companyId,
         title: jobTitle || null,
         description: jobDescription,
-        analysis_results: { suggestions: sanitized },
-        capabilities_assigned: sanitized.map((s: any) => s.capability_id),
+        analysis_results: { suggestions: deduplicated },
+        capabilities_assigned: deduplicated.map((s: any) => s.capability_id),
         is_current: true
       })
       .select()
@@ -185,7 +196,7 @@ For each capability, provide:
     }
 
     // Track usage for existing capabilities
-    for (const suggestion of sanitized) {
+    for (const suggestion of deduplicated) {
       await supabase
         .from('capability_usage_stats')
         .upsert({
@@ -208,11 +219,11 @@ For each capability, provide:
     const existingCapIds = new Set(existingCaps?.map(c => c.capability_id) || []);
     
     // Separate new vs existing capabilities
-    const newCaps = sanitized.filter((s: any) => !existingCapIds.has(s.capability_id));
-    const existingToUpdate = sanitized.filter((s: any) => existingCapIds.has(s.capability_id));
+    const newCaps = deduplicated.filter((s: any) => !existingCapIds.has(s.capability_id));
+    const existingToUpdate = deduplicated.filter((s: any) => existingCapIds.has(s.capability_id));
 
     // Upsert capabilities (insert new, update existing)
-    const capabilitiesToUpsert = sanitized.map((s: any) => ({
+    const capabilitiesToUpsert = deduplicated.map((s: any) => ({
       profile_id: employeeId,
       capability_id: s.capability_id,
       current_level: s.current_level,
@@ -234,9 +245,9 @@ For each capability, provide:
       throw new Error('Failed to assign capabilities to employee');
     }
 
-    console.log(`Successfully processed ${sanitized.length} capabilities: ${newCaps.length} new, ${existingToUpdate.length} updated`);
+    console.log(`Successfully processed ${deduplicated.length} capabilities: ${newCaps.length} new, ${existingToUpdate.length} updated`);
 
-    return new Response(JSON.stringify({ suggestions: sanitized }), {
+    return new Response(JSON.stringify({ suggestions: deduplicated }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
