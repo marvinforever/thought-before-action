@@ -358,7 +358,7 @@ serve(async (req) => {
       : '';
 
     // Generate AI narrative using Lovable AI
-    const narrativePrompt = `Hey! I'm Jericho, your AI leadership coach. I just analyzed your team's capability data, 90-day goals, and diagnostic responses. I'm genuinely excited to share what I found—there are some incredible growth opportunities here.
+    const narrativePrompt = `You are analyzing capability data for a strategic learning design. CRITICAL CONSTRAINT: This organization has ${validCohorts.length} identified training needs, but can only realistically execute 5-8 major initiatives in Year 1.
 
 Company Context:
 - Total Employees: ${employees.length}
@@ -367,7 +367,7 @@ Company Context:
 ${businessGoalsContext}
 ${goalsContext}
 
-Training Hotspots:
+ALL Training Hotspots (raw data):
 ${validCohorts.map((c, i) => {
   const cohortEmployees = c.employee_ids.map(id => employeeDataMap.get(id));
   const employeeNames = cohortEmployees.map(e => e?.full_name || 'Unknown').join(', ');
@@ -378,51 +378,71 @@ ${validCohorts.map((c, i) => {
   return `${i + 1}. ${c.cohort_name}: ${employeeNames} (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})${goalsText}`;
 }).join("\n")}
 
-Budget Scenarios:
-- Conservative (Free Resources): $${totalConservative.toLocaleString()}
-- Moderate (Online Courses): $${totalModerate.toLocaleString()}
-- Aggressive (Premium Training): $${totalAggressive.toLocaleString()}
+Budget Scenarios (if all cohorts were executed):
+- Conservative: $${totalConservative.toLocaleString()}
+- Moderate: $${totalModerate.toLocaleString()}
+- Aggressive: $${totalAggressive.toLocaleString()}
 
-**STRATEGIC PRIORITIES FRAMEWORK (3-Year Roadmap):**
+**YOUR TASK: RUTHLESS PRIORITIZATION**
 
-Year 1 - Foundation:
-- Align learning strategy with business priorities (stakeholder interviews)
-- Audit current state (what's working, what's not, where are gaps)
-- Implement core tech stack (LXP/LMS)
-- Launch manager effectiveness program (highest ROI)
-- Build measurement framework
+MANDATORY FILTER - Each cohort must pass ALL THREE tests:
+1. Business Criticality: Does it block revenue, create risk, cause inefficiency, or unlock multiple improvements?
+2. Urgency: Must be addressed in next 12 months?
+3. Leverage: Creates multiplier effect or impacts leadership/management?
 
-Year 2 - Scale:
-- Expand to all critical skills
-- Build skills architecture and career pathing integration
-- Launch learning culture initiatives
-- Develop internal SME network
-- Pilot AI coaching and emerging tech
+CONSOLIDATION RULES:
+- Combine related skills (e.g., "verbal" + "written" communication → "Professional Communication")
+- Move universal skills (time management, basic collaboration, tool proficiency) to SELF-SERVE only
+- If someone appears in 5+ cohorts, prioritize their top 2-3 gaps only
 
-Year 3 - Optimize:
-- Predictive analytics for skills planning
-- Full learning-in-flow-of-work integration
-- External partnerships (universities, industry orgs)
-- Thought leadership (speaking, publishing)
-- Continuous improvement engine (always iterating)
+OUTPUT STRUCTURE (2000-3000 words):
 
-Write a 350-450 word narrative that is warm, direct, and action-oriented—professional but approachable. Here's what to include:
+1. EXECUTIVE SUMMARY (2-3 paragraphs):
+   - Open: "After analyzing ${validCohorts.length} potential training needs, I've identified [X] mission-critical priorities for Year 1..."
+   - Acknowledge what you're deferring and why (builds strategic credibility)
+   - Include bullet list: "Top 5-8 Year 1 Strategic Priorities" (your pruned, consolidated list)
 
-1. **Open with excitement and context:** Start by acknowledging what you see—both the opportunities and the potential impact. Frame the gaps as growth edges, not failures. ${businessGoalsContext ? "**IMPORTANT: Connect the training hotspots to the business goals mentioned above.**" : ""}
+2. YEAR 1 PRIORITIES (5-8 cohorts maximum):
+   For each Year 1 priority:
+   - Why it passed the 3-part filter
+   - Current vs. desired state
+   - Recommended approach and success metrics
+   - Budget recommendation (default moderate; aggressive only for senior leadership/mission-critical)
+   - Implementation quarter
+   ${goalsContext ? "- Connect to specific employee 90-day goals where relevant" : ""}
+   ${businessGoalsContext ? "- Link to business goals explicitly" : ""}
 
-2. **Identify critical gaps and their impact:** Talk about the 2-3 most important skill gaps you identified. Connect each to real business outcomes—what happens if we close these gaps vs. what we risk if we don't (retention, productivity, innovation, revenue). ${businessGoalsContext ? "**Show how closing these gaps will help achieve their business goals.**" : ""} ${goalsContext ? "**CRITICAL: When recommending training, explicitly reference the employees' 90-day goals and explain HOW the training will help them achieve those specific goals. For example, if someone wants to become a better fiddle player, explain why fiddle lessons are recommended.**" : ""}
+3. WHAT WE'RE DEFERRING (Year 2-3):
+   - List remaining cohorts with brief explanations
+   - Show dependencies (e.g., "Advanced coaching requires foundational leadership first")
+   - Build confidence you're being strategic, not ignoring needs
 
-3. **Map to the 3-Year Strategic Priorities Framework:** **CRITICAL - You MUST contextualize the identified training hotspots within the 3-year roadmap provided above.** Explain which cohorts fit into Year 1 (Foundation), Year 2 (Scale), and Year 3 (Optimize). For example: "Based on priority and business impact, the [cohort name] training belongs in Year 1 as part of building our foundation, specifically supporting our manager effectiveness program." Be specific about WHERE each recommendation fits in the strategic timeline and WHY.
+4. SELF-SERVE RECOMMENDATIONS:
+   - Universal skills that don't need formal cohorts
+   - Suggest curated libraries, manager accountability
+   - Examples: time management, basic collaboration, tool proficiency
 
-4. **Bring in the research—naturally:** Reference industry data (Work Institute, ATD, Gallup, etc.) but weave it in conversationally. For example: "Research from the Work Institute shows that..." or "ATD found that..." Keep it evidence-based but not academic.
+5. CONSOLIDATION LOGIC:
+   - Explain how you combined related skills
+   - Show more coherent learning journeys
 
-5. **Explain ROI simply:** Show how the math works—basically: ROI = (what we save in retention + what we gain in productivity) - what we invest in training. Use real numbers from the scenarios above.
+6. BUDGET & ROI (Year 1 focus):
+   - Moderate as default
+   - Aggressive only for senior leadership/mission-critical
+   - If Year 1 moderate exceeds $200K for <50 employees, SIMPLIFY
+   - Use industry research (Work Institute, ATD, Gallup) conversationally
 
-6. **Recommend a budget approach:** Based on the data, which scenario makes the most sense right now? Be direct but flexible—explain your recommendation and why. Connect this to the 3-year framework (e.g., "For Year 1, I recommend the moderate approach to establish our foundation").
+7. IMPLEMENTATION ROADMAP:
+   - Quarterly breakdown for Year 1 priorities
+   - Year 2-3 at high level
+   - Reference 3-year framework: Foundation (Year 1) → Scale (Year 2) → Optimize (Year 3)
 
-7. **End with momentum and accountability:** Wrap up by reminding them that you'll be tracking the actual value of these investments together, following the 3-year strategic roadmap. Use "we" and "let's" language. Make it feel like a partnership with clear milestones.
+8. QUALITY CHECKS:
+   - CEO Test: Can you clearly state top 3 priorities?
+   - Execution Test: Can org realistically deliver while running business?
+   - ROI Test: Would you bet your bonus on measurable improvement?
 
-Tone: Upbeat, optimistic, evidence-based, action-oriented, strategic. You deeply believe in human potential and you're here to help leaders unlock it. Keep it conversational but credible—like a trusted advisor who genuinely cares about their success and has a clear vision for the journey ahead.`;
+Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by choosing what NOT to do. Evidence-based but not academic. Use clear headings, bullet points, concrete numbers.`;
 
     console.log("Generating AI narrative...");
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -436,7 +456,7 @@ Tone: Upbeat, optimistic, evidence-based, action-oriented, strategic. You deeply
         messages: [
           {
             role: "system",
-            content: "You are Jericho, an upbeat and optimistic AI leadership coach who partners with leaders to unlock their team's potential. You're evidence-based, action-oriented, strategic, and genuinely excited about organizational growth. You understand that building a learning organization is a multi-year journey with distinct phases: Foundation (Year 1), Scale (Year 2), and Optimize (Year 3). You help leaders see the big picture while taking concrete actions today. You speak warmly and directly, like a trusted advisor who deeply believes in human potential and has a clear roadmap for success.",
+            content: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint.",
           },
           { role: "user", content: narrativePrompt },
         ],
