@@ -122,6 +122,13 @@ Deno.serve(async (req) => {
           'Somewhat clear': 7,
           'Not clear': 3
         };
+        
+        // Convert energy level to number
+        const energyMap: Record<string, number> = {
+          'Very energized': 10,
+          'Somewhat energized': 7,
+          'Not energized': 3
+        };
 
         // Insert diagnostic response
         const { error: insertError } = await supabase
@@ -154,6 +161,8 @@ Deno.serve(async (req) => {
             feels_valued: parseInt(row.feelsValued) >= 7,
             sees_leadership_path: row.seesLeadership === 'Yes',
             company_supporting_goal: row.companySupportingGoal === 'Yes',
+            daily_energy_level: energyMap[row.energyLevel] || null,
+            manager_support_quality: parseInt(row.managerSupport) || null,
             work_life_integration_score: parseInt(row.energyLevel) || null,
             would_stay_if_offered_similar: row.wouldStay,
             retention_improvement_suggestion: row.retentionImprovement,
