@@ -199,28 +199,42 @@ For each capability, provide:
         });
     }
 
-    // Actually assign the capabilities to the employee
-    const capabilitiesToInsert = sanitized.map((s: any) => ({
+    // Check for existing capabilities
+    const { data: existingCaps } = await supabase
+      .from('employee_capabilities')
+      .select('capability_id')
+      .eq('profile_id', employeeId);
+    
+    const existingCapIds = new Set(existingCaps?.map(c => c.capability_id) || []);
+    
+    // Separate new vs existing capabilities
+    const newCaps = sanitized.filter((s: any) => !existingCapIds.has(s.capability_id));
+    const existingToUpdate = sanitized.filter((s: any) => existingCapIds.has(s.capability_id));
+
+    // Upsert capabilities (insert new, update existing)
+    const capabilitiesToUpsert = sanitized.map((s: any) => ({
       profile_id: employeeId,
       capability_id: s.capability_id,
       current_level: s.current_level,
       target_level: s.target_level,
       priority: s.priority,
       ai_reasoning: s.reasoning,
-      assigned_at: new Date().toISOString(),
       last_updated: new Date().toISOString()
     }));
 
-    const { error: insertError } = await supabase
+    const { error: upsertError } = await supabase
       .from('employee_capabilities')
-      .insert(capabilitiesToInsert);
+      .upsert(capabilitiesToUpsert, {
+        onConflict: 'profile_id,capability_id',
+        ignoreDuplicates: false
+      });
 
-    if (insertError) {
-      console.error('Error inserting employee capabilities:', insertError);
+    if (upsertError) {
+      console.error('Error upserting employee capabilities:', upsertError);
       throw new Error('Failed to assign capabilities to employee');
     }
 
-    console.log(`Successfully assigned ${sanitized.length} capabilities to employee ${employeeId}`);
+    console.log(`Successfully processed ${sanitized.length} capabilities: ${newCaps.length} new, ${existingToUpdate.length} updated`);
 
     return new Response(JSON.stringify({ suggestions: sanitized }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
