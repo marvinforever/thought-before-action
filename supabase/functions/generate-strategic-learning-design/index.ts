@@ -189,10 +189,10 @@ serve(async (req) => {
       });
     });
 
-    // Filter cohorts with minimum 2 people
+    // Filter cohorts with minimum 4 people (training hotspot threshold)
     const validCohorts: Cohort[] = [];
     capabilityGroups.forEach((employeeSet, key) => {
-      if (employeeSet.size >= 2) {
+      if (employeeSet.size >= 4) {
         const [capName, currentLevel, targetLevel] = key.split("_");
         const employeeIds = Array.from(employeeSet);
 
@@ -370,11 +370,12 @@ ${goalsContext}
 Training Hotspots:
 ${validCohorts.map((c, i) => {
   const cohortEmployees = c.employee_ids.map(id => employeeDataMap.get(id));
+  const employeeNames = cohortEmployees.map(e => e?.full_name || 'Unknown').join(', ');
   const cohortGoals = cohortEmployees.flatMap(e => e?.goals || []).filter(g => g);
   const goalsText = cohortGoals.length > 0 
     ? ` (Related goals: ${cohortGoals.slice(0, 2).map(g => g.goal_text).join('; ')})` 
     : '';
-  return `${i + 1}. ${c.cohort_name}: ${c.employee_count} employees (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})${goalsText}`;
+  return `${i + 1}. ${c.cohort_name}: ${employeeNames} (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})${goalsText}`;
 }).join("\n")}
 
 Budget Scenarios:
