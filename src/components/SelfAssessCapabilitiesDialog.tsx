@@ -229,7 +229,7 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
                 <div>
                   <h4 className="font-semibold">{cap.capability_name}</h4>
                   <p className="text-sm text-muted-foreground">
-                    Manager's Target for You: {getLevelLabel(cap.target_level)}
+                    Target Level: {getLevelLabel(cap.target_level)}
                   </p>
                 </div>
 
