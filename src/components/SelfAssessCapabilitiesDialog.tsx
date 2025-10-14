@@ -6,12 +6,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface SelfAssessCapabilitiesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profileId: string;
+}
+
+interface CapabilityLevel {
+  level: string;
+  description: string;
 }
 
 interface CapabilityAssessment {
@@ -22,18 +28,29 @@ interface CapabilityAssessment {
   target_level: string;
   self_assessed_level?: string;
   self_assessment_notes?: string;
+  level_descriptions?: CapabilityLevel[];
 }
 
 const LEVELS = ["foundational", "advancing", "independent", "mastery"];
 
 const getLevelLabel = (level: string) => {
   const labels: Record<string, string> = {
-    foundational: "Foundational",
-    advancing: "Advancing",
-    independent: "Independent",
-    mastery: "Mastery"
+    foundational: "L1 - Foundational",
+    advancing: "L2 - Advancing",
+    independent: "L3 - Independent",
+    mastery: "L4 - Mastery"
   };
   return labels[level] || level;
+};
+
+const getLevelNumber = (level: string) => {
+  const numbers: Record<string, string> = {
+    foundational: "L1",
+    advancing: "L2",
+    independent: "L3",
+    mastery: "L4"
+  };
+  return numbers[level] || "";
 };
 
 export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: SelfAssessCapabilitiesDialogProps) {
@@ -41,6 +58,7 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
   const [assessments, setAssessments] = useState<Record<string, { level: string; notes: string }>>({});
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [expandedCapability, setExpandedCapability] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -68,6 +86,29 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
 
       if (error) throw error;
 
+      // Fetch level descriptions for each capability
+      const capabilityIds = data?.map((ec: any) => ec.capability_id) || [];
+      const { data: levelData, error: levelError } = await supabase
+        .from("capability_levels")
+        .select("capability_id, level, description")
+        .in("capability_id", capabilityIds);
+
+      if (levelError) {
+        console.error("Error loading level descriptions:", levelError);
+      }
+
+      // Group level descriptions by capability_id
+      const levelsByCapability = new Map<string, CapabilityLevel[]>();
+      levelData?.forEach((level: any) => {
+        if (!levelsByCapability.has(level.capability_id)) {
+          levelsByCapability.set(level.capability_id, []);
+        }
+        levelsByCapability.get(level.capability_id)?.push({
+          level: level.level,
+          description: level.description
+        });
+      });
+
       const formatted = data?.map((ec: any) => ({
         id: ec.id,
         capability_id: ec.capability_id,
@@ -75,7 +116,8 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
         current_level: ec.current_level,
         target_level: ec.target_level,
         self_assessed_level: ec.self_assessed_level,
-        self_assessment_notes: ec.self_assessment_notes
+        self_assessment_notes: ec.self_assessment_notes,
+        level_descriptions: levelsByCapability.get(ec.capability_id) || []
       })) || [];
 
       setCapabilities(formatted);
@@ -162,12 +204,67 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
                 <div>
                   <h4 className="font-semibold">{cap.capability_name}</h4>
                   <p className="text-sm text-muted-foreground">
-                    Target: {getLevelLabel(cap.target_level)}
+                    Manager's Target for You: {getLevelLabel(cap.target_level)}
                   </p>
                 </div>
 
+                <Collapsible
+                  open={expandedCapability === cap.id}
+                  onOpenChange={() => setExpandedCapability(expandedCapability === cap.id ? null : cap.id)}
+                >
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between">
+                      <span className="text-sm font-medium">
+                        {expandedCapability === cap.id ? "Hide" : "Show"} Level Definitions
+                      </span>
+                      {expandedCapability === cap.id ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 mt-2">
+                    {cap.level_descriptions?.length > 0 ? (
+                      cap.level_descriptions
+                        .sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level))
+                        .map((levelDesc) => (
+                          <div
+                            key={levelDesc.level}
+                            className={`p-3 rounded-md border-l-4 ${
+                              levelDesc.level === cap.target_level
+                                ? "border-primary bg-primary/5"
+                                : "border-muted bg-muted/30"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold text-sm">
+                                {getLevelNumber(levelDesc.level)}
+                              </span>
+                              <span className="text-sm font-medium">
+                                {getLevelLabel(levelDesc.level)}
+                              </span>
+                              {levelDesc.level === cap.target_level && (
+                                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                                  Your Target
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {levelDesc.description}
+                            </p>
+                          </div>
+                        ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">
+                        No level descriptions available for this capability.
+                      </p>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
+
                 <div className="space-y-2">
-                  <Label>Your Current Level</Label>
+                  <Label>Where are you today?</Label>
                   <Select
                     value={assessments[cap.id]?.level || cap.current_level}
                     onValueChange={(value) => handleLevelChange(cap.id, value)}
@@ -188,7 +285,7 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
                 <div className="space-y-2">
                   <Label>Notes (Optional)</Label>
                   <Textarea
-                    placeholder="Add any notes about your experience with this capability..."
+                    placeholder="Share examples or context about your current skill level..."
                     value={assessments[cap.id]?.notes || ""}
                     onChange={(e) => handleNotesChange(cap.id, e.target.value)}
                     rows={2}
