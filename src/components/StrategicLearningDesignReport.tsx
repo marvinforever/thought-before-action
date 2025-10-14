@@ -512,57 +512,79 @@ export default function StrategicLearningDesignReport() {
 
         {/* Training Hotspots */}
         <TabsContent value="cohorts" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Who Needs What Training</h3>
-          </div>
+          <h3 className="text-lg font-semibold mb-4">Who Needs What Training</h3>
+          
+          <Tabs defaultValue="2026" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="2026">2026 (Year 1)</TabsTrigger>
+              <TabsTrigger value="2027">2027 (Year 2)</TabsTrigger>
+              <TabsTrigger value="2028">2028 (Year 3)</TabsTrigger>
+            </TabsList>
 
-          {cohorts.map((cohort) => {
-            return (
-              <Card key={cohort.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center gap-2">
-                        {cohort.cohort_name}
-                        <Badge className={getSeverityColor(cohort.gap_severity || 'low')}>
-                          {(cohort.gap_severity || 'low').toUpperCase()}
-                        </Badge>
-                        <Badge variant="outline">Priority {cohort.priority}</Badge>
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {cohort.employee_count} employees • {cohort.current_level} → {cohort.target_level}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">
-                        <Calendar className="inline h-3 w-3 mr-1" />
-                        {cohort.delivery_quarter}
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="font-semibold mb-2">Employees in this cohort:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {cohort.employee_ids.slice(0, 10).map((id, i) => {
-                        const profile = employeeProfiles.get(id);
-                        const displayName = profile?.full_name || `Employee ${i + 1}`;
-                        return (
-                          <Badge key={id} variant="secondary" title={profile?.email}>
-                            {displayName}
-                          </Badge>
-                        );
-                      })}
-                      {cohort.employee_ids.length > 10 && (
-                        <Badge variant="outline">+{cohort.employee_ids.length - 10} more</Badge>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+            {["2026", "2027", "2028"].map((year) => {
+              const yearCohorts = cohorts.filter((cohort) => 
+                cohort.delivery_quarter?.includes(year)
+              );
+
+              return (
+                <TabsContent key={year} value={year} className="space-y-4 mt-4">
+                  {yearCohorts.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-8 text-center text-muted-foreground">
+                        No training cohorts scheduled for {year}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    yearCohorts.map((cohort) => (
+                      <Card key={cohort.id}>
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <CardTitle className="flex items-center gap-2">
+                                {cohort.cohort_name}
+                                <Badge className={getSeverityColor(cohort.gap_severity || 'low')}>
+                                  {(cohort.gap_severity || 'low').toUpperCase()}
+                                </Badge>
+                                <Badge variant="outline">Priority {cohort.priority}</Badge>
+                              </CardTitle>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {cohort.employee_count} employees • {cohort.current_level} → {cohort.target_level}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">
+                                <Calendar className="inline h-3 w-3 mr-1" />
+                                {cohort.delivery_quarter}
+                              </p>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <p className="font-semibold mb-2">Employees in this cohort:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {cohort.employee_ids.slice(0, 10).map((id, i) => {
+                                const profile = employeeProfiles.get(id);
+                                const displayName = profile?.full_name || `Employee ${i + 1}`;
+                                return (
+                                  <Badge key={id} variant="secondary" title={profile?.email}>
+                                    {displayName}
+                                  </Badge>
+                                );
+                              })}
+                              {cohort.employee_ids.length > 10 && (
+                                <Badge variant="outline">+{cohort.employee_ids.length - 10} more</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+              );
+            })}
+          </Tabs>
         </TabsContent>
 
         {/* Budget Scenarios */}
