@@ -97,7 +97,6 @@ serve(async (req) => {
         .from('diagnostic_responses')
         .select(`
           learning_preference,
-          weekly_development_hours,
           listens_to_podcasts,
           watches_youtube,
           reads_books_articles,
@@ -152,7 +151,6 @@ serve(async (req) => {
       completedResources: completedResources.length,
       role: jobDescription?.title || 'Not specified',
       learningPreference: diagnostic?.learning_preference || 'Not specified',
-      weeklyDevelopmentHours: diagnostic?.weekly_development_hours || 'Not specified',
       contentPreferences: {
         podcasts: diagnostic?.listens_to_podcasts || false,
         youtube: diagnostic?.watches_youtube || false,
@@ -187,7 +185,6 @@ CRITICAL: Your narrative must follow this exact three-part structure:
 
 PERSONALIZATION REQUIREMENTS:
 - Respect their learning preferences and content type preferences (podcasts, videos, books)
-- Match recommendations to their available weekly development hours
 - Consider their energy levels and burnout indicators when suggesting timeline/intensity
 - Address any specific training needs they identified in their diagnostic survey
 - Adapt resource types to their stated learning style`
@@ -218,7 +215,6 @@ Completed Resources: ${completedResources.length}
 
 Learning Profile (from Diagnostic Survey):
 - Learning Preference: ${diagnostic?.learning_preference || 'Not specified'}
-- Weekly Development Hours Available: ${diagnostic?.weekly_development_hours || 'Not specified'}
 - Content Type Preferences: ${diagnostic?.listens_to_podcasts ? 'Podcasts' : ''}${diagnostic?.watches_youtube ? ', YouTube videos' : ''}${diagnostic?.reads_books_articles ? ', Books/Articles' : ''}
 - Specific Training Needs: ${diagnostic?.needed_training || 'Not specified'}
 - Learning Motivation: ${diagnostic?.learning_motivation || 'Not specified'}

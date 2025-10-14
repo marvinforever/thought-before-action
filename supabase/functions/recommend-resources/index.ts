@@ -67,7 +67,6 @@ serve(async (req) => {
       .from('diagnostic_responses')
       .select(`
         learning_preference,
-        weekly_development_hours,
         listens_to_podcasts,
         watches_youtube,
         reads_books_articles,
@@ -170,22 +169,20 @@ serve(async (req) => {
     
     PERSONALIZATION REQUIREMENTS (from Diagnostic Survey):
     - Prioritize content types that match their preferences (podcasts, YouTube, books/articles)
-    - Respect their weekly development hours - don't recommend 10-hour courses if they only have 2 hours/week
     - Address specific training needs they identified in their diagnostic
     - Consider their learning motivation and style
     
     For each recommendation:
     - Choose resources that DIRECTLY address their capability gaps AND move them toward their 1-year/3-year vision
     - Match the content type to their stated preferences
-    - Estimate time investment and ensure it fits their available hours
     - Prioritize resources that build confidence and career clarity (retention factors)
     - Explain WHY THIS MATTERS for their growth journey and career goals
     - Connect the resource explicitly to their retention: "Building this skill makes you more valuable and confident in your role"
     
     DIVERSIFY content types based on their preferences:
     - Quick wins: YouTube videos, podcast episodes (15-30 min) - prioritize if they prefer these
-    - Skill building: Online courses, books (1-4 weeks) - match to their time availability
-    - Deep expertise: Books, mentorship programs (1-3 months) - only if they have time and prefer deep learning
+    - Skill building: Online courses, books (1-4 weeks)
+    - Deep expertise: Books, mentorship programs (1-3 months) - for deep learning preferences
     
     Return your recommendations as a JSON array with this structure:
     [
@@ -193,11 +190,11 @@ serve(async (req) => {
         "resource_id": "uuid-of-resource",
         "employee_capability_id": "uuid-or-null",
         "match_score": 95,
-        "reasoning": "WHY THIS MATTERS: This resource helps you close the gap toward [their 1-year vision]. It develops [specific capability] from [current level] to [target level], which is essential for [their stated goal]. This [content type] format matches your learning preference and fits your [X hours/week] available for development. Building this skill makes you more valuable and positions you for [next career step]."
+        "reasoning": "WHY THIS MATTERS: This resource helps you close the gap toward [their 1-year vision]. It develops [specific capability] from [current level] to [target level], which is essential for [their stated goal]. This [content type] format matches your learning preference. Building this skill makes you more valuable and positions you for [next career step]."
       }
     ]
     
-    Keep reasoning specific, vision-focused, and personalized to their learning style. Every recommendation should answer: "How does this move me toward my goals AND fit my learning preferences and time?"`;
+    Keep reasoning specific, vision-focused, and personalized to their learning style. Every recommendation should answer: "How does this move me toward my goals AND fit my learning preferences?"`;
 
     const userPrompt = `Employee Context:
 Capabilities: ${JSON.stringify(capabilitiesContext, null, 2)}
@@ -209,7 +206,6 @@ Goals:
 
 Learning Profile (from Diagnostic Survey):
 - Learning Preference: ${diagnostic?.learning_preference || 'Not specified'}
-- Weekly Development Hours: ${diagnostic?.weekly_development_hours || 'Not specified'}
 - Content Preferences: ${diagnostic?.listens_to_podcasts ? 'Podcasts' : ''}${diagnostic?.watches_youtube ? ', YouTube' : ''}${diagnostic?.reads_books_articles ? ', Books/Articles' : ''}
 - Specific Training Needs: ${diagnostic?.needed_training || 'Not specified'}
 - Learning Motivation: ${diagnostic?.learning_motivation || 'Not specified'}
@@ -220,7 +216,7 @@ ${JSON.stringify(allResources, null, 2)}
 Employee Capabilities IDs for reference:
 ${JSON.stringify(capabilities?.map(c => ({ id: c.id, capability: c.capability.name })), null, 2)}
 
-Provide recommendations now, ensuring they match the employee's learning preferences and time availability:`;
+Provide recommendations now, ensuring they match the employee's learning preferences:`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
