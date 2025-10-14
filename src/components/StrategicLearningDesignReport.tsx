@@ -666,11 +666,6 @@ export default function StrategicLearningDesignReport() {
                                   </span>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <p className="text-2xl font-bold text-primary">
-                                  {formatCurrency(cohort.estimated_cost_moderate || 0)}
-                                </p>
-                              </div>
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-4">
