@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Flame, TrendingUp, Archive, Trash2, Calendar } from "lucide-react";
+import { Plus, Flame, TrendingUp, Archive, Trash2, Calendar, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -47,6 +47,7 @@ export default function GreatnessTracker() {
   const [greatnessKeys, setGreatnessKeys] = useState<GreatnessKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [backdateOpen, setBackdateOpen] = useState(false);
   const [backdateHabitId, setBackdateHabitId] = useState<string | null>(null);
   const [backdateStart, setBackdateStart] = useState("");
@@ -531,12 +532,21 @@ export default function GreatnessTracker() {
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center justify-between">
                           <h4 className="font-semibold">{habit.habit_name}</h4>
-                          <div className="flex items-center gap-2">
+                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1 text-sm">
                               <Flame className="h-4 w-4 text-orange-500" />
                               <span className="font-bold">{habit.current_streak}</span>
                               <span className="text-muted-foreground">day streak</span>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingHabit(habit)}
+                              className="h-8 w-8 p-0"
+                              title="Edit habit"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -595,9 +605,13 @@ export default function GreatnessTracker() {
       </Card>
 
       <AddHabitDialog
-        open={showAddDialog}
-        onClose={() => setShowAddDialog(false)}
+        open={showAddDialog || !!editingHabit}
+        onClose={() => {
+          setShowAddDialog(false);
+          setEditingHabit(null);
+        }}
         onHabitAdded={loadHabits}
+        editingHabit={editingHabit}
       />
     </>
   );

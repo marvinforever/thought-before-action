@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,17 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+type Habit = {
+  id: string;
+  habit_name: string;
+  habit_description: string | null;
+};
+
 type AddHabitDialogProps = {
   open: boolean;
   onClose: () => void;
   onHabitAdded: () => void;
+  editingHabit?: Habit | null;
 };
 
 type SuggestedHabit = {
@@ -27,13 +34,26 @@ type SuggestedHabit = {
   reasoning: string;
 };
 
-export default function AddHabitDialog({ open, onClose, onHabitAdded }: AddHabitDialogProps) {
+export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHabit }: AddHabitDialogProps) {
   const [habitName, setHabitName] = useState("");
   const [habitDescription, setHabitDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestedHabit[]>([]);
   const { toast } = useToast();
+
+  // Load editing habit data when dialog opens
+  useEffect(() => {
+    if (editingHabit) {
+      setHabitName(editingHabit.habit_name);
+      setHabitDescription(editingHabit.habit_description || "");
+    } else if (!open) {
+      // Reset form when dialog closes
+      setHabitName("");
+      setHabitDescription("");
+      setSuggestions([]);
+    }
+  }, [editingHabit, open]);
 
   const handleGetSuggestions = async () => {
     setLoadingAI(true);
@@ -87,29 +107,49 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded }: AddHabit
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
+      if (editingHabit) {
+        // Update existing habit
+        const { error } = await supabase
+          .from("leading_indicators")
+          .update({
+            habit_name: habitName.trim(),
+            habit_description: habitDescription.trim() || null,
+          })
+          .eq("id", editingHabit.id)
+          .eq("profile_id", user.id);
 
-      if (!profile?.company_id) throw new Error("Company not found");
+        if (error) throw error;
 
-      const { error } = await supabase.from("leading_indicators").insert({
-        profile_id: user.id,
-        company_id: profile.company_id,
-        habit_name: habitName.trim(),
-        habit_description: habitDescription.trim() || null,
-        target_frequency: "daily",
-        is_active: true,
-      });
+        toast({
+          title: "Success",
+          description: "Habit updated successfully",
+        });
+      } else {
+        // Create new habit
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
 
-      if (error) throw error;
+        if (!profile?.company_id) throw new Error("Company not found");
 
-      toast({
-        title: "Success",
-        description: "Habit added to your Greatness Tracker",
-      });
+        const { error } = await supabase.from("leading_indicators").insert({
+          profile_id: user.id,
+          company_id: profile.company_id,
+          habit_name: habitName.trim(),
+          habit_description: habitDescription.trim() || null,
+          target_frequency: "daily",
+          is_active: true,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Habit added to your Greatness Tracker",
+        });
+      }
 
       onHabitAdded();
       handleClose();
@@ -117,7 +157,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded }: AddHabit
       console.error("Error saving habit:", error);
       toast({
         title: "Error",
-        description: "Failed to save habit",
+        description: editingHabit ? "Failed to update habit" : "Failed to save habit",
         variant: "destructive",
       });
     } finally {
@@ -136,14 +176,17 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded }: AddHabit
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Habit</DialogTitle>
+          <DialogTitle>{editingHabit ? "Edit Habit" : "Add New Habit"}</DialogTitle>
           <DialogDescription>
-            Create a Kaizen micro-habit. Small, daily actions lead to extraordinary results.
+            {editingHabit 
+              ? "Update your habit details below."
+              : "Create a Kaizen micro-habit. Small, daily actions lead to extraordinary results."
+            }
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {suggestions.length === 0 ? (
+          {suggestions.length === 0 || editingHabit ? (
             <>
               <div>
                 <Label htmlFor="habit-name">Habit Name</Label>
@@ -167,26 +210,28 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded }: AddHabit
                 />
               </div>
 
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  onClick={handleGetSuggestions}
-                  disabled={loadingAI}
-                  className="w-full gap-2"
-                >
-                  {loadingAI ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Getting AI Suggestions...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Get AI Suggestions
-                    </>
-                  )}
-                </Button>
-              </div>
+              {!editingHabit && (
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleGetSuggestions}
+                    disabled={loadingAI}
+                    className="w-full gap-2"
+                  >
+                    {loadingAI ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Getting AI Suggestions...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Get AI Suggestions
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
             <div className="space-y-3">
@@ -233,10 +278,10 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded }: AddHabit
               {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  {editingHabit ? "Updating..." : "Saving..."}
                 </>
               ) : (
-                "Add Habit"
+                editingHabit ? "Update Habit" : "Add Habit"
               )}
             </Button>
           )}
