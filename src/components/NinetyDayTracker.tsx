@@ -400,49 +400,53 @@ export default function NinetyDayTracker() {
         </Card>;
     }
     return <Card key={goal.id || `${quarter}-${category}-${goal.goal_number}`} className={goal.completed ? "bg-muted/50" : ""}>
-        <CardContent className="pt-4 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
+        <CardContent className="pt-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-muted-foreground">Goal {goal.goal_number}</span>
                 {goal.completed && <Badge variant="secondary" className="text-xs">Complete</Badge>}
               </div>
-              <p className={`text-sm ${goal.completed ? "line-through text-muted-foreground" : ""}`}>
+              <p className={`text-sm leading-relaxed ${goal.completed ? "line-through text-muted-foreground" : ""}`}>
                 {goal.goal_text}
               </p>
+              {goal.support_needed && <p className="text-xs text-muted-foreground italic">
+                  Support: {goal.support_needed}
+                </p>}
+              <div className="flex gap-2 pt-2">
+                {!isEditing && goal.goal_text && <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => startEditing(quarter, category, goal.goal_number, goal)}>
+                    Edit
+                  </Button>}
+              </div>
             </div>
-            <div className="flex gap-1">
-              {goal.id && !goal.completed && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => {
-                    setSelectedTarget(goal);
-                    setBreakdownDialogOpen(true);
-                  }}
-                  title="Get Jericho's help breaking this down"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
-              )}
-              {goal.id && <Button variant="ghost" size="sm" onClick={() => handleToggleComplete(goal)}>
-                  <Check className={`h-4 w-4 ${goal.completed ? "text-green-500" : ""}`} />
-                </Button>}
-              {goal.id && <Button variant="ghost" size="sm" onClick={() => handleDeleteGoal(goal)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>}
+            <div className="flex flex-col items-end gap-3 min-w-[140px]">
+              {goal.by_when && <div className="flex items-center gap-2 text-xs font-medium bg-muted px-3 py-1.5 rounded-md">
+                  <Calendar className="h-3 w-3" />
+                  <span>{new Date(goal.by_when).toLocaleDateString()}</span>
+                </div>}
+              <div className="flex gap-1">
+                {goal.id && !goal.completed && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setSelectedTarget(goal);
+                      setBreakdownDialogOpen(true);
+                    }}
+                    title="Get Jericho's help breaking this down"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                )}
+                {goal.id && <Button variant="ghost" size="sm" onClick={() => handleToggleComplete(goal)}>
+                    <Check className={`h-4 w-4 ${goal.completed ? "text-green-500" : ""}`} />
+                  </Button>}
+                {goal.id && <Button variant="ghost" size="sm" onClick={() => handleDeleteGoal(goal)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>}
+              </div>
             </div>
           </div>
-          {goal.by_when && <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              <span>By {new Date(goal.by_when).toLocaleDateString()}</span>
-            </div>}
-          {goal.support_needed && <p className="text-xs text-muted-foreground italic">
-              Support: {goal.support_needed}
-            </p>}
-          {!isEditing && goal.goal_text && <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => startEditing(quarter, category, goal.goal_number, goal)}>
-              Edit
-            </Button>}
         </CardContent>
       </Card>;
   };
@@ -502,14 +506,14 @@ export default function NinetyDayTracker() {
           {QUARTERS.map(quarter => <TabsContent key={quarter} value={quarter} className="space-y-6">
               <div>
                 <h3 className="font-semibold mb-3 text-sm">Personal Targets</h3>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-3">
                   {getTargetsForQuarter(quarter, "personal").map(goal => renderGoalCard(goal, quarter, "personal"))}
                 </div>
               </div>
 
               <div>
                 <h3 className="font-semibold mb-3 text-sm">Professional Targets</h3>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-3">
                   {getTargetsForQuarter(quarter, "professional").map(goal => renderGoalCard(goal, quarter, "professional"))}
                 </div>
               </div>
