@@ -179,20 +179,29 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const updates = Object.entries(assessments).map(([id, assessment]) => ({
-        id,
-        self_assessed_level: assessment.notRelevant ? null : assessment.level,
-        self_assessment_notes: assessment.notes,
-        marked_not_relevant: assessment.notRelevant,
-        not_relevant_reason: assessment.notRelevantReason,
-        self_assessed_at: new Date().toISOString()
-      }));
+      // Update each capability individually
+      const updatePromises = Object.entries(assessments).map(([id, assessment]) => 
+        supabase
+          .from("employee_capabilities")
+          .update({
+            self_assessed_level: assessment.notRelevant ? null : assessment.level,
+            self_assessment_notes: assessment.notes,
+            marked_not_relevant: assessment.notRelevant,
+            not_relevant_reason: assessment.notRelevantReason,
+            self_assessed_at: new Date().toISOString()
+          })
+          .eq("id", id)
+          .eq("profile_id", profileId)
+      );
 
-      const { error } = await supabase
-        .from("employee_capabilities")
-        .upsert(updates);
-
-      if (error) throw error;
+      const results = await Promise.all(updatePromises);
+      
+      // Check if any updates failed
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) {
+        console.error("Update errors:", errors);
+        throw new Error("Failed to update some capabilities");
+      }
 
       toast.success("Self-assessment completed successfully!");
       onOpenChange(false);
