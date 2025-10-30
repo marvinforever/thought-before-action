@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Eye, Edit, Save, X } from "lucide-react";
 
 type PersonalGoals = {
@@ -146,9 +147,11 @@ export default function PersonalVisionCard() {
               className="min-h-[100px]"
             />
           ) : (
-            <p className="text-sm p-4 bg-muted/50 rounded-md min-h-[100px]">
-              {oneYearVision || "No vision set yet. Click edit to add your 1-year vision."}
-            </p>
+            <ScrollArea className="h-[100px] rounded-md border bg-muted/50">
+              <p className="text-sm p-4">
+                {oneYearVision || "No vision set yet. Click edit to add your 1-year vision."}
+              </p>
+            </ScrollArea>
           )}
         </div>
         
@@ -167,9 +170,11 @@ export default function PersonalVisionCard() {
               className="min-h-[100px]"
             />
           ) : (
-            <p className="text-sm p-4 bg-muted/50 rounded-md min-h-[100px]">
-              {threeYearVision || "No vision set yet. Click edit to add your 3-year vision."}
-            </p>
+            <ScrollArea className="h-[100px] rounded-md border bg-muted/50">
+              <p className="text-sm p-4">
+                {threeYearVision || "No vision set yet. Click edit to add your 3-year vision."}
+              </p>
+            </ScrollArea>
           )}
         </div>
       </CardContent>
