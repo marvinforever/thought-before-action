@@ -6,6 +6,7 @@ import { Plus, Flame, TrendingUp, Archive, Trash2, Calendar, Pencil } from "luci
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import AddHabitDialog from "./AddHabitDialog";
@@ -512,8 +513,9 @@ export default function GreatnessTracker() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {habits.map((habit) => {
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-4">
+                {habits.map((habit) => {
                 const completed = isHabitCompleted(habit.id);
                 const weeklyProgress = getWeeklyProgress(habit.id);
                 const totalCompletions = getTotalCompletions(habit.id);
@@ -599,7 +601,8 @@ export default function GreatnessTracker() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
