@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { DomainDrilldownDialog } from "@/components/DomainDrilldownDialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DomainScore {
   domain: string;
@@ -683,43 +684,45 @@ const Dashboard = () => {
           {stats.recentActivity.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No recent activity to display</p>
           ) : (
-            <div className="space-y-4">
-              {stats.recentActivity.map((activity, index) => {
-                const IconComponent = 
-                  activity.icon === "users" ? Users :
-                  activity.icon === "trending-up" ? TrendingUp :
-                  activity.icon === "target" ? Target :
-                  Award;
-                
-                const getTimeAgo = (date: Date) => {
-                  const now = new Date();
-                  const diff = now.getTime() - date.getTime();
-                  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                  const hours = Math.floor(diff / (1000 * 60 * 60));
-                  const minutes = Math.floor(diff / (1000 * 60));
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-4 pr-4">
+                {stats.recentActivity.map((activity, index) => {
+                  const IconComponent = 
+                    activity.icon === "users" ? Users :
+                    activity.icon === "trending-up" ? TrendingUp :
+                    activity.icon === "target" ? Target :
+                    Award;
                   
-                  if (days > 0) return `${days}d ago`;
-                  if (hours > 0) return `${hours}h ago`;
-                  if (minutes > 0) return `${minutes}m ago`;
-                  return "Just now";
-                };
+                  const getTimeAgo = (date: Date) => {
+                    const now = new Date();
+                    const diff = now.getTime() - date.getTime();
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const minutes = Math.floor(diff / (1000 * 60));
+                    
+                    if (days > 0) return `${days}d ago`;
+                    if (hours > 0) return `${hours}h ago`;
+                    if (minutes > 0) return `${minutes}m ago`;
+                    return "Just now";
+                  };
 
-                return (
-                  <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                    <div className="mt-0.5 p-2 rounded-full bg-primary/10">
-                      <IconComponent className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{activity.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">{getTimeAgo(activity.timestamp)}</p>
+                  return (
+                    <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                      <div className="mt-0.5 p-2 rounded-full bg-primary/10">
+                        <IconComponent className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{activity.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">{getTimeAgo(activity.timestamp)}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
