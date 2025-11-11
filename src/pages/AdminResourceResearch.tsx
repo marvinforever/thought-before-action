@@ -169,9 +169,17 @@ export default function AdminResourceResearch() {
   const importResults = async () => {
     setIsImporting(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({ title: "User not found", variant: "destructive" });
+      setIsImporting(false);
+      return;
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('company_id')
+      .eq('id', user.id)
       .single();
 
     if (!profile?.company_id) {
