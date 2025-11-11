@@ -96,29 +96,31 @@ For each resource provide:
         ],
         tools: [{
           type: 'function',
-          name: 'recommend_resources',
-          description: 'Return structured learning resource recommendations',
-          parameters: {
-            type: 'object',
-            properties: {
-              resources: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    title: { type: 'string' },
-                    author_or_creator: { type: 'string' },
-                    description: { type: 'string' },
-                    url: { type: 'string' },
-                    content_type: { type: 'string', enum: ['book', 'video', 'podcast', 'course'] },
-                    duration_minutes: { type: 'number' },
-                    capability_level: { type: 'string', enum: ['foundational', 'advancing', 'independent', 'mastery'] }
-                  },
-                  required: ['title', 'author_or_creator', 'description', 'url', 'content_type']
+          function: {
+            name: 'recommend_resources',
+            description: 'Return structured learning resource recommendations',
+            parameters: {
+              type: 'object',
+              properties: {
+                resources: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string' },
+                      author_or_creator: { type: 'string' },
+                      description: { type: 'string' },
+                      url: { type: 'string' },
+                      content_type: { type: 'string', enum: ['book', 'video', 'podcast', 'course'] },
+                      duration_minutes: { type: 'number' },
+                      capability_level: { type: 'string', enum: ['foundational', 'advancing', 'independent', 'mastery'] }
+                    },
+                    required: ['title', 'author_or_creator', 'description', 'url', 'content_type']
+                  }
                 }
-              }
-            },
-            required: ['resources']
+              },
+              required: ['resources']
+            }
           }
         }],
         tool_choice: { type: 'function', function: { name: 'recommend_resources' } }
@@ -183,7 +185,7 @@ For each resource provide:
   } catch (error) {
     console.error('Error in research-capability-resources:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
