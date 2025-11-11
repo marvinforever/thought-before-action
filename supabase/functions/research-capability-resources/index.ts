@@ -18,10 +18,9 @@ interface ResearchedResource {
   description: string;
   url: string;
   content_type: 'book' | 'video' | 'podcast' | 'course';
-  author_or_creator?: string;
+  authors?: string; // Mapped from author_or_creator
   capability_name: string;
-  capability_level?: string;
-  duration_minutes?: number;
+  estimated_time_minutes?: number; // Mapped from duration_minutes
   url_valid?: boolean;
 }
 
@@ -146,10 +145,15 @@ For each resource provide:
     }
 
     const resourcesData = JSON.parse(toolCall.function.arguments);
+    // Map AI response fields to database schema
     const resources: ResearchedResource[] = resourcesData.resources.map((r: any) => ({
-      ...r,
+      title: r.title,
+      description: r.description,
+      url: r.url,
+      content_type: r.content_type,
+      authors: r.author_or_creator, // Map to schema field
+      estimated_time_minutes: r.duration_minutes, // Map to schema field
       capability_name,
-      capability_level: r.capability_level || level || 'advancing'
     }));
 
     console.log(`Found ${resources.length} resources, validating URLs...`);

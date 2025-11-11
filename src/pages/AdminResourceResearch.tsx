@@ -24,10 +24,9 @@ interface ResearchedResource {
   description: string;
   url: string;
   content_type: 'book' | 'video' | 'podcast' | 'course';
-  author_or_creator?: string;
+  authors?: string;
   capability_name: string;
-  capability_level?: string;
-  duration_minutes?: number;
+  estimated_time_minutes?: number;
   url_valid?: boolean;
 }
 
@@ -200,7 +199,14 @@ export default function AdminResourceResearch() {
         }
 
         try {
-          // Insert resource
+          // Validate required fields
+          if (!resource.title || !resource.url || !resource.content_type) {
+            console.error('Skipping resource with missing required fields:', resource);
+            errorCount++;
+            continue;
+          }
+
+          // Insert resource with mapped fields
           const { data: insertedResource, error: resourceError } = await supabase
             .from('resources')
             .insert({
@@ -208,8 +214,9 @@ export default function AdminResourceResearch() {
               description: resource.description,
               url: resource.url,
               content_type: resource.content_type,
+              authors: resource.authors,
               company_id: profile.company_id,
-              estimated_time_minutes: resource.duration_minutes
+              estimated_time_minutes: resource.estimated_time_minutes
             })
             .select()
             .single();
@@ -419,7 +426,7 @@ export default function AdminResourceResearch() {
                                     </a>
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
-                                    {resource.author_or_creator}
+                                    {resource.authors}
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
