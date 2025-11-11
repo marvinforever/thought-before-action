@@ -59,6 +59,10 @@ type EmployeeCapability = {
     category: string;
     description: string;
   };
+  level_descriptions?: Array<{
+    level: string;
+    description: string;
+  }>;
 };
 
 type JobDescription = {
@@ -344,6 +348,7 @@ export default function MyGrowthPlan() {
         .from("employee_capabilities")
         .select(`
           id,
+          capability_id,
           current_level,
           target_level,
           priority,
@@ -359,7 +364,37 @@ export default function MyGrowthPlan() {
         .order("priority", { ascending: true });
 
       if (error) throw error;
-      setCapabilities((data as any) || []);
+
+      // Fetch level descriptions for each capability
+      const capabilityIds = data?.map((ec: any) => ec.capability_id) || [];
+      const { data: levelData, error: levelError } = await supabase
+        .from("capability_levels")
+        .select("capability_id, level, description")
+        .in("capability_id", capabilityIds);
+
+      if (levelError) {
+        console.error("Error loading level descriptions:", levelError);
+      }
+
+      // Group level descriptions by capability_id
+      const levelsByCapability = new Map<string, any[]>();
+      levelData?.forEach((level: any) => {
+        if (!levelsByCapability.has(level.capability_id)) {
+          levelsByCapability.set(level.capability_id, []);
+        }
+        levelsByCapability.get(level.capability_id)?.push({
+          level: level.level,
+          description: level.description
+        });
+      });
+
+      // Add level descriptions to capabilities
+      const formattedData = (data as any[])?.map((ec: any) => ({
+        ...ec,
+        level_descriptions: levelsByCapability.get(ec.capability_id) || []
+      })) || [];
+
+      setCapabilities(formattedData);
     } catch (error: any) {
       console.error("Error loading capabilities:", error);
     }
@@ -939,6 +974,7 @@ export default function MyGrowthPlan() {
                   priority={cap.priority}
                   aiReasoning={cap.ai_reasoning}
                   resources={capabilityResources[cap.capability.id] || []}
+                  levelDescriptions={cap.level_descriptions || []}
                   onRequestLevelChange={handleRequestLevelChange}
                   onResourceClick={handleResourceClick}
                 />
