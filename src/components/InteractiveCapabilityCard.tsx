@@ -99,70 +99,40 @@ export default function InteractiveCapabilityCard({
 
   return (
     <>
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-4 mb-2">
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setDialogOpen(true)}>
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <CardTitle className="text-xl mb-1">{name}</CardTitle>
               <p className="text-sm text-muted-foreground">{category}</p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleLevelClick(currentLevel)}
-              className="gap-2 hover:bg-primary/10"
-            >
-              <Info className="h-4 w-4" />
-              Details
-            </Button>
+            <Badge className={`${getLevelColor(currentLevel)} px-3 py-1.5 text-sm font-semibold whitespace-nowrap`}>
+              {getLevelLabel(currentLevel)}
+            </Badge>
           </div>
         </CardHeader>
 
-        <CardContent>
-          <div className="grid grid-cols-4 gap-2">
-            {LEVEL_ORDER.map((level) => {
-              const isCurrent = isCurrentLevel(level);
-              
-              return (
-                <button
-                  key={level}
-                  onClick={() => handleLevelClick(level)}
-                  className={`
-                    group relative rounded-lg p-3 text-center transition-all duration-200
-                    border-2 ${isCurrent ? 'border-primary shadow-md' : 'border-border hover:border-primary/50'}
-                    ${isCurrent ? getLevelBgGradient(level) : 'bg-card hover:bg-accent/5'}
-                  `}
-                >
-                  <Badge 
-                    className={`${getLevelColor(level)} text-xs font-semibold mb-2`}
-                    variant={isCurrent ? "default" : "outline"}
-                  >
-                    {getLevelLabel(level)}
-                  </Badge>
-                  {isCurrent && (
-                    <div className="flex items-center justify-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-primary" />
-                      <span className="text-xs font-medium text-primary">Current</span>
-                    </div>
-                  )}
-                  {!isCurrent && (
-                    <p className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                      Click for details
-                    </p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {resources.length > 0 && (
-            <div className="mt-4 flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {resources.length} resource{resources.length !== 1 ? 's' : ''} available
-              </span>
+        <CardContent className="pt-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              {resources.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <BookOpen className="h-4 w-4" />
+                  <span>{resources.length} resource{resources.length !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+              {aiReasoning && (
+                <div className="flex items-center gap-1">
+                  <span>💡</span>
+                  <span>AI insights available</span>
+                </div>
+              )}
             </div>
-          )}
+            <Button variant="ghost" size="sm" className="gap-2">
+              View Details
+              <Info className="h-4 w-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -173,31 +143,70 @@ export default function InteractiveCapabilityCard({
             <DialogTitle className="text-2xl">{name}</DialogTitle>
             <DialogDescription className="flex items-center gap-2 text-base">
               {category}
-              {selectedLevel && (
-                <>
-                  <span className="text-muted-foreground">•</span>
-                  <Badge className={getLevelColor(selectedLevel)} variant="outline">
-                    {getLevelLabel(selectedLevel)}
-                  </Badge>
-                </>
-              )}
+              <span className="text-muted-foreground">•</span>
+              <Badge className={getLevelColor(currentLevel)} variant="outline">
+                Current: {getLevelLabel(currentLevel)}
+              </Badge>
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 mt-4">
-            {/* Level Details */}
+            {/* Level Matrix */}
             <div>
-              <h4 className="font-semibold mb-2 text-sm text-muted-foreground">Description</h4>
-              <p className="text-sm leading-relaxed">{description}</p>
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Capability Levels
+              </h4>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {LEVEL_ORDER.map((level) => {
+                  const isCurrent = isCurrentLevel(level);
+                  
+                  return (
+                    <button
+                      key={level}
+                      onClick={() => setSelectedLevel(level)}
+                      className={`
+                        relative rounded-lg p-3 text-center transition-all duration-200
+                        border-2 ${isCurrent ? 'border-primary shadow-md' : selectedLevel === level ? 'border-primary/50' : 'border-border hover:border-primary/30'}
+                        ${isCurrent ? getLevelBgGradient(level) : selectedLevel === level ? 'bg-accent/10' : 'bg-card hover:bg-accent/5'}
+                      `}
+                    >
+                      <Badge 
+                        className={`${getLevelColor(level)} text-xs font-semibold mb-1`}
+                        variant={isCurrent ? "default" : "outline"}
+                      >
+                        {getLevelLabel(level)}
+                      </Badge>
+                      {isCurrent && (
+                        <div className="flex items-center justify-center gap-1 mt-1">
+                          <TrendingUp className="h-3 w-3 text-primary" />
+                          <span className="text-xs font-medium text-primary">Current</span>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Current Level Indicator */}
-            {selectedLevel && isCurrentLevel(selectedLevel) && (
-              <div className={`${getLevelBgGradient(selectedLevel)} rounded-lg p-4 border-2 border-primary`}>
-                <div className="flex items-center gap-2 text-primary font-semibold">
-                  <TrendingUp className="h-5 w-5" />
-                  <span>This is your current level</span>
+            {/* Level Description */}
+            {selectedLevel && (
+              <div className={`${isCurrentLevel(selectedLevel) ? getLevelBgGradient(selectedLevel) + ' border-2 border-primary' : 'bg-muted/50 border border-border'} rounded-lg p-4 animate-in fade-in slide-in-from-top-2`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className={getLevelColor(selectedLevel)} variant="outline">
+                    {getLevelLabel(selectedLevel)}
+                  </Badge>
+                  {isCurrentLevel(selectedLevel) && (
+                    <span className="text-sm font-semibold text-primary">Your Current Level</span>
+                  )}
                 </div>
+                <p className="text-sm leading-relaxed">{description}</p>
+              </div>
+            )}
+
+            {!selectedLevel && (
+              <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                <p className="text-sm leading-relaxed">{description}</p>
               </div>
             )}
 
