@@ -1391,10 +1391,16 @@ const SuperAdmin = () => {
           <h1 className="text-3xl font-bold">Super Admin Portal</h1>
           <p className="text-muted-foreground">Manage all companies and view platform-wide metrics</p>
         </div>
-        <Button onClick={() => setIsAddCompanyOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Company
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/super-admin/demo')}>
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Demo Setup
+          </Button>
+          <Button onClick={() => setIsAddCompanyOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Company
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">

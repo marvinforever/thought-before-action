@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import SuperAdmin from "./pages/SuperAdmin";
+import SuperAdminDemo from "./pages/SuperAdminDemo";
 import Capabilities from "./pages/Capabilities";
 import Resources from "./pages/Resources";
 import AdminResourceImport from "./pages/AdminResourceImport";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
+            <Route path="/super-admin/demo" element={<SuperAdminDemo />} />
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={
                 <ProtectedRoute requireManager>

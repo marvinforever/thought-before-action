@@ -1,5 +1,8 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.setup-demo-company]
+verify_jwt = true
+
 [functions.parse-meeting-notes]
 verify_jwt = true
 
