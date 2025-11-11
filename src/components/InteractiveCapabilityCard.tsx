@@ -57,6 +57,22 @@ export default function InteractiveCapabilityCard({
     return LEVEL_COLORS[level.toLowerCase() as keyof typeof LEVEL_COLORS] || "bg-muted";
   };
 
+  const getCurrentLevelStyle = (level: string) => {
+    const l = level.toLowerCase();
+    switch (l) {
+      case "beginner":
+        return "bg-blue-600 text-white border-blue-600";
+      case "intermediate":
+        return "bg-green-600 text-white border-green-600";
+      case "advanced":
+        return "bg-orange-600 text-white border-orange-600";
+      case "expert":
+        return "bg-purple-600 text-white border-purple-600";
+      default:
+        return "bg-primary text-primary-foreground";
+    }
+  };
+
   const getLevelLabel = (level: string) => {
     return level.charAt(0).toUpperCase() + level.slice(1);
   };
@@ -106,7 +122,7 @@ export default function InteractiveCapabilityCard({
               <CardTitle className="text-xl mb-1">{name}</CardTitle>
               <p className="text-sm text-muted-foreground">{category}</p>
             </div>
-            <Badge className={`${getLevelColor(currentLevel)} px-3 py-1.5 text-sm font-semibold whitespace-nowrap`}>
+            <Badge className={`${getCurrentLevelStyle(currentLevel)} px-3 py-1.5 text-sm font-semibold whitespace-nowrap shadow-sm`}>
               {getLevelLabel(currentLevel)}
             </Badge>
           </div>
