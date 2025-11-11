@@ -1,5 +1,8 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.parse-meeting-notes]
+verify_jwt = true
+
 [functions.elevenlabs-voice-agent]
 verify_jwt = true
 
