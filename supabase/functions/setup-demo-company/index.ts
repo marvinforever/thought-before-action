@@ -69,9 +69,10 @@ serve(async (req) => {
 
     // Step 2: Create 10 fake employees
     const createdEmployees: DemoEmployee[] = [];
+    const timestamp = Date.now();
     for (let i = 0; i < DEMO_EMPLOYEES.length; i++) {
       const emp = DEMO_EMPLOYEES[i];
-      const email = `demo.employee${i + 1}@jerichodemo.com`;
+      const email = `demo.employee${i + 1}.${timestamp}@jerichodemo.com`;
       const password = 'DemoPass2026!';
 
       const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -115,8 +116,10 @@ serve(async (req) => {
       .limit(50);
 
     if (!capabilities || capabilities.length === 0) {
-      throw new Error('No capabilities found in system');
+      throw new Error('No capabilities found in system. Please ensure capabilities are seeded in the database first.');
     }
+
+    console.log(`Found ${capabilities.length} capabilities`);
 
     // Step 4: Populate growth plans for each employee
     for (const employee of createdEmployees) {
@@ -400,7 +403,7 @@ serve(async (req) => {
     // Step 7: Create Demo Manager Accounts
     const demoManagers = [];
     for (let i = 1; i <= 2; i++) {
-      const managerEmail = `demo${i}@jerichodemo.com`;
+      const managerEmail = `demo${i}.${timestamp}@jerichodemo.com`;
       const managerPassword = 'DemoManager2026!';
 
       const { data: managerAuth, error: managerError } = await supabaseAdmin.auth.admin.createUser({
