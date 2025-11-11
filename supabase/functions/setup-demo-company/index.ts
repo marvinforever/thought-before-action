@@ -111,7 +111,7 @@ serve(async (req) => {
     // Step 3: Get existing capabilities
     const { data: capabilities } = await supabaseAdmin
       .from('capabilities')
-      .select('id, name, domain')
+      .select('id, name, category')
       .limit(50);
 
     if (!capabilities || capabilities.length === 0) {
