@@ -106,6 +106,22 @@ export default function InteractiveCapabilityCard({
     }
   };
 
+  const getLevelDescription = (level: string) => {
+    const l = level.toLowerCase();
+    switch (l) {
+      case "beginner":
+        return "Foundation stage: Learning core concepts and building basic understanding. Requires guidance and supervision for most tasks.";
+      case "intermediate":
+        return "Development stage: Applying knowledge with growing confidence. Can handle routine tasks independently but may need support for complex situations.";
+      case "advanced":
+        return "Proficient stage: Demonstrating consistent competency and reliability. Can work autonomously and mentor others in this area.";
+      case "expert":
+        return "Mastery stage: Recognized authority with deep expertise. Drives innovation, sets standards, and leads strategic initiatives in this capability.";
+      default:
+        return "";
+    }
+  };
+
   const isCurrentLevel = (level: string) => level.toLowerCase() === currentLevel.toLowerCase();
 
   const handleLevelClick = (level: string) => {
@@ -208,7 +224,7 @@ export default function InteractiveCapabilityCard({
             {/* Level Description */}
             {selectedLevel && (
               <div className={`${isCurrentLevel(selectedLevel) ? getLevelBgGradient(selectedLevel) + ' border-2 border-primary' : 'bg-muted/50 border border-border'} rounded-lg p-4 animate-in fade-in slide-in-from-top-2`}>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-3">
                   <Badge className={getLevelColor(selectedLevel)} variant="outline">
                     {getLevelLabel(selectedLevel)}
                   </Badge>
@@ -216,13 +232,24 @@ export default function InteractiveCapabilityCard({
                     <span className="text-sm font-semibold text-primary">Your Current Level</span>
                   )}
                 </div>
-                <p className="text-sm leading-relaxed">{description}</p>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">Level Definition</p>
+                    <p className="text-sm leading-relaxed">{getLevelDescription(selectedLevel)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">How This Applies to {name}</p>
+                    <p className="text-sm leading-relaxed">{description}</p>
+                  </div>
+                </div>
               </div>
             )}
 
             {!selectedLevel && (
               <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Capability Overview</p>
                 <p className="text-sm leading-relaxed">{description}</p>
+                <p className="text-xs text-muted-foreground mt-3 italic">Select a level above to see detailed information about that proficiency stage.</p>
               </div>
             )}
 
