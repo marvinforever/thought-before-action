@@ -2714,10 +2714,7 @@ export type Database = {
         }
         Returns: string
       }
-      get_user_company_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2729,10 +2726,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_super_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       refresh_user_completeness: {
         Args: { user_id: string }
         Returns: undefined
