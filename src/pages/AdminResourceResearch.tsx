@@ -209,7 +209,7 @@ export default function AdminResourceResearch() {
               url: resource.url,
               content_type: resource.content_type,
               company_id: profile.company_id,
-              duration_minutes: resource.duration_minutes
+              estimated_time_minutes: resource.duration_minutes
             })
             .select()
             .single();
@@ -221,8 +221,7 @@ export default function AdminResourceResearch() {
             .from('resource_capabilities')
             .insert({
               resource_id: insertedResource.id,
-              capability_id: result.capability_id,
-              capability_level: resource.capability_level || 'advancing'
+              capability_id: result.capability_id
             });
 
           if (linkError) throw linkError;
