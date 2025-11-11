@@ -14,6 +14,7 @@ import SuperAdmin from "./pages/SuperAdmin";
 import Capabilities from "./pages/Capabilities";
 import Resources from "./pages/Resources";
 import AdminResourceImport from "./pages/AdminResourceImport";
+import AdminResourceResearch from "./pages/AdminResourceResearch";
 import MyGrowthPlan from "./pages/MyGrowthPlan";
 import GrowthRoadmap from "./pages/GrowthRoadmap";
 import TrainingROI from "./pages/TrainingROI";
@@ -59,6 +60,11 @@ const App = () => (
             <Route path="resource-import" element={
               <ProtectedRoute requireAdmin>
                 <AdminResourceImport />
+              </ProtectedRoute>
+            } />
+            <Route path="resource-research" element={
+              <ProtectedRoute requireAdmin>
+                <AdminResourceResearch />
               </ProtectedRoute>
             } />
             <Route path="my-growth-plan" element={<MyGrowthPlan />} />
