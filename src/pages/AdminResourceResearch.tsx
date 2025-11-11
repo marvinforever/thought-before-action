@@ -208,7 +208,6 @@ export default function AdminResourceResearch() {
               description: resource.description,
               url: resource.url,
               content_type: resource.content_type,
-              author_or_creator: resource.author_or_creator,
               company_id: profile.company_id,
               duration_minutes: resource.duration_minutes
             })
