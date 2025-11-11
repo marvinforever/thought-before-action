@@ -35,12 +35,12 @@ type CapabilityCardProps = {
   onResourceClick: (resourceId: string, url: string) => void;
 };
 
-const LEVEL_ORDER = ["beginner", "intermediate", "advanced", "expert"];
+const LEVEL_ORDER = ["foundational", "advancing", "independent", "mastery"];
 const LEVEL_COLORS = {
-  beginner: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-  intermediate: "bg-green-500/10 text-green-700 dark:text-green-400",
-  advanced: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
-  expert: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+  foundational: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  advancing: "bg-green-500/10 text-green-700 dark:text-green-400",
+  independent: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
+  mastery: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
 };
 
 export default function InteractiveCapabilityCard({
@@ -60,20 +60,30 @@ export default function InteractiveCapabilityCard({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
+  const normalizeLevel = (level: string) => {
+    const l = (level || "").toLowerCase();
+    if (l === "beginner") return "foundational";
+    if (l === "intermediate") return "advancing";
+    if (l === "advanced" || l === "established") return "independent";
+    if (l === "expert") return "mastery";
+    return l;
+  };
+
   const getLevelColor = (level: string) => {
-    return LEVEL_COLORS[level.toLowerCase() as keyof typeof LEVEL_COLORS] || "bg-muted";
+    const norm = normalizeLevel(level);
+    return LEVEL_COLORS[norm as keyof typeof LEVEL_COLORS] || "bg-muted";
   };
 
   const getCurrentLevelStyle = (level: string) => {
-    const l = level.toLowerCase();
+    const l = normalizeLevel(level);
     switch (l) {
-      case "beginner":
+      case "foundational":
         return "bg-blue-600 text-white border-blue-600";
-      case "intermediate":
+      case "advancing":
         return "bg-green-600 text-white border-green-600";
-      case "advanced":
+      case "independent":
         return "bg-orange-600 text-white border-orange-600";
-      case "expert":
+      case "mastery":
         return "bg-purple-600 text-white border-purple-600";
       default:
         return "bg-primary text-primary-foreground";
@@ -81,7 +91,14 @@ export default function InteractiveCapabilityCard({
   };
 
   const getLevelLabel = (level: string) => {
-    return level.charAt(0).toUpperCase() + level.slice(1);
+    const l = normalizeLevel(level);
+    const labels: Record<string, string> = {
+      foundational: "Foundational",
+      advancing: "Advancing",
+      independent: "Independent",
+      mastery: "Mastery",
+    };
+    return labels[l] || (level.charAt(0).toUpperCase() + level.slice(1));
   };
 
   const getContentIcon = (type: string) => {
@@ -98,15 +115,15 @@ export default function InteractiveCapabilityCard({
   };
 
   const getLevelBgGradient = (level: string) => {
-    const l = level.toLowerCase();
+    const l = normalizeLevel(level);
     switch (l) {
-      case "beginner":
+      case "foundational":
         return "bg-gradient-to-br from-blue-500/20 to-blue-600/10";
-      case "intermediate":
+      case "advancing":
         return "bg-gradient-to-br from-green-500/20 to-green-600/10";
-      case "advanced":
+      case "independent":
         return "bg-gradient-to-br from-orange-500/20 to-orange-600/10";
-      case "expert":
+      case "mastery":
         return "bg-gradient-to-br from-purple-500/20 to-purple-600/10";
       default:
         return "bg-muted";
@@ -114,11 +131,11 @@ export default function InteractiveCapabilityCard({
   };
 
   const getLevelDescription = (level: string) => {
-    const levelDesc = levelDescriptions.find(ld => ld.level.toLowerCase() === level.toLowerCase());
+    const levelDesc = levelDescriptions.find(ld => normalizeLevel(ld.level) === normalizeLevel(level));
     return levelDesc?.description || description;
   };
 
-  const isCurrentLevel = (level: string) => level.toLowerCase() === currentLevel.toLowerCase();
+  const isCurrentLevel = (level: string) => normalizeLevel(level) === normalizeLevel(currentLevel);
 
   const handleLevelClick = (level: string) => {
     setSelectedLevel(level);
