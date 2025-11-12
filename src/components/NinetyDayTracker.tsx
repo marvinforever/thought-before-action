@@ -37,8 +37,14 @@ const getCurrentQuarter = () => {
 const getAvailableYears = () => {
   const currentYear = new Date().getFullYear();
   const startYear = 2024; // Or whenever the app started
+  const futureYears = 5; // Allow planning 5 years ahead
   const years = [];
-  for (let year = currentYear; year >= startYear; year--) {
+  // Add future years first (descending)
+  for (let year = currentYear + futureYears; year >= currentYear; year--) {
+    years.push(year);
+  }
+  // Add past years
+  for (let year = currentYear - 1; year >= startYear; year--) {
     years.push(year);
   }
   return years;
