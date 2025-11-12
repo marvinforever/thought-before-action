@@ -16,6 +16,7 @@ type Employee = {
   email: string;
   role: string;
   is_assigned: boolean;
+  assigned_to_other?: boolean;
 };
 
 interface ManageMyTeamDialogProps {
@@ -46,6 +47,14 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Check if user is admin
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      
+      const isAdmin = roles?.some(r => r.role === 'admin' || r.role === 'super_admin') || false;
+
       // Determine which company to use
       let companyId = viewAsCompanyId;
       
@@ -72,7 +81,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
       if (employeesError) throw employeesError;
 
-      // Get current assignments
+      // Get current assignments for this manager
       const { data: assignments, error: assignError } = await supabase
         .from("manager_assignments")
         .select("employee_id")
@@ -80,17 +89,35 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
       if (assignError) throw assignError;
 
-      const assignedIds = new Set(assignments?.map(a => a.employee_id) || []);
-      setInitialAssignments(assignedIds);
-      setSelectedIds(new Set(assignedIds));
+      // Get ALL assignments in the company (to mark employees assigned to other managers)
+      const { data: allAssignments, error: allAssignError } = await supabase
+        .from("manager_assignments")
+        .select("employee_id, manager_id")
+        .eq("company_id", companyId);
 
-      const employeesWithStatus = (allEmployees || []).map(emp => ({
-        ...emp,
-        full_name: emp.full_name || "Unknown",
-        email: emp.email || "",
-        role: emp.role || "",
-        is_assigned: assignedIds.has(emp.id),
-      }));
+      if (allAssignError) throw allAssignError;
+
+      const myAssignments = new Set(assignments?.map(a => a.employee_id) || []);
+      const otherManagerAssignments = new Set(
+        allAssignments?.filter(a => a.manager_id !== user.id).map(a => a.employee_id) || []
+      );
+      
+      setInitialAssignments(myAssignments);
+      setSelectedIds(new Set(myAssignments));
+
+      const employeesWithStatus = (allEmployees || []).map(emp => {
+        const isMyEmployee = myAssignments.has(emp.id);
+        const isOtherManagerEmployee = otherManagerAssignments.has(emp.id);
+        
+        return {
+          ...emp,
+          full_name: emp.full_name || "Unknown",
+          email: emp.email || "",
+          role: emp.role || "",
+          is_assigned: isMyEmployee,
+          assigned_to_other: isOtherManagerEmployee && !isAdmin, // Only show restriction for non-admins
+        };
+      });
 
       setEmployees(employeesWithStatus);
     } catch (error: any) {
@@ -143,8 +170,16 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
         if (deleteError) throw deleteError;
       }
 
-      // Add new assignments (use upsert to handle reassignments)
+      // First, delete any existing assignments for these employees (from other managers)
+      // This will only work if user is admin, otherwise it will fail due to RLS
       if (toAdd.length > 0) {
+        // Try to remove existing assignments (will only succeed for admins)
+        await supabase
+          .from("manager_assignments")
+          .delete()
+          .in("employee_id", toAdd);
+
+        // Add new assignments
         const newAssignments = toAdd.map(employeeId => ({
           manager_id: user.id,
           employee_id: employeeId,
@@ -154,11 +189,15 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
         const { error: insertError } = await supabase
           .from("manager_assignments")
-          .upsert(newAssignments, {
-            onConflict: 'employee_id'
-          });
+          .insert(newAssignments);
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          // If insert fails due to unique constraint, it means employee is assigned elsewhere
+          if (insertError.code === '23505') {
+            throw new Error('Some employees are already assigned to other managers. Only admins can reassign between managers.');
+          }
+          throw insertError;
+        }
       }
 
       toast({
@@ -235,12 +274,18 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                   filteredEmployees.map((employee) => (
                     <div
                       key={employee.id}
-                      className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
-                      onClick={() => handleToggleEmployee(employee.id)}
+                      className={`flex items-center space-x-3 p-3 rounded-lg border ${
+                        employee.assigned_to_other 
+                          ? 'opacity-50 cursor-not-allowed bg-muted/30' 
+                          : 'hover:bg-muted/50 cursor-pointer'
+                      }`}
+                      onClick={() => !employee.assigned_to_other && handleToggleEmployee(employee.id)}
+                      title={employee.assigned_to_other ? 'Already assigned to another manager' : ''}
                     >
                       <Checkbox
                         checked={selectedIds.has(employee.id)}
                         onCheckedChange={() => handleToggleEmployee(employee.id)}
+                        disabled={employee.assigned_to_other}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -248,6 +293,11 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                           {employee.role && (
                             <Badge variant="secondary" className="text-xs">
                               {employee.role}
+                            </Badge>
+                          )}
+                          {employee.assigned_to_other && (
+                            <Badge variant="outline" className="text-xs text-muted-foreground">
+                              Assigned to other manager
                             </Badge>
                           )}
                         </div>
