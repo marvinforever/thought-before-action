@@ -270,6 +270,19 @@ serve(async (req) => {
           three_year_goal: `Become a director-level leader in ${employee.role.split(' ')[0]}`,
           biggest_work_obstacle: 'Cross-departmental alignment',
           biggest_frustration: 'Slow decision-making processes',
+          submitted_at: new Date().toISOString(),
+          additional_responses: {
+            engagement_scores: {
+              energy_score: 9,
+              valued_score: 9,
+              growth_path_score: 9,
+              manager_feedback_score: 9
+            },
+            learning_scores: {
+              quality_rating: 9,
+              needs_met_percentage: 85
+            }
+          }
         },
         { // Struggling, at risk
           role_clarity_score: 4,
@@ -303,6 +316,19 @@ serve(async (req) => {
           three_year_goal: 'Be effective in my current role',
           biggest_work_obstacle: 'Too many competing demands',
           biggest_frustration: 'Lack of clarity and support',
+          submitted_at: new Date().toISOString(),
+          additional_responses: {
+            engagement_scores: {
+              energy_score: 3,
+              valued_score: 2,
+              growth_path_score: 3,
+              manager_feedback_score: 3
+            },
+            learning_scores: {
+              quality_rating: 4,
+              needs_met_percentage: 25
+            }
+          }
         },
         { // Steady performer
           role_clarity_score: 7,
@@ -336,6 +362,19 @@ serve(async (req) => {
           three_year_goal: `Become a senior expert in ${employee.role}`,
           biggest_work_obstacle: 'Workload volume',
           biggest_frustration: 'Limited time for deep work',
+          submitted_at: new Date().toISOString(),
+          additional_responses: {
+            engagement_scores: {
+              energy_score: 7,
+              valued_score: 8,
+              growth_path_score: 7,
+              manager_feedback_score: 7
+            },
+            learning_scores: {
+              quality_rating: 7,
+              needs_met_percentage: 65
+            }
+          }
         },
         { // Disengaged but capable
           role_clarity_score: 6,
@@ -369,6 +408,19 @@ serve(async (req) => {
           three_year_goal: 'Explore new opportunities',
           biggest_work_obstacle: 'Lack of meaningful challenge',
           biggest_frustration: 'Stagnant growth opportunities',
+          submitted_at: new Date().toISOString(),
+          additional_responses: {
+            engagement_scores: {
+              energy_score: 6,
+              valued_score: 4,
+              growth_path_score: 4,
+              manager_feedback_score: 5
+            },
+            learning_scores: {
+              quality_rating: 5,
+              needs_met_percentage: 40
+            }
+          }
         },
       ];
 
