@@ -47,20 +47,32 @@ Deno.serve(async (req) => {
       throw new Error('Not authenticated')
     }
 
-    // Verify the user is an admin or super admin
-    const { data: profile, error: profileFetchError } = await supabaseAdmin
-      .from('profiles')
-      .select('company_id, is_admin, is_super_admin')
-      .eq('id', requestUserId)
-      .single()
+    // Check if user has admin or super_admin role using the user_roles table
+    const { data: hasAdminRole, error: adminRoleError } = await supabaseAdmin
+      .rpc('has_role', { _user_id: requestUserId, _role: 'admin' });
+    
+    const { data: hasSuperAdminRole, error: superAdminRoleError } = await supabaseAdmin
+      .rpc('has_role', { _user_id: requestUserId, _role: 'super_admin' });
 
-    if (profileFetchError) {
-      console.error('Profile fetch error:', profileFetchError)
-      throw new Error('Failed to load profile')
+    if (adminRoleError || superAdminRoleError) {
+      console.error('Role check error:', adminRoleError || superAdminRoleError);
+      throw new Error('Failed to verify user roles');
     }
 
-    if (!profile?.is_admin && !profile?.is_super_admin) {
-      throw new Error('Not authorized - admin access required')
+    if (!hasAdminRole && !hasSuperAdminRole) {
+      throw new Error('Not authorized - admin access required');
+    }
+
+    // Fetch company_id from profile for non-super admins
+    const { data: profile, error: profileFetchError } = await supabaseAdmin
+      .from('profiles')
+      .select('company_id')
+      .eq('id', requestUserId)
+      .single();
+
+    if (profileFetchError) {
+      console.error('Profile fetch error:', profileFetchError);
+      throw new Error('Failed to load profile');
     }
 
     const { email, full_name, role, phone, company_id, password } = await req.json()
@@ -82,10 +94,10 @@ Deno.serve(async (req) => {
     // Determine which company to use
     let targetCompanyId: string
     
-    if (profile.is_super_admin && company_id) {
+    if (hasSuperAdminRole && company_id) {
       // Super admin can specify any company
       targetCompanyId = company_id
-    } else if (profile.is_admin) {
+    } else if (hasAdminRole) {
       // Regular admin uses their own company
       targetCompanyId = profile.company_id
     } else {

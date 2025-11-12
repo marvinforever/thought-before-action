@@ -43,21 +43,22 @@ serve(async (req) => {
 
     // Check admin status if required
     if (requireAdmin) {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("is_admin, is_super_admin")
-        .eq("id", user.id)
-        .single();
+      // Check if user has admin or super_admin role using the user_roles table
+      const { data: hasAdminRole, error: adminRoleError } = await supabase
+        .rpc('has_role', { _user_id: user.id, _role: 'admin' });
+      
+      const { data: hasSuperAdminRole, error: superAdminRoleError } = await supabase
+        .rpc('has_role', { _user_id: user.id, _role: 'super_admin' });
 
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
+      if (adminRoleError || superAdminRoleError) {
+        console.error("Error checking roles:", adminRoleError || superAdminRoleError);
         return new Response(
           JSON.stringify({ hasAccess: false, reason: "Error checking permissions" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
 
-      const hasAdminAccess = profile?.is_admin || profile?.is_super_admin;
+      const hasAdminAccess = hasAdminRole || hasSuperAdminRole;
       console.log(`Admin check result: ${hasAdminAccess}`);
 
       return new Response(

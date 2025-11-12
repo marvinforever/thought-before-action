@@ -74,14 +74,32 @@ serve(async (req) => {
 
     const { timeframe_years = 3, force_regenerate = false, viewAsCompanyId } = await req.json();
 
-    // Get user's company and determine effective company ID
+    // Get user's company and check if they have admin access
+    // Check if user has admin or super_admin role using the user_roles table
+    const { data: hasAdminRole, error: adminRoleError } = await supabaseWithAuth
+      .rpc('has_role', { _user_id: user.id, _role: 'admin' });
+    
+    const { data: hasSuperAdminRole, error: superAdminRoleError } = await supabaseWithAuth
+      .rpc('has_role', { _user_id: user.id, _role: 'super_admin' });
+
+    if (adminRoleError || superAdminRoleError) {
+      throw new Error('Failed to verify user roles');
+    }
+
+    if (!hasAdminRole && !hasSuperAdminRole) {
+      throw new Error("Admin access required");
+    }
+
+    // Get user's company_id for non-super admins
     const { data: profile } = await supabaseWithAuth
       .from("profiles")
-      .select("company_id, is_admin, is_super_admin")
+      .select("company_id")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_admin && !profile?.is_super_admin) throw new Error("Admin access required");
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
 
     // Use viewAsCompanyId if provided (for super admins), otherwise use user's company
     const companyId = viewAsCompanyId || profile.company_id;

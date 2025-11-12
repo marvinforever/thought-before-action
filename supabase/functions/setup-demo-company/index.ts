@@ -47,13 +47,17 @@ serve(async (req) => {
     );
     if (userError || !user) throw new Error('Unauthorized');
 
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('is_super_admin')
-      .eq('id', user.id)
-      .single();
+    // Check if user has super_admin role using the user_roles table
+    const { data: hasSuperAdminRole, error: superAdminRoleError } = await supabaseAdmin
+      .rpc('has_role', { _user_id: user.id, _role: 'super_admin' });
 
-    if (!profile?.is_super_admin) throw new Error('Super admin access required');
+    if (superAdminRoleError) {
+      throw new Error('Failed to verify user role');
+    }
+
+    if (!hasSuperAdminRole) {
+      throw new Error('Super admin access required');
+    }
 
     console.log('Starting demo company setup...');
 

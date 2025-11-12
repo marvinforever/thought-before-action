@@ -43,15 +43,27 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('is_admin, is_super_admin, company_id')
-      .eq('id', user.id)
-      .single();
+    // Check if user has admin or super_admin role using the user_roles table
+    const { data: hasAdminRole, error: adminRoleError } = await supabaseAdmin
+      .rpc('has_role', { _user_id: user.id, _role: 'admin' });
+    
+    const { data: hasSuperAdminRole, error: superAdminRoleError } = await supabaseAdmin
+      .rpc('has_role', { _user_id: user.id, _role: 'super_admin' });
 
-    if (!profile?.is_super_admin && !profile?.is_admin) {
+    if (adminRoleError || superAdminRoleError) {
+      throw new Error('Failed to verify user roles');
+    }
+
+    if (!hasAdminRole && !hasSuperAdminRole) {
       throw new Error('Unauthorized: Admin access required');
     }
+
+    // Still need to fetch company_id from profile for non-super admins
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single();
 
     const { employees, company_id } = await req.json();
 
