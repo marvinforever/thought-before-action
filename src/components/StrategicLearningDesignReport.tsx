@@ -561,10 +561,11 @@ export default function StrategicLearningDesignReport() {
                               <div className="flex-1">
                                 <CardTitle className="flex items-center gap-2 flex-wrap">
                                   {cohort.cohort_name}
-                                  <Badge className={getSeverityColor(cohort.gap_severity || 'low')}>
-                                    {(cohort.gap_severity || 'low').toUpperCase()}
-                                  </Badge>
-                                  <Badge variant="outline">Priority {cohort.priority}</Badge>
+                                  {cohort.gap_severity && cohort.gap_severity !== 'low' && (
+                                    <Badge className={getSeverityColor(cohort.gap_severity)}>
+                                      {cohort.gap_severity.toUpperCase()}
+                                    </Badge>
+                                  )}
                                 </CardTitle>
                                 <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                                   <span className="flex items-center gap-1">
