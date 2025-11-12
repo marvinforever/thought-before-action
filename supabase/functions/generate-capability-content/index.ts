@@ -82,7 +82,14 @@ Provide your response in the following JSON format:
     }
 
     const data = await response.json();
-    const content = JSON.parse(data.choices[0].message.content);
+    let contentText = data.choices[0].message.content;
+
+    // Strip markdown code blocks if present
+    if (contentText.includes('```')) {
+      contentText = contentText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    }
+
+    const content = JSON.parse(contentText);
 
     console.log('Successfully generated capability content');
 
