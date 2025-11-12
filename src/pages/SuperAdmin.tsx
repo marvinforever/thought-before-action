@@ -88,6 +88,14 @@ const SuperAdmin = () => {
   const [newCompanyNameForRename, setNewCompanyNameForRename] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   
+  // Edit dashboard scores state
+  const [editScoresCompanyId, setEditScoresCompanyId] = useState("");
+  const [employeeDiagnostics, setEmployeeDiagnostics] = useState<any[]>([]);
+  const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
+  const [editingDiagnostic, setEditingDiagnostic] = useState<any>(null);
+  const [isEditScoresDialogOpen, setIsEditScoresDialogOpen] = useState(false);
+  const [savingScores, setSavingScores] = useState(false);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { setViewAsCompany } = useViewAs();
@@ -1407,6 +1415,84 @@ const SuperAdmin = () => {
     }
   };
 
+  const loadEmployeeDiagnostics = async (companyId: string) => {
+    if (!companyId) return;
+    
+    setLoadingDiagnostics(true);
+    try {
+      const { data: diagnostics, error } = await supabase
+        .from('diagnostic_responses')
+        .select(`
+          *,
+          profiles (
+            id,
+            full_name,
+            email,
+            role
+          )
+        `)
+        .eq('company_id', companyId)
+        .not('submitted_at', 'is', null)
+        .order('submitted_at', { ascending: false });
+
+      if (error) throw error;
+
+      setEmployeeDiagnostics(diagnostics || []);
+    } catch (error: any) {
+      console.error('Error loading diagnostics:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load employee diagnostics",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDiagnostics(false);
+    }
+  };
+
+  const handleSaveScores = async () => {
+    if (!editingDiagnostic) return;
+
+    setSavingScores(true);
+    try {
+      const { error } = await supabase
+        .from('diagnostic_responses')
+        .update({
+          role_clarity_score: editingDiagnostic.role_clarity_score,
+          confidence_score: editingDiagnostic.confidence_score,
+          manager_support_quality: editingDiagnostic.manager_support_quality,
+          daily_energy_level: editingDiagnostic.daily_energy_level,
+          would_stay_if_offered_similar: editingDiagnostic.would_stay_if_offered_similar,
+          sees_growth_path: editingDiagnostic.sees_growth_path,
+          feels_valued: editingDiagnostic.feels_valued,
+          burnout_frequency: editingDiagnostic.burnout_frequency,
+          weekly_development_hours: editingDiagnostic.weekly_development_hours,
+          additional_responses: editingDiagnostic.additional_responses,
+        })
+        .eq('id', editingDiagnostic.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Scores updated",
+        description: "Dashboard scores have been updated successfully",
+      });
+
+      setIsEditScoresDialogOpen(false);
+      setEditingDiagnostic(null);
+      loadEmployeeDiagnostics(editScoresCompanyId);
+    } catch (error: any) {
+      console.error('Error saving scores:', error);
+      toast({
+        title: "Failed to save scores",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingScores(false);
+    }
+  };
+
   if (loading || !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1493,6 +1579,7 @@ const SuperAdmin = () => {
             <Mail className="h-4 w-4 mr-2" />
             Email Testing
           </TabsTrigger>
+          <TabsTrigger value="edit-scores">Edit Scores</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -1937,7 +2024,389 @@ const SuperAdmin = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="edit-scores" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Edit Dashboard Scores</CardTitle>
+              <CardDescription>
+                Manually adjust diagnostic scores to control dashboard metrics for any company
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Company</Label>
+                  <Select
+                    value={editScoresCompanyId}
+                    onValueChange={(value) => {
+                      setEditScoresCompanyId(value);
+                      loadEmployeeDiagnostics(value);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {loadingDiagnostics && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                )}
+
+                {!loadingDiagnostics && employeeDiagnostics.length > 0 && (
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Submitted</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {employeeDiagnostics.map((diagnostic) => (
+                          <TableRow key={diagnostic.id}>
+                            <TableCell className="font-medium">
+                              {(diagnostic.profiles as any)?.full_name || 'Unknown'}
+                            </TableCell>
+                            <TableCell>{(diagnostic.profiles as any)?.email}</TableCell>
+                            <TableCell>{(diagnostic.profiles as any)?.role || '-'}</TableCell>
+                            <TableCell>
+                              {new Date(diagnostic.submitted_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingDiagnostic(diagnostic);
+                                  setIsEditScoresDialogOpen(true);
+                                }}
+                              >
+                                Edit Scores
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {!loadingDiagnostics && editScoresCompanyId && employeeDiagnostics.length === 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No diagnostic responses found for this company
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Edit Scores Dialog */}
+      <Dialog open={isEditScoresDialogOpen} onOpenChange={setIsEditScoresDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Dashboard Scores</DialogTitle>
+            <DialogDescription>
+              Adjust scores for {(editingDiagnostic?.profiles as any)?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          {editingDiagnostic && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Role Clarity (1-10)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={editingDiagnostic.role_clarity_score || 0}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      role_clarity_score: parseInt(e.target.value)
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Confidence (1-10)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={editingDiagnostic.confidence_score || 0}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      confidence_score: parseInt(e.target.value)
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Manager Support (1-10)</Label>
+                  <Input
+                    type="text"
+                    value={editingDiagnostic.manager_support_quality || ''}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      manager_support_quality: e.target.value
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Daily Energy (1-10)</Label>
+                  <Input
+                    type="text"
+                    value={editingDiagnostic.daily_energy_level || ''}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      daily_energy_level: e.target.value
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Would Stay (1-10)</Label>
+                  <Input
+                    type="text"
+                    value={editingDiagnostic.would_stay_if_offered_similar || ''}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      would_stay_if_offered_similar: e.target.value
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Weekly Dev Hours</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={editingDiagnostic.weekly_development_hours || 0}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      weekly_development_hours: parseFloat(e.target.value)
+                    })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Burnout Frequency</Label>
+                <Select
+                  value={editingDiagnostic.burnout_frequency || ''}
+                  onValueChange={(value) => setEditingDiagnostic({
+                    ...editingDiagnostic,
+                    burnout_frequency: value
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Never or almost never">Never or almost never</SelectItem>
+                    <SelectItem value="Rarely (monthly)">Rarely (monthly)</SelectItem>
+                    <SelectItem value="Sometimes (weekly)">Sometimes (weekly)</SelectItem>
+                    <SelectItem value="Often (several times a week)">Often (several times a week)</SelectItem>
+                    <SelectItem value="Frequently (daily)">Frequently (daily)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="sees_growth_path"
+                    checked={editingDiagnostic.sees_growth_path || false}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      sees_growth_path: e.target.checked
+                    })}
+                    className="rounded"
+                  />
+                  <Label htmlFor="sees_growth_path">Sees Growth Path</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="feels_valued"
+                    checked={editingDiagnostic.feels_valued || false}
+                    onChange={(e) => setEditingDiagnostic({
+                      ...editingDiagnostic,
+                      feels_valued: e.target.checked
+                    })}
+                    className="rounded"
+                  />
+                  <Label htmlFor="feels_valued">Feels Valued</Label>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="font-semibold">Engagement Scores (1-10)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Energy Score</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={editingDiagnostic.additional_responses?.engagement_scores?.energy_score || 0}
+                      onChange={(e) => setEditingDiagnostic({
+                        ...editingDiagnostic,
+                        additional_responses: {
+                          ...editingDiagnostic.additional_responses,
+                          engagement_scores: {
+                            ...editingDiagnostic.additional_responses?.engagement_scores,
+                            energy_score: parseInt(e.target.value)
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valued Score</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={editingDiagnostic.additional_responses?.engagement_scores?.valued_score || 0}
+                      onChange={(e) => setEditingDiagnostic({
+                        ...editingDiagnostic,
+                        additional_responses: {
+                          ...editingDiagnostic.additional_responses,
+                          engagement_scores: {
+                            ...editingDiagnostic.additional_responses?.engagement_scores,
+                            valued_score: parseInt(e.target.value)
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Growth Path Score</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={editingDiagnostic.additional_responses?.engagement_scores?.growth_path_score || 0}
+                      onChange={(e) => setEditingDiagnostic({
+                        ...editingDiagnostic,
+                        additional_responses: {
+                          ...editingDiagnostic.additional_responses,
+                          engagement_scores: {
+                            ...editingDiagnostic.additional_responses?.engagement_scores,
+                            growth_path_score: parseInt(e.target.value)
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Manager Feedback Score</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={editingDiagnostic.additional_responses?.engagement_scores?.manager_feedback_score || 0}
+                      onChange={(e) => setEditingDiagnostic({
+                        ...editingDiagnostic,
+                        additional_responses: {
+                          ...editingDiagnostic.additional_responses,
+                          engagement_scores: {
+                            ...editingDiagnostic.additional_responses?.engagement_scores,
+                            manager_feedback_score: parseInt(e.target.value)
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="font-semibold">Learning Scores</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Quality Rating (1-10)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={editingDiagnostic.additional_responses?.learning_scores?.quality_rating || 0}
+                      onChange={(e) => setEditingDiagnostic({
+                        ...editingDiagnostic,
+                        additional_responses: {
+                          ...editingDiagnostic.additional_responses,
+                          learning_scores: {
+                            ...editingDiagnostic.additional_responses?.learning_scores,
+                            quality_rating: parseInt(e.target.value)
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Needs Met % (0-100)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingDiagnostic.additional_responses?.learning_scores?.needs_met_percentage || 0}
+                      onChange={(e) => setEditingDiagnostic({
+                        ...editingDiagnostic,
+                        additional_responses: {
+                          ...editingDiagnostic.additional_responses,
+                          learning_scores: {
+                            ...editingDiagnostic.additional_responses?.learning_scores,
+                            needs_met_percentage: parseInt(e.target.value)
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditScoresDialogOpen(false);
+                setEditingDiagnostic(null);
+              }}
+              disabled={savingScores}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveScores} disabled={savingScores}>
+              {savingScores ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Email Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
