@@ -260,6 +260,10 @@ export default function StrategicLearningDesignReport() {
     }
   };
 
+  const cleanCohortName = (name: string) => {
+    return name.replace(/\s*hot\s*spot\s*/gi, '').trim();
+  };
+
   const loadOrganizationalScores = async (companyId: string, cohortsData: any[]) => {
     try {
       // Get all employee capabilities for this company
@@ -636,7 +640,7 @@ export default function StrategicLearningDesignReport() {
                             onClick={() => loadCapabilityDetails(cohort.capability_name, cohort.employee_ids)}
                             className="text-left hover:underline hover:text-primary transition-colors"
                           >
-                            {cohort.cohort_name}
+                            {cleanCohortName(cohort.cohort_name)}
                           </button>
                           <Button
                             variant="ghost"
