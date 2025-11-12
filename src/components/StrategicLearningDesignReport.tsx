@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import BusinessGoalsDialog from "@/components/BusinessGoalsDialog";
+import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
 
 type Report = {
@@ -52,6 +53,7 @@ export default function StrategicLearningDesignReport() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [timeframe, setTimeframe] = useState<string>("3");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
 
@@ -417,7 +419,7 @@ export default function StrategicLearningDesignReport() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Training Hotspots</CardTitle>
+            <CardTitle className="text-sm font-medium">Training Groups</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -435,7 +437,7 @@ export default function StrategicLearningDesignReport() {
       <Tabs defaultValue="narrative" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="narrative">Executive Summary</TabsTrigger>
-          <TabsTrigger value="cohorts">Training Hotspots</TabsTrigger>
+          <TabsTrigger value="cohorts">Training Groups</TabsTrigger>
         </TabsList>
 
         {/* Executive Narrative */}
@@ -492,12 +494,12 @@ export default function StrategicLearningDesignReport() {
           )}
         </TabsContent>
 
-        {/* Training Hotspots */}
+        {/* Training Groups */}
         <TabsContent value="cohorts" className="space-y-4">
           {cohorts.filter(c => c.employee_count >= 4).length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                No training hotspots found (minimum 4 people per hotspot)
+                No training groups found (minimum 4 people per group)
               </CardContent>
             </Card>
           ) : (
@@ -508,6 +510,7 @@ export default function StrategicLearningDesignReport() {
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1">
                         <CardTitle className="flex items-center gap-2 flex-wrap">
+                          <span className="text-2xl">🔥</span>
                           {cohort.cohort_name}
                         </CardTitle>
                         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -522,56 +525,12 @@ export default function StrategicLearningDesignReport() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Why This Cohort */}
+                    {/* Why This Training */}
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Why This Training</p>
                       <p className="text-sm">
-                        {cohort.priority === 1 && cohort.gap_severity === 'critical' ? 
-                          "Critical business priority. This capability directly impacts revenue generation, customer satisfaction, or regulatory compliance. Must be addressed immediately to prevent business risk."
-                        : cohort.priority <= 2 && cohort.gap_severity === 'high' ?
-                          "High-impact foundational skill. Builds the capability base needed for organizational success. Addressing this gap enables multiple downstream improvements."
-                        : cohort.priority === 3 ?
-                          "Strategic expansion priority. Once foundational capabilities are established, this training scales operational excellence and builds internal capacity."
-                        : "Future-focused investment. Specialized capability that prepares the organization for advanced challenges and competitive differentiation."}
+                        Multiple employees need development in this capability area. Training this group together creates efficiency and builds shared competency across the team.
                       </p>
-                    </div>
-
-                    {/* Success Metrics */}
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-xs font-semibold text-green-900 uppercase mb-2">Success Metrics to Track</p>
-                      <ul className="text-sm space-y-1">
-                        {cohort.capability_name.toLowerCase().includes('leadership') || cohort.capability_name.toLowerCase().includes('management') ? (
-                          <>
-                            <li>• 360° feedback scores improve by 15%</li>
-                            <li>• Team engagement scores increase</li>
-                            <li>• Direct report retention improves</li>
-                          </>
-                        ) : cohort.capability_name.toLowerCase().includes('sales') || cohort.capability_name.toLowerCase().includes('agronomy') ? (
-                          <>
-                            <li>• Average deal size increases 10-15%</li>
-                            <li>• Sales cycle time decreases</li>
-                            <li>• Customer satisfaction scores improve</li>
-                          </>
-                        ) : cohort.capability_name.toLowerCase().includes('communication') ? (
-                          <>
-                            <li>• Reduction in miscommunication incidents</li>
-                            <li>• Faster project completion times</li>
-                            <li>• Improved customer-facing communications</li>
-                          </>
-                        ) : cohort.capability_name.toLowerCase().includes('crm') || cohort.capability_name.toLowerCase().includes('system') ? (
-                          <>
-                            <li>• 90% daily system usage within 60 days</li>
-                            <li>• Complete pipeline visibility achieved</li>
-                            <li>• Forecast accuracy improves 20%</li>
-                          </>
-                        ) : (
-                          <>
-                            <li>• Skill assessment scores improve</li>
-                            <li>• Application of skills in daily work</li>
-                            <li>• Performance metrics show improvement</li>
-                          </>
-                        )}
-                      </ul>
                     </div>
 
                     {/* Employees */}
@@ -582,7 +541,13 @@ export default function StrategicLearningDesignReport() {
                           const profile = employeeProfiles.get(id);
                           const displayName = profile?.full_name || `Employee ${i + 1}`;
                           return (
-                            <Badge key={id} variant="secondary" title={profile?.email}>
+                            <Badge 
+                              key={id} 
+                              variant="secondary" 
+                              title={profile?.email}
+                              className="cursor-pointer hover:bg-secondary/80 transition-colors"
+                              onClick={() => setSelectedEmployeeId(id)}
+                            >
                               {displayName}
                             </Badge>
                           );
@@ -600,6 +565,15 @@ export default function StrategicLearningDesignReport() {
         </TabsContent>
 
       </Tabs>
+
+      {/* Employee Details Dialog */}
+      {selectedEmployeeId && (
+        <EmployeeCapabilitiesDialog
+          employee={{ id: selectedEmployeeId } as any}
+          open={!!selectedEmployeeId}
+          onOpenChange={(open) => !open && setSelectedEmployeeId(null)}
+        />
+      )}
     </div>
   );
 }
