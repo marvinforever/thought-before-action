@@ -244,10 +244,10 @@ export default function GreatnessTracker() {
         }
       }
 
-      // Get current habit data
+      // Get current habit data including frequency
       const { data: habitData } = await supabase
         .from("leading_indicators")
-        .select("longest_streak")
+        .select("longest_streak, target_frequency")
         .eq("id", habitId)
         .single();
 
@@ -262,8 +262,30 @@ export default function GreatnessTracker() {
         })
         .eq("id", habitId);
 
-      // Check if user earned a Greatness Key (7-day streak)
-      if (completed && currentStreak === 7) {
+      // Determine key threshold based on frequency
+      let keyThreshold = 7; // default for daily
+      const frequency = habitData?.target_frequency || 'daily';
+      
+      switch (frequency) {
+        case 'daily':
+          keyThreshold = 7; // 7 consecutive days
+          break;
+        case 'weekdays':
+          keyThreshold = 5; // 5 consecutive weekdays (one work week)
+          break;
+        case 'weekly':
+          keyThreshold = 4; // 4 consecutive weeks
+          break;
+        case 'biweekly':
+          keyThreshold = 4; // 4 consecutive biweekly periods (2 months)
+          break;
+        case 'monthly':
+          keyThreshold = 3; // 3 consecutive months
+          break;
+      }
+
+      // Check if user earned a Greatness Key
+      if (completed && currentStreak === keyThreshold) {
         await awardGreatnessKey(habitId, currentStreak);
       }
 
