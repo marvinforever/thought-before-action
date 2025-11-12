@@ -147,10 +147,11 @@ export default function InteractiveCapabilityCard({
       <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setDialogOpen(true)}>
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <CardTitle className="text-xl mb-1">{name}</CardTitle>
-              <p className="text-sm text-muted-foreground">{category}</p>
-            </div>
+          <div className="flex-1">
+            <CardTitle className="text-xl mb-1">{name}</CardTitle>
+            <p className="text-sm text-muted-foreground">{category}</p>
+            <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-1">{description}</p>
+          </div>
             <Badge className={`${getCurrentLevelStyle(currentLevel)} px-3 py-1.5 text-sm font-semibold whitespace-nowrap shadow-sm`}>
               {getLevelLabel(currentLevel)}
             </Badge>

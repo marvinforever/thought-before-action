@@ -21,6 +21,7 @@ import { StrategicRoadmapTab } from "@/components/StrategicRoadmapTab";
 import { OrganizationalContextTab } from "@/components/OrganizationalContextTab";
 import { CompanyStrategicLearningTab } from "@/components/CompanyStrategicLearningTab";
 import { SelfAssessCapabilitiesDialog } from "@/components/SelfAssessCapabilitiesDialog";
+import { CapabilityMasteryMeter } from "@/components/CapabilityMasteryMeter";
 import { useViewAs } from "@/contexts/ViewAsContext";
 
 type GrowthPlanResource = {
@@ -935,6 +936,9 @@ export default function MyGrowthPlan() {
 
       {/* Achievements */}
       <AchievementsCard />
+
+      {/* Capability Mastery Meter */}
+      {capabilities.length > 0 && <CapabilityMasteryMeter capabilities={capabilities} />}
 
       {capabilities.length > 0 && (
         <Card>
