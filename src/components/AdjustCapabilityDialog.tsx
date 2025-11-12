@@ -32,7 +32,6 @@ interface AdjustCapabilityDialogProps {
 export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability }: AdjustCapabilityDialogProps) {
   const [currentLevel, setCurrentLevel] = useState(employeeCapability.current_level);
   const [targetLevel, setTargetLevel] = useState(employeeCapability.target_level);
-  const [priority, setPriority] = useState(String(employeeCapability.priority));
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [differenceReason, setDifferenceReason] = useState("");
@@ -76,7 +75,6 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
         .update({
           current_level: currentLevel as any,
           target_level: targetLevel as any,
-          priority: parseInt(priority),
           manager_assessed_at: new Date().toISOString(),
         })
         .eq("id", employeeCapability.id);
@@ -97,8 +95,6 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
           adjusted_by: user.id,
           previous_level: employeeCapability.current_level,
           new_level: currentLevel,
-          previous_priority: employeeCapability.priority,
-          new_priority: parseInt(priority),
           adjustment_reason: adjustmentReason || null,
         });
 
@@ -113,8 +109,6 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
           capabilityName: employeeCapability.capability_name,
           previousLevel: employeeCapability.current_level,
           newLevel: currentLevel,
-          previousPriority: employeeCapability.priority,
-          newPriority: parseInt(priority),
           reason,
         },
       });
@@ -195,22 +189,6 @@ export function AdjustCapabilityDialog({ open, onOpenChange, employeeCapability 
                 {LEVELS.map((level) => (
                   <SelectItem key={level.value} value={level.value}>
                     {level.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Priority (1-5)</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <SelectItem key={num} value={String(num)}>
-                    {num}
                   </SelectItem>
                 ))}
               </SelectContent>

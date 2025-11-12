@@ -31,7 +31,6 @@ interface SelectedCapability {
   capability_id: string;
   current_level: "foundational" | "advancing" | "independent" | "mastery";
   target_level: "foundational" | "advancing" | "independent" | "mastery";
-  priority: number;
 }
 
 const levels = [
@@ -90,7 +89,6 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
         capability_id: capabilityId,
         current_level: "foundational",
         target_level: "advancing",
-        priority: 3,
       });
     }
     setSelectedCapabilities(newSelected);
@@ -122,7 +120,6 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
         capability_id: sel.capability_id,
         current_level: sel.current_level,
         target_level: sel.target_level,
-        priority: sel.priority,
       }));
 
       const { error } = await supabase
@@ -288,19 +285,6 @@ export function AssignCapabilitiesDialog({ open, onOpenChange, employee }: Assig
                                     ))}
                                   </SelectContent>
                                 </Select>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label htmlFor={`priority-${capability.id}`} className="text-xs">Priority (1-5)</Label>
-                                <Input
-                                  id={`priority-${capability.id}`}
-                                  type="number"
-                                  min="1"
-                                  max="5"
-                                  value={selection.priority}
-                                  onChange={(e) => handleUpdateSelection(capability.id, "priority", parseInt(e.target.value) || 3)}
-                                  className="h-8"
-                                />
                               </div>
                             </div>
                           )}
