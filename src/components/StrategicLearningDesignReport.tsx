@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import BusinessGoalsDialog from "@/components/BusinessGoalsDialog";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { OrganizationalCapabilityScore } from "@/components/OrganizationalCapabilityScore";
 
 type Report = {
   id: string;
@@ -61,6 +62,8 @@ export default function StrategicLearningDesignReport() {
   const [capabilityDialogOpen, setCapabilityDialogOpen] = useState(false);
   const [capabilityDetails, setCapabilityDetails] = useState<any>(null);
   const [employeesByLevel, setEmployeesByLevel] = useState<Record<string, string[]>>({});
+  const [orgCapabilities, setOrgCapabilities] = useState<Array<{ current_level: string; target_level: string }>>([]);
+  const [cohortCapabilities, setCohortCapabilities] = useState<Record<string, Array<{ current_level: string; target_level: string }>>>({});
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
 
@@ -118,6 +121,9 @@ export default function StrategicLearningDesignReport() {
           : ((latestReport as any).cohorts || []);
 
         setCohorts((sourceCohorts as any) || []);
+
+        // Load organizational capability scores
+        await loadOrganizationalScores(companyId, sourceCohorts);
 
         // Extract all unique employee IDs from cohorts and fetch their profiles
         if (sourceCohorts && sourceCohorts.length > 0) {
@@ -251,6 +257,60 @@ export default function StrategicLearningDesignReport() {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const loadOrganizationalScores = async (companyId: string, cohortsData: any[]) => {
+    try {
+      // Get all employee capabilities for this company
+      const { data: allEmployeeCaps, error: allCapsError } = await supabase
+        .from("employee_capabilities")
+        .select(`
+          current_level,
+          target_level,
+          profile_id,
+          capability_id,
+          capability:capabilities(name)
+        `)
+        .in("profile_id", (await supabase
+          .from("profiles")
+          .select("id")
+          .eq("company_id", companyId)
+        ).data?.map(p => p.id) || []);
+
+      if (allCapsError) throw allCapsError;
+
+      setOrgCapabilities(allEmployeeCaps || []);
+
+      // Calculate scores for each cohort
+      const cohortScores: Record<string, Array<{ current_level: string; target_level: string }>> = {};
+      
+      for (const cohort of cohortsData) {
+        if (!cohort.employee_ids || cohort.employee_ids.length === 0) continue;
+
+        // Find the capability ID for this cohort
+        const { data: capability } = await supabase
+          .from("capabilities")
+          .select("id")
+          .eq("name", cohort.capability_name)
+          .single();
+
+        if (capability) {
+          const { data: cohortCaps } = await supabase
+            .from("employee_capabilities")
+            .select("current_level, target_level")
+            .in("profile_id", cohort.employee_ids)
+            .eq("capability_id", capability.id);
+
+          if (cohortCaps && cohortCaps.length > 0) {
+            cohortScores[cohort.id] = cohortCaps;
+          }
+        }
+      }
+
+      setCohortCapabilities(cohortScores);
+    } catch (error: any) {
+      console.error("Error loading organizational scores:", error);
     }
   };
 
@@ -453,6 +513,16 @@ export default function StrategicLearningDesignReport() {
         </div>
       </div>
 
+      {/* Organizational Capability Score */}
+      {orgCapabilities.length > 0 && (
+        <OrganizationalCapabilityScore 
+          capabilities={orgCapabilities}
+          title="Company Capability Score"
+          showBreakdown={true}
+          variant="full"
+        />
+      )}
+
       {/* Executive Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
@@ -588,7 +658,17 @@ export default function StrategicLearningDesignReport() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                   <CardContent className="space-y-4">
+                    {/* Cohort Score */}
+                    {cohortCapabilities[cohort.id] && cohortCapabilities[cohort.id].length > 0 && (
+                      <OrganizationalCapabilityScore 
+                        capabilities={cohortCapabilities[cohort.id]}
+                        title="Training Group Score"
+                        showBreakdown={false}
+                        variant="compact"
+                      />
+                    )}
+
                     {/* Why This Training */}
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Why This Training</p>
