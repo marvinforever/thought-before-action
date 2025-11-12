@@ -310,7 +310,7 @@ export default function GreatnessTracker() {
 
       toast({
         title: "🔑 Greatness Key Earned!",
-        description: `You've maintained a ${streakLength}-day streak! The key to greatness is consistency.`,
+        description: `You've maintained a ${streakLength}-day streak!`,
       });
     } catch (error: any) {
       console.error("Error awarding greatness key:", error);
@@ -489,7 +489,6 @@ export default function GreatnessTracker() {
                 <div className="mt-2 flex items-center gap-2 text-sm">
                   <span className="text-2xl">🔑</span>
                   <span className="font-semibold">{greatnessKeys.length} Greatness Keys</span>
-                  <span className="text-muted-foreground">- The key to greatness is consistency</span>
                 </div>
               )}
             </div>
