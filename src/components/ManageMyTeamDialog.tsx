@@ -225,7 +225,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : (
-            <ScrollArea className="flex-1 pr-4">
+            <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-2">
                 {filteredEmployees.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
