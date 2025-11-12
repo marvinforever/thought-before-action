@@ -57,6 +57,10 @@ export function CapabilityMasteryMeter({ capabilities }: CapabilityMasteryMeterP
 
   const averageScore = totalScore / capabilities.length;
   const percentage = ((averageScore - 1) / 3) * 100; // Convert 1-4 scale to 0-100%
+  
+  // Convert to 100-400 scale
+  const displayScore = Math.round(averageScore * 100);
+  const maxScore = 400;
 
   // Determine current stage label
   const currentStage = Math.floor(averageScore);
@@ -74,6 +78,7 @@ export function CapabilityMasteryMeter({ capabilities }: CapabilityMasteryMeterP
   const targetScore = capabilities.reduce((sum, cap) => {
     return sum + normalizeLevel(cap.target_level);
   }, 0) / capabilities.length;
+  const displayTargetScore = Math.round(targetScore * 100);
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 via-background to-background border-primary/20">
@@ -88,18 +93,18 @@ export function CapabilityMasteryMeter({ capabilities }: CapabilityMasteryMeterP
         <div className="flex items-end justify-between mb-2">
           <div>
             <div className="flex items-baseline gap-2">
-              <span className={`text-4xl font-bold ${stageColor}`}>
-                {averageScore.toFixed(1)}
+              <span className={`text-5xl font-bold ${stageColor}`}>
+                {displayScore}
               </span>
-              <span className="text-2xl text-muted-foreground font-medium">/ 4.0</span>
+              <span className="text-2xl text-muted-foreground font-medium">/ {maxScore}</span>
             </div>
             <Badge variant="outline" className="mt-2">
               {stageLabel}
             </Badge>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground mb-1">Target Average</p>
-            <p className="text-2xl font-semibold text-primary">{targetScore.toFixed(1)}</p>
+            <p className="text-xs text-muted-foreground mb-1">Target Score</p>
+            <p className="text-3xl font-semibold text-primary">{displayTargetScore}</p>
           </div>
         </div>
 
