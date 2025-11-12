@@ -149,7 +149,27 @@ export function PendingCapabilitiesTab() {
 
       if (historyError) throw historyError;
 
-      toast.success(`Approved ${request.employee_name}'s request`);
+      // Send email notification to employee
+      try {
+        await supabase.functions.invoke('notify-capability-change', {
+          body: {
+            employeeId: request.profile_id,
+            employeeName: request.employee_name.replace(" (You)", ""),
+            managerName: "Your Manager", // Could be enhanced to get actual manager name
+            capabilityName: request.capability_name,
+            previousLevel: request.current_level,
+            newLevel: request.requested_level,
+            previousPriority: null,
+            newPriority: null,
+            reason: managerNotes[request.id] || "Your capability level upgrade request has been approved!",
+          }
+        });
+      } catch (emailError) {
+        console.error("Error sending notification email:", emailError);
+        // Don't fail the approval if email fails
+      }
+
+      toast.success(`Approved ${request.employee_name}'s request and sent notification email`);
       loadRequests();
     } catch (error) {
       console.error("Error approving request:", error);
