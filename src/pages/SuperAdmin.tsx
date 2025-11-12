@@ -77,6 +77,11 @@ const SuperAdmin = () => {
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [lastTestResult, setLastTestResult] = useState<{timestamp: string, email: string, subject: string} | null>(null);
   
+  // Delete company state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<{id: string, name: string} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { setViewAsCompany } = useViewAs();
@@ -1325,6 +1330,37 @@ const SuperAdmin = () => {
     }
   };
 
+  const handleDeleteCompany = async () => {
+    if (!companyToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-company', {
+        body: { companyId: companyToDelete.id }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Company deleted",
+        description: `Successfully deleted "${companyToDelete.name}" and ${data.employeesDeleted} employees`,
+      });
+
+      setIsDeleteDialogOpen(false);
+      setCompanyToDelete(null);
+      loadCompanyData();
+    } catch (error: any) {
+      console.error("Delete company error:", error);
+      toast({
+        title: "Failed to delete company",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading || !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1497,17 +1533,29 @@ const SuperAdmin = () => {
                   <TableCell>{company.totalResponses}</TableCell>
                   <TableCell>{new Date(company.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => {
-                        setViewAsCompany(company.id, company.name);
-                        navigate("/dashboard");
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View As
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setViewAsCompany(company.id, company.name);
+                          navigate("/dashboard");
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View As
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => {
+                          setCompanyToDelete({ id: company.id, name: company.name });
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -2108,6 +2156,50 @@ const SuperAdmin = () => {
                   <Upload className="mr-2 h-4 w-4" />
                   Import
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Company Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Company?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete "{companyToDelete?.name}" and all associated data including employees, diagnostics, and records.
+            </DialogDescription>
+          </DialogHeader>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              This action cannot be undone. All company data will be permanently removed.
+            </AlertDescription>
+          </Alert>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setCompanyToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteCompany}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Company'
               )}
             </Button>
           </DialogFooter>
