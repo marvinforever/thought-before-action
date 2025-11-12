@@ -9,7 +9,6 @@ import {
   RefreshCw,
   Download,
   Users,
-  Calendar,
   Award,
   AlertCircle,
 } from "lucide-react";
@@ -495,169 +494,109 @@ export default function StrategicLearningDesignReport() {
 
         {/* Training Hotspots */}
         <TabsContent value="cohorts" className="space-y-4">
-          <h3 className="text-lg font-semibold mb-4">Who Needs What Training</h3>
-          
-          <Tabs defaultValue="2026" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="2026">
-                2026 (Year 1 - Foundation)
-                <Badge variant="outline" className="ml-2">
-                  {cohorts.filter(c => c.delivery_quarter?.includes('2026') && c.employee_count >= 4).length} hotspots
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="2027">
-                2027 (Year 2 - Scale)
-                <Badge variant="outline" className="ml-2">
-                  {cohorts.filter(c => c.delivery_quarter?.includes('2027') && c.employee_count >= 4).length} hotspots
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="2028">
-                2028 (Year 3 - Optimize)
-                <Badge variant="outline" className="ml-2">
-                  {cohorts.filter(c => c.delivery_quarter?.includes('2028') && c.employee_count >= 4).length} hotspots
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-
-            {[
-              { year: "2026", theme: "Foundation", description: "Build the base that everything else depends on. Leadership, management fundamentals, and revenue-critical skills." },
-              { year: "2027", theme: "Scale", description: "Expand to operational excellence and build internal capability. Foundation is solid, now scale up." },
-              { year: "2028", theme: "Optimize", description: "Specialized capabilities, advanced skills, and preparing for future growth." }
-            ].map(({ year, theme, description }) => {
-              // Filter cohorts for this year with at least 4 people
-              const yearCohorts = cohorts.filter((cohort) => 
-                cohort.delivery_quarter?.includes(year) && cohort.employee_count >= 4
-              );
-
+          {cohorts.filter(c => c.employee_count >= 4).length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                No training hotspots found (minimum 4 people per hotspot)
+              </CardContent>
+            </Card>
+          ) : (
+            cohorts.filter(c => c.employee_count >= 4).map((cohort) => {
               return (
-                <TabsContent key={year} value={year} className="space-y-4 mt-4">
-                  <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="py-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h4 className="font-semibold text-lg">{year}: {theme}</h4>
-                          <p className="text-sm text-muted-foreground mt-1">{description}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold">{yearCohorts.length}</p>
-                          <p className="text-xs text-muted-foreground">training hotspots</p>
+                <Card key={cohort.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <CardTitle className="flex items-center gap-2 flex-wrap">
+                          {cohort.cohort_name}
+                        </CardTitle>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {cohort.employee_count} employees
+                          </span>
+                          <span>•</span>
+                          <span>{cohort.current_level} → {cohort.target_level}</span>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Why This Cohort */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Why This Training</p>
+                      <p className="text-sm">
+                        {cohort.priority === 1 && cohort.gap_severity === 'critical' ? 
+                          "Critical business priority. This capability directly impacts revenue generation, customer satisfaction, or regulatory compliance. Must be addressed immediately to prevent business risk."
+                        : cohort.priority <= 2 && cohort.gap_severity === 'high' ?
+                          "High-impact foundational skill. Builds the capability base needed for organizational success. Addressing this gap enables multiple downstream improvements."
+                        : cohort.priority === 3 ?
+                          "Strategic expansion priority. Once foundational capabilities are established, this training scales operational excellence and builds internal capacity."
+                        : "Future-focused investment. Specialized capability that prepares the organization for advanced challenges and competitive differentiation."}
+                      </p>
+                    </div>
 
-                  {yearCohorts.length === 0 ? (
-                    <Card>
-                      <CardContent className="py-8 text-center text-muted-foreground">
-                        No training cohorts scheduled for {year}
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    yearCohorts.map((cohort) => {
-                      return (
-                        <Card key={cohort.id} className="hover:shadow-md transition-shadow">
-                          <CardHeader>
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="flex-1">
-                                <CardTitle className="flex items-center gap-2 flex-wrap">
-                                  {cohort.cohort_name}
-                                </CardTitle>
-                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Users className="h-3 w-3" />
-                                    {cohort.employee_count} employees
-                                  </span>
-                                  <span>•</span>
-                                  <span>{cohort.current_level} → {cohort.target_level}</span>
-                                  <span>•</span>
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {cohort.delivery_quarter}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {/* Why This Cohort (based on priority/severity) */}
-                            <div>
-                              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Why This Training</p>
-                              <p className="text-sm">
-                                {cohort.priority === 1 && cohort.gap_severity === 'critical' ? 
-                                  "Critical business priority. This capability directly impacts revenue generation, customer satisfaction, or regulatory compliance. Must be addressed immediately to prevent business risk."
-                                : cohort.priority <= 2 && cohort.gap_severity === 'high' ?
-                                  "High-impact foundational skill. Builds the capability base needed for organizational success. Addressing this gap enables multiple downstream improvements."
-                                : cohort.priority === 3 ?
-                                  "Strategic expansion priority. Once foundational capabilities are established, this training scales operational excellence and builds internal capacity."
-                                : "Future-focused investment. Specialized capability that prepares the organization for advanced challenges and competitive differentiation."}
-                              </p>
-                            </div>
+                    {/* Success Metrics */}
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-xs font-semibold text-green-900 uppercase mb-2">Success Metrics to Track</p>
+                      <ul className="text-sm space-y-1">
+                        {cohort.capability_name.toLowerCase().includes('leadership') || cohort.capability_name.toLowerCase().includes('management') ? (
+                          <>
+                            <li>• 360° feedback scores improve by 15%</li>
+                            <li>• Team engagement scores increase</li>
+                            <li>• Direct report retention improves</li>
+                          </>
+                        ) : cohort.capability_name.toLowerCase().includes('sales') || cohort.capability_name.toLowerCase().includes('agronomy') ? (
+                          <>
+                            <li>• Average deal size increases 10-15%</li>
+                            <li>• Sales cycle time decreases</li>
+                            <li>• Customer satisfaction scores improve</li>
+                          </>
+                        ) : cohort.capability_name.toLowerCase().includes('communication') ? (
+                          <>
+                            <li>• Reduction in miscommunication incidents</li>
+                            <li>• Faster project completion times</li>
+                            <li>• Improved customer-facing communications</li>
+                          </>
+                        ) : cohort.capability_name.toLowerCase().includes('crm') || cohort.capability_name.toLowerCase().includes('system') ? (
+                          <>
+                            <li>• 90% daily system usage within 60 days</li>
+                            <li>• Complete pipeline visibility achieved</li>
+                            <li>• Forecast accuracy improves 20%</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>• Skill assessment scores improve</li>
+                            <li>• Application of skills in daily work</li>
+                            <li>• Performance metrics show improvement</li>
+                          </>
+                        )}
+                      </ul>
+                    </div>
 
-                            {/* Success Metrics */}
-                            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                              <p className="text-xs font-semibold text-green-900 uppercase mb-2">Success Metrics to Track</p>
-                              <ul className="text-sm space-y-1">
-                                {cohort.capability_name.toLowerCase().includes('leadership') || cohort.capability_name.toLowerCase().includes('management') ? (
-                                  <>
-                                    <li>• 360° feedback scores improve by 15%</li>
-                                    <li>• Team engagement scores increase</li>
-                                    <li>• Direct report retention improves</li>
-                                  </>
-                                ) : cohort.capability_name.toLowerCase().includes('sales') || cohort.capability_name.toLowerCase().includes('agronomy') ? (
-                                  <>
-                                    <li>• Average deal size increases 10-15%</li>
-                                    <li>• Sales cycle time decreases</li>
-                                    <li>• Customer satisfaction scores improve</li>
-                                  </>
-                                ) : cohort.capability_name.toLowerCase().includes('communication') ? (
-                                  <>
-                                    <li>• Reduction in miscommunication incidents</li>
-                                    <li>• Faster project completion times</li>
-                                    <li>• Improved customer-facing communications</li>
-                                  </>
-                                ) : cohort.capability_name.toLowerCase().includes('crm') || cohort.capability_name.toLowerCase().includes('system') ? (
-                                  <>
-                                    <li>• 90% daily system usage within 60 days</li>
-                                    <li>• Complete pipeline visibility achieved</li>
-                                    <li>• Forecast accuracy improves 20%</li>
-                                  </>
-                                ) : (
-                                  <>
-                                    <li>• Skill assessment scores improve</li>
-                                    <li>• Application of skills in daily work</li>
-                                    <li>• Performance metrics show improvement</li>
-                                  </>
-                                )}
-                              </ul>
-                            </div>
-
-                            {/* Employees */}
-                            <div>
-                              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Participants</p>
-                              <div className="flex flex-wrap gap-2">
-                                {cohort.employee_ids.slice(0, 15).map((id, i) => {
-                                  const profile = employeeProfiles.get(id);
-                                  const displayName = profile?.full_name || `Employee ${i + 1}`;
-                                  return (
-                                    <Badge key={id} variant="secondary" title={profile?.email}>
-                                      {displayName}
-                                    </Badge>
-                                  );
-                                })}
-                                {cohort.employee_ids.length > 15 && (
-                                  <Badge variant="outline">+{cohort.employee_ids.length - 15} more</Badge>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })
-                  )}
-                </TabsContent>
+                    {/* Employees */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Participants</p>
+                      <div className="flex flex-wrap gap-2">
+                        {cohort.employee_ids.slice(0, 15).map((id, i) => {
+                          const profile = employeeProfiles.get(id);
+                          const displayName = profile?.full_name || `Employee ${i + 1}`;
+                          return (
+                            <Badge key={id} variant="secondary" title={profile?.email}>
+                              {displayName}
+                            </Badge>
+                          );
+                        })}
+                        {cohort.employee_ids.length > 15 && (
+                          <Badge variant="outline">+{cohort.employee_ids.length - 15} more</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               );
-            })}
-          </Tabs>
+            })
+          )}
         </TabsContent>
 
       </Tabs>
