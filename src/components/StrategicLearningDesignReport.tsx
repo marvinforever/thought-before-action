@@ -5,15 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import {
   RefreshCw,
   Download,
   Users,
-  DollarSign,
-  TrendingUp,
   Calendar,
-  BookOpen,
   Award,
   AlertCircle,
 } from "lucide-react";
@@ -57,7 +53,6 @@ export default function StrategicLearningDesignReport() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [timeframe, setTimeframe] = useState<string>("3");
-  const [budgetScenario, setBudgetScenario] = useState<"conservative" | "moderate" | "aggressive">("moderate");
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
 
@@ -370,13 +365,6 @@ export default function StrategicLearningDesignReport() {
   const scenarios = report.budget_scenarios;
   const roi = report.roi_projections;
 
-  const selectedBudget =
-    (budgetScenario === "conservative"
-      ? scenarios?.conservative?.total
-      : budgetScenario === "moderate"
-      ? scenarios?.moderate?.total
-      : scenarios?.aggressive?.total) ?? 0;
-
   return (
     <div className="container mx-auto p-8 space-y-8">
       {/* Header */}
@@ -414,7 +402,7 @@ export default function StrategicLearningDesignReport() {
       </div>
 
       {/* Executive Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -438,69 +426,6 @@ export default function StrategicLearningDesignReport() {
             <p className="text-xs text-muted-foreground">Minimum 4 people each</p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">3-Year Investment</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(selectedBudget)}</div>
-            <div className="text-xs text-muted-foreground space-y-1 mt-2">
-              <div className="flex justify-between">
-                <span>2026 (Year 1):</span>
-                <span className="font-semibold">
-                  {formatCurrency(
-                    budgetScenario === "conservative"
-                      ? scenarios?.conservative?.year1 || 0
-                      : budgetScenario === "moderate"
-                      ? scenarios?.moderate?.year1 || 0
-                      : scenarios?.aggressive?.year1 || 0
-                  )}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>2027 (Year 2):</span>
-                <span className="font-semibold">
-                  {formatCurrency(
-                    budgetScenario === "conservative"
-                      ? scenarios?.conservative?.year2 || 0
-                      : budgetScenario === "moderate"
-                      ? scenarios?.moderate?.year2 || 0
-                      : scenarios?.aggressive?.year2 || 0
-                  )}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>2028 (Year 3):</span>
-                <span className="font-semibold">
-                  {formatCurrency(
-                    budgetScenario === "conservative"
-                      ? scenarios?.conservative?.year3 || 0
-                      : budgetScenario === "moderate"
-                      ? scenarios?.moderate?.year3 || 0
-                      : scenarios?.aggressive?.year3 || 0
-                  )}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Expected ROI</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(roi.net_roi)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Break-even in {roi.break_even_months} months
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Business Drivers Button */}
@@ -509,13 +434,9 @@ export default function StrategicLearningDesignReport() {
       </div>
 
       <Tabs defaultValue="narrative" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="narrative">Executive Summary</TabsTrigger>
           <TabsTrigger value="cohorts">Training Hotspots</TabsTrigger>
-          <TabsTrigger value="budget">Budget Scenarios</TabsTrigger>
-          <TabsTrigger value="roi">ROI Analysis</TabsTrigger>
-          <TabsTrigger value="always-available">Always Available</TabsTrigger>
-          <TabsTrigger value="resources">Resource Library</TabsTrigger>
         </TabsList>
 
         {/* Executive Narrative */}
@@ -750,231 +671,6 @@ export default function StrategicLearningDesignReport() {
           </Tabs>
         </TabsContent>
 
-        {/* Budget Scenarios */}
-        <TabsContent value="budget" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className={budgetScenario === "conservative" ? "ring-2 ring-primary" : ""}>
-              <CardHeader>
-                <CardTitle>Conservative</CardTitle>
-                <p className="text-sm text-muted-foreground">{scenarios.conservative.description}</p>
-                <p className="text-xs text-muted-foreground mt-1">{scenarios.conservative.range}</p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold mb-4">
-                  {formatCurrency(scenarios.conservative.total)}
-                </p>
-                <Button
-                  variant={budgetScenario === "conservative" ? "default" : "outline"}
-                  onClick={() => setBudgetScenario("conservative")}
-                  className="w-full"
-                >
-                  Select Plan
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className={budgetScenario === "moderate" ? "ring-2 ring-primary" : ""}>
-              <CardHeader>
-                <CardTitle>Moderate</CardTitle>
-                <p className="text-sm text-muted-foreground">{scenarios.moderate.description}</p>
-                <p className="text-xs text-muted-foreground mt-1">{scenarios.moderate.range}</p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold mb-4">
-                  {formatCurrency(scenarios.moderate.total)}
-                </p>
-                <Button
-                  variant={budgetScenario === "moderate" ? "default" : "outline"}
-                  onClick={() => setBudgetScenario("moderate")}
-                  className="w-full"
-                >
-                  Select Plan
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className={budgetScenario === "aggressive" ? "ring-2 ring-primary" : ""}>
-              <CardHeader>
-                <CardTitle>Premium</CardTitle>
-                <p className="text-sm text-muted-foreground">{scenarios.aggressive.description}</p>
-                <p className="text-xs text-muted-foreground mt-1">{scenarios.aggressive.range}</p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold mb-4">
-                  {formatCurrency(scenarios.aggressive.total)}
-                </p>
-                <Button
-                  variant={budgetScenario === "aggressive" ? "default" : "outline"}
-                  onClick={() => setBudgetScenario("aggressive")}
-                  className="w-full"
-                >
-                  Select Plan
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* ROI Analysis */}
-        <TabsContent value="roi" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Return on Investment Projections</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Retention Savings</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(roi.retention_savings)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Productivity Gains</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {formatCurrency(roi.productivity_gains)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Net ROI (Moderate Plan)</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(roi.net_roi)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-muted p-4 rounded-lg">
-                <h4 className="font-semibold mb-2">Calculation Methodology:</h4>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <strong>Retention Savings:</strong> {roi.formulas?.retention_savings}
-                  </li>
-                  <li>
-                    <strong>Productivity Gains:</strong> {roi.formulas?.productivity_gains}
-                  </li>
-                  <li>
-                    <strong>Net ROI:</strong> {roi.formulas?.net_roi}
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-2">Research Sources:</h4>
-                <ul className="text-sm space-y-1">
-                  {roi.sources?.map((source: string, i: number) => (
-                    <li key={i}>• {source}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="bg-primary/10 p-4 rounded-lg">
-                <p className="text-sm">
-                  <strong>Track Real Value with Jericho:</strong> Monitor completion rates, employee feedback, and actual performance improvements to validate these projections.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Always Available - Self-Serve Resources */}
-        <TabsContent value="always-available" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Always Available: Self-Serve Learning</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Universal skills that don't require formal cohorts - available on-demand via curated resources
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-blue-900">Implementation Model</h4>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-start gap-2">
-                    <BookOpen className="h-4 w-4 mt-0.5 text-blue-600" />
-                    <span>Curate LinkedIn Learning playlists or similar platforms (~$300/person/year)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Users className="h-4 w-4 mt-0.5 text-blue-600" />
-                    <span>Managers assign resources as needed based on individual development plans</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Calendar className="h-4 w-4 mt-0.5 text-blue-600" />
-                    <span>Check-ins during 1-on-1s for accountability and progress tracking</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-3">Universal Skills (No Formal Training Needed)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {[
-                    'Time Management',
-                    'Prioritization',
-                    'Multi-tasking',
-                    'Collaboration (basic)',
-                    'Resilience',
-                    'Conflict Resolution (basic)',
-                    'Cross-functional Partnership',
-                    'Influencing (basic)',
-                    'Decision Making (basic)',
-                    'Organizational Awareness',
-                    'Basic Tool Proficiency',
-                    'Email & Calendar Management'
-                  ].map((skill) => (
-                    <div key={skill} className="p-3 bg-white border rounded-lg">
-                      <span className="text-sm">{skill}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-green-900">Estimated Cost</h4>
-                <p className="text-2xl font-bold text-green-700 mb-2">
-                  {formatCurrency(summary.total_employees * 300)} annually
-                </p>
-                <p className="text-sm text-green-800">
-                  ${300}/person/year × {summary.total_employees} employees = {formatCurrency(summary.total_employees * 300 * 3)} over 3 years
-                </p>
-                <p className="text-xs text-green-700 mt-2">
-                  This is NOT included in the Year 1-3 training budget above - it's a separate ongoing operational expense
-                </p>
-              </div>
-
-              <div className="bg-muted p-4 rounded-lg">
-                <h4 className="font-semibold mb-2">Why Self-Serve vs. Formal Cohorts?</h4>
-                <p className="text-sm">
-                  These are foundational professional skills that:
-                </p>
-                <ul className="text-sm space-y-1 mt-2 ml-4 list-disc">
-                  <li>Apply universally across all roles</li>
-                  <li>Can be learned effectively through self-paced content</li>
-                  <li>Don't require specialized facilitation or group learning</li>
-                  <li>Are better reinforced through practice and manager coaching</li>
-                  <li>Would dilute focus from mission-critical skill gaps if formalized</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Resource Library */}
-        <TabsContent value="resources">
-          <Card>
-            <CardHeader>
-              <CardTitle>Curated Learning Resources</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Resources automatically sync from your library based on capability matches
-              </p>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                <BookOpen className="inline h-4 w-4 mr-2" />
-                Resources are dynamically matched to training hotspots and displayed in recommended solutions above.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
