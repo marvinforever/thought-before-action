@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Plus, Flame, TrendingUp, Archive, Trash2, Calendar, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ type Habit = {
   id: string;
   habit_name: string;
   habit_description: string | null;
+  target_frequency: string;
   current_streak: number;
   longest_streak: number;
   linked_capability_id: string | null;
@@ -583,6 +585,16 @@ export default function GreatnessTracker() {
                             {habit.habit_description}
                           </p>
                         )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {habit.target_frequency === 'daily' && '📅 Daily'}
+                            {habit.target_frequency === 'weekdays' && '💼 Weekdays'}
+                            {habit.target_frequency === 'weekly' && '📆 Weekly'}
+                            {habit.target_frequency === 'biweekly' && '📆 Bi-weekly'}
+                            {habit.target_frequency === 'monthly' && '📅 Monthly'}
+                            {!habit.target_frequency && '📅 Daily'}
+                          </Badge>
+                        </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                           <span>✅ Completed {totalCompletions} {totalCompletions === 1 ? 'day' : 'days'}</span>
                           {habit.longest_streak > 0 && (

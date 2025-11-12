@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ type Habit = {
   id: string;
   habit_name: string;
   habit_description: string | null;
+  target_frequency?: string;
 };
 
 type AddHabitDialogProps = {
@@ -37,6 +39,7 @@ type SuggestedHabit = {
 export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHabit }: AddHabitDialogProps) {
   const [habitName, setHabitName] = useState("");
   const [habitDescription, setHabitDescription] = useState("");
+  const [frequency, setFrequency] = useState("daily");
   const [saving, setSaving] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestedHabit[]>([]);
@@ -47,10 +50,12 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
     if (editingHabit) {
       setHabitName(editingHabit.habit_name);
       setHabitDescription(editingHabit.habit_description || "");
+      setFrequency(editingHabit.target_frequency || "daily");
     } else if (!open) {
       // Reset form when dialog closes
       setHabitName("");
       setHabitDescription("");
+      setFrequency("daily");
       setSuggestions([]);
     }
   }, [editingHabit, open]);
@@ -114,6 +119,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
           .update({
             habit_name: habitName.trim(),
             habit_description: habitDescription.trim() || null,
+            target_frequency: frequency,
           })
           .eq("id", editingHabit.id)
           .eq("profile_id", user.id);
@@ -139,7 +145,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
           company_id: profile.company_id,
           habit_name: habitName.trim(),
           habit_description: habitDescription.trim() || null,
-          target_frequency: "daily",
+          target_frequency: frequency,
           is_active: true,
         });
 
@@ -168,6 +174,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
   const handleClose = () => {
     setHabitName("");
     setHabitDescription("");
+    setFrequency("daily");
     setSuggestions([]);
     onClose();
   };
@@ -208,6 +215,25 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
                   onChange={(e) => setHabitDescription(e.target.value)}
                   className="mt-1.5 min-h-[80px]"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="frequency">Frequency</Label>
+                <Select value={frequency} onValueChange={setFrequency}>
+                  <SelectTrigger id="frequency" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily (Every day)</SelectItem>
+                    <SelectItem value="weekdays">Weekdays (Monday - Friday)</SelectItem>
+                    <SelectItem value="weekly">Weekly (Once per week)</SelectItem>
+                    <SelectItem value="biweekly">Bi-weekly (Twice per week)</SelectItem>
+                    <SelectItem value="monthly">Monthly (Once per month)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  How often should you complete this habit?
+                </p>
               </div>
 
               {!editingHabit && (
