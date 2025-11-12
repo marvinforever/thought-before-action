@@ -422,7 +422,7 @@ export default function StrategicLearningDesignReport() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.total_cohorts}</div>
+            <div className="text-2xl font-bold">{cohorts.filter(c => c.employee_count >= 4).length}</div>
             <p className="text-xs text-muted-foreground">Minimum 4 people each</p>
           </CardContent>
         </Card>
@@ -502,19 +502,19 @@ export default function StrategicLearningDesignReport() {
               <TabsTrigger value="2026">
                 2026 (Year 1 - Foundation)
                 <Badge variant="outline" className="ml-2">
-                  {cohorts.filter(c => c.delivery_quarter?.includes('2026')).length} cohorts
+                  {cohorts.filter(c => c.delivery_quarter?.includes('2026') && c.employee_count >= 4).length} hotspots
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="2027">
                 2027 (Year 2 - Scale)
                 <Badge variant="outline" className="ml-2">
-                  {cohorts.filter(c => c.delivery_quarter?.includes('2027')).length} cohorts
+                  {cohorts.filter(c => c.delivery_quarter?.includes('2027') && c.employee_count >= 4).length} hotspots
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="2028">
                 2028 (Year 3 - Optimize)
                 <Badge variant="outline" className="ml-2">
-                  {cohorts.filter(c => c.delivery_quarter?.includes('2028')).length} cohorts
+                  {cohorts.filter(c => c.delivery_quarter?.includes('2028') && c.employee_count >= 4).length} hotspots
                 </Badge>
               </TabsTrigger>
             </TabsList>
@@ -524,12 +524,9 @@ export default function StrategicLearningDesignReport() {
               { year: "2027", theme: "Scale", description: "Expand to operational excellence and build internal capability. Foundation is solid, now scale up." },
               { year: "2028", theme: "Optimize", description: "Specialized capabilities, advanced skills, and preparing for future growth." }
             ].map(({ year, theme, description }) => {
+              // Filter cohorts for this year with at least 4 people
               const yearCohorts = cohorts.filter((cohort) => 
-                cohort.delivery_quarter?.includes(year)
-              );
-              
-              const yearTotal = yearCohorts.reduce((sum, c) => 
-                sum + (c.estimated_cost_moderate || 0), 0
+                cohort.delivery_quarter?.includes(year) && cohort.employee_count >= 4
               );
 
               return (
@@ -542,8 +539,8 @@ export default function StrategicLearningDesignReport() {
                           <p className="text-sm text-muted-foreground mt-1">{description}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold">{formatCurrency(yearTotal)}</p>
-                          <p className="text-xs text-muted-foreground">{yearCohorts.length} cohorts (moderate budget)</p>
+                          <p className="text-2xl font-bold">{yearCohorts.length}</p>
+                          <p className="text-xs text-muted-foreground">training hotspots</p>
                         </div>
                       </div>
                     </CardContent>
@@ -557,10 +554,6 @@ export default function StrategicLearningDesignReport() {
                     </Card>
                   ) : (
                     yearCohorts.map((cohort) => {
-                      const moderateSolution = cohort.recommended_solutions?.find((s: any) => s.type === 'moderate');
-                      const costPerPerson = moderateSolution?.cost_per_person || 
-                        Math.round((cohort.estimated_cost_moderate || 0) / cohort.employee_count);
-                      
                       return (
                         <Card key={cohort.id} className="hover:shadow-md transition-shadow">
                           <CardHeader>
