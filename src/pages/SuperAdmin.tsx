@@ -82,6 +82,12 @@ const SuperAdmin = () => {
   const [companyToDelete, setCompanyToDelete] = useState<{id: string, name: string} | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  // Rename company state
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [companyToRename, setCompanyToRename] = useState<{id: string, name: string} | null>(null);
+  const [newCompanyNameForRename, setNewCompanyNameForRename] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { setViewAsCompany } = useViewAs();
@@ -1361,6 +1367,46 @@ const SuperAdmin = () => {
     }
   };
 
+  const handleRenameCompany = async () => {
+    if (!companyToRename || !newCompanyNameForRename.trim()) {
+      toast({
+        title: "Error",
+        description: "Company name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRenaming(true);
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .update({ name: newCompanyNameForRename.trim() })
+        .eq("id", companyToRename.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Company renamed",
+        description: `Successfully renamed to "${newCompanyNameForRename.trim()}"`,
+      });
+
+      setIsRenameDialogOpen(false);
+      setCompanyToRename(null);
+      setNewCompanyNameForRename("");
+      loadCompanyData();
+    } catch (error: any) {
+      console.error("Rename company error:", error);
+      toast({
+        title: "Failed to rename company",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
   if (loading || !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1544,6 +1590,17 @@ const SuperAdmin = () => {
                       >
                         <Eye className="h-4 w-4 mr-2" />
                         View As
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setCompanyToRename({ id: company.id, name: company.name });
+                          setNewCompanyNameForRename(company.name);
+                          setIsRenameDialogOpen(true);
+                        }}
+                      >
+                        Rename
                       </Button>
                       <Button 
                         size="sm" 
@@ -2156,6 +2213,61 @@ const SuperAdmin = () => {
                   <Upload className="mr-2 h-4 w-4" />
                   Import
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Company Dialog */}
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Company</DialogTitle>
+            <DialogDescription>
+              Enter a new name for "{companyToRename?.name}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rename-company-name">New Company Name</Label>
+              <Input
+                id="rename-company-name"
+                placeholder="Enter new company name"
+                value={newCompanyNameForRename}
+                onChange={(e) => setNewCompanyNameForRename(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleRenameCompany();
+                  }
+                }}
+                disabled={isRenaming}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsRenameDialogOpen(false);
+                setCompanyToRename(null);
+                setNewCompanyNameForRename("");
+              }}
+              disabled={isRenaming}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRenameCompany}
+              disabled={isRenaming || !newCompanyNameForRename.trim()}
+            >
+              {isRenaming ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Renaming...
+                </>
+              ) : (
+                'Rename'
               )}
             </Button>
           </DialogFooter>
