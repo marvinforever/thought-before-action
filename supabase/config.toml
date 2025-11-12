@@ -77,6 +77,3 @@ verify_jwt = true
 
 [functions.notify-capability-change]
 verify_jwt = true
-
-[functions.quick-import-cdf]
-verify_jwt = false
