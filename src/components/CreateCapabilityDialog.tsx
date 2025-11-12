@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type CapabilityLevel = {
   level: 'foundational' | 'advancing' | 'independent' | 'mastery';
@@ -53,6 +54,7 @@ export default function CreateCapabilityDialog({
     { level: 'mastery', description: '' }
   ]);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -96,6 +98,61 @@ export default function CreateCapabilityDialog({
     setLevels(prev => prev.map(l => 
       l.level === level ? { ...l, description } : l
     ));
+  };
+
+  const handleGenerateWithJericho = async () => {
+    if (!name.trim()) {
+      toast({ 
+        title: "Missing Information", 
+        description: "Please enter a capability name first", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    if (!category.trim()) {
+      toast({ 
+        title: "Missing Information", 
+        description: "Please enter a category first", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-capability-content', {
+        body: {
+          capabilityName: name.trim(),
+          category: category.trim()
+        }
+      });
+
+      if (error) throw error;
+
+      // Populate all fields with AI-generated content
+      setDescription(data.shortDescription || '');
+      setFullDescription(data.fullDescription || '');
+      setLevels([
+        { level: 'foundational', description: data.foundational || '' },
+        { level: 'advancing', description: data.advancing || '' },
+        { level: 'independent', description: data.independent || '' },
+        { level: 'mastery', description: data.mastery || '' }
+      ]);
+
+      toast({
+        title: "Content Generated!",
+        description: "Jericho has written the capability content. Review and edit as needed."
+      });
+    } catch (error: any) {
+      console.error("Error generating content:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate content. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleSave = async () => {
@@ -239,7 +296,34 @@ export default function CreateCapabilityDialog({
           {/* Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Basic Information</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Basic Information</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateWithJericho}
+                  disabled={generating || !name.trim() || !category.trim()}
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Let Jericho Write This
+                    </>
+                  )}
+                </Button>
+              </div>
+              {!name.trim() || !category.trim() ? (
+                <Alert>
+                  <AlertDescription className="text-sm">
+                    Enter a name and category first, then let Jericho generate the content for you.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -249,6 +333,7 @@ export default function CreateCapabilityDialog({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g., Data Analysis, Customer Communication"
+                  disabled={generating}
                 />
               </div>
 
@@ -259,6 +344,7 @@ export default function CreateCapabilityDialog({
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g., Technical Skills, Leadership, Communication"
+                  disabled={generating}
                 />
               </div>
 
@@ -270,6 +356,7 @@ export default function CreateCapabilityDialog({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Brief description of this capability (1-2 sentences)"
                   rows={2}
+                  disabled={generating}
                 />
               </div>
 
@@ -281,6 +368,7 @@ export default function CreateCapabilityDialog({
                   onChange={(e) => setFullDescription(e.target.value)}
                   placeholder="Detailed explanation of this capability and why it matters"
                   rows={3}
+                  disabled={generating}
                 />
               </div>
             </CardContent>
@@ -310,6 +398,7 @@ export default function CreateCapabilityDialog({
                     onChange={(e) => updateLevelDescription(level.level, e.target.value)}
                     placeholder={`Describe what ${LEVEL_LABELS[level.level]} looks like for this capability...`}
                     rows={3}
+                    disabled={generating}
                   />
                 </div>
               ))}
@@ -318,10 +407,10 @@ export default function CreateCapabilityDialog({
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={onClose} disabled={saving}>
+            <Button variant="outline" onClick={onClose} disabled={saving || generating}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving || generating}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingCapability ? "Update Capability" : "Create Capability"}
             </Button>

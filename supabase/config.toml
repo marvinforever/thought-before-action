@@ -30,6 +30,9 @@ verify_jwt = false
 [functions.generate-strategic-learning-design]
 verify_jwt = true
 
+[functions.generate-capability-content]
+verify_jwt = true
+
 [functions.generate-learning-roadmap]
 verify_jwt = true
 
@@ -76,4 +79,13 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.notify-capability-change]
+verify_jwt = true
+
+[functions.check-user-permissions]
+verify_jwt = true
+
+[functions.import-diagnostic-csv]
+verify_jwt = true
+
+[functions.batch-create-employees]
 verify_jwt = true
