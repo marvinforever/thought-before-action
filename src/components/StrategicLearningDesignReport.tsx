@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   RefreshCw,
   Download,
   Users,
   Award,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import BusinessGoalsDialog from "@/components/BusinessGoalsDialog";
@@ -33,6 +35,7 @@ type Cohort = {
   id: string;
   cohort_name: string;
   capability_name: string;
+  capability_id?: string;
   employee_ids: string[];
   employee_count: number;
   priority: number;
@@ -54,6 +57,10 @@ export default function StrategicLearningDesignReport() {
   const [generating, setGenerating] = useState(false);
   const [timeframe, setTimeframe] = useState<string>("3");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
+  const [capabilityDialogOpen, setCapabilityDialogOpen] = useState(false);
+  const [capabilityDetails, setCapabilityDetails] = useState<any>(null);
+  const [employeesByLevel, setEmployeesByLevel] = useState<Record<string, string[]>>({});
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
 
@@ -200,6 +207,50 @@ export default function StrategicLearningDesignReport() {
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const loadCapabilityDetails = async (capabilityName: string, employeeIds: string[]) => {
+    try {
+      // Find the capability by name
+      const { data: capability, error: capError } = await supabase
+        .from("capabilities")
+        .select("*")
+        .eq("name", capabilityName)
+        .single();
+
+      if (capError) throw capError;
+
+      setCapabilityDetails(capability);
+
+      // Get employee capabilities for these employees
+      const { data: empCaps, error: empError } = await supabase
+        .from("employee_capabilities")
+        .select("profile_id, current_level")
+        .in("profile_id", employeeIds)
+        .eq("capability_id", capability.id);
+
+      if (empError) throw empError;
+
+      // Group employees by level
+      const byLevel: Record<string, string[]> = {};
+      empCaps?.forEach((ec: any) => {
+        const level = ec.current_level || "Not Assessed";
+        if (!byLevel[level]) {
+          byLevel[level] = [];
+        }
+        byLevel[level].push(ec.profile_id);
+      });
+
+      setEmployeesByLevel(byLevel);
+      setCapabilityDialogOpen(true);
+    } catch (error: any) {
+      console.error("Error loading capability details:", error);
+      toast({
+        title: "Error loading capability",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -511,7 +562,20 @@ export default function StrategicLearningDesignReport() {
                       <div className="flex-1">
                         <CardTitle className="flex items-center gap-2 flex-wrap">
                           <span className="text-2xl">🔥</span>
-                          {cohort.cohort_name}
+                          <button
+                            onClick={() => loadCapabilityDetails(cohort.capability_name, cohort.employee_ids)}
+                            className="text-left hover:underline hover:text-primary transition-colors"
+                          >
+                            {cohort.cohort_name}
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => loadCapabilityDetails(cohort.capability_name, cohort.employee_ids)}
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
                         </CardTitle>
                         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
@@ -574,6 +638,55 @@ export default function StrategicLearningDesignReport() {
           onOpenChange={(open) => !open && setSelectedEmployeeId(null)}
         />
       )}
+
+      {/* Capability Details Dialog */}
+      <Dialog open={capabilityDialogOpen} onOpenChange={setCapabilityDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{capabilityDetails?.name}</DialogTitle>
+            <DialogDescription>{capabilityDetails?.description}</DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            <div>
+              <h4 className="font-semibold mb-2">Employees by Current Level</h4>
+              <div className="space-y-3">
+                {Object.entries(employeesByLevel)
+                  .sort(([a], [b]) => {
+                    const order = ['foundational', 'developing', 'proficient', 'advanced', 'expert', 'Not Assessed'];
+                    return order.indexOf(a) - order.indexOf(b);
+                  })
+                  .map(([level, profileIds]) => (
+                    <div key={level} className="border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium capitalize">{level}</span>
+                        <Badge variant="secondary">{profileIds.length} people</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {profileIds.map((profileId) => {
+                          const profile = employeeProfiles.get(profileId);
+                          return (
+                            <Badge
+                              key={profileId}
+                              variant="outline"
+                              className="cursor-pointer hover:bg-secondary transition-colors"
+                              onClick={() => {
+                                setCapabilityDialogOpen(false);
+                                setSelectedEmployeeId(profileId);
+                              }}
+                            >
+                              {profile?.full_name || 'Unknown'}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
