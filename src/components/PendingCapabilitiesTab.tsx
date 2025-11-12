@@ -20,6 +20,7 @@ interface CapabilityRequest {
   manager_notes: string | null;
   employee_name: string;
   capability_name: string;
+  is_self_request?: boolean;
 }
 
 export function PendingCapabilitiesTab() {
@@ -43,15 +44,27 @@ export function PendingCapabilitiesTab() {
         .select("employee_id")
         .eq("manager_id", user.id);
 
-      if (!reports || reports.length === 0) {
+      const employeeIds = reports?.map((r) => r.employee_id) || [];
+
+      // Check if current user has a manager
+      const { data: userAssignment } = await supabase
+        .from("manager_assignments")
+        .select("manager_id")
+        .eq("employee_id", user.id)
+        .maybeSingle();
+
+      // If user has no manager, include their own requests for self-approval
+      if (!userAssignment?.manager_id) {
+        employeeIds.push(user.id);
+      }
+
+      if (employeeIds.length === 0) {
         setRequests([]);
         setLoading(false);
         return;
       }
 
-      const employeeIds = reports.map((r) => r.employee_id);
-
-      // Get pending requests for direct reports
+      // Get pending requests for direct reports (and self if no manager)
       const { data, error } = await supabase
         .from("capability_level_requests")
         .select(`
@@ -65,6 +78,8 @@ export function PendingCapabilitiesTab() {
 
       if (error) throw error;
 
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
       const formattedRequests = (data || []).map((req: any) => ({
         id: req.id,
         profile_id: req.profile_id,
@@ -75,8 +90,11 @@ export function PendingCapabilitiesTab() {
         status: req.status,
         created_at: req.created_at,
         manager_notes: req.manager_notes,
-        employee_name: req.profiles?.full_name || "Unknown",
+        employee_name: req.profile_id === currentUser?.id 
+          ? `${req.profiles?.full_name || "Unknown"} (You)` 
+          : req.profiles?.full_name || "Unknown",
         capability_name: req.capabilities?.name || "Unknown",
+        is_self_request: req.profile_id === currentUser?.id,
       }));
 
       setRequests(formattedRequests);
@@ -203,7 +221,14 @@ export function PendingCapabilitiesTab() {
                 </CardTitle>
                 <CardDescription>{request.capability_name}</CardDescription>
               </div>
-              <Badge variant="secondary">Pending</Badge>
+              <div className="flex gap-2">
+                {request.is_self_request && (
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                    Self-Approval
+                  </Badge>
+                )}
+                <Badge variant="secondary">Pending</Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
