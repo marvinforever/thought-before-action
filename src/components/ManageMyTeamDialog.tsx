@@ -170,16 +170,8 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
         if (deleteError) throw deleteError;
       }
 
-      // First, delete any existing assignments for these employees (from other managers)
-      // This will only work if user is admin, otherwise it will fail due to RLS
+      // Add new assignments for selected employees (allow multiple managers per employee)
       if (toAdd.length > 0) {
-        // Try to remove existing assignments (will only succeed for admins)
-        await supabase
-          .from("manager_assignments")
-          .delete()
-          .in("employee_id", toAdd);
-
-        // Add new assignments
         const newAssignments = toAdd.map(employeeId => ({
           manager_id: user.id,
           employee_id: employeeId,
@@ -187,17 +179,11 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
           assigned_by: user.id,
         }));
 
-        const { error: insertError } = await supabase
+        const { error: upsertError } = await supabase
           .from("manager_assignments")
-          .insert(newAssignments);
+          .upsert(newAssignments, { onConflict: 'manager_id,employee_id' });
 
-        if (insertError) {
-          // If insert fails due to unique constraint, it means employee is assigned elsewhere
-          if (insertError.code === '23505') {
-            throw new Error('Some employees are already assigned to other managers. Only admins can reassign between managers.');
-          }
-          throw insertError;
-        }
+        if (upsertError) throw upsertError;
       }
 
       toast({
@@ -274,18 +260,12 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                   filteredEmployees.map((employee) => (
                     <div
                       key={employee.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border ${
-                        employee.assigned_to_other 
-                          ? 'opacity-50 cursor-not-allowed bg-muted/30' 
-                          : 'hover:bg-muted/50 cursor-pointer'
-                      }`}
-                      onClick={() => !employee.assigned_to_other && handleToggleEmployee(employee.id)}
-                      title={employee.assigned_to_other ? 'Already assigned to another manager' : ''}
+                      className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                      onClick={() => handleToggleEmployee(employee.id)}
                     >
                       <Checkbox
                         checked={selectedIds.has(employee.id)}
                         onCheckedChange={() => handleToggleEmployee(employee.id)}
-                        disabled={employee.assigned_to_other}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -293,11 +273,6 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                           {employee.role && (
                             <Badge variant="secondary" className="text-xs">
                               {employee.role}
-                            </Badge>
-                          )}
-                          {employee.assigned_to_other && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">
-                              Assigned to other manager
                             </Badge>
                           )}
                         </div>
