@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, UserPlus } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, UserPlus, Plus } from "lucide-react";
 import AssignResourceDialog from "@/components/AssignResourceDialog";
+import ImportResourceDialog from "@/components/ImportResourceDialog";
 
 type Resource = {
   id: string;
@@ -40,6 +41,8 @@ export default function Resources() {
     title: string; 
     capabilities: Array<{ id: string; name: string }> 
   } | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [selectedCapabilityForImport, setSelectedCapabilityForImport] = useState<string | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -257,14 +260,30 @@ export default function Resources() {
         </Card>
       ) : (
         <Accordion type="multiple" className="space-y-4">
-          {Object.entries(groupedByCapability).map(([capability, capabilityResources]) => (
-            <AccordionItem key={capability} value={capability} className="border rounded-lg">
-              <AccordionTrigger className="px-6 hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-semibold">{capability}</h2>
-                  <Badge variant="outline">{capabilityResources.length} resources</Badge>
-                </div>
-              </AccordionTrigger>
+          {Object.entries(groupedByCapability).map(([capability, capabilityResources]) => {
+            const capabilityId = capabilityResources[0]?.capabilities.find(c => c.name === capability)?.id;
+            return (
+              <AccordionItem key={capability} value={capability} className="border rounded-lg">
+                <AccordionTrigger className="px-6 hover:no-underline">
+                  <div className="flex items-center justify-between w-full pr-4">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl font-semibold">{capability}</h2>
+                      <Badge variant="outline">{capabilityResources.length} resources</Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCapabilityForImport(capabilityId);
+                        setImportDialogOpen(true);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Resource
+                    </Button>
+                  </div>
+                </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {capabilityResources.map((resource) => (
@@ -363,10 +382,11 @@ export default function Resources() {
                       </CardContent>
                     </Card>
                   ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
         </Accordion>
       )}
 
@@ -379,6 +399,13 @@ export default function Resources() {
           resourceCapabilities={selectedResource.capabilities}
         />
       )}
+
+      <ImportResourceDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        preselectedCapabilityId={selectedCapabilityForImport}
+        onImportComplete={loadResources}
+      />
     </div>
   );
 }
