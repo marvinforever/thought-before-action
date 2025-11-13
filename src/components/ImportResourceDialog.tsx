@@ -192,7 +192,7 @@ export default function ImportResourceDialog({
             authors: resource.author,
             estimated_time_minutes: resource.duration_minutes,
             is_active: true,
-            created_by: user.id
+            company_id: profile.company_id
           })
           .select()
           .single();
