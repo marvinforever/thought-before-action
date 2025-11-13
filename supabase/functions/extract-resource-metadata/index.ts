@@ -98,18 +98,92 @@ async function getYouTubeVideoMetadata(videoId: string): Promise<ResourceMetadat
   }
 }
 
-// Get playlist videos (requires YouTube API key for full functionality)
+// Get playlist videos using YouTube Data API v3
 async function getYouTubePlaylistVideos(playlistId: string): Promise<ResourceMetadata[]> {
-  // For now, return a single item indicating playlist support is limited
-  // In the future, this could use YouTube Data API with an API key
-  return [{
-    url: `https://www.youtube.com/playlist?list=${playlistId}`,
-    title: 'YouTube Playlist',
-    description: 'To import individual videos from this playlist, please paste each video URL separately.',
-    content_type: 'video',
-    is_valid: true,
-    error: 'Playlist batch import requires YouTube API key configuration'
-  }];
+  const apiKey = Deno.env.get('YOUTUBE_API_KEY');
+  
+  if (!apiKey) {
+    console.error('YouTube API key not configured');
+    return [{
+      url: `https://www.youtube.com/playlist?list=${playlistId}`,
+      title: 'YouTube Playlist',
+      description: 'To import individual videos from this playlist, please paste each video URL separately.',
+      content_type: 'video',
+      is_valid: true,
+      error: 'YouTube API key not configured'
+    }];
+  }
+
+  try {
+    const videos: ResourceMetadata[] = [];
+    let pageToken = '';
+    let pageCount = 0;
+    const maxPages = 10; // Limit to ~500 videos (50 per page)
+
+    do {
+      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50&key=${apiKey}${pageToken ? `&pageToken=${pageToken}` : ''}`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Process each video in the playlist
+      for (const item of data.items) {
+        const videoId = item.contentDetails?.videoId;
+        if (!videoId) continue;
+
+        const snippet = item.snippet;
+        
+        // Convert ISO 8601 duration to minutes (if available via contentDetails)
+        let durationMinutes = null;
+        
+        videos.push({
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          title: snippet.title || 'Untitled Video',
+          description: snippet.description || '',
+          content_type: 'video',
+          thumbnail_url: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url,
+          author: snippet.videoOwnerChannelTitle || snippet.channelTitle,
+          duration_minutes: durationMinutes,
+          is_valid: true
+        });
+      }
+
+      pageToken = data.nextPageToken || '';
+      pageCount++;
+      
+    } while (pageToken && pageCount < maxPages);
+
+    console.log(`Extracted ${videos.length} videos from playlist ${playlistId}`);
+    
+    if (videos.length === 0) {
+      return [{
+        url: `https://www.youtube.com/playlist?list=${playlistId}`,
+        title: 'Empty Playlist',
+        description: 'This playlist appears to be empty or private.',
+        content_type: 'video',
+        is_valid: false,
+        error: 'No videos found in playlist'
+      }];
+    }
+
+    return videos;
+    
+  } catch (error) {
+    console.error('Error fetching playlist videos:', error);
+    return [{
+      url: `https://www.youtube.com/playlist?list=${playlistId}`,
+      title: 'Playlist Error',
+      description: error.message || 'Failed to fetch playlist videos',
+      content_type: 'video',
+      is_valid: false,
+      error: error.message
+    }];
+  }
 }
 
 // Generic metadata extraction for non-YouTube URLs
