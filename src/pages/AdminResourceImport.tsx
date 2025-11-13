@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import PasteResourceImport from "@/components/PasteResourceImport";
 
 export default function AdminResourceImport() {
   const [importing, setImporting] = useState(false);
@@ -184,14 +185,19 @@ export default function AdminResourceImport() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight">Resource Library Import</h1>
-        <p className="text-muted-foreground mt-2">
-          Import curated learning resources into your company's library
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight">Resource Import Center</h1>
+          <p className="text-muted-foreground text-lg">
+            Import learning resources by pasting URLs, uploading CSVs, or using curated collections
+          </p>
+        </div>
 
+        {/* NEW: Paste & Import Interface */}
+        <PasteResourceImport />
+
+      {/* Existing Import Options */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -346,6 +352,7 @@ export default function AdminResourceImport() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
