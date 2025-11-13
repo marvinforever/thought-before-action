@@ -43,15 +43,15 @@ export default function PasteResourceImport() {
 
   const loadCapabilities = async () => {
     try {
-      const response = await supabase
+      const { data, error } = await supabase
         .from('capabilities')
         .select('id, name')
-        .eq('is_active', true)
         .order('name');
       
-      if (response.data) {
-        const caps = response.data as any;
-        setCapabilities(caps);
+      if (error) throw error;
+      
+      if (data) {
+        setCapabilities(data);
       }
     } catch (err) {
       console.error('Failed to load capabilities:', err);
