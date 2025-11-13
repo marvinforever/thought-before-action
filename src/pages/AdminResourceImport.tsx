@@ -3,9 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Book, Video, FileUp, Download, Loader2, BookOpen, Upload } from "lucide-react";
-import { importLeadershipBooks } from "@/utils/importLeadershipBooks";
-import { importLeadershipVideos } from "@/utils/importLeadershipVideos";
+import { FileUp, Download, Loader2, Upload } from "lucide-react";
 import { importResourcesFromCSV, generateCSVTemplate, ImportResult } from "@/utils/importResourcesFromCSV";
 import {
   Table,
@@ -25,75 +23,6 @@ export default function AdminResourceImport() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleImportBooks = async () => {
-    try {
-      setImporting(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.company_id) throw new Error("No company found");
-
-      const results = await importLeadershipBooks(profile.company_id);
-      
-      const successCount = results.filter(r => r.success).length;
-      const failCount = results.filter(r => !r.success).length;
-
-      toast({
-        title: "Import Complete",
-        description: `Successfully imported ${successCount} books${failCount > 0 ? `, ${failCount} failed` : ''}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Import failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const handleImportVideos = async () => {
-    try {
-      setImporting(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.company_id) throw new Error("No company found");
-
-      const results = await importLeadershipVideos(profile.company_id);
-      
-      const successCount = results.filter(r => r.success).length;
-      const failCount = results.filter(r => !r.success).length;
-
-      toast({
-        title: "Import Complete",
-        description: `Successfully imported ${successCount} videos${failCount > 0 ? `, ${failCount} failed` : ''}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Import failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -190,77 +119,12 @@ export default function AdminResourceImport() {
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight">Resource Import Center</h1>
           <p className="text-muted-foreground text-lg">
-            Import learning resources by pasting URLs, uploading CSVs, or using curated collections
+            Import learning resources by pasting URLs or uploading CSV files
           </p>
         </div>
 
-        {/* NEW: Paste & Import Interface */}
+        {/* Paste & Import Interface */}
         <PasteResourceImport />
-
-      {/* Existing Import Options */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-primary" />
-              <CardTitle>Leadership Books</CardTitle>
-            </div>
-            <CardDescription>
-              Import 14 curated leadership books across all proficiency levels
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleImportBooks}
-              disabled={importing}
-              className="w-full"
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import Books
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Video className="h-6 w-6 text-primary" />
-              <CardTitle>Leadership Videos</CardTitle>
-            </div>
-            <CardDescription>
-              Import 12 curated YouTube videos for leadership development
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleImportVideos}
-              disabled={importing}
-              className="w-full"
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import Videos
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
 
       <Card>
         <CardHeader>
