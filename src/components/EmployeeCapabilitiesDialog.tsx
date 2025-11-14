@@ -118,15 +118,10 @@ export function EmployeeCapabilitiesDialog({ open, onOpenChange, employee, onAss
             {capabilities.map((cap) => (
               <Card key={cap.id} className="border-l-4 border-l-primary">
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-base">{cap.capability.name}</CardTitle>
-                      <Badge variant="secondary" className="mt-1">
-                        {cap.capability.category}
-                      </Badge>
-                    </div>
-                    <Badge variant="outline">Priority {cap.priority}</Badge>
-                  </div>
+                  <CardTitle className="text-base">{cap.capability.name}</CardTitle>
+                  <Badge variant="secondary" className="mt-1">
+                    {cap.capability.category}
+                  </Badge>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
