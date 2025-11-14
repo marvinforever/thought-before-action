@@ -340,74 +340,139 @@ export default function StrategicLearningDesignReport() {
     }).format(amount);
   };
 
-  const exportForClaude = () => {
-    // Build comprehensive export with all data for McKinsey-style report
-    const exportData = {
-      metadata: {
-        export_date: new Date().toISOString(),
-        report_generated: report.generated_at,
-        report_expires: report.expires_at,
-        timeframe_years: parseInt(timeframe),
-      },
-      executive_summary: {
-        total_employees: summary.total_employees,
-        employees_needing_training: summary.employees_needing_training,
-        total_cohorts: summary.total_cohorts,
-        narrative: summary.narrative,
-        top_priorities: summary.top_priorities,
-        heavy_load_employees: summary.heavy_load_employees || [],
-      },
-      training_cohorts: cohorts.map(cohort => ({
-        cohort_name: cohort.cohort_name,
-        capability_name: cohort.capability_name,
-        employee_count: cohort.employee_count,
-        priority: cohort.priority,
-        current_level: cohort.current_level,
-        target_level: cohort.target_level,
-        gap_severity: cohort.gap_severity,
-        delivery_quarter: cohort.delivery_quarter,
-        employees: cohort.employee_ids.map(id => {
-          const profile = employeeProfiles.get(id);
-          return {
-            name: profile?.full_name || 'Unknown',
-            email: profile?.email || '',
-          };
-        }),
-        recommended_solutions: {
-          conservative: {
-            ...cohort.recommended_solutions?.[0],
-            cost: cohort.estimated_cost_conservative,
-          },
-          moderate: {
-            ...cohort.recommended_solutions?.[1],
-            cost: cohort.estimated_cost_moderate,
-          },
-          aggressive: {
-            ...cohort.recommended_solutions?.[2],
-            cost: cohort.estimated_cost_aggressive,
-          },
-        },
-      })),
-      full_narrative: report.narrative,
-      instructions_for_claude: "This is a strategic learning design report for an organization. Please create a professional, McKinsey-style consulting report with: 1) Executive Summary with key findings and recommendations, 2) Strategic Context and Business Drivers, 3) Detailed Training Cohort Analysis with capability gaps and recommended solutions, 4) Implementation Roadmap by delivery quarter, 5) Risk Mitigation (especially for heavy load employees), and 6) Success Metrics and KPIs. Make it executive-ready, data-driven, and persuasive. Focus on the strategic value and business impact of each training initiative.",
-    };
+  const exportForClaude = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      let yPosition = margin;
 
-    // Create and download JSON file
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `strategic-learning-report-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      // Helper function to add text with word wrap
+      const addText = (text: string, fontSize = 11, isBold = false) => {
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        const lines = doc.splitTextToSize(text, pageWidth - 2 * margin);
+        
+        lines.forEach((line: string) => {
+          if (yPosition > pageHeight - margin) {
+            doc.addPage();
+            yPosition = margin;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += fontSize * 0.5;
+        });
+        yPosition += 5;
+      };
 
-    toast({
-      title: "Export complete",
-      description: "Load this JSON file into Claude for a professional McKinsey-style report",
-    });
+      // Title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Strategic Learning Design Report', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // Date
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated: ${new Date(report.generated_at).toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // Executive Summary
+      addText('EXECUTIVE SUMMARY', 14, true);
+      const summary = report.executive_summary;
+      addText(`Total Employees: ${summary.total_employees}`);
+      addText(`Employees Needing Training: ${summary.employees_needing_training}`);
+      addText(`Total Training Cohorts: ${summary.total_cohorts}`);
+      yPosition += 5;
+      
+      if (summary.narrative) {
+        addText('Overview:', 12, true);
+        addText(summary.narrative);
+      }
+
+      // Top Priorities
+      if (summary.top_priorities && summary.top_priorities.length > 0) {
+        addText('Top Priorities:', 12, true);
+        summary.top_priorities.forEach((priority: any, index: number) => {
+          addText(`${index + 1}. ${priority.capability} - ${priority.employees_affected} employees affected`);
+        });
+        yPosition += 5;
+      }
+
+      // Heavy Load Employees (Hot Spots)
+      if (summary.heavy_load_employees && summary.heavy_load_employees.length > 0) {
+        addText('EMPLOYEES WITH HEAVY TRAINING LOAD', 14, true);
+        summary.heavy_load_employees.forEach((emp: any) => {
+          const profile = employeeProfiles.get(emp.employee_id);
+          addText(`${profile?.full_name || 'Unknown'} - ${emp.cohort_count} training cohorts`, 11, true);
+          if (emp.cohorts && emp.cohorts.length > 0) {
+            emp.cohorts.forEach((cohort: string) => {
+              addText(`  • ${cohort}`, 10);
+            });
+          }
+          yPosition += 3;
+        });
+      }
+
+      // Training Cohorts
+      if (yPosition > pageHeight - 40) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      
+      addText('TRAINING COHORTS', 14, true);
+      cohorts.forEach((cohort, index) => {
+        if (yPosition > pageHeight - 60) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        
+        addText(`${index + 1}. ${cohort.cohort_name}`, 12, true);
+        addText(`Capability: ${cohort.capability_name}`);
+        addText(`Employee Count: ${cohort.employee_count}`);
+        addText(`Current Level: ${cohort.current_level} → Target Level: ${cohort.target_level}`);
+        addText(`Gap Severity: ${cohort.gap_severity}`);
+        addText(`Delivery Quarter: ${cohort.delivery_quarter}`);
+        
+        if (cohort.employee_ids && cohort.employee_ids.length > 0) {
+          addText('Participants:', 11, true);
+          cohort.employee_ids.forEach(id => {
+            const profile = employeeProfiles.get(id);
+            if (profile) {
+              addText(`  • ${profile.full_name}`, 10);
+            }
+          });
+        }
+        yPosition += 5;
+      });
+
+      // Full Narrative
+      if (report.narrative) {
+        if (yPosition > pageHeight - 40) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        addText('DETAILED ANALYSIS', 14, true);
+        addText(report.narrative);
+      }
+
+      // Save the PDF
+      doc.save(`strategic-learning-report-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      toast({
+        title: "Export complete",
+        description: "Strategic Learning Design Report exported as PDF",
+      });
+    } catch (error: any) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: "Export failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -487,7 +552,7 @@ export default function StrategicLearningDesignReport() {
           </Button>
           <Button variant="outline" onClick={exportForClaude}>
             <Download className="h-4 w-4 mr-2" />
-            Export for Claude
+            Export PDF
           </Button>
         </div>
       </div>
