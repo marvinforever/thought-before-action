@@ -367,6 +367,32 @@ export default function StrategicLearningDesignReport() {
         yPosition += 5;
       };
 
+      // Helper to calculate capability scores
+      const LEVEL_MAP: Record<string, number> = {
+        foundational: 1.0, beginner: 1.0,
+        advancing: 2.0, intermediate: 2.0,
+        independent: 3.0, advanced: 3.0, established: 3.0,
+        mastery: 4.0, expert: 4.0,
+      };
+      
+      const normalizeLevel = (level: string): number => {
+        const normalized = level.toLowerCase();
+        return LEVEL_MAP[normalized] || 1.0;
+      };
+
+      const calculateScore = (caps: Array<{ current_level: string; target_level: string }>) => {
+        if (caps.length === 0) return { current: 0, target: 0, percentage: 0 };
+        const totalCurrent = caps.reduce((sum, cap) => sum + normalizeLevel(cap.current_level), 0);
+        const totalTarget = caps.reduce((sum, cap) => sum + normalizeLevel(cap.target_level), 0);
+        const avgCurrent = totalCurrent / caps.length;
+        const avgTarget = totalTarget / caps.length;
+        return {
+          current: Math.round(avgCurrent * 100),
+          target: Math.round(avgTarget * 100),
+          percentage: Math.round(((avgCurrent - 1) / 3) * 100)
+        };
+      };
+
       // Title
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
@@ -378,6 +404,53 @@ export default function StrategicLearningDesignReport() {
       doc.setFont('helvetica', 'normal');
       doc.text(`Generated: ${new Date(report.generated_at).toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
       yPosition += 15;
+
+      // Organizational Capability Score
+      if (orgCapabilities.length > 0) {
+        addText('ORGANIZATIONAL CAPABILITY SCORE', 14, true);
+        const orgScore = calculateScore(orgCapabilities);
+        addText(`Current Score: ${orgScore.current} / 400`);
+        addText(`Target Score: ${orgScore.target} / 400`);
+        addText(`Progress: ${orgScore.percentage}%`);
+        yPosition += 5;
+
+        // Scores by Category
+        const capsByCategory: Record<string, Array<{ current_level: string; target_level: string; name: string }>> = {};
+        
+        // Get all employee capabilities with category info
+        for (const cohort of cohorts) {
+          if (cohort.capability_id) {
+            const { data: capability } = await supabase
+              .from('capabilities')
+              .select('category')
+              .eq('id', cohort.capability_id)
+              .single();
+            
+            if (capability?.category) {
+              if (!capsByCategory[capability.category]) {
+                capsByCategory[capability.category] = [];
+              }
+              
+              const cohortScore = cohortCapabilities[cohort.id];
+              if (cohortScore && cohortScore.length > 0) {
+                capsByCategory[capability.category].push(...cohortScore.map((c: any) => ({
+                  ...c,
+                  name: cohort.capability_name
+                })));
+              }
+            }
+          }
+        }
+
+        if (Object.keys(capsByCategory).length > 0) {
+          addText('Capability Scores by Category:', 12, true);
+          Object.entries(capsByCategory).forEach(([category, caps]) => {
+            const categoryScore = calculateScore(caps);
+            addText(`${category}: ${categoryScore.current} / 400 (Target: ${categoryScore.target})`, 10);
+          });
+          yPosition += 5;
+        }
+      }
 
       // Executive Summary
       addText('EXECUTIVE SUMMARY', 14, true);
@@ -433,8 +506,6 @@ export default function StrategicLearningDesignReport() {
         addText(`Capability: ${cohort.capability_name}`);
         addText(`Employee Count: ${cohort.employee_count}`);
         addText(`Current Level: ${cohort.current_level} → Target Level: ${cohort.target_level}`);
-        addText(`Gap Severity: ${cohort.gap_severity}`);
-        addText(`Delivery Quarter: ${cohort.delivery_quarter}`);
         
         if (cohort.employee_ids && cohort.employee_ids.length > 0) {
           addText('Participants:', 11, true);
@@ -445,6 +516,13 @@ export default function StrategicLearningDesignReport() {
             }
           });
         }
+        
+        // Add cohort capability score if available
+        if (cohortCapabilities[cohort.id]) {
+          const cohortScore = calculateScore(cohortCapabilities[cohort.id]);
+          addText(`Cohort Score: ${cohortScore.current} / 400 (Target: ${cohortScore.target})`, 10);
+        }
+        
         yPosition += 5;
       });
 
