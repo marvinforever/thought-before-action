@@ -343,30 +343,7 @@ export default function StrategicLearningDesignReport() {
   const exportForClaude = async () => {
     try {
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
       
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20;
-      let yPosition = margin;
-
-      // Helper function to add text with word wrap
-      const addText = (text: string, fontSize = 11, isBold = false) => {
-        doc.setFontSize(fontSize);
-        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-        const lines = doc.splitTextToSize(text, pageWidth - 2 * margin);
-        
-        lines.forEach((line: string) => {
-          if (yPosition > pageHeight - margin) {
-            doc.addPage();
-            yPosition = margin;
-          }
-          doc.text(line, margin, yPosition);
-          yPosition += fontSize * 0.5;
-        });
-        yPosition += 5;
-      };
-
       // Helper to calculate capability scores
       const LEVEL_MAP: Record<string, number> = {
         foundational: 1.0, beginner: 1.0,
@@ -393,6 +370,57 @@ export default function StrategicLearningDesignReport() {
         };
       };
 
+      // Pre-fetch all category data
+      const capsByCategory: Record<string, Array<{ current_level: string; target_level: string; name: string }>> = {};
+      
+      for (const cohort of cohorts) {
+        if (cohort.capability_id) {
+          const { data: capability } = await supabase
+            .from('capabilities')
+            .select('category')
+            .eq('id', cohort.capability_id)
+            .single();
+          
+          if (capability?.category) {
+            if (!capsByCategory[capability.category]) {
+              capsByCategory[capability.category] = [];
+            }
+            
+            const cohortScore = cohortCapabilities[cohort.id];
+            if (cohortScore && cohortScore.length > 0) {
+              capsByCategory[capability.category].push(...cohortScore.map((c: any) => ({
+                ...c,
+                name: cohort.capability_name
+              })));
+            }
+          }
+        }
+      }
+
+      // Now generate the PDF with all data collected
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      let yPosition = margin;
+
+      // Helper function to add text with word wrap
+      const addText = (text: string, fontSize = 11, isBold = false) => {
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        const lines = doc.splitTextToSize(text, pageWidth - 2 * margin);
+        
+        lines.forEach((line: string) => {
+          if (yPosition > pageHeight - margin) {
+            doc.addPage();
+            yPosition = margin;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += fontSize * 0.5;
+        });
+        yPosition += 5;
+      };
+
       // Title
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
@@ -415,33 +443,6 @@ export default function StrategicLearningDesignReport() {
         yPosition += 5;
 
         // Scores by Category
-        const capsByCategory: Record<string, Array<{ current_level: string; target_level: string; name: string }>> = {};
-        
-        // Get all employee capabilities with category info
-        for (const cohort of cohorts) {
-          if (cohort.capability_id) {
-            const { data: capability } = await supabase
-              .from('capabilities')
-              .select('category')
-              .eq('id', cohort.capability_id)
-              .single();
-            
-            if (capability?.category) {
-              if (!capsByCategory[capability.category]) {
-                capsByCategory[capability.category] = [];
-              }
-              
-              const cohortScore = cohortCapabilities[cohort.id];
-              if (cohortScore && cohortScore.length > 0) {
-                capsByCategory[capability.category].push(...cohortScore.map((c: any) => ({
-                  ...c,
-                  name: cohort.capability_name
-                })));
-              }
-            }
-          }
-        }
-
         if (Object.keys(capsByCategory).length > 0) {
           addText('Capability Scores by Category:', 12, true);
           Object.entries(capsByCategory).forEach(([category, caps]) => {
