@@ -341,7 +341,7 @@ export default function StrategicLearningDesignReport() {
   };
 
   const exportForClaude = () => {
-    // Build comprehensive export with all data
+    // Build comprehensive export with all data for McKinsey-style report
     const exportData = {
       metadata: {
         export_date: new Date().toISOString(),
@@ -355,6 +355,7 @@ export default function StrategicLearningDesignReport() {
         total_cohorts: summary.total_cohorts,
         narrative: summary.narrative,
         top_priorities: summary.top_priorities,
+        heavy_load_employees: summary.heavy_load_employees || [],
       },
       training_cohorts: cohorts.map(cohort => ({
         cohort_name: cohort.cohort_name,
@@ -387,34 +388,8 @@ export default function StrategicLearningDesignReport() {
           },
         },
       })),
-      budget_scenarios: {
-        conservative: {
-          total: scenarios?.conservative?.total,
-          per_employee: scenarios?.conservative?.per_employee,
-          description: "Free to low-cost solutions ($0-$150/person)",
-        },
-        moderate: {
-          total: scenarios?.moderate?.total,
-          per_employee: scenarios?.moderate?.per_employee,
-          description: "Balanced investment ($500-$2K/person)",
-        },
-        aggressive: {
-          total: scenarios?.aggressive?.total,
-          per_employee: scenarios?.aggressive?.per_employee,
-          description: "Premium programs ($2K-$5K/person)",
-        },
-      },
-      roi_projections: {
-        training_cost: roi.training_cost,
-        retention_savings: roi.retention_savings,
-        productivity_gains: roi.productivity_gains,
-        net_roi: roi.net_roi,
-        roi_percentage: roi.roi_percentage,
-        break_even_months: roi.break_even_months,
-        methodology: roi.methodology,
-      },
       full_narrative: report.narrative,
-      instructions_for_claude: "This is a strategic learning design report for an organization. Please analyze this data and create a comprehensive, professional report suitable for sharing with clients. Include: 1) Executive summary, 2) Detailed analysis of each training cohort with business justification, 3) Budget recommendations with ROI analysis, 4) Implementation roadmap, and 5) Success metrics. Make it executive-ready and persuasive.",
+      instructions_for_claude: "This is a strategic learning design report for an organization. Please create a professional, McKinsey-style consulting report with: 1) Executive Summary with key findings and recommendations, 2) Strategic Context and Business Drivers, 3) Detailed Training Cohort Analysis with capability gaps and recommended solutions, 4) Implementation Roadmap by delivery quarter, 5) Risk Mitigation (especially for heavy load employees), and 6) Success Metrics and KPIs. Make it executive-ready, data-driven, and persuasive. Focus on the strategic value and business impact of each training initiative.",
     };
 
     // Create and download JSON file
@@ -423,7 +398,7 @@ export default function StrategicLearningDesignReport() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `strategic-learning-design-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `strategic-learning-report-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -431,7 +406,7 @@ export default function StrategicLearningDesignReport() {
 
     toast({
       title: "Export complete",
-      description: "Load this JSON file into Claude for a detailed report",
+      description: "Load this JSON file into Claude for a professional McKinsey-style report",
     });
   };
 
