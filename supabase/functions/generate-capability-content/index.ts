@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { capabilityName, category } = await req.json();
+    const { capabilityName, category, description, fullDescription } = await req.json();
 
     if (!capabilityName || !category) {
       return new Response(
@@ -33,9 +33,11 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert in organizational development and capability frameworks. Generate comprehensive capability definitions following a four-level progression model.
 
+CRITICAL: If the user has provided existing descriptions, you MUST use them as the foundation and build upon them. Do NOT create entirely new descriptions that ignore what the user wrote.
+
 For each capability, you must provide:
-1. A concise short description (1-2 sentences)
-2. A detailed full description (2-3 sentences explaining why this capability matters)
+1. A concise short description (1-2 sentences) - USE THE USER'S SHORT DESCRIPTION IF PROVIDED
+2. A detailed full description (2-3 sentences explaining why this capability matters) - USE THE USER'S FULL DESCRIPTION IF PROVIDED
 3. Four progression levels with detailed descriptions:
    - Foundational (Awareness): Basic awareness and understanding of core concepts
    - Advancing (Working Knowledge): Developing practical skills with guidance
@@ -44,12 +46,23 @@ For each capability, you must provide:
 
 Each level description should be 2-4 sentences describing specific behaviors and capabilities at that level.`;
 
-    const userPrompt = `Generate a complete capability definition for "${capabilityName}" in the "${category}" category.
-
-Provide your response in the following JSON format:
+    let userPrompt = `Generate a complete capability definition for "${capabilityName}" in the "${category}" category.`;
+    
+    if (description || fullDescription) {
+      userPrompt += `\n\nIMPORTANT - The user has already provided context that you MUST respect and incorporate:`;
+      if (description) {
+        userPrompt += `\n- Short description: "${description}"`;
+      }
+      if (fullDescription) {
+        userPrompt += `\n- Full description: "${fullDescription}"`;
+      }
+      userPrompt += `\n\nYou should use these descriptions as your foundation. Only generate the four progression levels that align with and elaborate on what the user has described. DO NOT rewrite or ignore their descriptions.`;
+    }
+    
+    userPrompt += `\n\nProvide your response in the following JSON format:
 {
-  "shortDescription": "concise 1-2 sentence description",
-  "fullDescription": "detailed 2-3 sentence explanation of why this matters",
+  "shortDescription": "${description ? 'Use the provided short description' : 'concise 1-2 sentence description'}",
+  "fullDescription": "${fullDescription ? 'Use the provided full description' : 'detailed 2-3 sentence explanation of why this matters'}",
   "foundational": "2-4 sentences describing Foundational level",
   "advancing": "2-4 sentences describing Advancing level",
   "independent": "2-4 sentences describing Independent level",
