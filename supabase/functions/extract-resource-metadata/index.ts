@@ -82,7 +82,7 @@ async function getYouTubeVideoMetadata(videoId: string): Promise<ResourceMetadat
       content_type: 'video',
       thumbnail_url: data.thumbnail_url,
       author: data.author_name,
-      duration_minutes: null, // oEmbed doesn't provide this
+      duration_minutes: undefined, // oEmbed doesn't provide this
       is_valid: true
     };
   } catch (error) {
@@ -148,7 +148,7 @@ async function getYouTubePlaylistVideos(playlistId: string): Promise<ResourceMet
           content_type: 'video',
           thumbnail_url: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url,
           author: snippet.videoOwnerChannelTitle || snippet.channelTitle,
-          duration_minutes: durationMinutes,
+          duration_minutes: durationMinutes || undefined,
           is_valid: true
         });
       }
@@ -175,13 +175,14 @@ async function getYouTubePlaylistVideos(playlistId: string): Promise<ResourceMet
     
   } catch (error) {
     console.error('Error fetching playlist videos:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch playlist videos';
     return [{
       url: `https://www.youtube.com/playlist?list=${playlistId}`,
       title: 'Playlist Error',
-      description: error.message || 'Failed to fetch playlist videos',
+      description: errorMessage,
       content_type: 'video',
       is_valid: false,
-      error: error.message
+      error: errorMessage
     }];
   }
 }
@@ -268,10 +269,11 @@ serve(async (req) => {
     
   } catch (error) {
     console.error('Error extracting metadata:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to extract resource metadata';
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Failed to extract resource metadata' 
+        error: errorMessage
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
