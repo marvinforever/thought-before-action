@@ -123,7 +123,9 @@ export default function CreateCapabilityDialog({
       const { data, error } = await supabase.functions.invoke('generate-capability-content', {
         body: {
           capabilityName: name.trim(),
-          category: category.trim()
+          category: category.trim(),
+          description: description.trim() || undefined,
+          fullDescription: fullDescription.trim() || undefined
         }
       });
 
