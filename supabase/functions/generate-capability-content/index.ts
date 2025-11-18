@@ -31,61 +31,79 @@ serve(async (req) => {
 
     console.log(`Generating capability content for: ${capabilityName} (${category})`);
 
-    let systemPrompt = `You are an expert in organizational development and capability frameworks. Generate capability progression levels following a four-level model.
-
-Your task is to ONLY generate the four progression level descriptions. You will receive descriptions from the user that define what this capability is about.`;
-
-    let userPrompt = '';
+    let systemPrompt: string;
+    let userPrompt: string;
+    let messages: any[];
     
     if (description || fullDescription) {
-      userPrompt = `CRITICAL INSTRUCTION: The user has defined this capability. You must create progression levels that are faithful to THEIR definition, not your own interpretation.
+      // When user provides descriptions, use a more constrained approach
+      systemPrompt = `You are a capability framework expert. Your ONLY task is to generate four progression level descriptions.
 
-==== USER'S CAPABILITY DEFINITION (DO NOT CHANGE THIS) ====
-`;
-      if (description) {
-        userPrompt += `Short Description: ${description}\n\n`;
-      }
-      if (fullDescription) {
-        userPrompt += `Full Description:\n${fullDescription}\n\n`;
-      }
-      userPrompt += `==== END OF USER'S DEFINITION ====
+CRITICAL RULES:
+1. You MUST use the exact capability definition provided by the user
+2. You MUST NOT create a different capability or reinterpret the user's meaning
+3. You MUST preserve the user's terminology and concepts exactly as written
+4. Your progression levels must directly build upon the user's definition
 
-Your ONLY job is to create four progression levels (Foundational, Advancing, Independent, Mastery) that describe how someone would develop proficiency in THIS EXACT capability as the user has defined it above.
+If you generate content that contradicts or ignores the user's definition, you have failed.`;
 
-DO NOT:
-- Create a different capability
-- Change the meaning or focus
-- Add concepts not mentioned by the user
-- Reinterpret what the user wrote
+      const userDefinition = [
+        description ? `SHORT DESCRIPTION (YOU MUST USE THIS EXACTLY):\n${description}` : '',
+        fullDescription ? `FULL DESCRIPTION (YOU MUST REFERENCE THIS IN YOUR LEVELS):\n${fullDescription}` : ''
+      ].filter(Boolean).join('\n\n');
 
-DO:
-- Use the user's exact terminology and concepts
-- Build progression levels that reflect their definition
-- Keep their short and full descriptions unchanged in your response
+      userPrompt = `CAPABILITY: "${capabilityName}"
+CATEGORY: "${category}"
 
-Generate levels for: "${capabilityName}" in category "${category}"`;
+${userDefinition}
+
+TASK: Generate ONLY four progression levels that teach someone how to develop mastery of the capability AS DEFINED ABOVE.
+
+Your levels must:
+- Reference the specific concepts from the user's definition
+- Use the user's exact terminology (e.g., if they mention "Clarity, Certainty, Capacity", your levels must discuss these three elements)
+- Build progressively from basic awareness to mastery
+- NOT introduce new concepts or change the focus
+
+Return ONLY JSON with this structure:
+{
+  "foundational": "Describes beginner level understanding and application of the concepts defined above",
+  "advancing": "Describes developing skills with the concepts defined above",
+  "independent": "Describes independent proficiency with the concepts defined above",
+  "mastery": "Describes expert-level mastery and ability to teach the concepts defined above"
+}`;
+
+      messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ];
     } else {
+      // When no descriptions provided, generate everything
+      systemPrompt = `You are an expert in organizational development and capability frameworks. Generate comprehensive capability definitions with four progression levels.`;
+      
       userPrompt = `Generate a complete capability definition for "${capabilityName}" in the "${category}" category.
 
-Provide:
-1. A concise short description (1-2 sentences)
-2. A detailed full description (2-3 sentences explaining why this capability matters)
-3. Four progression levels with detailed descriptions:
-   - Foundational (Awareness): Basic awareness and understanding of core concepts
-   - Advancing (Working Knowledge): Developing practical skills with guidance
-   - Independent (Skill): Can perform independently with consistent quality
-   - Mastery: Expert level, can teach and innovate`;
-    }
-    
-    userPrompt += `\n\nProvide your response in this exact JSON format:
+Provide a short description (1-2 sentences), full description (2-3 sentences), and four progression levels:
+- Foundational (Awareness): Basic awareness and understanding
+- Advancing (Working Knowledge): Developing practical skills with guidance  
+- Independent (Skill): Can perform independently with quality
+- Mastery: Expert level, can teach and innovate
+
+Return JSON:
 {
-  "shortDescription": "${description || 'concise 1-2 sentence description'}",
-  "fullDescription": "${fullDescription || 'detailed 2-3 sentence explanation of why this matters'}",
-  "foundational": "2-4 sentences describing Foundational level behaviors and capabilities",
-  "advancing": "2-4 sentences describing Advancing level behaviors and capabilities",
-  "independent": "2-4 sentences describing Independent level behaviors and capabilities",
-  "mastery": "2-4 sentences describing Mastery level behaviors and capabilities"
+  "shortDescription": "1-2 sentence description",
+  "fullDescription": "2-3 sentence explanation",
+  "foundational": "2-4 sentences",
+  "advancing": "2-4 sentences", 
+  "independent": "2-4 sentences",
+  "mastery": "2-4 sentences"
 }`;
+
+      messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ];
+    }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -95,10 +113,7 @@ Provide:
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
+        messages,
         response_format: { type: 'json_object' }
       }),
     });
@@ -121,6 +136,13 @@ Provide:
     }
 
     const content = JSON.parse(contentText);
+    
+    // Log what we received vs what we expected
+    if (description || fullDescription) {
+      console.log('User provided descriptions - validating AI response...');
+      if (description) console.log('Expected to preserve short description:', description.substring(0, 100));
+      if (fullDescription) console.log('Expected to preserve full description:', fullDescription.substring(0, 100));
+    }
     
     // Ensure we preserve user's descriptions if they provided them
     const finalContent = {
