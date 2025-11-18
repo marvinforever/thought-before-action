@@ -111,13 +111,13 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
     }]);
 
     try {
-      // Get the user's session token
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.access_token) {
         throw new Error('No active session. Please log in again.');
       }
 
+      console.log('Calling chat-with-jericho function...');
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-jericho`,
         {
@@ -136,10 +136,19 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
         }
       );
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Edge function error:', response.status, errorText);
-        throw new Error(`Failed to get response: ${response.status}`);
+        
+        // Parse error message if it's JSON
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || `Failed to get response: ${response.status}`);
+        } catch {
+          throw new Error(`Failed to get response: ${response.status} - ${errorText}`);
+        }
       }
       
       if (!response.body) throw new Error('No response body');
