@@ -21,6 +21,8 @@ type NinetyDayTarget = {
   by_when: string | null;
   support_needed: string | null;
   completed: boolean;
+  benchmarks: any;
+  sprints: any;
 };
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 
@@ -65,7 +67,9 @@ export default function NinetyDayTracker() {
   const [formData, setFormData] = useState({
     goalText: "",
     byWhen: "",
-    supportNeeded: ""
+    supportNeeded: "",
+    benchmarks: "",
+    sprints: ""
   });
   const [aiSuggestion, setAiSuggestion] = useState("");
   const [isLoadingAi, setIsLoadingAi] = useState(false);
@@ -105,7 +109,9 @@ export default function NinetyDayTracker() {
         goal_text: null,
         by_when: null,
         support_needed: null,
-        completed: false
+        completed: false,
+        benchmarks: null,
+        sprints: null
       };
     });
   };
@@ -130,7 +136,9 @@ export default function NinetyDayTracker() {
         goal_number: goalNumber,
         goal_text: formData.goalText || null,
         by_when: formData.byWhen || null,
-        support_needed: formData.supportNeeded || null
+        support_needed: formData.supportNeeded || null,
+        benchmarks: formData.benchmarks ? { text: formData.benchmarks } : null,
+        sprints: formData.sprints ? { text: formData.sprints } : null
       };
       const {
         error
@@ -146,7 +154,9 @@ export default function NinetyDayTracker() {
       setFormData({
         goalText: "",
         byWhen: "",
-        supportNeeded: ""
+        supportNeeded: "",
+        benchmarks: "",
+        sprints: ""
       });
       await loadTargets();
     } catch (error: any) {
@@ -203,13 +213,17 @@ export default function NinetyDayTracker() {
       setFormData({
         goalText: existing.goal_text || "",
         byWhen: existing.by_when || "",
-        supportNeeded: existing.support_needed || ""
+        supportNeeded: existing.support_needed || "",
+        benchmarks: existing.benchmarks?.text || "",
+        sprints: existing.sprints?.text || ""
       });
     } else {
       setFormData({
         goalText: "",
         byWhen: "",
-        supportNeeded: ""
+        supportNeeded: "",
+        benchmarks: "",
+        sprints: ""
       });
     }
     setAiSuggestion("");
@@ -386,6 +400,20 @@ export default function NinetyDayTracker() {
               supportNeeded: e.target.value
             })} placeholder="What help do you need?" className="min-h-[60px]" />
             </div>
+            <div>
+              <label className="text-xs font-medium mb-1 block">30 Day Benchmarks</label>
+              <Textarea value={formData.benchmarks} onChange={e => setFormData({
+              ...formData,
+              benchmarks: e.target.value
+            })} placeholder="What should you accomplish in 30 days?" className="min-h-[60px]" />
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1 block">Next 7 Day Sprint</label>
+              <Textarea value={formData.sprints} onChange={e => setFormData({
+              ...formData,
+              sprints: e.target.value
+            })} placeholder="What will you do in the next 7 days?" className="min-h-[60px]" />
+            </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => handleSaveGoal(quarter, category, goal.goal_number)}>
                 Save
@@ -421,6 +449,18 @@ export default function NinetyDayTracker() {
               {goal.support_needed && <p className="text-xs text-muted-foreground italic">
                   Support: {goal.support_needed}
                 </p>}
+              {goal.benchmarks?.text && (
+                <div className="mt-3 p-2 bg-muted/50 rounded-md">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">30 Day Benchmarks:</p>
+                  <p className="text-xs">{goal.benchmarks.text}</p>
+                </div>
+              )}
+              {goal.sprints?.text && (
+                <div className="mt-2 p-2 bg-accent/10 rounded-md">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Next 7 Day Sprint:</p>
+                  <p className="text-xs">{goal.sprints.text}</p>
+                </div>
+              )}
               <div className="flex gap-2 pt-2">
                 {!isEditing && goal.goal_text && <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => startEditing(quarter, category, goal.goal_number, goal)}>
                     Edit
