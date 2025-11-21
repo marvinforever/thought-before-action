@@ -462,7 +462,7 @@ export default function NinetyDayTracker() {
   const currentYear = new Date().getFullYear();
   const currentQuarter = getCurrentQuarter();
 
-  return <Card>
+  return <Card className="bg-highlight-gold">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
