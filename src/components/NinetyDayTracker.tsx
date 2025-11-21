@@ -73,6 +73,10 @@ export default function NinetyDayTracker() {
   });
   const [aiSuggestion, setAiSuggestion] = useState("");
   const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [aiSuggestionBenchmarks, setAiSuggestionBenchmarks] = useState("");
+  const [isLoadingAiBenchmarks, setIsLoadingAiBenchmarks] = useState(false);
+  const [aiSuggestionSprints, setAiSuggestionSprints] = useState("");
+  const [isLoadingAiSprints, setIsLoadingAiSprints] = useState(false);
   const {
     toast
   } = useToast();
@@ -227,13 +231,23 @@ export default function NinetyDayTracker() {
       });
     }
     setAiSuggestion("");
+    setAiSuggestionBenchmarks("");
+    setAiSuggestionSprints("");
   };
 
-  const handleGetAiHelp = async () => {
+  const handleGetAiHelp = async (type: 'goal' | 'benchmarks' | 'sprints' = 'goal') => {
     if (!editingGoal) return;
     
-    setIsLoadingAi(true);
-    setAiSuggestion("");
+    if (type === 'goal') {
+      setIsLoadingAi(true);
+      setAiSuggestion("");
+    } else if (type === 'benchmarks') {
+      setIsLoadingAiBenchmarks(true);
+      setAiSuggestionBenchmarks("");
+    } else if (type === 'sprints') {
+      setIsLoadingAiSprints(true);
+      setAiSuggestionSprints("");
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -253,6 +267,7 @@ export default function NinetyDayTracker() {
             draftGoal: formData.goalText,
             category: editingGoal.category,
             quarter: editingGoal.quarter,
+            type,
           }),
         }
       );
@@ -290,7 +305,13 @@ export default function NinetyDayTracker() {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
-              setAiSuggestion(prev => prev + content);
+              if (type === 'goal') {
+                setAiSuggestion(prev => prev + content);
+              } else if (type === 'benchmarks') {
+                setAiSuggestionBenchmarks(prev => prev + content);
+              } else if (type === 'sprints') {
+                setAiSuggestionSprints(prev => prev + content);
+              }
             }
           } catch {
             textBuffer = line + "\n" + textBuffer;
@@ -312,7 +333,13 @@ export default function NinetyDayTracker() {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
-              setAiSuggestion(prev => prev + content);
+              if (type === 'goal') {
+                setAiSuggestion(prev => prev + content);
+              } else if (type === 'benchmarks') {
+                setAiSuggestionBenchmarks(prev => prev + content);
+              } else if (type === 'sprints') {
+                setAiSuggestionSprints(prev => prev + content);
+              }
             }
           } catch { /* ignore partial leftovers */ }
         }
@@ -325,7 +352,13 @@ export default function NinetyDayTracker() {
         variant: 'destructive',
       });
     } finally {
-      setIsLoadingAi(false);
+      if (type === 'goal') {
+        setIsLoadingAi(false);
+      } else if (type === 'benchmarks') {
+        setIsLoadingAiBenchmarks(false);
+      } else if (type === 'sprints') {
+        setIsLoadingAiSprints(false);
+      }
     }
   };
 
@@ -335,6 +368,22 @@ export default function NinetyDayTracker() {
       goalText: aiSuggestion,
     }));
     setAiSuggestion("");
+  };
+
+  const handleUseAiSuggestionBenchmarks = () => {
+    setFormData(prev => ({
+      ...prev,
+      benchmarks: aiSuggestionBenchmarks,
+    }));
+    setAiSuggestionBenchmarks("");
+  };
+
+  const handleUseAiSuggestionSprints = () => {
+    setFormData(prev => ({
+      ...prev,
+      sprints: aiSuggestionSprints,
+    }));
+    setAiSuggestionSprints("");
   };
   const renderGoalCard = (goal: any, quarter: string, category: string) => {
     const isEditing = editingGoal?.quarter === quarter && editingGoal?.category === category && editingGoal?.number === goal.goal_number;
@@ -347,7 +396,7 @@ export default function NinetyDayTracker() {
                 <Button 
                   size="sm" 
                   variant="ghost" 
-                  onClick={handleGetAiHelp}
+                  onClick={() => handleGetAiHelp('goal')}
                   disabled={isLoadingAi}
                   className="text-xs h-7"
                 >
@@ -401,19 +450,94 @@ export default function NinetyDayTracker() {
             })} placeholder="What help do you need?" className="min-h-[60px]" />
             </div>
             <div>
-              <label className="text-xs font-medium mb-1 block">30 Day Benchmarks</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">30 Day Benchmarks</label>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => handleGetAiHelp('benchmarks')}
+                  disabled={isLoadingAiBenchmarks}
+                  className="text-xs h-7"
+                >
+                  {isLoadingAiBenchmarks ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Writing...</>
+                  ) : (
+                    <><Sparkles className="h-3 w-3 mr-1" /> Get Help</>
+                  )}
+                </Button>
+              </div>
               <Textarea value={formData.benchmarks} onChange={e => setFormData({
               ...formData,
               benchmarks: e.target.value
             })} placeholder="What should you accomplish in 30 days?" className="min-h-[60px]" />
             </div>
+
+            {(aiSuggestionBenchmarks || isLoadingAiBenchmarks) && (
+              <div className="bg-muted rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium">Jericho suggests:</span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap">
+                  {aiSuggestionBenchmarks || (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Thinking...
+                    </span>
+                  )}
+                </p>
+                {aiSuggestionBenchmarks && (
+                  <Button size="sm" variant="outline" onClick={handleUseAiSuggestionBenchmarks}>
+                    Use These Benchmarks
+                  </Button>
+                )}
+              </div>
+            )}
+
             <div>
-              <label className="text-xs font-medium mb-1 block">Next 7 Day Sprint</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">Next 7 Day Sprint</label>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => handleGetAiHelp('sprints')}
+                  disabled={isLoadingAiSprints}
+                  className="text-xs h-7"
+                >
+                  {isLoadingAiSprints ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Writing...</>
+                  ) : (
+                    <><Sparkles className="h-3 w-3 mr-1" /> Get Help</>
+                  )}
+                </Button>
+              </div>
               <Textarea value={formData.sprints} onChange={e => setFormData({
               ...formData,
               sprints: e.target.value
             })} placeholder="What will you do in the next 7 days?" className="min-h-[60px]" />
             </div>
+
+            {(aiSuggestionSprints || isLoadingAiSprints) && (
+              <div className="bg-muted rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium">Jericho suggests:</span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap">
+                  {aiSuggestionSprints || (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Thinking...
+                    </span>
+                  )}
+                </p>
+                {aiSuggestionSprints && (
+                  <Button size="sm" variant="outline" onClick={handleUseAiSuggestionSprints}>
+                    Use This Sprint Plan
+                  </Button>
+                )}
+              </div>
+            )}
             <div className="flex gap-2">
               <Button size="sm" onClick={() => handleSaveGoal(quarter, category, goal.goal_number)}>
                 Save

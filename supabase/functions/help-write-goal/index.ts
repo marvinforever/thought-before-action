@@ -35,7 +35,7 @@ serve(async (req) => {
       });
     }
 
-    const { draftGoal, category, quarter } = await req.json();
+    const { draftGoal, category, quarter, type = 'goal' } = await req.json();
 
     // Get user context
     const { data: profile } = await supabase
@@ -50,8 +50,12 @@ serve(async (req) => {
       .eq('profile_id', user.id)
       .single();
 
-    // Build concise system prompt
-    const systemPrompt = `You are Jericho, a direct career coach helping write clear, actionable 90-day goals.
+    // Build concise system prompt based on type
+    let systemPrompt = '';
+    let userPrompt = '';
+
+    if (type === 'goal') {
+      systemPrompt = `You are Jericho, a direct career coach helping write clear, actionable 90-day goals.
 
 USER: ${profile?.full_name || 'User'} (${profile?.role || 'Professional'})
 ${category.toUpperCase()} GOAL for ${quarter}
@@ -66,9 +70,40 @@ Keep it SHORT and ACTIONABLE. Your response should be:
 
 Format: Just give them the refined goal directly.`;
 
-    const userPrompt = draftGoal 
-      ? `Help me refine this goal: "${draftGoal}"`
-      : `Suggest a ${category} goal for ${quarter} that aligns with my career vision.`;
+      userPrompt = draftGoal 
+        ? `Help me refine this goal: "${draftGoal}"`
+        : `Suggest a ${category} goal for ${quarter} that aligns with my career vision.`;
+    } else if (type === 'benchmarks') {
+      systemPrompt = `You are Jericho, a strategic coach helping break down 90-day goals into 30-day benchmarks.
+
+USER: ${profile?.full_name || 'User'} (${profile?.role || 'Professional'})
+
+Keep it CONCISE and SPECIFIC. Your response should be:
+- 2-3 key milestones for the 30-day mark
+- Measurable progress indicators
+- Clear checkpoints
+
+Format: List the benchmarks directly, one per line.`;
+
+      userPrompt = draftGoal 
+        ? `Given this 90-day goal: "${draftGoal}", what should the 30-day benchmarks be?`
+        : `Suggest 30-day benchmarks for a ${category} goal in ${quarter}.`;
+    } else if (type === 'sprints') {
+      systemPrompt = `You are Jericho, an action-focused coach helping define immediate next steps for goals.
+
+USER: ${profile?.full_name || 'User'} (${profile?.role || 'Professional'})
+
+Keep it ACTIONABLE and IMMEDIATE. Your response should be:
+- 3-5 specific actions for the next 7 days
+- Concrete tasks, not abstract concepts
+- Things they can start TODAY
+
+Format: List the sprint tasks directly, one per line.`;
+
+      userPrompt = draftGoal 
+        ? `Given this 90-day goal: "${draftGoal}", what should I focus on in the next 7 days?`
+        : `Suggest a 7-day sprint plan for a ${category} goal in ${quarter}.`;
+    }
 
     // Call Lovable AI with streaming
     console.log('Calling Lovable AI for goal writing assistance');
