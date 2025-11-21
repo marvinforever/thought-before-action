@@ -877,9 +877,7 @@ export default function MyGrowthPlan() {
       </div>
 
       {/* 90 Day Tracker */}
-      <div className="bg-highlight-gold rounded-lg p-6">
-        <NinetyDayTracker />
-      </div>
+      <NinetyDayTracker />
 
       {jobDescriptions.length > 0 && (
         <Card>
@@ -937,9 +935,7 @@ export default function MyGrowthPlan() {
       )}
 
       {/* Achievements */}
-      <div className="bg-highlight-gold rounded-lg p-6">
-        <AchievementsCard />
-      </div>
+      <AchievementsCard />
 
       {/* Capability Mastery Meter */}
       {capabilities.length > 0 && <CapabilityMasteryMeter capabilities={capabilities} />}
