@@ -45,6 +45,10 @@
     --warning: 45 100% 48%;
     --warning-foreground: 211 51% 24%;
     
+    /* Light gold background */
+    --highlight-gold: 45 100% 96%;
+    --highlight-gold-foreground: 211 51% 24%;
+    
     /* Jericho Sidebar */
     --sidebar-background: 211 51% 24%;
     --sidebar-foreground: 0 0% 100%;
@@ -98,6 +102,9 @@
     
     --success: 142 76% 36%;
     --warning: 45 100% 48%;
+    
+    --highlight-gold: 45 80% 88%;
+    --highlight-gold-foreground: 0 0% 98%;
     
     --sidebar-background: 211 51% 20%;
     --sidebar-foreground: 0 0% 98%;

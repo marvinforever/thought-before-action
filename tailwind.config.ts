@@ -65,6 +65,10 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        "highlight-gold": {
+          DEFAULT: "hsl(var(--highlight-gold))",
+          foreground: "hsl(var(--highlight-gold-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
