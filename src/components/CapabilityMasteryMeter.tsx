@@ -93,13 +93,12 @@ export function CapabilityMasteryMeter({ capabilities }: CapabilityMasteryMeterP
         {/* Score Display */}
         <div className="flex items-end justify-between mb-2">
           <div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-3">
               <span className={`text-5xl font-bold ${stageColor}`}>
-                {displayScore}
+                {scorePercentage}%
               </span>
-              <span className="text-2xl text-muted-foreground font-medium">/ {maxScore}</span>
-              <span className={`text-2xl font-semibold ${stageColor}`}>
-                ({scorePercentage}%)
+              <span className="text-xl text-muted-foreground font-medium">
+                ({displayScore}/{maxScore})
               </span>
             </div>
             <Badge variant="outline" className="mt-2">
