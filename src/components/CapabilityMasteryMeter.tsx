@@ -61,6 +61,7 @@ export function CapabilityMasteryMeter({ capabilities }: CapabilityMasteryMeterP
   // Convert to 100-400 scale
   const displayScore = Math.round(averageScore * 100);
   const maxScore = 400;
+  const scorePercentage = Math.round((displayScore / maxScore) * 100);
 
   // Determine current stage label
   const currentStage = Math.floor(averageScore);
@@ -97,6 +98,9 @@ export function CapabilityMasteryMeter({ capabilities }: CapabilityMasteryMeterP
                 {displayScore}
               </span>
               <span className="text-2xl text-muted-foreground font-medium">/ {maxScore}</span>
+              <span className={`text-2xl font-semibold ${stageColor}`}>
+                ({scorePercentage}%)
+              </span>
             </div>
             <Badge variant="outline" className="mt-2">
               {stageLabel}
