@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2, Shield } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2, Shield, KeyRound, Mail } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -67,6 +67,10 @@ const Employees = () => {
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [companies, setCompanies] = useState<Array<{id: string, name: string}>>([]);
   const [selectedCompanyForCreate, setSelectedCompanyForCreate] = useState<string>("");
+  const [showWelcomeEmailDialog, setShowWelcomeEmailDialog] = useState(false);
+  const [employeeForWelcomeEmail, setEmployeeForWelcomeEmail] = useState<Employee | null>(null);
+  const [showBulkWelcomeEmailDialog, setShowBulkWelcomeEmailDialog] = useState(false);
+  const [isSendingWelcomeEmails, setIsSendingWelcomeEmails] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
@@ -454,6 +458,136 @@ const Employees = () => {
     }
   };
 
+  const handleSendWelcomeEmail = async (employee: Employee) => {
+    setEmployeeForWelcomeEmail(employee);
+    setShowWelcomeEmailDialog(true);
+  };
+
+  const handleConfirmSendWelcomeEmail = async () => {
+    if (!employeeForWelcomeEmail) return;
+
+    try {
+      // Generate a random temporary password
+      const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12).toUpperCase() + "!1";
+      
+      // Reset the employee's password
+      const { error: resetError } = await supabase.functions.invoke('reset-employee-password', {
+        body: {
+          employee_id: employeeForWelcomeEmail.id,
+          new_password: tempPassword
+        }
+      });
+
+      if (resetError) throw resetError;
+
+      // Send the welcome email
+      const loginUrl = `${window.location.origin}/auth`;
+      const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
+        body: {
+          email: employeeForWelcomeEmail.email,
+          fullName: employeeForWelcomeEmail.full_name,
+          password: tempPassword,
+          loginUrl
+        }
+      });
+
+      if (emailError) throw emailError;
+
+      toast({
+        title: "Welcome email sent",
+        description: `Welcome email sent to ${employeeForWelcomeEmail.full_name}`,
+      });
+    } catch (error: any) {
+      console.error('Error sending welcome email:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send welcome email",
+        variant: "destructive",
+      });
+    } finally {
+      setShowWelcomeEmailDialog(false);
+      setEmployeeForWelcomeEmail(null);
+    }
+  };
+
+  const handleBulkSendWelcomeEmails = () => {
+    setShowBulkWelcomeEmailDialog(true);
+  };
+
+  const handleConfirmBulkSendWelcomeEmails = async () => {
+    setIsSendingWelcomeEmails(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      const loginUrl = `${window.location.origin}/auth`;
+      
+      for (const employeeId of Array.from(selectedEmployees)) {
+        const employee = employees.find(e => e.id === employeeId);
+        if (!employee) continue;
+
+        try {
+          // Generate a random temporary password
+          const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12).toUpperCase() + "!1";
+          
+          // Reset the employee's password
+          const { error: resetError } = await supabase.functions.invoke('reset-employee-password', {
+            body: {
+              employee_id: employee.id,
+              new_password: tempPassword
+            }
+          });
+
+          if (resetError) throw resetError;
+
+          // Send the welcome email
+          const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
+            body: {
+              email: employee.email,
+              fullName: employee.full_name,
+              password: tempPassword,
+              loginUrl
+            }
+          });
+
+          if (emailError) throw emailError;
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to send welcome email to ${employee.full_name}:`, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Welcome emails sent",
+          description: `Successfully sent ${successCount} welcome email${successCount !== 1 ? 's' : ''}${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+        });
+      }
+      
+      if (failCount > 0 && successCount === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to send welcome emails",
+          variant: "destructive",
+        });
+      }
+
+      setSelectedEmployees(new Set());
+    } catch (error: any) {
+      console.error('Error in bulk send:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred while sending welcome emails",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingWelcomeEmails(false);
+      setShowBulkWelcomeEmailDialog(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <ViewAsCompanyBanner />
@@ -506,10 +640,16 @@ const Employees = () => {
         </div>
         <div className="flex gap-2">
           {selectedEmployees.size > 0 && (
-            <Button onClick={() => setBatchJobDescOpen(true)} variant="default">
-              <Brain className="mr-2 h-4 w-4" />
-              Batch Assign ({selectedEmployees.size})
-            </Button>
+            <>
+              <Button onClick={() => setBatchJobDescOpen(true)} variant="default">
+                <Brain className="mr-2 h-4 w-4" />
+                Batch Assign ({selectedEmployees.size})
+              </Button>
+              <Button onClick={handleBulkSendWelcomeEmails} variant="outline">
+                <Mail className="mr-2 h-4 w-4" />
+                Send Welcome Emails ({selectedEmployees.size})
+              </Button>
+            </>
           )}
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
@@ -756,8 +896,12 @@ const Employees = () => {
                               setResetPasswordEmployee(employee);
                               setResetPasswordDialogOpen(true);
                             }}>
-                              <Copy className="mr-2 h-4 w-4" />
+                              <KeyRound className="mr-2 h-4 w-4" />
                               Reset Password
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSendWelcomeEmail(employee)}>
+                              <Mail className="mr-2 h-4 w-4" />
+                              Send Welcome Email
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
                               {employee.is_active ? (
@@ -988,6 +1132,49 @@ const Employees = () => {
         }}
         employees={getSelectedEmployeesData()}
       />
+
+      <AlertDialog open={showWelcomeEmailDialog} onOpenChange={setShowWelcomeEmailDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Welcome Email?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will generate a NEW temporary password for {employeeForWelcomeEmail?.full_name} and send them a welcome email with login credentials to {employeeForWelcomeEmail?.email}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSendWelcomeEmail}>
+              Send Welcome Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkWelcomeEmailDialog} onOpenChange={setShowBulkWelcomeEmailDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Welcome Emails?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will generate NEW temporary passwords for {selectedEmployees.size} employee{selectedEmployees.size !== 1 ? 's' : ''} and send them welcome emails with login credentials.
+              <div className="mt-4 max-h-48 overflow-y-auto">
+                <p className="font-semibold mb-2">Selected employees:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {Array.from(selectedEmployees).map(id => {
+                    const emp = employees.find(e => e.id === id);
+                    return emp ? <li key={id}>{emp.full_name} ({emp.email})</li> : null;
+                  })}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSendingWelcomeEmails}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmBulkSendWelcomeEmails} disabled={isSendingWelcomeEmails}>
+              {isSendingWelcomeEmails ? "Sending..." : "Send All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,5 +1,8 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.send-welcome-email]
+verify_jwt = true
+
 [functions.setup-demo-company]
 verify_jwt = true
 
