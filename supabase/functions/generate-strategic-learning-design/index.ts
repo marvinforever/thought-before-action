@@ -506,15 +506,17 @@ OUTPUT STRUCTURE (2500-3500 words):
 5. IMPACT AND ROI CONTEXT:
    Conversationally discuss the expected business impact. Reference industry benchmarks naturally. Connect specific capability development to business outcomes.
 
-CRITICAL FORMATTING REQUIREMENTS:
-- Write in clean, professional prose suitable for executive review
-- DO NOT USE ANY MARKDOWN: no asterisks (*), no hash symbols (#), no underscores (_), no bold/italic markers  
-- Section headings should be plain text followed by a colon
-- Use numbered lists sparingly - prefer narrative paragraphs
-- Present data and insights conversationally but professionally
-- If you need emphasis, use capital letters or careful word choice, NOT markdown formatting
-- DO NOT mention specific budget recommendations or implementation quarters in the text
-- Focus on the narrative of who needs what and why, not project management details
+CRITICAL FORMATTING REQUIREMENTS - ABSOLUTELY NO EXCEPTIONS:
+- This document will be displayed directly to executives. It MUST be clean prose with ZERO markdown.
+- NEVER EVER use asterisks (*) for ANY reason - not for emphasis, not for lists, not for anything
+- NEVER use hash symbols (#) for headers - use plain text with a colon instead
+- NEVER use underscores (_) for emphasis or any other purpose
+- NEVER use bold, italic, or any markdown formatting markers
+- Section headings: Use plain text followed by a colon (e.g., "Executive Overview:" not "## Executive Overview")
+- For emphasis: Use capital letters or careful word choice, NEVER markdown
+- Lists: Use numbered lists (1., 2., 3.) or write as narrative prose
+- DO NOT mention budget recommendations or implementation quarters
+- Focus on WHO needs WHAT and WHY in narrative form
 
 Tone: Strategic, advisory, people-focused. Write like a trusted consultant who knows these individuals and their business. Evidence-based but conversational. Clear and engaging.`;
 
@@ -529,7 +531,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
         max_tokens: 4096,
-        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. CRITICAL: Write ONLY in clean professional prose. NEVER use markdown formatting. NO asterisks, NO hash symbols, NO underscores, NO bold/italic markers. Use plain text with colons for headings and numbered lists for priorities.",
+        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. ABSOLUTE REQUIREMENT: Your output will be displayed directly to executives with NO post-processing. You MUST write in completely clean professional prose with ZERO markdown characters. This means: ZERO asterisks (*), ZERO hash symbols (#), ZERO underscores (_), ZERO brackets, ZERO bold/italic markers of any kind. Use plain text with colons for headings (not ## or #). For lists, use numbers (1., 2., 3.) or narrative prose. This is NON-NEGOTIABLE.",
         messages: [
           { role: "user", content: narrativePrompt }
         ],
@@ -545,17 +547,21 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
     const aiData = await aiResponse.json();
     let narrative = aiData.content[0]?.text || "Narrative generation failed.";
     
-    // Post-process to remove any markdown formatting that slipped through
+    // AGGRESSIVE post-processing to remove ALL markdown formatting
     narrative = narrative
-      .replace(/\*\*\*/g, '')  // Remove triple asterisks
-      .replace(/\*\*/g, '')    // Remove double asterisks (bold)
-      .replace(/\*/g, '')      // Remove single asterisks (italic)
-      .replace(/___/g, '')     // Remove triple underscores
-      .replace(/__/g, '')      // Remove double underscores
-      .replace(/_/g, '')       // Remove single underscores
-      .replace(/###\s+/g, '')  // Remove ### headers
-      .replace(/##\s+/g, '')   // Remove ## headers
-      .replace(/#\s+/g, '');   // Remove # headers
+      // Remove all asterisks in any combination
+      .replace(/\*+/g, '')
+      // Remove all underscores in any combination
+      .replace(/_+/g, '')
+      // Remove hash symbols (headers)
+      .replace(/#+\s*/g, '')
+      // Remove any markdown-like patterns with brackets/parens
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Clean up multiple spaces that might result
+      .replace(/\s{2,}/g, ' ')
+      // Clean up extra newlines
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
     // Calculate ROI projections based on actual data
     const avgTurnoverCost = 75000; // Includes recruiting, training, productivity loss
