@@ -226,7 +226,7 @@ serve(async (req) => {
         const gapSize = targetIdx - currentIdx;
 
         validCohorts.push({
-          cohort_name: `${capName} Training Hotspot`,
+          cohort_name: capName,
           capability_id: capInfo?.capability_id || "",
           capability_name: capName,
           employee_ids: employeeIds,
@@ -445,99 +445,78 @@ serve(async (req) => {
       : '';
 
     // Generate AI narrative using Claude
-    const narrativePrompt = `You are analyzing capability data for a strategic learning design. CRITICAL CONSTRAINT: This organization has ${validCohorts.length} identified training needs, but can only realistically execute 5-8 major initiatives in Year 1.
+    const narrativePrompt = `You are analyzing capability development needs for a strategic learning design. This organization has ${validCohorts.length} identified capability gaps across ${employees.length} employees.
 
 Company Context:
 - Total Employees: ${employees.length}
-- Training Hotspots Identified: ${validCohorts.length}
-- Total employees needing training: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
+- Capability Gaps Identified: ${validCohorts.length}
+- Total employees needing development: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
 ${businessGoalsContext}
 ${goalsContext}
 
-ALL Training Hotspots (raw data):
+DETAILED CAPABILITY GAP DATA (WHO NEEDS WHAT):
 ${validCohorts.map((c, i) => {
   const cohortEmployees = c.employee_ids.map(id => employeeDataMap.get(id));
   const employeeNames = cohortEmployees.map(e => e?.full_name || 'Unknown').join(', ');
+  const employeeRoles = cohortEmployees.map(e => e?.role || 'No role specified').join(', ');
   const cohortGoals = cohortEmployees.flatMap(e => e?.goals || []).filter(g => g);
   const goalsText = cohortGoals.length > 0 
-    ? ` (Related goals: ${cohortGoals.slice(0, 2).map(g => g.goal_text).join('; ')})` 
+    ? ` Personal goals: ${cohortGoals.slice(0, 2).map(g => g.goal_text).join('; ')}` 
     : '';
-  return `${i + 1}. ${c.cohort_name}: ${employeeNames} (Severity: ${c.gap_severity}, Gap: ${c.current_level} → ${c.target_level})${goalsText}`;
-}).join("\n")}
+  return `${i + 1}. ${c.cohort_name}
+   - WHO: ${employeeNames}
+   - ROLES: ${employeeRoles}
+   - CURRENT STATE: ${c.current_level}
+   - TARGET STATE: ${c.target_level}
+   - URGENCY: ${c.gap_severity}
+   ${goalsText ? `- ${goalsText}` : ''}`;
+}).join("\n\n")}
 
-Budget Scenarios (if all cohorts were executed):
-- Conservative: $${totalConservative.toLocaleString()}
-- Moderate: $${totalModerate.toLocaleString()}
-- Aggressive: $${totalAggressive.toLocaleString()}
+YOUR TASK: Write a narrative-focused strategic learning design that tells the story of this organization's capability development needs.
 
-YOUR TASK: RUTHLESS PRIORITIZATION
+WRITING APPROACH:
+- Focus on PEOPLE first - use actual names and describe who needs what and why
+- Tell the story of capability gaps in context of business impact
+- Weave in employee goals and aspirations where relevant
+- Make it feel like a strategic advisor's report to leadership
+- Be specific about individuals and their development journeys
+- Connect capability needs to business outcomes
 
-MANDATORY FILTER - Each cohort must pass ALL THREE tests:
-1. Business Criticality: Does it block revenue, create risk, cause inefficiency, or unlock multiple improvements?
-2. Urgency: Must be addressed in next 12 months?
-3. Leverage: Creates multiplier effect or impacts leadership/management?
+OUTPUT STRUCTURE (2500-3500 words):
 
-CONSOLIDATION RULES:
-- Combine related skills (e.g., "verbal" + "written" communication → "Professional Communication")
-- Move universal skills (time management, basic collaboration, tool proficiency) to SELF-SERVE only
-- If someone appears in 5+ cohorts, prioritize their top 2-3 gaps only
+1. EXECUTIVE OVERVIEW (3-4 paragraphs):
+   Start with the big picture - what patterns emerged when you analyzed the ${validCohorts.length} capability gaps? Who are the key people involved? What are the most critical development needs? Paint a clear picture of the organization's current state and where strategic investment will have the most impact.
 
-OUTPUT STRUCTURE (2000-3000 words):
+2. CAPABILITY DEVELOPMENT PRIORITIES (Main section - tell the story of each key area):
+   For each major capability area, write a narrative section that covers:
+   - WHO specifically needs this capability (use actual names)
+   - WHY it matters for the business (connect to goals, revenue, risk, efficiency)
+   - WHAT the current state is vs. where they need to be
+   - HOW you recommend addressing it (approach, not budget line items)
+   - WHEN this should happen in the development timeline
+   
+   Write this as connected prose, not bullet points. Make it read like a strategic advisor explaining the situation. For example: "Sarah, Mike, and Jennifer all need to develop their Leadership capability from advancing to independent level. This is critical because they're managing teams but lack the frameworks for effective delegation and performance management. Sarah mentioned in her goals that she wants to build her coaching skills, which aligns perfectly with this development need..."
 
-1. EXECUTIVE SUMMARY (2-3 paragraphs):
-   - Open: "After analyzing ${validCohorts.length} potential training needs, I've identified [X] mission-critical priorities for Year 1..."
-   - Acknowledge what you're deferring and why (builds strategic credibility)
-   - Include numbered list: "Top 5-8 Year 1 Strategic Priorities" (your pruned, consolidated list)
+3. CONSOLIDATION AND STRATEGIC CHOICES:
+   Explain how you grouped related capabilities and why. Describe which skills can be addressed through self-directed learning vs. formal programs. Be candid about trade-offs and sequencing decisions.
 
-2. YEAR 1 PRIORITIES (5-8 cohorts maximum):
-   For each Year 1 priority:
-   - Why it passed the 3-part filter
-   - Current vs. desired state
-   - Recommended approach and success metrics
-   - Budget recommendation (default moderate; aggressive only for senior leadership/mission-critical)
-   - Implementation quarter
-   ${goalsContext ? "- Connect to specific employee 90-day goals where relevant" : ""}
-   ${businessGoalsContext ? "- Link to business goals explicitly" : ""}
+4. IMPLEMENTATION NARRATIVE:
+   Describe the phased approach over 3 years. Year 1 focus areas, Year 2 scaling, Year 3 optimization. Write this as a roadmap story, not a project plan.
 
-3. WHAT WE'RE DEFERRING (Year 2-3):
-   - List remaining cohorts with brief explanations
-   - Show dependencies (e.g., "Advanced coaching requires foundational leadership first")
-   - Build confidence you're being strategic, not ignoring needs
-
-4. SELF-SERVE RECOMMENDATIONS:
-   - Universal skills that don't need formal cohorts
-   - Suggest curated libraries, manager accountability
-   - Examples: time management, basic collaboration, tool proficiency
-
-5. CONSOLIDATION LOGIC:
-   - Explain how you combined related skills
-   - Show more coherent learning journeys
-
-6. BUDGET & ROI (Year 1 focus):
-   - Moderate as default
-   - Aggressive only for senior leadership/mission-critical
-   - If Year 1 moderate exceeds $200K for <50 employees, SIMPLIFY
-   - Use industry research (Work Institute, ATD, Gallup) conversationally
-
-7. IMPLEMENTATION ROADMAP:
-   - Quarterly breakdown for Year 1 priorities
-   - Year 2-3 at high level
-   - Reference 3-year framework: Foundation (Year 1) → Scale (Year 2) → Optimize (Year 3)
-
-8. QUALITY CHECKS:
-   - CEO Test: Can you clearly state top 3 priorities?
-   - Execution Test: Can org realistically deliver while running business?
-   - ROI Test: Would you bet your bonus on measurable improvement?
+5. IMPACT AND ROI CONTEXT:
+   Conversationally discuss the expected business impact. Reference industry benchmarks naturally. Connect specific capability development to business outcomes.
 
 CRITICAL FORMATTING REQUIREMENTS:
 - Write in clean, professional prose suitable for executive review
-- DO NOT USE ANY MARKDOWN: no asterisks (*), no hash symbols (#), no underscores (_), no bold/italic markers
+- DO NOT USE ANY MARKDOWN: no asterisks (*), no hash symbols (#), no underscores (_), no bold/italic markers  
 - Section headings should be plain text followed by a colon
-- Use numbered lists (1., 2., 3.) for priorities and key points
+- Use numbered lists sparingly - prefer narrative paragraphs
 - Present data and insights conversationally but professionally
 - If you need emphasis, use capital letters or careful word choice, NOT markdown formatting
+- DO NOT mention specific budget recommendations or implementation quarters in the text
+- Focus on the narrative of who needs what and why, not project management details
 
-Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by choosing what NOT to do. Evidence-based but not academic. Clear and direct communication.`;
+Tone: Strategic, advisory, people-focused. Write like a trusted consultant who knows these individuals and their business. Evidence-based but conversational. Clear and engaging.`;
 
     console.log("Generating AI narrative with Claude...");
     const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
