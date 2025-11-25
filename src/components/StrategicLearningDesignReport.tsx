@@ -135,14 +135,24 @@ export default function StrategicLearningDesignReport() {
           });
 
         if (allEmployeeIds.size > 0) {
+            const employeeIdArray = Array.from(allEmployeeIds);
+            console.log('Fetching profiles for employee IDs:', employeeIdArray.length, 'IDs');
+            
             const { data: profilesData, error: profilesError } = await supabase
               .from("profiles")
               .select("id, full_name, email")
-              .in("id", Array.from(allEmployeeIds));
+              .in("id", employeeIdArray);
 
             if (profilesError) {
               console.error("Error fetching employee profiles:", profilesError);
-            } else if (profilesData) {
+              console.error("Failed to load profiles for", employeeIdArray.length, "employees");
+              toast({
+                title: "Warning",
+                description: "Could not load employee names. Contact support if this persists.",
+                variant: "destructive",
+              });
+            } else if (profilesData && profilesData.length > 0) {
+              console.log('Successfully loaded profiles:', profilesData.length);
               const profileMap = new Map<string, { full_name: string; email: string }>();
               profilesData.forEach((profile: any) => {
                 profileMap.set(profile.id, {
@@ -151,6 +161,9 @@ export default function StrategicLearningDesignReport() {
                 });
               });
               setEmployeeProfiles(profileMap);
+            } else {
+              console.warn('No profiles found for', employeeIdArray.length, 'employee IDs');
+              console.warn('This may be due to RLS policies or missing profile data');
             }
           }
         }
