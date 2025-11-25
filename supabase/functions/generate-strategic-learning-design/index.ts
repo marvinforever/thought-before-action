@@ -445,10 +445,10 @@ serve(async (req) => {
       : '';
 
     // Generate AI narrative using Claude
-    const narrativePrompt = `You are analyzing capability development needs for a strategic learning design. This organization has ${validCohorts.length} identified capability gaps across ${employees.length} employees.
+    const narrativePrompt = `You are analyzing capability development needs for a strategic learning design. This organization has ${validCohorts.length} identified capability gaps across ${employees.length} employees currently enrolled in Jericho.
 
 Company Context:
-- Total Employees: ${employees.length}
+- Employees Enrolled in Jericho: ${employees.length} (this represents only those currently using the platform, NOT the total company size)
 - Capability Gaps Identified: ${validCohorts.length}
 - Total employees needing development: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
 ${businessGoalsContext}
@@ -485,7 +485,7 @@ WRITING APPROACH:
 OUTPUT STRUCTURE (2500-3500 words):
 
 1. EXECUTIVE OVERVIEW (3-4 paragraphs):
-   Start with the big picture - what patterns emerged when you analyzed the ${validCohorts.length} capability gaps? Who are the key people involved? What are the most critical development needs? Paint a clear picture of the organization's current state and where strategic investment will have the most impact.
+   Start with the big picture - what patterns emerged when you analyzed the ${validCohorts.length} capability gaps across the ${employees.length} employees currently enrolled in Jericho? Who are the key people involved? What are the most critical development needs? Paint a clear picture of the organization's current state and where strategic investment will have the most impact. IMPORTANT: Always refer to "employees enrolled in Jericho" or "employees currently in the system" - never imply this is the total company size.
 
 2. CAPABILITY DEVELOPMENT PRIORITIES (Main section - tell the story of each key area):
    For each major capability area, write a narrative section that covers:
