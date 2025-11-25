@@ -4,12 +4,26 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload } from "lucide-react";
+import { Upload, CheckCircle2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminDiagnosticImport() {
   const [csvText, setCsvText] = useState("");
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [importResults, setImportResults] = useState<{
+    successful: number;
+    errors: number;
+    skipped: number;
+  } | null>(null);
 
   const parseCSV = (text: string) => {
     const lines = text.split('\n');
@@ -148,7 +162,13 @@ export default function AdminDiagnosticImport() {
       const errorCount = data.results.filter((r: any) => r.status === 'error').length;
       const skippedCount = data.results.filter((r: any) => r.status === 'skipped').length;
 
-      toast.success(`Import complete: ${successCount} successful, ${errorCount} errors, ${skippedCount} skipped`);
+      setImportResults({
+        successful: successCount,
+        errors: errorCount,
+        skipped: skippedCount
+      });
+      setShowSuccessDialog(true);
+      setCsvText("");
       
       console.log('Import results:', data.results);
       
@@ -161,8 +181,42 @@ export default function AdminDiagnosticImport() {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <Card className="p-6">
+    <>
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <AlertDialogTitle>Import Complete</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="space-y-2">
+              {importResults && (
+                <div className="text-left space-y-1">
+                  <p className="text-base">
+                    <span className="font-semibold text-green-600">{importResults.successful}</span> diagnostic responses imported successfully
+                  </p>
+                  {importResults.errors > 0 && (
+                    <p className="text-base">
+                      <span className="font-semibold text-red-600">{importResults.errors}</span> errors encountered
+                    </p>
+                  )}
+                  {importResults.skipped > 0 && (
+                    <p className="text-base">
+                      <span className="font-semibold text-yellow-600">{importResults.skipped}</span> records skipped
+                    </p>
+                  )}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button onClick={() => setShowSuccessDialog(false)}>Done</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="container mx-auto p-6">
+        <Card className="p-6">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Upload className="w-5 h-5" />
@@ -200,5 +254,6 @@ export default function AdminDiagnosticImport() {
         </div>
       </Card>
     </div>
+    </>
   );
 }
