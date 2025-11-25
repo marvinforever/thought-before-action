@@ -65,6 +65,8 @@ const Employees = () => {
   const [batchJobDescOpen, setBatchJobDescOpen] = useState(false);
   const [roleDialogEmployee, setRoleDialogEmployee] = useState<Employee | null>(null);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [companies, setCompanies] = useState<Array<{id: string, name: string}>>([]);
+  const [selectedCompanyForCreate, setSelectedCompanyForCreate] = useState<string>("");
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
@@ -170,6 +172,21 @@ const Employees = () => {
     }
   };
 
+  const loadCompaniesForCreate = async () => {
+    try {
+      const { data } = await supabase
+        .from("companies")
+        .select("id, name")
+        .order("name");
+      
+      if (data) {
+        setCompanies(data);
+      }
+    } catch (error) {
+      console.error("Error loading companies:", error);
+    }
+  };
+
   const generateStrongPassword = () => {
     const length = 12;
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -208,6 +225,16 @@ const Employees = () => {
       return;
     }
 
+    // For super admins, require company selection
+    if (isSuperAdmin && !selectedCompanyForCreate) {
+      toast({
+        title: "Validation error",
+        description: "Please select a company",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-employee', {
@@ -217,6 +244,7 @@ const Employees = () => {
           role: newEmployee.role || null,
           phone: newEmployee.phone || null,
           password: tempPassword,
+          company_id: isSuperAdmin ? selectedCompanyForCreate : undefined,
         }
       });
 
@@ -483,7 +511,13 @@ const Employees = () => {
               Batch Assign ({selectedEmployees.size})
             </Button>
           )}
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (open && isSuperAdmin) {
+              // Load companies when dialog opens for super admins
+              loadCompaniesForCreate();
+            }
+          }}>
             <DialogTrigger asChild>
               <Button variant="outline">
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -504,9 +538,26 @@ const Employees = () => {
                     id="fullName"
                     value={newEmployee.fullName}
                     onChange={(e) => setNewEmployee({ ...newEmployee, fullName: e.target.value })}
-                    placeholder="John Doe"
+                  placeholder="John Doe"
                   />
                 </div>
+                {isSuperAdmin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company *</Label>
+                    <Select value={selectedCompanyForCreate} onValueChange={setSelectedCompanyForCreate}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email *</Label>
                   <Input
