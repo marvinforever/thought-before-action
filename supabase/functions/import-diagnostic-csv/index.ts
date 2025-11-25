@@ -130,6 +130,26 @@ Deno.serve(async (req) => {
           'Not energized': 3
         };
 
+        // Parse numeric values for engagement scores
+        const growthPathScore = parseInt(row.seesGrowthPath) || 0;
+        const managerFeedbackScore = parseInt(row.managerSupport) || 0;
+        const valuedScore = parseInt(row.feelsValued) || 0;
+        const energyScore = energyMap[row.energyLevel] || 0;
+
+        // Build additional_responses with engagement and learning scores
+        const additionalResponses = {
+          engagement_scores: {
+            growth_path_score: growthPathScore,
+            manager_feedback_score: managerFeedbackScore,
+            valued_score: valuedScore,
+            energy_score: energyScore
+          },
+          learning_scores: {
+            quality_rating: 0,
+            needs_met_percentage: 0
+          }
+        };
+
         // Insert diagnostic response
         const { error: insertError } = await supabase
           .from('diagnostic_responses')
@@ -157,13 +177,13 @@ Deno.serve(async (req) => {
             listens_to_podcasts: row.listens_podcasts === '1',
             watches_youtube: row.watches_youtube === '1',
             reads_books_articles: row.reads_books === '1',
-            sees_growth_path: parseInt(row.seesGrowthPath) >= 7,
-            feels_valued: parseInt(row.feelsValued) >= 7,
+            sees_growth_path: growthPathScore >= 7,
+            feels_valued: valuedScore >= 7,
             sees_leadership_path: row.seesLeadership === 'Yes',
             company_supporting_goal: row.companySupportingGoal === 'Yes',
-            daily_energy_level: energyMap[row.energyLevel] || null,
-            manager_support_quality: parseInt(row.managerSupport) || null,
-            work_life_integration_score: parseInt(row.energyLevel) || null,
+            daily_energy_level: String(energyScore),
+            manager_support_quality: String(managerFeedbackScore),
+            work_life_integration_score: energyScore,
             would_stay_if_offered_similar: row.wouldStay,
             retention_improvement_suggestion: row.retentionImprovement,
             three_year_goal: row.threeYearGoal,
@@ -179,6 +199,7 @@ Deno.serve(async (req) => {
             twelve_month_growth_goal: row.twelveMonthGoal,
             support_needed_from_leadership: row.supportFromLeadership,
             one_year_vision: row.oneYearVision,
+            additional_responses: additionalResponses,
             submitted_at: new Date().toISOString()
           });
 
