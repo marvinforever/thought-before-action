@@ -178,6 +178,7 @@ serve(async (req) => {
             employees_without_names: role.employees
               .filter(e => missingIt.includes(e.profile_id))
               .map(e => e.full_name),
+            employees_with_ids: hasIt,
             employees_without_ids: missingIt
           });
         }
