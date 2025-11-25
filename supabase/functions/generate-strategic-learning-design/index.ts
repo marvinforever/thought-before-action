@@ -550,6 +550,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
     const aiData = await aiResponse.json();
     let narrative = aiData.content[0]?.text || "Narrative generation failed.";
     console.log("Narrative length:", narrative.length, "characters");
+    console.log("First 500 chars of raw narrative:", narrative.substring(0, 500));
     
     // Post-process to remove markdown while PRESERVING structure
     narrative = narrative
@@ -557,15 +558,19 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       .replace(/\*+/g, '')
       // Remove underscores (but keep the text)
       .replace(/_+/g, '')
-      // Remove hash symbols used as headers (but keep the text)
+      // Remove hash symbols used as headers (but keep the text and line break)
       .replace(/^#+\s*/gm, '')
       // Remove markdown links but keep link text
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Preserve double newlines (paragraph breaks) - CRITICAL for structure
-      .replace(/\n{3,}/g, '\n\n')
-      // Clean up any multiple spaces on same line
-      .replace(/ {2,}/g, ' ')
+      // Normalize line breaks: ensure double newlines for paragraph breaks
+      .replace(/\r\n/g, '\n')  // Normalize Windows line endings
+      .replace(/\n{3,}/g, '\n\n')  // Collapse 3+ newlines to 2
+      // Clean up any multiple spaces on same line (but NOT across lines)
+      .replace(/[^\S\n]+/g, ' ')  // Replace multiple spaces/tabs with single space, but preserve newlines
       .trim();
+    
+    console.log("Post-processed narrative length:", narrative.length);
+    console.log("First 500 chars after processing:", narrative.substring(0, 500));
 
     // Calculate ROI projections based on actual data
     const avgTurnoverCost = 75000; // Includes recruiting, training, productivity loss

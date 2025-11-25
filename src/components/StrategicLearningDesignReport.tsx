@@ -725,7 +725,9 @@ export default function StrategicLearningDesignReport() {
               <CardTitle>Strategic Learning Design Overview</CardTitle>
             </CardHeader>
             <CardContent className="prose max-w-none">
-              <p className="whitespace-pre-wrap">{summary.narrative}</p>
+              <div className="whitespace-pre-wrap leading-relaxed text-base">
+                {summary.narrative}
+              </div>
             </CardContent>
           </Card>
 
