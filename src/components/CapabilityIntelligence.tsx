@@ -48,6 +48,7 @@ interface RoleAnalysis {
     employees_without: number;
     employees_with_names: string[];
     employees_without_names: string[];
+    employees_with_ids: string[];
     employees_without_ids: string[];
   }>;
   has_discrepancies: boolean;
@@ -273,6 +274,35 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
     });
   };
 
+  const handleUnassignFromAll = async (discrepancy: RoleAnalysis["discrepancies"][0]) => {
+    if (!discrepancy.employees_with_ids || discrepancy.employees_with_ids.length === 0) return;
+
+    try {
+      // Delete all employee_capabilities records for this capability and these employees
+      const { error } = await supabase
+        .from('employee_capabilities')
+        .delete()
+        .eq('capability_id', discrepancy.capability_id)
+        .in('profile_id', discrepancy.employees_with_ids);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Removed ${discrepancy.capability_name} from all ${discrepancy.employees_with_ids.length} employee(s)`
+      });
+
+      await handleAnalyzeRoles(); // Refresh the analysis to remove the discrepancy
+    } catch (error: any) {
+      console.error("Error unassigning capability:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unassign capability",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600";
     if (score >= 60) return "text-yellow-600";
@@ -427,6 +457,15 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
                                   >
                                     <UsersRound className="h-3 w-3 mr-1" />
                                     Assign to All
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleUnassignFromAll(disc)}
+                                    className="flex-1"
+                                  >
+                                    <X className="h-3 w-3 mr-1" />
+                                    Unassign All
                                   </Button>
                                   <Button
                                     size="sm"
