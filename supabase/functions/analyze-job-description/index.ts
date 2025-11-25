@@ -71,7 +71,7 @@ For each capability, provide:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'openai/gpt-5-mini',
         messages: [
           { role: 'system', content: matchSystemPrompt },
           { role: 'user', content: `Analyze this job description:\n\n${jobDescription}` }
@@ -89,18 +89,20 @@ For each capability, provide:
                   items: {
                     type: 'object',
                     properties: {
-                      capability_id: { type: 'string' },
-                      capability_name: { type: 'string' },
-                      current_level: { type: 'string', enum: ['beginner', 'intermediate', 'advanced', 'expert'] },
-                      target_level: { type: 'string', enum: ['beginner', 'intermediate', 'advanced', 'expert'] },
-                      priority: { type: 'number', minimum: 1, maximum: 5 },
-                      reasoning: { type: 'string' }
+                      capability_id: { type: 'string', description: 'The UUID of the capability from the provided list' },
+                      capability_name: { type: 'string', description: 'The name of the capability' },
+                      current_level: { type: 'string', enum: ['beginner', 'intermediate', 'advanced', 'expert'], description: 'Current proficiency level' },
+                      target_level: { type: 'string', enum: ['beginner', 'intermediate', 'advanced', 'expert'], description: 'Target proficiency level' },
+                      priority: { type: 'integer', minimum: 1, maximum: 5, description: 'Priority from 1 (highest) to 5 (lowest)' },
+                      reasoning: { type: 'string', description: 'Why this capability is relevant' }
                     },
-                    required: ['capability_id', 'capability_name', 'current_level', 'target_level', 'priority', 'reasoning']
+                    required: ['capability_id', 'capability_name', 'current_level', 'target_level', 'priority', 'reasoning'],
+                    additionalProperties: false
                   }
                 }
               },
-              required: ['suggestions']
+              required: ['suggestions'],
+              additionalProperties: false
             }
           }
         }],
