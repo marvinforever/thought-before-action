@@ -508,13 +508,13 @@ OUTPUT STRUCTURE (2500-3500 words):
 
 CRITICAL FORMATTING REQUIREMENTS - ABSOLUTELY NO EXCEPTIONS:
 - This document will be displayed directly to executives. It MUST be clean prose with ZERO markdown.
-- NEVER EVER use asterisks (*) for ANY reason - not for emphasis, not for lists, not for anything
-- NEVER use hash symbols (#) for headers - use plain text with a colon instead
-- NEVER use underscores (_) for emphasis or any other purpose
-- NEVER use bold, italic, or any markdown formatting markers
-- Section headings: Use plain text followed by a colon (e.g., "Executive Overview:" not "## Executive Overview")
+- Structure your response with PARAGRAPH BREAKS (use double line breaks between paragraphs)
+- Section headings: Use plain text followed by a colon on its own line (e.g., "Executive Overview:" not "## Executive Overview")
+- NEVER use asterisks (*), hash symbols (#), underscores (_), brackets, or bold/italic markers
 - For emphasis: Use capital letters or careful word choice, NEVER markdown
-- Lists: Use numbered lists (1., 2., 3.) or write as narrative prose
+- Lists: Use numbered lists (1., 2., 3.) on separate lines or write as narrative prose
+- Separate major sections with a blank line
+- Keep paragraph breaks to maintain readability
 - DO NOT mention budget recommendations or implementation quarters
 - Focus on WHO needs WHAT and WHY in narrative form
 
@@ -531,7 +531,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
         max_tokens: 8192,  // Increased for longer narratives (2500-3500 words)
-        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. ABSOLUTE REQUIREMENT: Your output will be displayed directly to executives with NO post-processing. You MUST write in completely clean professional prose with ZERO markdown characters. This means: ZERO asterisks (*), ZERO hash symbols (#), ZERO underscores (_), ZERO brackets, ZERO bold/italic markers of any kind. Use plain text with colons for headings (not ## or #). For lists, use numbers (1., 2., 3.) or narrative prose. This is NON-NEGOTIABLE.",
+        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. ABSOLUTE REQUIREMENT: Your output will be displayed directly to executives with NO post-processing. You MUST write in completely clean professional prose with ZERO markdown characters (no asterisks, hash symbols, underscores, brackets, or bold/italic markers). Use paragraph breaks (double newlines) to separate ideas. Use plain text with colons for section headings. For lists, use numbered items on separate lines. Structure and readability are critical - use whitespace and paragraph breaks generously.",
         messages: [
           { role: "user", content: narrativePrompt }
         ],
@@ -551,20 +551,20 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
     let narrative = aiData.content[0]?.text || "Narrative generation failed.";
     console.log("Narrative length:", narrative.length, "characters");
     
-    // AGGRESSIVE post-processing to remove ALL markdown formatting
+    // Post-process to remove markdown while PRESERVING structure
     narrative = narrative
-      // Remove all asterisks in any combination
+      // Remove asterisks (but keep the text)
       .replace(/\*+/g, '')
-      // Remove all underscores in any combination
+      // Remove underscores (but keep the text)
       .replace(/_+/g, '')
-      // Remove hash symbols (headers)
-      .replace(/#+\s*/g, '')
-      // Remove any markdown-like patterns with brackets/parens
+      // Remove hash symbols used as headers (but keep the text)
+      .replace(/^#+\s*/gm, '')
+      // Remove markdown links but keep link text
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Clean up multiple spaces that might result
-      .replace(/\s{2,}/g, ' ')
-      // Clean up extra newlines
+      // Preserve double newlines (paragraph breaks) - CRITICAL for structure
       .replace(/\n{3,}/g, '\n\n')
+      // Clean up any multiple spaces on same line
+      .replace(/ {2,}/g, ' ')
       .trim();
 
     // Calculate ROI projections based on actual data
