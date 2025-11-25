@@ -326,6 +326,49 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
     }
   };
 
+  const handleBulkAssignAll = async () => {
+    if (!selectedRoleData || selectedRoleData.discrepancies.length === 0) return;
+
+    setAssigning(true);
+    try {
+      let totalAssigned = 0;
+      
+      for (const discrepancy of selectedRoleData.discrepancies) {
+        if (discrepancy.employees_without_ids && discrepancy.employees_without_ids.length > 0) {
+          const assignments = discrepancy.employees_without_ids.map(profileId => ({
+            profile_id: profileId,
+            capability_id: discrepancy.capability_id,
+            current_level: 'foundational' as const,
+            target_level: 'advancing' as const,
+          }));
+
+          const { error } = await supabase
+            .from('employee_capabilities')
+            .insert(assignments);
+
+          if (error) throw error;
+          totalAssigned += assignments.length;
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: `Assigned ${totalAssigned} capabilities across all discrepancies`
+      });
+
+      await handleAnalyzeRoles(); // Refresh the analysis
+    } catch (error: any) {
+      console.error("Error bulk assigning capabilities:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to bulk assign capabilities",
+        variant: "destructive"
+      });
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600";
     if (score >= 60) return "text-yellow-600";
@@ -431,7 +474,26 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
 
                       {selectedRoleData.discrepancies.length > 0 && (
                         <div className="space-y-2">
-                          <h4 className="font-medium">Capability Discrepancies</h4>
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">Capability Discrepancies</h4>
+                            <Button
+                              size="sm"
+                              onClick={handleBulkAssignAll}
+                              disabled={assigning}
+                            >
+                              {assigning ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Assigning...
+                                </>
+                              ) : (
+                                <>
+                                  <UsersRound className="h-3 w-3 mr-1" />
+                                  Bulk Assign All Missing
+                                </>
+                              )}
+                            </Button>
+                          </div>
                           <div className="space-y-2">
                             {selectedRoleData.discrepancies.map((disc, idx) => (
                               <div key={idx} className="p-3 border rounded-lg space-y-2">
