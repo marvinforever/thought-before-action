@@ -28,10 +28,10 @@ serve(async (req) => {
 
     console.log('Discovering capability gaps for company:', company_id);
 
-    // Get all job descriptions for the company
+    // Get all job descriptions for the company with employee info
     const { data: jobDescriptions, error: jdError } = await supabase
       .from('job_descriptions')
-      .select('id, title, description, is_current')
+      .select('id, title, description, is_current, profile_id')
       .eq('company_id', company_id)
       .eq('is_current', true);
 
@@ -66,7 +66,7 @@ serve(async (req) => {
       .join('\n');
 
     const jdSummaries = jobDescriptions.slice(0, 20).map((jd, i) => 
-      `JD ${i + 1} [${jd.title}]:\n${jd.description}`
+      `JD ${i + 1} (ID: ${jd.id}) [${jd.title}]:\n${jd.description}`
     ).join('\n\n---\n\n');
 
     const prompt = `You are analyzing job descriptions to find skills and capabilities that are NOT covered by existing capabilities.
@@ -89,7 +89,7 @@ For each NEW capability you identify, provide:
 2. A suggested category
 3. Brief justification (why it's different from existing capabilities)
 4. Sample quotes from the JD(s) that mention it
-5. How many JDs mention it
+5. The JD IDs where this capability was found (extract from the "JD X (ID: ...)" format)
 
 Return ONLY valid JSON (no markdown formatting) in this exact format:
 {
@@ -99,7 +99,7 @@ Return ONLY valid JSON (no markdown formatting) in this exact format:
       "category": "Category",
       "justification": "Why this is needed",
       "sample_quotes": ["quote 1", "quote 2"],
-      "jd_count": 3
+      "jd_ids": ["uuid1", "uuid2"]
     }
   ]
 }
@@ -162,14 +162,29 @@ If no new capabilities are needed, return: {"potential_capabilities": []}`;
 
     const potentialCapabilities = parsed.potential_capabilities || [];
 
-    console.log('Discovered potential capabilities:', potentialCapabilities.length);
+    // Map JD IDs to profile IDs for each capability
+    const enrichedCapabilities = potentialCapabilities.map((cap: any) => {
+      const jdIds = cap.jd_ids || [];
+      const profileIds = jobDescriptions
+        .filter(jd => jdIds.includes(jd.id))
+        .map(jd => jd.profile_id)
+        .filter(Boolean);
+      
+      return {
+        ...cap,
+        profile_ids: profileIds,
+        jd_count: profileIds.length
+      };
+    });
+
+    console.log('Discovered potential capabilities:', enrichedCapabilities.length);
 
     return new Response(
       JSON.stringify({
         success: true,
         total_jds_analyzed: jobDescriptions.length,
         existing_capabilities_count: existingCapabilities?.length || 0,
-        potential_capabilities: potentialCapabilities
+        potential_capabilities: enrichedCapabilities
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

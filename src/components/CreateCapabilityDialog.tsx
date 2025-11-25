@@ -25,6 +25,7 @@ interface CreateCapabilityDialogProps {
     name?: string;
     category?: string;
     context?: string;
+    profileIds?: string[];
   };
 }
 
@@ -282,10 +283,35 @@ export default function CreateCapabilityDialog({
 
         if (levelsError) throw levelsError;
 
-        toast({
-          title: "Success",
-          description: "Custom capability created successfully. It's now available for your team."
-        });
+        // If created from gap discovery, auto-assign to relevant employees
+        if (prefilledData?.profileIds && prefilledData.profileIds.length > 0) {
+          const assignmentsToInsert = prefilledData.profileIds.map(profileId => ({
+            profile_id: profileId,
+            capability_id: newCap.id,
+            current_level: 'foundational' as const,
+            target_level: 'advancing' as const,
+            assigned_at: new Date().toISOString()
+          }));
+
+          const { error: assignError } = await supabase
+            .from("employee_capabilities")
+            .insert(assignmentsToInsert);
+
+          if (assignError) {
+            console.error("Error auto-assigning capability:", assignError);
+            // Don't throw - capability was created successfully
+          } else {
+            toast({
+              title: "Success",
+              description: `Custom capability created and automatically assigned to ${prefilledData.profileIds.length} employee(s).`
+            });
+          }
+        } else {
+          toast({
+            title: "Success",
+            description: "Custom capability created successfully. It's now available for your team."
+          });
+        }
       }
 
       onCapabilityCreated();

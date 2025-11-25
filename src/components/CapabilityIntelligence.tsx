@@ -49,10 +49,16 @@ interface PotentialCapability {
   justification: string;
   sample_quotes: string[];
   jd_count: number;
+  profile_ids: string[];
 }
 
 interface CapabilityIntelligenceProps {
-  onCreateCapability: (prefilledData: { name: string; category: string; context: string }) => void;
+  onCreateCapability: (prefilledData: { 
+    name: string; 
+    category: string; 
+    context: string;
+    profileIds?: string[];
+  }) => void;
 }
 
 export default function CapabilityIntelligence({ onCreateCapability }: CapabilityIntelligenceProps) {
@@ -391,7 +397,8 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
                             onClick={() => onCreateCapability({
                               name: cap.name,
                               category: cap.category,
-                              context: `Justification: ${cap.justification}\n\nSample quotes from job descriptions:\n${cap.sample_quotes.slice(0, 3).map((q, i) => `${i + 1}. "${q}"`).join('\n')}`
+                              context: `Justification: ${cap.justification}\n\nSample quotes from job descriptions:\n${cap.sample_quotes.slice(0, 3).map((q, i) => `${i + 1}. "${q}"`).join('\n')}`,
+                              profileIds: cap.profile_ids
                             })}
                           >
                             <Plus className="h-4 w-4 mr-2" />
