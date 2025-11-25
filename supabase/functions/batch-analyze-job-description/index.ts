@@ -61,7 +61,6 @@ For each capability, provide:
 - Confidence score (0-100) indicating relevance
 - Current proficiency level the person likely has
 - Target proficiency level they should reach
-- Priority (1-5, where 1 is HIGHEST priority and 5 is lowest)
 - Reasoning for why this capability is relevant`;
 
     const matchResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -94,10 +93,9 @@ For each capability, provide:
                       capability_name: { type: 'string' },
                       current_level: { type: 'string', enum: ['beginner', 'intermediate', 'advanced', 'expert'] },
                       target_level: { type: 'string', enum: ['beginner', 'intermediate', 'advanced', 'expert'] },
-                      priority: { type: 'number', minimum: 1, maximum: 5 },
                       reasoning: { type: 'string' }
                     },
-                    required: ['capability_id', 'capability_name', 'current_level', 'target_level', 'priority', 'reasoning']
+                    required: ['capability_id', 'capability_name', 'current_level', 'target_level', 'reasoning']
                   }
                 }
               },
@@ -147,7 +145,6 @@ For each capability, provide:
           capability_id: cid,
           current_level: levelMap[s.current_level] || 'foundational',
           target_level: levelMap[s.target_level] || 'advancing',
-          priority: Math.min(5, Math.max(1, Math.round(Number(s.priority) || 3))),
         };
       })
       .filter((s: any) => validCapabilityIds.has(s.capability_id));
@@ -198,7 +195,6 @@ For each capability, provide:
           capability_id: s.capability_id,
           current_level: s.current_level,
           target_level: s.target_level,
-          priority: s.priority,
           ai_reasoning: s.reasoning,
           assigned_at: new Date().toISOString(),
           last_updated: new Date().toISOString()

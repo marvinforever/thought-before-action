@@ -27,7 +27,6 @@ type CapabilityCardProps = {
   description: string;
   currentLevel: string;
   targetLevel: string;
-  priority: number;
   aiReasoning: string | null;
   resources: Resource[];
   levelDescriptions: LevelDescription[];
@@ -50,7 +49,6 @@ export default function InteractiveCapabilityCard({
   description,
   currentLevel,
   targetLevel,
-  priority,
   aiReasoning,
   resources,
   levelDescriptions,

@@ -14,9 +14,9 @@ interface TeamCapability {
     name: string;
     current_level: string;
     target_level: string;
-    priority: number;
+    gap_size: number;
   }>;
-  avg_priority: number;
+  avg_gap_size: number;
 }
 
 export function StandardCapWatchlistTab() {
@@ -46,7 +46,7 @@ export function StandardCapWatchlistTab() {
 
       const employeeIds = reports.map((r) => r.employee_id);
 
-      // Get all capabilities for direct reports
+      // Get all capabilities for direct reports with gaps (target > current)
       const { data: empCaps, error } = await supabase
         .from("employee_capabilities")
         .select(`
@@ -55,15 +55,20 @@ export function StandardCapWatchlistTab() {
           capability_id,
           current_level,
           target_level,
-          priority,
           profiles!employee_capabilities_profile_id_fkey(full_name),
           capabilities!employee_capabilities_capability_id_fkey(name, category)
         `)
-        .in("profile_id", employeeIds)
-        .not("priority", "is", null)
-        .order("priority", { ascending: false });
+        .in("profile_id", employeeIds);
 
       if (error) throw error;
+
+      // Helper function to calculate gap size
+      const getGapSize = (currentLevel: string, targetLevel: string) => {
+        const levels = ["foundational", "advancing", "independent", "mastery"];
+        const currentIdx = levels.indexOf(currentLevel);
+        const targetIdx = levels.indexOf(targetLevel);
+        return targetIdx - currentIdx;
+      };
 
       // Group by capability
       const capMap = new Map<string, TeamCapability>();
@@ -72,6 +77,10 @@ export function StandardCapWatchlistTab() {
         const capId = ec.capability_id;
         const capName = ec.capabilities?.name || "Unknown";
         const category = ec.capabilities?.category || "Other";
+        const gapSize = getGapSize(ec.current_level, ec.target_level);
+
+        // Only include if there's a gap
+        if (gapSize <= 0) return;
 
         if (!capMap.has(capId)) {
           capMap.set(capId, {
@@ -79,7 +88,7 @@ export function StandardCapWatchlistTab() {
             capability_name: capName,
             category,
             employees: [],
-            avg_priority: 0,
+            avg_gap_size: 0,
           });
         }
 
@@ -89,18 +98,18 @@ export function StandardCapWatchlistTab() {
           name: ec.profiles?.full_name || "Unknown",
           current_level: ec.current_level,
           target_level: ec.target_level,
-          priority: ec.priority || 0,
+          gap_size: gapSize,
         });
       });
 
-      // Calculate average priority and sort
+      // Calculate average gap size and sort by largest gaps first
       const capsArray = Array.from(capMap.values()).map((cap) => ({
         ...cap,
-        avg_priority:
-          cap.employees.reduce((sum, emp) => sum + emp.priority, 0) / cap.employees.length,
+        avg_gap_size:
+          cap.employees.reduce((sum, emp) => sum + emp.gap_size, 0) / cap.employees.length,
       }));
 
-      capsArray.sort((a, b) => b.avg_priority - a.avg_priority);
+      capsArray.sort((a, b) => b.avg_gap_size - a.avg_gap_size);
 
       setCapabilities(capsArray);
     } catch (error) {
@@ -124,9 +133,9 @@ export function StandardCapWatchlistTab() {
     return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "destructive";
-    if (priority >= 5) return "default";
+  const getGapColor = (gapSize: number) => {
+    if (gapSize >= 3) return "destructive";
+    if (gapSize >= 2) return "default";
     return "secondary";
   };
 
@@ -141,7 +150,7 @@ export function StandardCapWatchlistTab() {
   if (capabilities.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No capabilities with priority set for your team
+        No capability gaps found for your team
       </div>
     );
   }
@@ -156,8 +165,8 @@ export function StandardCapWatchlistTab() {
                 <CardTitle className="text-lg">{cap.capability_name}</CardTitle>
                 <CardDescription>{cap.category}</CardDescription>
               </div>
-              <Badge variant={getPriorityColor(Math.round(cap.avg_priority))}>
-                Avg Priority: {cap.avg_priority.toFixed(1)}
+              <Badge variant={getGapColor(Math.round(cap.avg_gap_size))}>
+                Avg Gap: {cap.avg_gap_size.toFixed(1)} levels
               </Badge>
             </div>
           </CardHeader>
@@ -177,8 +186,8 @@ export function StandardCapWatchlistTab() {
                       </div>
                     </div>
                   </div>
-                  <Badge variant={getPriorityColor(emp.priority)} className="text-xs">
-                    P{emp.priority}
+                  <Badge variant={getGapColor(emp.gap_size)} className="text-xs">
+                    Gap: {emp.gap_size}
                   </Badge>
                 </div>
               ))}

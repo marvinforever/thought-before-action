@@ -975,7 +975,6 @@ export default function MyGrowthPlan() {
                   description={cap.capability.description}
                   currentLevel={cap.current_level}
                   targetLevel={cap.target_level}
-                  priority={cap.priority}
                   aiReasoning={cap.ai_reasoning}
                   resources={capabilityResources[cap.capability.id] || []}
                   levelDescriptions={cap.level_descriptions || []}

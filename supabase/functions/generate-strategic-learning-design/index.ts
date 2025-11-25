@@ -17,7 +17,6 @@ interface EmployeeData {
     capability_name: string;
     current_level: string;
     target_level: string;
-    priority: number;
   }>;
   diagnostic?: any;
   goals?: any;
@@ -29,7 +28,6 @@ interface Cohort {
   capability_name: string;
   employee_ids: string[];
   employee_count: number;
-  priority: number;
   current_level: string;
   target_level: string;
   gap_severity: string;
@@ -142,7 +140,6 @@ serve(async (req) => {
         capability_id,
         current_level,
         target_level,
-        priority,
         capabilities(name, category)
       `)
       .in("profile_id", employees.map((e) => e.id));
@@ -188,7 +185,6 @@ serve(async (req) => {
           capability_name: cap.capabilities?.name || "Unknown",
           current_level: cap.current_level,
           target_level: cap.target_level,
-          priority: cap.priority || 5,
         });
       }
     });
@@ -218,14 +214,16 @@ serve(async (req) => {
         const firstEmp = employeeDataMap.get(employeeIds[0]);
         const capInfo = firstEmp?.capabilities.find((c) => c.capability_name === capName);
 
-        // Determine priority (average of employee priorities)
-        const avgPriority = Math.round(
-          employeeIds.reduce((sum, id) => {
-            const emp = employeeDataMap.get(id);
-            const cap = emp?.capabilities.find((c) => c.capability_name === capName);
-            return sum + (cap?.priority || 5);
-          }, 0) / employeeIds.length
-        );
+        // Determine gap severity (based on level difference)
+        const levelMap: Record<string, number> = {
+          'foundational': 1,
+          'advancing': 2,
+          'independent': 3,
+          'mastery': 4
+        };
+        const currentIdx = levelMap[currentLevel] || 1;
+        const targetIdx = levelMap[targetLevel] || 4;
+        const gapSize = targetIdx - currentIdx;
 
         validCohorts.push({
           cohort_name: `${capName} Training Hotspot`,
@@ -233,10 +231,9 @@ serve(async (req) => {
           capability_name: capName,
           employee_ids: employeeIds,
           employee_count: employeeIds.length,
-          priority: avgPriority,
           current_level: currentLevel,
           target_level: targetLevel,
-          gap_severity: avgPriority <= 2 ? "critical" : avgPriority <= 3 ? "high" : "medium",
+          gap_severity: gapSize >= 3 ? "critical" : gapSize >= 2 ? "high" : "medium",
           recommended_solutions: [],
           estimated_cost_conservative: 0,
           estimated_cost_moderate: 0,
@@ -333,10 +330,11 @@ serve(async (req) => {
       cohort.estimated_cost_moderate = solutions[1]?.total_cost || 0;
       cohort.estimated_cost_aggressive = solutions[2]?.total_cost || 0;
 
-      // Assign delivery quarter based on priority
+      // Assign delivery quarter based on gap severity
       const currentYear = new Date().getFullYear();
       const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
-      let targetQuarter = currentQuarter + (5 - cohort.priority);
+      const severityOffset = cohort.gap_severity === "critical" ? 0 : cohort.gap_severity === "high" ? 1 : 2;
+      let targetQuarter = currentQuarter + severityOffset;
       let targetYear = currentYear;
       if (targetQuarter > 4) {
         targetYear += Math.floor(targetQuarter / 4);
@@ -464,7 +462,7 @@ ${validCohorts.map((c, i) => {
   const goalsText = cohortGoals.length > 0 
     ? ` (Related goals: ${cohortGoals.slice(0, 2).map(g => g.goal_text).join('; ')})` 
     : '';
-  return `${i + 1}. ${c.cohort_name}: ${employeeNames} (Priority: ${c.priority}/5, Gap: ${c.current_level} → ${c.target_level})${goalsText}`;
+  return `${i + 1}. ${c.cohort_name}: ${employeeNames} (Severity: ${c.gap_severity}, Gap: ${c.current_level} → ${c.target_level})${goalsText}`;
 }).join("\n")}
 
 Budget Scenarios (if all cohorts were executed):
@@ -613,7 +611,10 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
       narrative,
       heavy_load_employees: heavyLoadEmployees,
       top_priorities: validCohorts
-        .sort((a, b) => a.priority - b.priority)
+        .sort((a, b) => {
+          const severityOrder: Record<string, number> = { "critical": 1, "high": 2, "medium": 3 };
+          return (severityOrder[a.gap_severity] || 3) - (severityOrder[b.gap_severity] || 3);
+        })
         .slice(0, 3)
         .map((c) => `${c.cohort_name} (${c.employee_count} people)`),
     };
@@ -724,7 +725,7 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
         capability_name: c.capability_name,
         employee_ids: c.employee_ids,
         employee_count: c.employee_count,
-        priority: c.priority,
+        gap_severity: c.gap_severity,
         recommended_solutions: c.recommended_solutions,
         estimated_cost_per_employee: estPer,
         total_estimated_cost: totalEst,

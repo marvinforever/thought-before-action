@@ -45,7 +45,7 @@ serve(async (req) => {
       `)
       .eq("profile_id", profileId)
       .neq("current_level", "target_level")
-      .order("priority");
+      .order("last_updated", { ascending: false });
 
     // Fetch 90-day targets
     const { data: targets } = await supabase
@@ -137,18 +137,25 @@ serve(async (req) => {
       .limit(5);
 
     // Build context for AI - Focus on TOP 1 CAPABILITY
+    const levelMap: Record<string, number> = {
+      'foundational': 1,
+      'advancing': 2,
+      'independent': 3,
+      'mastery': 4
+    };
+
     const allCapabilities = capabilities?.map(c => ({
       id: c.capability_id,
       name: c.capability?.name,
       category: c.capability?.category,
       currentLevel: c.current_level,
       targetLevel: c.target_level,
-      priority: c.priority || 999
+      gapSize: (levelMap[c.target_level] || 4) - (levelMap[c.current_level] || 1)
     })) || [];
 
-    // Select top 1 capability by priority
+    // Select top 1 capability by largest gap
     const topCapability = allCapabilities
-      .sort((a, b) => a.priority - b.priority)
+      .sort((a, b) => b.gapSize - a.gapSize)
       .slice(0, 1);
 
     const targetsContext = targets?.map(t => ({

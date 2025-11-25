@@ -81,9 +81,9 @@ serve(async (req) => {
     if (diagnosticError && diagnosticError.code !== 'PGRST116') throw diagnosticError;
 
     // Build context for AI
-    const capabilitiesContext = capabilities?.map(cap => ({
-      name: cap.capability.name,
-      category: cap.capability.category,
+    const capabilitiesContext = capabilities.map(cap => ({
+      name: cap.capability?.name,
+      category: cap.capability?.category,
       current: cap.current_level,
       target: cap.target_level,
       gap: `${cap.current_level} → ${cap.target_level}`,
