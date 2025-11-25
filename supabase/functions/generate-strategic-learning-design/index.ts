@@ -448,7 +448,7 @@ serve(async (req) => {
     const narrativePrompt = `You are analyzing capability development needs for a strategic learning design. This organization has ${validCohorts.length} identified capability gaps across ${employees.length} employees currently enrolled in Jericho.
 
 Company Context:
-- Employees Enrolled in Jericho: ${employees.length} (this represents only those currently using the platform, NOT the total company size)
+- Employees Enrolled in Jericho: ${employees.length} (represents only those using the platform, NOT total company size)
 - Capability Gaps Identified: ${validCohorts.length}
 - Total employees needing development: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
 ${businessGoalsContext}
@@ -472,69 +472,88 @@ ${validCohorts.map((c, i) => {
    ${goalsText ? `- ${goalsText}` : ''}`;
 }).join("\n\n")}
 
-YOUR TASK: Write a narrative-focused strategic learning design that tells the story of this organization's capability development needs.
+PRIMARY TRAINING SOLUTION - MOMENTUM 360:
+We have access to Momentum 360, a complete Leadership Operating System that should be your PRIMARY recommendation for leadership, management, communication, and team development needs:
+- NOT one-off workshops but a year-round sustainable system
+- Executive Coaching and Alignment for C-suite leaders
+- Leadership Multiplication for VPs/Directors and mid-level managers  
+- Team Development and Culture Systems for frontline teams
+- Structure: 2 Executive Sessions, 2 Manager Sessions, 2 Team Leader Sessions per year
+- Peer Roundtables and Cross-Company Learning throughout the year
+- Ongoing coaching and on-demand learning library
+- The 5Es Framework: Enlist, Equip, Empower, Evaluate, Evolve
+- Comprehensive, cost-effective, designed for sustainable transformation
 
-WRITING APPROACH:
-- Focus on PEOPLE first - use actual names and describe who needs what and why
-- Tell the story of capability gaps in context of business impact
-- Weave in employee goals and aspirations where relevant
-- Make it feel like a strategic advisor's report to leadership
-- Be specific about individuals and their development journeys
-- Connect capability needs to business outcomes
+SUPPLEMENTARY RESOURCES:
+For technical skills, specialized capabilities, or self-directed learning, we have a curated library of books, videos, articles, and courses you can reference.
 
-OUTPUT STRUCTURE (2500-3500 words):
+YOUR TASK: Write an executive-level strategic learning design following a professional consulting report format.
 
-1. EXECUTIVE OVERVIEW (3-4 paragraphs):
-   Start with the big picture - what patterns emerged when you analyzed the ${validCohorts.length} capability gaps across the ${employees.length} employees currently enrolled in Jericho? Who are the key people involved? What are the most critical development needs? Paint a clear picture of the organization's current state and where strategic investment will have the most impact. IMPORTANT: Always refer to "employees enrolled in Jericho" or "employees currently in the system" - never imply this is the total company size.
+EXACT STRUCTURE REQUIRED:
 
-2. CAPABILITY DEVELOPMENT PRIORITIES (Main section - tell the story of each key area):
-   For each major capability area, write a narrative section that covers:
-   - WHO specifically needs this capability (use actual names)
-   - WHY it matters for the business (connect to goals, revenue, risk, efficiency)
-   - WHAT the current state is vs. where they need to be
-   - HOW you recommend addressing it (delivery approach and format)
-   - WHEN this should happen in the development timeline
-   
-   Write this as connected prose, not bullet points. Make it read like a strategic advisor explaining the situation. For example: "Sarah, Mike, and Jennifer all need to develop their Leadership capability from advancing to independent level. This is critical because they're managing teams but lack the frameworks for effective delegation and performance management. Sarah mentioned in her goals that she wants to build her coaching skills, which aligns perfectly with this development need..."
+STRATEGIC CAPABILITY ASSESSMENT
+Strategic Learning Design Overview
 
-3. CONSOLIDATION AND STRATEGIC CHOICES:
-   Explain how you grouped related capabilities and why. Describe which skills can be addressed through self-directed learning vs. formal programs. Be candid about trade-offs and sequencing decisions.
+EXECUTIVE SUMMARY
+[3-4 powerful paragraphs that frame the situation and end with identifying "Three Critical Capability Constraints" or similar clear framing. Always reference "employees enrolled in Jericho" not total company size]
 
-4. IMPLEMENTATION NARRATIVE:
-   Describe the phased approach over 3 years. Year 1 focus areas, Year 2 scaling, Year 3 optimization. Write this as a roadmap story, not a project plan.
+[2-4 MAIN CONSTRAINT SECTIONS - Number each one]
+1. [CONSTRAINT NAME IN ALL CAPS]
 
-5. IMPACT AND ROI CONTEXT:
-   Conversationally discuss the expected business impact. Reference industry benchmarks naturally. Connect specific capability development to business outcomes.
+[Name specific people at specific levels. Explain this is not a training problem but a BUSINESS CONSTRAINT. End each constraint with clear "Implication:" statement showing organizational impact]
 
-CRITICAL FORMATTING REQUIREMENTS:
-Your response will be displayed in a web interface that preserves line breaks. You MUST use proper spacing and structure.
+Strategic Development Roadmap
 
-REQUIRED SPACING:
-- Put TWO line breaks (press Enter twice) between every paragraph
-- Put TWO line breaks after every section heading
-- Put TWO line breaks between sections
-- Put a blank line before and after any numbered lists
+[Detailed programs organized by constraint area. For each program:]
 
-SECTION HEADINGS:
-Write headings as plain text with a colon, on their own line with a blank line after.
-Example:
-Executive Overview:
+[PROGRAM NAME IN ALL CAPS]
+Audience: [List specific employee names]
+Duration: [Specify timeframe like "12-month cohort experience"]
 
-[content starts here]
+Structure:
+[Describe delivery approach - use simple line breaks, not bullets]
 
-NO MARKDOWN EVER:
-- No asterisks, hash symbols, underscores, brackets
-- No bold, italic, or formatting markers
-- Use CAPITAL LETTERS for emphasis if needed
-- Write as clean professional prose
+Recommended Solution: Momentum 360 [explain why this fits] OR [cite specific book/course titles from library for technical/specialized skills]
+
+Expected Impact: [Business outcomes, not learning outcomes]
+
+Implementation Timeline
+
+YEAR 1: FOUNDATION AND IMMEDIATE IMPACT
+[List key programs and priorities - use plain line breaks]
+
+YEAR 2: ADVANCEMENT AND SCALE  
+[Next phase programs]
+
+YEAR 3: MASTERY AND SUSTAINABILITY
+[Long-term development]
+
+Expected Impact
+[Include specific metrics and research-backed outcomes like productivity increases, margin improvements]
+
+CONCLUSION
+[2-3 paragraphs summarizing strategic positioning and business impact]
+
+CRITICAL FORMATTING RULES:
+- PLAIN TEXT ONLY - absolutely NO markdown syntax (no asterisks, hash symbols, underscores, bold/italic markers)
+- Create structure through line breaks and ALL CAPS section headers
+- Use double line breaks between major sections
+- Use single line breaks for sub-items
+- Section headers in ALL CAPS with no symbols
+- Professional consulting report style
+- Name specific individuals throughout
 
 CONTENT REQUIREMENTS:
-- Focus on WHO needs WHAT and WHY in narrative form
-- Use actual employee names throughout
-- Connect to business impact
-- DO NOT mention budget amounts or specific quarters
+1. Frame capability gaps as BUSINESS CONSTRAINTS not training needs
+2. Name specific people and their current capability levels
+3. Explain business impact and organizational implications
+4. Recommend Momentum 360 as primary solution for leadership/management/communication
+5. Cite specific books/courses from library for technical/specialized skills  
+6. Three-year implementation timeline with no budget figures or quarter references
+7. Include research-backed metrics in Expected Impact section
+8. Professional, confident, strategic advisory tone
 
-Tone: Strategic, advisory, people-focused. Write like a trusted consultant who knows these individuals and their business. Evidence-based but conversational. Clear and engaging.`;
+Remember: Momentum 360 should be your go-to recommendation for most development needs. It's comprehensive, sustainable, and cost-effective compared to piecing together one-off workshops.`;
 
     console.log("Generating AI narrative with Claude...");
     const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
@@ -547,7 +566,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
         max_tokens: 8192,  // Increased for longer narratives (2500-3500 words)
-        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint.\n\nFORMATTING IS CRITICAL: Your output will be displayed directly in a web interface with NO markdown processing. You must structure your response as clean prose with PROPER PARAGRAPH BREAKS.\n\nUse double line breaks (\\n\\n) between:\n- Paragraphs\n- Section headings and their content\n- Different sections\n- List items and the next paragraph\n\nFor section headings, put the title on its own line followed by a colon, then a blank line, then the content.\n\nExample format:\nExecutive Overview:\n\nThis organization has identified 12 critical capability gaps across 24 employees. The most urgent needs center on leadership development and strategic thinking.\n\n[blank line here]\n\nSarah Johnson, Mike Chen, and Jennifer Williams all need to advance their leadership capabilities from developing to independent level. This matters because...\n\n[another blank line]\n\nCapability Development Priorities:\n\nLeadership and People Management\n\n[content here]\n\nNEVER use markdown (no *, #, _, [], or **). Use capital letters for emphasis if needed.",
+        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You write executive-level strategic capability assessments in the style of a top-tier management consulting firm.\n\nYour approach:\n- Frame capability gaps as BUSINESS CONSTRAINTS that limit organizational performance\n- Name specific individuals and their current capability levels throughout\n- Connect development needs directly to business outcomes (revenue, efficiency, risk, growth)\n- Recommend practical, sustainable solutions (not theory)\n- Write with confidence and strategic clarity\n\nFORMATTING IS CRITICAL: Your output will be displayed in a web interface with plain text rendering.\n\nRequired structure using PLAIN TEXT only:\n- Section headers in ALL CAPS on their own line\n- Double line breaks between major sections\n- Single line breaks within sections\n- No markdown symbols ever (no *, #, _, [], or **)\n- Use clear spacing to create hierarchy\n\nExample format:\nSTRATEGIC CAPABILITY ASSESSMENT\nStrategic Learning Design Overview\n\nEXECUTIVE SUMMARY\n\nThis organization faces a defining inflection point. With 45 identified capability gaps across 24 employees enrolled in Jericho...\n\n1. LEADERSHIP INFRASTRUCTURE GAP\n\nEight operational managers—Craig Thier, Isaac Ambrosy, Dan Jass...\n\nImplication: Management capability directly constrains organizational scaling.\n\nStrategic Development Roadmap\n\nLEADERSHIP FOUNDATIONS PROGRAM\nAudience: Craig Thier, Isaac Ambrosy, Dan Jass\nDuration: 12-month cohort experience\n\nStructure:\nMonthly full-day workshops covering delegation frameworks...\n\nRecommended Solution: Momentum 360 provides the exact structure needed...\n\nExpected Impact: This is applied capability building with immediate workplace application.\n\nYour tone is professional, strategic, and evidence-based. You prioritize ruthlessly and focus on high-leverage business impact.",
         messages: [
           { role: "user", content: narrativePrompt }
         ],
