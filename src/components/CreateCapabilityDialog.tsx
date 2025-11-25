@@ -21,6 +21,11 @@ interface CreateCapabilityDialogProps {
   onClose: () => void;
   onCapabilityCreated: () => void;
   editingCapability?: any;
+  prefilledData?: {
+    name?: string;
+    category?: string;
+    context?: string;
+  };
 }
 
 const LEVEL_LABELS = {
@@ -41,7 +46,8 @@ export default function CreateCapabilityDialog({
   open, 
   onClose, 
   onCapabilityCreated,
-  editingCapability 
+  editingCapability,
+  prefilledData
 }: CreateCapabilityDialogProps) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -79,6 +85,20 @@ export default function CreateCapabilityDialog({
           { level: 'mastery', description: levelMap.mastery }
         ]);
       }
+    } else if (prefilledData) {
+      // Pre-fill from gap discovery
+      setName(prefilledData.name || "");
+      setCategory(prefilledData.category || "");
+      if (prefilledData.context) {
+        setFullDescription(prefilledData.context);
+      }
+      setDescription("");
+      setLevels([
+        { level: 'foundational', description: '' },
+        { level: 'advancing', description: '' },
+        { level: 'independent', description: '' },
+        { level: 'mastery', description: '' }
+      ]);
     } else {
       // Reset for new capability
       setName("");
@@ -92,7 +112,7 @@ export default function CreateCapabilityDialog({
         { level: 'mastery', description: '' }
       ]);
     }
-  }, [editingCapability, open]);
+  }, [editingCapability, prefilledData, open]);
 
   const updateLevelDescription = (level: string, description: string) => {
     setLevels(prev => prev.map(l => 

@@ -92,3 +92,9 @@ verify_jwt = true
 
 [functions.batch-create-employees]
 verify_jwt = true
+
+[functions.analyze-role-consistency]
+verify_jwt = true
+
+[functions.discover-capability-gaps]
+verify_jwt = true

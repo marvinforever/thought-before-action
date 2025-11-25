@@ -4,10 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 import CreateCapabilityDialog from "@/components/CreateCapabilityDialog";
+import CapabilityIntelligence from "@/components/CapabilityIntelligence";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +36,7 @@ const Capabilities = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingCapability, setEditingCapability] = useState<CapabilityWithLevels | null>(null);
   const [deletingCapability, setDeletingCapability] = useState<CapabilityWithLevels | null>(null);
+  const [prefilledData, setPrefilledData] = useState<{ name: string; category: string; context: string } | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -194,7 +197,7 @@ const Capabilities = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Capabilities</h1>
           <p className="text-muted-foreground mt-2">
-            View standard capabilities and create custom ones for your team
+            View standard capabilities, create custom ones, and discover gaps
           </p>
         </div>
         {isManager && (
@@ -204,6 +207,14 @@ const Capabilities = () => {
           </Button>
         )}
       </div>
+
+      <Tabs defaultValue="library" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="library">Capability Library</TabsTrigger>
+          <TabsTrigger value="intelligence">Capability Intelligence</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="library" className="space-y-6">
 
       {/* Custom Capabilities Section */}
       {customCapabilities.length > 0 && (
@@ -366,17 +377,32 @@ const Capabilities = () => {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        <TabsContent value="intelligence">
+          <CapabilityIntelligence 
+            onCreateCapability={(data) => {
+              setPrefilledData(data);
+              setShowCreateDialog(true);
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+
       {/* Create/Edit Dialog */}
       <CreateCapabilityDialog
         open={showCreateDialog || !!editingCapability}
         onClose={() => {
           setShowCreateDialog(false);
           setEditingCapability(null);
+          setPrefilledData(undefined);
         }}
         onCapabilityCreated={() => {
           loadCapabilities();
+          setPrefilledData(undefined);
         }}
         editingCapability={editingCapability}
+        prefilledData={prefilledData}
       />
 
       {/* Delete Confirmation */}
