@@ -653,7 +653,8 @@ const SuperAdmin = () => {
                 email: email,
                 full_name: fullName,
                 role: jobTitle || null,
-                company_id: diagnosticCompanyId
+                company_id: diagnosticCompanyId,
+                password: Math.random().toString(36).slice(-12) + 'A1!'
               }
             });
 
@@ -944,7 +945,8 @@ const SuperAdmin = () => {
                 email: email, 
                 full_name: fullName,
                 role: jobTitle || null,
-                company_id: diagnosticCompanyId
+                company_id: diagnosticCompanyId,
+                password: Math.random().toString(36).slice(-12) + 'A1!'
               }
             });
 
@@ -1063,7 +1065,7 @@ const SuperAdmin = () => {
               email: record.email,
               full_name: record.fullName,
               company_id: diagnosticCompanyId,
-              password: Math.random().toString(36).slice(-12),
+              password: Math.random().toString(36).slice(-12) + 'A1!',
             },
           });
 
@@ -1283,8 +1285,9 @@ const SuperAdmin = () => {
         const { data: authData, error: authError } = await supabase.functions.invoke("create-employee", {
           body: {
             email: manualEmail.trim(),
+            full_name: manualEmail.trim().split('@')[0],
             company_id: diagnosticCompanyId,
-            password: Math.random().toString(36).slice(-12),
+            password: Math.random().toString(36).slice(-12) + 'A1!',
           },
         });
 
