@@ -130,7 +130,14 @@ Deno.serve(async (req) => {
           'Not energized': 3
         };
 
+        // Map text responses to numeric scores (1-10 scale)
+        const yesNoMap: Record<string, number> = {
+          'Yes': 10,
+          'No': 3
+        };
+        
         // Parse numeric values for engagement scores
+        // These are already 1-10 scale from CSV
         const growthPathScore = parseInt(row.seesGrowthPath) || 0;
         const managerFeedbackScore = parseInt(row.managerSupport) || 0;
         const valuedScore = parseInt(row.feelsValued) || 0;
