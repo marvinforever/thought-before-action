@@ -36,7 +36,12 @@ const Capabilities = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingCapability, setEditingCapability] = useState<CapabilityWithLevels | null>(null);
   const [deletingCapability, setDeletingCapability] = useState<CapabilityWithLevels | null>(null);
-  const [prefilledData, setPrefilledData] = useState<{ name: string; category: string; context: string } | undefined>(undefined);
+  const [prefilledData, setPrefilledData] = useState<{ 
+    name: string; 
+    category: string; 
+    context: string;
+    profileIds?: string[];
+  } | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
