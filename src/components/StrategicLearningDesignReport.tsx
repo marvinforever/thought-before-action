@@ -279,6 +279,27 @@ export default function StrategicLearningDesignReport() {
 
   const loadOrganizationalScores = async (companyId: string, cohortsData: any[]) => {
     try {
+      console.log('Loading organizational scores for company:', companyId);
+      
+      // Get all profiles for this company first
+      const { data: companyProfiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("company_id", companyId);
+      
+      if (profilesError) {
+        console.error("Error fetching company profiles:", profilesError);
+        throw profilesError;
+      }
+      
+      const profileIds = companyProfiles?.map(p => p.id) || [];
+      console.log('Found profiles for company:', profileIds.length);
+      
+      if (profileIds.length === 0) {
+        console.warn('No profiles found for company, skipping capability scores');
+        return;
+      }
+      
       // Get all employee capabilities for this company
       const { data: allEmployeeCaps, error: allCapsError } = await supabase
         .from("employee_capabilities")
@@ -289,14 +310,14 @@ export default function StrategicLearningDesignReport() {
           capability_id,
           capability:capabilities(name)
         `)
-        .in("profile_id", (await supabase
-          .from("profiles")
-          .select("id")
-          .eq("company_id", companyId)
-        ).data?.map(p => p.id) || []);
+        .in("profile_id", profileIds);
 
-      if (allCapsError) throw allCapsError;
-
+      if (allCapsError) {
+        console.error("Error fetching employee capabilities:", allCapsError);
+        throw allCapsError;
+      }
+      
+      console.log('Loaded employee capabilities:', allEmployeeCaps?.length || 0);
       setOrgCapabilities(allEmployeeCaps || []);
 
       // Calculate scores for each cohort
