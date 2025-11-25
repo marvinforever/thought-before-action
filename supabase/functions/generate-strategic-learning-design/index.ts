@@ -55,7 +55,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
     const authHeader = req.headers.get("Authorization")!;
     
@@ -555,35 +555,42 @@ CONTENT REQUIREMENTS:
 
 Remember: Momentum 360 should be your go-to recommendation for most development needs. It's comprehensive, sustainable, and cost-effective compared to piecing together one-off workshops.`;
 
-    console.log("Generating AI narrative with Claude...");
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    console.log("Generating AI narrative with Gemini...");
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": anthropicApiKey,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 8192,  // Increased for longer narratives (2500-3500 words)
-        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You write executive-level strategic capability assessments in the style of a top-tier management consulting firm.\n\nYour approach:\n- Frame capability gaps as BUSINESS CONSTRAINTS that limit organizational performance\n- Name specific individuals and their current capability levels throughout\n- Connect development needs directly to business outcomes (revenue, efficiency, risk, growth)\n- Recommend practical, sustainable solutions (not theory)\n- Write with confidence and strategic clarity\n\nFORMATTING IS CRITICAL: Your output will be displayed in a web interface with plain text rendering.\n\nRequired structure using PLAIN TEXT only:\n- Section headers in ALL CAPS on their own line\n- Double line breaks between major sections\n- Single line breaks within sections\n- No markdown symbols ever (no *, #, _, [], or **)\n- Use clear spacing to create hierarchy\n\nExample format:\nSTRATEGIC CAPABILITY ASSESSMENT\nStrategic Learning Design Overview\n\nEXECUTIVE SUMMARY\n\nThis organization faces a defining inflection point. With 45 identified capability gaps across 24 employees enrolled in Jericho...\n\n1. LEADERSHIP INFRASTRUCTURE GAP\n\nEight operational managers—Craig Thier, Isaac Ambrosy, Dan Jass...\n\nImplication: Management capability directly constrains organizational scaling.\n\nStrategic Development Roadmap\n\nLEADERSHIP FOUNDATIONS PROGRAM\nAudience: Craig Thier, Isaac Ambrosy, Dan Jass\nDuration: 12-month cohort experience\n\nStructure:\nMonthly full-day workshops covering delegation frameworks...\n\nRecommended Solution: Momentum 360 provides the exact structure needed...\n\nExpected Impact: This is applied capability building with immediate workplace application.\n\nYour tone is professional, strategic, and evidence-based. You prioritize ruthlessly and focus on high-leverage business impact.",
+        model: "google/gemini-2.5-pro",
         messages: [
+          { 
+            role: "system", 
+            content: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You write executive-level strategic capability assessments in the style of a top-tier management consulting firm.\n\nYour approach:\n- Frame capability gaps as BUSINESS CONSTRAINTS that limit organizational performance\n- Name specific individuals and their current capability levels throughout\n- Connect development needs directly to business outcomes (revenue, efficiency, risk, growth)\n- Recommend practical, sustainable solutions (not theory)\n- Write with confidence and strategic clarity\n\nFORMATTING IS CRITICAL: Your output will be displayed in a web interface with plain text rendering.\n\nRequired structure using PLAIN TEXT only:\n- Section headers in ALL CAPS on their own line\n- Double line breaks between major sections\n- Single line breaks within sections\n- No markdown symbols ever (no *, #, _, [], or **)\n- Use clear spacing to create hierarchy\n\nExample format:\nSTRATEGIC CAPABILITY ASSESSMENT\nStrategic Learning Design Overview\n\nEXECUTIVE SUMMARY\n\nThis organization faces a defining inflection point. With 45 identified capability gaps across 24 employees enrolled in Jericho...\n\n1. LEADERSHIP INFRASTRUCTURE GAP\n\nEight operational managers—Craig Thier, Isaac Ambrosy, Dan Jass...\n\nImplication: Management capability directly constrains organizational scaling.\n\nStrategic Development Roadmap\n\nLEADERSHIP FOUNDATIONS PROGRAM\nAudience: Craig Thier, Isaac Ambrosy, Dan Jass\nDuration: 12-month cohort experience\n\nStructure:\nMonthly full-day workshops covering delegation frameworks...\n\nRecommended Solution: Momentum 360 provides the exact structure needed...\n\nExpected Impact: This is applied capability building with immediate workplace application.\n\nYour tone is professional, strategic, and evidence-based. You prioritize ruthlessly and focus on high-leverage business impact."
+          },
           { role: "user", content: narrativePrompt }
         ],
       }),
     });
 
-    console.log("Claude API response status:", aiResponse.status);
+    console.log("Gemini API response status:", aiResponse.status);
     
     if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again later.");
+      }
+      if (aiResponse.status === 402) {
+        throw new Error("Payment required. Please add credits to your Lovable AI workspace.");
+      }
       const errorText = await aiResponse.text();
-      console.error("Claude API error:", errorText);
+      console.error("Gemini API error:", errorText);
       throw new Error(`Failed to generate narrative: ${errorText}`);
     }
 
-    console.log("Parsing Claude response...");
+    console.log("Parsing Gemini response...");
     const aiData = await aiResponse.json();
-    let narrative = aiData.content[0]?.text || "Narrative generation failed.";
+    let narrative = aiData.choices?.[0]?.message?.content || "Narrative generation failed.";
     console.log("Raw narrative length:", narrative.length, "characters");
     console.log("Line breaks in raw narrative:", (narrative.match(/\n/g) || []).length);
     
