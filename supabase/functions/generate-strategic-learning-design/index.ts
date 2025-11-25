@@ -444,7 +444,7 @@ serve(async (req) => {
       ? `\n\n**Employee 90-Day Goals:**\n${targets.map(t => `- ${t.goal_text} (${employeeDataMap.get(t.profile_id)?.full_name || 'Unknown'})`).join('\n')}`
       : '';
 
-    // Generate AI narrative using Claude
+    // Generate AI narrative using Gemini
     const narrativePrompt = `You are analyzing capability development needs for a strategic learning design. This organization has ${validCohorts.length} identified capability gaps across ${employees.length} employees currently enrolled in Jericho.
 
 Company Context:
@@ -487,7 +487,12 @@ We have access to Momentum 360, a complete Leadership Operating System that shou
 SUPPLEMENTARY RESOURCES:
 For technical skills, specialized capabilities, or self-directed learning, we have a curated library of books, videos, articles, and courses you can reference.
 
-YOUR TASK: Write an executive-level strategic learning design following a professional consulting report format.
+YOUR TASK: Write an executive-level strategic learning design following a professional consulting report format with McKinsey-level depth and clarity.
+
+CRITICAL STRUCTURAL APPROACH:
+Before writing the report, analyze all capability gaps and identify 6-8 KEY FOCUS AREAS that represent the major development domains. These focus areas should capture the overarching themes. Then organize every specific capability as a subset under the appropriate focus area. This creates executive-level clarity while maintaining tactical specificity.
+
+Examples of focus areas might be: "Leadership & People Management", "Technical & Operational Excellence", "Communication & Stakeholder Engagement", "Strategic Business Acumen", etc. You determine the right focus areas based on the actual capability data.
 
 EXACT STRUCTURE REQUIRED:
 
@@ -495,67 +500,131 @@ STRATEGIC CAPABILITY ASSESSMENT
 Strategic Learning Design Overview
 
 EXECUTIVE SUMMARY
-[3-4 powerful paragraphs that frame the situation positively and end with identifying "Three Key Development Priorities" or "Three Strategic Growth Opportunities" or similar clear framing. Always reference "employees enrolled in Jericho" not total company size. Balance acknowledgment of current state with optimism about potential.]
+[3-4 powerful paragraphs that frame the situation positively. End by introducing "Six Core Development Domains" or "Eight Strategic Focus Areas" (whatever number you identify). Always reference "employees enrolled in Jericho" not total company size. Balance acknowledgment of current state with optimism about potential.]
 
-[2-4 MAIN PRIORITY SECTIONS - Number each one]
-1. [PRIORITY NAME IN ALL CAPS - focus on opportunity/growth, not deficit]
+STRATEGIC FOCUS AREAS
 
-[Name specific people at specific levels. Frame this as a GROWTH OPPORTUNITY that will unlock organizational potential. End each priority with clear "Impact:" statement showing positive organizational outcomes when this development is achieved]
+[For EACH of the 6-8 focus areas you identified, create a detailed section:]
+
+[NUMBER]. [FOCUS AREA NAME IN ALL CAPS]
+
+Overview: [2-3 paragraphs explaining why this domain matters, what capabilities fall under it, and the strategic importance]
+
+Capabilities Included:
+[List each specific capability that falls under this focus area with employee names]
+- [Capability Name]: [Employee Names] - currently at [level], targeting [level]
+- [Capability Name]: [Employee Names] - currently at [level], targeting [level]
+
+Development Priorities:
+[Detailed breakdown of what needs to happen in this domain, sequencing considerations, dependencies between capabilities]
+
+Recommended Approach:
+[Specify whether Momentum 360, specific resources from library, or combination. Be specific about which Momentum 360 component if applicable - Executive Coaching, Leadership Multiplication, Team Development, etc.]
+
+Expected Impact:
+[Specific business outcomes when this focus area development is achieved - be concrete about organizational benefits]
 
 Strategic Development Roadmap
 
-[Detailed programs organized by priority area. For each program:]
+YEAR 1: FOUNDATION AND IMMEDIATE IMPACT
+
+[Provide SUBSTANTIAL DETAIL for Year 1. For each major program or initiative:]
 
 [PROGRAM NAME IN ALL CAPS]
-Audience: [List specific employee names]
-Duration: [Specify timeframe like "12-month cohort experience"]
+Focus Area: [Which of the 6-8 focus areas this addresses]
+Audience: [Specific employee names and their roles]
+Duration: [Specific timeframe]
+Current State: [Where these people are today across relevant capabilities]
+Target State: [Where they need to be by end of Year 1]
 
-Structure:
-[Describe delivery approach - use simple line breaks, not bullets]
+Development Structure:
+[Multiple paragraphs describing the specific approach, session types, learning modalities, practice opportunities, application methods. Be detailed about HOW this will work, not just WHAT will happen.]
 
-Recommended Solution: Momentum 360 [explain why this fits] OR [cite specific book/course titles from library for technical/specialized skills]
+Recommended Solution:
+[If Momentum 360: Explain which specific component and why it fits. If library resources: Name specific books, courses, or materials by title. If combination: Detail how pieces fit together.]
 
-Expected Impact: [Business outcomes and team/organizational benefits]
+Progress Milestones:
+[Quarter-by-quarter or month-by-month indicators of progress through Year 1]
 
-Implementation Timeline
+Expected Impact:
+[Specific, measurable outcomes and benefits to individuals and organization]
 
-YEAR 1: FOUNDATION AND IMMEDIATE IMPACT
-[List key programs and priorities - use plain line breaks]
+Dependencies and Prerequisites:
+[What needs to happen first, what can run in parallel, any foundational work required]
 
-YEAR 2: ADVANCEMENT AND SCALE  
-[Next phase programs]
+[Repeat for each Year 1 program - should be 4-6 detailed program descriptions]
 
-YEAR 3: MASTERY AND SUSTAINABILITY
-[Long-term development]
+YEAR 2: ADVANCEMENT AND SCALE
+
+[Provide SUBSTANTIAL DETAIL for Year 2 - same structure as Year 1]
+
+Building on Year 1 Foundation:
+[Explain how Year 2 builds on what was accomplished in Year 1]
+
+[Then detail 4-6 Year 2 programs using same detailed structure as Year 1]
+
+YEAR 3: MASTERY AND SUSTAINABILITY  
+
+[Provide SUBSTANTIAL DETAIL for Year 3 - same structure as Year 1]
+
+Toward Organizational Excellence:
+[Explain how Year 3 creates long-term capability and sustainability]
+
+[Then detail 3-5 Year 3 programs using same detailed structure as Year 1]
+
+Implementation Considerations
+
+Sequencing and Phasing:
+[Detailed explanation of why things are sequenced this way, which initiatives should start first, how to phase implementation]
+
+Resource Requirements:
+[What the organization needs to provide - time commitments, internal support, leadership engagement]
+
+Success Metrics:
+[How to measure progress - specific indicators, checkpoints, evaluation methods]
 
 Expected Impact
-[Include specific metrics and research-backed outcomes like productivity increases, margin improvements, framed as attainable gains]
+
+[Include specific metrics and research-backed outcomes. Multiple paragraphs covering:]
+- Individual capability development outcomes
+- Team performance improvements  
+- Organizational efficiency and effectiveness gains
+- Leadership capacity and bench strength
+- Cultural and engagement benefits
+- Competitive advantage and market position improvements
+
+[Ground these in research where possible, e.g., "Research from ATD shows organizations with comprehensive leadership development see X% improvement in Y metric"]
 
 CONCLUSION
-[2-3 paragraphs summarizing strategic positioning and positive business impact ahead]
+
+[3-4 paragraphs summarizing the strategic opportunity, the thoughtful phased approach, and the transformational potential ahead. End on a confident, forward-looking note about organizational capability and competitive positioning.]
 
 CRITICAL FORMATTING RULES:
-- PLAIN TEXT ONLY - absolutely NO markdown syntax (no asterisks, hash symbols, underscores, bold/italic markers)
+- PLAIN TEXT ONLY - absolutely NO markdown syntax (no asterisks, hash symbols, underscores, bold/italic markers)  
 - Create structure through line breaks and ALL CAPS section headers
 - Use double line breaks between major sections
-- Use single line breaks for sub-items
+- Use single line breaks for sub-items  
 - Section headers in ALL CAPS with no symbols
-- Professional consulting report style
+- Professional consulting report style - McKinsey depth and clarity
 - Name specific individuals throughout
+- Be SUBSTANTIALLY MORE DETAILED than a typical executive summary - this should be a comprehensive strategic document
 
 CONTENT REQUIREMENTS:
-1. Frame capability gaps as GROWTH OPPORTUNITIES not problems or deficits
-2. Acknowledge this may be the organization's first detailed capability assessment
-3. Name specific people and their current capability levels with supportive framing
-4. Explain positive business impact when development is achieved
-5. Recommend Momentum 360 as primary solution for leadership/management/communication
-6. Cite specific books/courses from library for technical/specialized skills  
-7. Three-year implementation timeline with no budget figures or quarter references
-8. Include research-backed metrics in Expected Impact section
-9. Professional, warm, supportive yet strategic advisory tone
-10. Balance clarity about priorities with optimism about outcomes
+1. First identify 6-8 overarching focus areas, then organize all capabilities under them
+2. Provide extensive detail on Year 1, 2, and 3 programs - not just lists but detailed descriptions
+3. Frame capability gaps as GROWTH OPPORTUNITIES not problems or deficits  
+4. Acknowledge this may be the organization's first detailed capability assessment
+5. Name specific people and their current capability levels with supportive framing
+6. Explain positive business impact when development is achieved
+7. Recommend Momentum 360 as primary solution for leadership/management/communication (but acknowledge it doesn't cover everything)
+8. Cite specific books/courses from library by title for technical/specialized skills
+9. Detail sequencing, dependencies, and implementation considerations
+10. Include research-backed metrics in Expected Impact section
+11. Professional, warm, supportive yet strategic advisory tone
+12. Balance clarity about priorities with optimism about outcomes
+13. Think McKinsey-level depth but written for practical business leaders
 
-Remember: Momentum 360 should be your go-to recommendation for most development needs. It's comprehensive, sustainable, and cost-effective compared to piecing together one-off workshops.`;
+Remember: Momentum 360 is excellent for leadership development but the organization will need to source additional training for technical and specialized capabilities. Be honest about this while highlighting M360's comprehensive approach to leadership.`;
 
     console.log("Generating AI narrative with Gemini...");
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -569,7 +638,7 @@ Remember: Momentum 360 should be your go-to recommendation for most development 
         messages: [
           { 
             role: "system", 
-            content: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You write executive-level strategic capability assessments in the style of a top-tier management consulting firm.\n\nYour approach:\n- Frame capability gaps as GROWTH OPPORTUNITIES and natural next steps in the organization's development journey\n- Acknowledge that this level of detailed capability analysis may be new territory for many organizations\n- Balance firmness with approachability—be clear about priorities while remaining supportive and optimistic\n- Name specific individuals and their current capability levels throughout\n- Connect development needs to positive business outcomes (growth, enhanced performance, competitive advantage)\n- Present findings as stepping stones rather than problems or deficiencies\n- Recommend practical, sustainable solutions (not theory)\n- Write with professional warmth and strategic clarity\n\nFORMATTING IS CRITICAL: Your output will be displayed in a web interface with plain text rendering.\n\nRequired structure using PLAIN TEXT only:\n- Section headers in ALL CAPS on their own line\n- Double line breaks between major sections\n- Single line breaks within sections\n- No markdown symbols ever (no *, #, _, [], or **)\n- Use clear spacing to create hierarchy\n\nExample format:\nSTRATEGIC CAPABILITY ASSESSMENT\nStrategic Learning Design Overview\n\nEXECUTIVE SUMMARY\n\nThis organization is at an exciting inflection point. With 45 identified capability development opportunities across 24 employees enrolled in Jericho...\n\n1. LEADERSHIP DEVELOPMENT OPPORTUNITY\n\nEight operational managers—Craig Thier, Isaac Ambrosy, Dan Jass—are positioned to strengthen their leadership foundations...\n\nImplication: Enhanced management capability directly enables organizational scaling and team effectiveness.\n\nStrategic Development Roadmap\n\nLEADERSHIP FOUNDATIONS PROGRAM\nAudience: Craig Thier, Isaac Ambrosy, Dan Jass\nDuration: 12-month cohort experience\n\nStructure:\nMonthly full-day workshops covering delegation frameworks...\n\nRecommended Solution: Momentum 360 provides the exact structure needed...\n\nExpected Impact: This is applied capability building with immediate workplace application.\n\nYour tone is professional yet approachable, strategic yet supportive. You acknowledge where people are today and create a clear path forward. You focus on possibility and progress rather than deficiency."
+            content: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You write executive-level strategic capability assessments in the style of top-tier management consulting firms like McKinsey—comprehensive, detailed, deeply analytical, yet accessible.\n\nYour approach:\n- FIRST identify 6-8 overarching strategic focus areas that capture the major development domains, THEN organize all specific capabilities as subsets under these focus areas\n- Frame capability gaps as GROWTH OPPORTUNITIES and natural next steps in the organization's development journey\n- Acknowledge that this level of detailed capability analysis may be new territory for many organizations\n- Balance firmness with approachability—be clear about priorities while remaining supportive and optimistic\n- Name specific individuals and their current capability levels throughout\n- Connect development needs to positive business outcomes (growth, enhanced performance, competitive advantage)\n- Present findings as stepping stones rather than problems or deficiencies\n- Provide McKinsey-level depth: extensive detail on programs, sequencing, dependencies, implementation considerations\n- Write SUBSTANTIALLY MORE than a typical executive summary—this should be a comprehensive strategic document\n- Detail Year 1, Year 2, and Year 3 with specific programs, not just high-level lists\n- Recommend Momentum 360 for leadership development (acknowledge it's comprehensive but doesn't cover everything—technical and specialized skills will need other resources)\n- Write with professional warmth and strategic clarity\n\nFORMATTING IS CRITICAL: Your output will be displayed in a web interface with plain text rendering.\n\nRequired structure using PLAIN TEXT only:\n- Section headers in ALL CAPS on their own line\n- Double line breaks between major sections\n- Single line breaks within sections\n- No markdown symbols ever (no *, #, _, [], or **)\n- Use clear spacing to create hierarchy\n\nYour tone is professional yet approachable, strategic yet supportive. You acknowledge where people are today and create a clear, detailed path forward. You focus on possibility and progress rather than deficiency. You provide the depth and analytical rigor of a McKinsey report but write it in a style that resonates with practical business leaders."
           },
           { role: "user", content: narrativePrompt }
         ],
