@@ -55,7 +55,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
 
     const authHeader = req.headers.get("Authorization")!;
     
@@ -444,7 +444,7 @@ serve(async (req) => {
       ? `\n\n**Employee 90-Day Goals:**\n${targets.map(t => `- ${t.goal_text} (${employeeDataMap.get(t.profile_id)?.full_name || 'Unknown'})`).join('\n')}`
       : '';
 
-    // Generate AI narrative using Lovable AI
+    // Generate AI narrative using Claude
     const narrativePrompt = `You are analyzing capability data for a strategic learning design. CRITICAL CONSTRAINT: This organization has ${validCohorts.length} identified training needs, but can only realistically execute 5-8 major initiatives in Year 1.
 
 Company Context:
@@ -470,7 +470,7 @@ Budget Scenarios (if all cohorts were executed):
 - Moderate: $${totalModerate.toLocaleString()}
 - Aggressive: $${totalAggressive.toLocaleString()}
 
-**YOUR TASK: RUTHLESS PRIORITIZATION**
+YOUR TASK: RUTHLESS PRIORITIZATION
 
 MANDATORY FILTER - Each cohort must pass ALL THREE tests:
 1. Business Criticality: Does it block revenue, create risk, cause inefficiency, or unlock multiple improvements?
@@ -487,7 +487,7 @@ OUTPUT STRUCTURE (2000-3000 words):
 1. EXECUTIVE SUMMARY (2-3 paragraphs):
    - Open: "After analyzing ${validCohorts.length} potential training needs, I've identified [X] mission-critical priorities for Year 1..."
    - Acknowledge what you're deferring and why (builds strategic credibility)
-   - Include bullet list: "Top 5-8 Year 1 Strategic Priorities" (your pruned, consolidated list)
+   - Include numbered list: "Top 5-8 Year 1 Strategic Priorities" (your pruned, consolidated list)
 
 2. YEAR 1 PRIORITIES (5-8 cohorts maximum):
    For each Year 1 priority:
@@ -529,34 +529,42 @@ OUTPUT STRUCTURE (2000-3000 words):
    - Execution Test: Can org realistically deliver while running business?
    - ROI Test: Would you bet your bonus on measurable improvement?
 
-Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by choosing what NOT to do. Evidence-based but not academic. Use clear headings, bullet points, concrete numbers.`;
+WRITING STYLE REQUIREMENTS:
+- Write in polished, professional prose suitable for executive review
+- Use clear section headings but NO markdown formatting (no asterisks, no bold markers)
+- Avoid repetitive emphasis formatting
+- Write naturally with varied sentence structure
+- Use numbered lists for priorities and key points
+- Present data and insights conversationally but professionally
 
-    console.log("Generating AI narrative...");
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by choosing what NOT to do. Evidence-based but not academic. Clear and direct communication.`;
+
+    console.log("Generating AI narrative with Claude...");
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${lovableApiKey}`,
+        "x-api-key": anthropicApiKey,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-sonnet-4-5",
+        max_tokens: 4096,
+        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. Write in polished professional prose without markdown formatting - no asterisks, no bold markers, just clean readable text with clear headings.",
         messages: [
-          {
-            role: "system",
-            content: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint.",
-          },
-          { role: "user", content: narrativePrompt },
+          { role: "user", content: narrativePrompt }
         ],
       }),
     });
 
     if (!aiResponse.ok) {
-      console.error("AI API error:", await aiResponse.text());
-      throw new Error("Failed to generate narrative");
+      const errorText = await aiResponse.text();
+      console.error("Claude API error:", errorText);
+      throw new Error(`Failed to generate narrative: ${errorText}`);
     }
 
     const aiData = await aiResponse.json();
-    const narrative = aiData.choices[0]?.message?.content || "Narrative generation failed.";
+    const narrative = aiData.content[0]?.text || "Narrative generation failed.";
 
     // Calculate ROI projections based on actual data
     const avgTurnoverCost = 75000; // Includes recruiting, training, productivity loss
