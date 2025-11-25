@@ -343,7 +343,7 @@ serve(async (req) => {
       cohort.delivery_quarter = `Q${targetQuarter} ${targetYear}`;
     }
 
-    // Calculate budget scenarios BY YEAR - SPECIFIC COHORTS PER YEAR
+    // Calculate cost scenarios BY YEAR - SPECIFIC COHORTS PER YEAR
     // Year 1 (2026): FOUNDATION — $165K (ONLY 5 cohorts)
     const year1CapabilityNames = new Set([
       "Leadership",
@@ -492,7 +492,7 @@ OUTPUT STRUCTURE (2500-3500 words):
    - WHO specifically needs this capability (use actual names)
    - WHY it matters for the business (connect to goals, revenue, risk, efficiency)
    - WHAT the current state is vs. where they need to be
-   - HOW you recommend addressing it (approach, not budget line items)
+   - HOW you recommend addressing it (delivery approach and format)
    - WHEN this should happen in the development timeline
    
    Write this as connected prose, not bullet points. Make it read like a strategic advisor explaining the situation. For example: "Sarah, Mike, and Jennifer all need to develop their Leadership capability from advancing to independent level. This is critical because they're managing teams but lack the frameworks for effective delegation and performance management. Sarah mentioned in her goals that she wants to build her coaching skills, which aligns perfectly with this development need..."
