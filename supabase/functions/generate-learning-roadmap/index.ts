@@ -131,7 +131,6 @@ serve(async (req) => {
       category: cap.capabilities?.category || 'Unknown',
       currentLevel: cap.current_level,
       targetLevel: cap.target_level,
-      priority: cap.priority,
       reasoning: cap.ai_reasoning
     }));
 
@@ -198,7 +197,7 @@ Employee Context:
 - Role: ${jobDescription?.title || 'Not specified'}
 
 Capability Gaps (${capabilities.length} total):
-${capabilitiesContext.map(c => `  • ${c.name} (${c.category}): Currently ${c.currentLevel}, Target ${c.targetLevel}, Priority: ${c.priority || 'N/A'}`).join('\n')}
+${capabilitiesContext.map(c => `  • ${c.name} (${c.category}): Currently ${c.currentLevel}, Target ${c.targetLevel}`).join('\n')}
 
 1-Year Vision: ${oneYearGoal}
 3-Year Vision: ${threeYearGoal}

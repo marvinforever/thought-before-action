@@ -50,7 +50,6 @@ serve(async (req) => {
       .select(`
         current_level,
         target_level,
-        priority,
         capability:capabilities(name, category)
       `)
       .eq("profile_id", employeeId);
@@ -137,7 +136,7 @@ ${context.goals.inProgress.map(g => `○ ${g.goal_text}`).join('\n')}
 CAPABILITY DEVELOPMENT:
 ${context.capabilities.map((cap: any) => `
 - ${cap.capability.name} (${cap.capability.category})
-  Current: ${cap.current_level} → Target: ${cap.target_level} (Priority: ${cap.priority})
+  Current: ${cap.current_level} → Target: ${cap.target_level}
 `).join('\n')}
 
 MANAGER FEEDBACK THROUGHOUT PERIOD:

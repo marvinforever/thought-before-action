@@ -21,7 +21,6 @@ type EmployeeCapability = {
   id: string;
   current_level: string;
   target_level: string;
-  priority: number;
   ai_reasoning: string | null;
   capability: {
     id: string;
@@ -51,7 +50,6 @@ export function EmployeeCapabilitiesDialog({ open, onOpenChange, employee, onAss
           id,
           current_level,
           target_level,
-          priority,
           ai_reasoning,
           capability:capabilities(
             id,
@@ -61,7 +59,7 @@ export function EmployeeCapabilitiesDialog({ open, onOpenChange, employee, onAss
           )
         `)
         .eq("profile_id", employee.id)
-        .order("priority", { ascending: true });
+        .order("capability(name)", { ascending: true });
 
       if (error) throw error;
       setCapabilities((data as any) || []);

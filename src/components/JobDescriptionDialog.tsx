@@ -25,7 +25,6 @@ interface CapabilitySuggestion {
   capability_name: string;
   current_level: 'foundational' | 'advancing' | 'independent' | 'mastery';
   target_level: 'foundational' | 'advancing' | 'independent' | 'mastery';
-  priority: number;
   reasoning: string;
 }
 
@@ -131,20 +130,13 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
     try {
       const capabilitiesToAssign = suggestions
         .filter(s => selectedSuggestions.has(s.capability_id))
-        .map(s => {
-          const priority =
-            Number.isFinite(Number(s.priority))
-              ? Math.min(5, Math.max(1, Math.round(Number(s.priority))))
-              : 3;
-          return {
-            profile_id: employee.id,
-            capability_id: s.capability_id,
-            current_level: s.current_level,
-            target_level: s.target_level,
-            priority,
-            ai_reasoning: s.reasoning,
-          };
-        });
+        .map(s => ({
+          profile_id: employee.id,
+          capability_id: s.capability_id,
+          current_level: s.current_level,
+          target_level: s.target_level,
+          ai_reasoning: s.reasoning,
+        }));
 
       const { error } = await supabase
         .from('employee_capabilities')
@@ -312,7 +304,6 @@ export function JobDescriptionDialog({ open, onOpenChange, employee }: JobDescri
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <h4 className="font-semibold">{suggestion.capability_name}</h4>
-                            <Badge variant="outline">Priority {suggestion.priority}</Badge>
                           </div>
                           <div className="flex gap-2">
                             <Badge className={getLevelColor(suggestion.current_level)}>

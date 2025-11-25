@@ -26,8 +26,6 @@ serve(async (req) => {
       capabilityName, 
       previousLevel, 
       newLevel,
-      previousPriority,
-      newPriority,
       reason 
     } = await req.json();
 
@@ -49,10 +47,6 @@ serve(async (req) => {
       changeDetails += `Level changed from ${previousLevel} to ${newLevel}\n`;
     }
     
-    if (previousPriority !== newPriority) {
-      changeDetails += `Priority changed from ${previousPriority} to ${newPriority}\n`;
-    }
-    
     if (reason) {
       changeDetails += `\nReason: ${reason}`;
     }
@@ -61,7 +55,7 @@ serve(async (req) => {
       employee: employeeName,
       manager: managerName,
       capability: capabilityName,
-      changes: { previousLevel, newLevel, previousPriority, newPriority }
+      changes: { previousLevel, newLevel }
     });
 
     // Send email notification
@@ -99,12 +93,6 @@ serve(async (req) => {
                   ${newLevel}
                 </span>
               </div>
-            ` : ''}
-            
-            ${previousPriority !== newPriority ? `
-              <p style="color: #6b7280; font-size: 14px; margin: 10px 0 0 0;">
-                Priority updated from ${previousPriority} to ${newPriority}
-              </p>
             ` : ''}
           </div>
           

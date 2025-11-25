@@ -22,7 +22,6 @@ interface AdjustCapabilityDialogProps {
     id: string;
     current_level: string;
     target_level: string;
-    priority: number;
     capability_name: string;
     employee_id: string;
     employee_name: string;
