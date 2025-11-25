@@ -164,6 +164,42 @@ serve(async (req) => {
       .eq("company_id", companyId)
       .eq("is_current", true);
 
+    // Analyze data maturity to understand what phase we're in
+    let selfAssessmentCount = 0;
+    let managerAssessmentCount = 0;
+    let totalCapabilities = 0;
+    
+    capabilities?.forEach((cap: any) => {
+      totalCapabilities++;
+      if (cap.self_assessed_at) selfAssessmentCount++;
+      if (cap.manager_assessed_at) managerAssessmentCount++;
+    });
+    
+    const hasGoals = targets && targets.length > 0;
+    const hasDiagnostics = diagnostics && diagnostics.length > 0;
+    const hasJobDescriptions = jobDescriptions && jobDescriptions.length > 0;
+    
+    const selfAssessmentRate = totalCapabilities > 0 ? (selfAssessmentCount / totalCapabilities) * 100 : 0;
+    const managerAssessmentRate = totalCapabilities > 0 ? (managerAssessmentCount / totalCapabilities) * 100 : 0;
+    
+    // Determine data maturity phase
+    let dataPhase = "initial";
+    let dataPhaseDescription = "";
+    
+    if (selfAssessmentRate === 0 && managerAssessmentRate === 0 && !hasGoals && !hasDiagnostics) {
+      dataPhase = "initial";
+      dataPhaseDescription = "Job Description Analysis Only - Capabilities have been identified from job descriptions but await employee and manager validation.";
+    } else if (selfAssessmentRate > 0 && selfAssessmentRate < 50 && managerAssessmentRate < 30) {
+      dataPhase = "early";
+      dataPhaseDescription = "Early Data Collection - Some self-assessments are underway. Findings will become more precise as assessment completion increases.";
+    } else if (selfAssessmentRate >= 50 && managerAssessmentRate >= 30) {
+      dataPhase = "maturing";
+      dataPhaseDescription = "Maturing Dataset - Self and manager assessments are substantially complete. Additional goal and diagnostic data will further refine priorities.";
+    } else if (selfAssessmentRate >= 80 && managerAssessmentRate >= 80 && hasGoals && hasDiagnostics) {
+      dataPhase = "comprehensive";
+      dataPhaseDescription = "Comprehensive Analysis - Full assessment cycle complete with goals, diagnostics, and validated capability levels.";
+    }
+
     // Aggregate employee data
     const employeeDataMap: Map<string, EmployeeData> = new Map();
     employees.forEach((emp) => {
@@ -454,6 +490,28 @@ Company Context:
 ${businessGoalsContext}
 ${goalsContext}
 
+DATA MATURITY ASSESSMENT:
+Current Phase: ${dataPhase.toUpperCase()}
+${dataPhaseDescription}
+
+Data Completeness:
+- Job Descriptions: ${hasJobDescriptions ? `${jobDescriptions.length} employees` : 'None'}
+- Self-Assessments: ${selfAssessmentRate.toFixed(0)}% complete (${selfAssessmentCount} of ${totalCapabilities} capabilities)
+- Manager Assessments: ${managerAssessmentRate.toFixed(0)}% complete (${managerAssessmentCount} of ${totalCapabilities} capabilities)
+- Employee Goals: ${hasGoals ? `${targets.length} active goals` : 'None yet'}
+- Diagnostic Responses: ${hasDiagnostics ? `${diagnostics.length} employees` : 'None yet'}
+
+CRITICAL CONTEXT FOR YOUR ANALYSIS:
+The capabilities you're analyzing were identified through job description analysis. ${
+  dataPhase === 'initial' 
+    ? 'Employees have NOT yet validated these capabilities through self-assessment, and managers have NOT yet confirmed them. This means current capability levels are ESTIMATES based on job requirements, not validated assessments. Your recommendations should acknowledge this early phase and explain that priorities and gaps will become more precise as self-assessments and manager assessments are completed.'
+    : dataPhase === 'early'
+    ? 'Some employees have begun self-assessments, but the dataset is incomplete. Your recommendations should note that findings will sharpen significantly as assessment completion increases.'
+    : dataPhase === 'maturing'
+    ? 'Most assessments are complete, providing a solid foundation for recommendations. Additional goal and diagnostic data will further refine priorities.'
+    : 'You have comprehensive data including validated assessments, goals, and diagnostics. Your recommendations can be highly specific and personalized.'
+}
+
 DETAILED CAPABILITY GAP DATA (WHO NEEDS WHAT):
 ${validCohorts.map((c, i) => {
   const cohortEmployees = c.employee_ids.map(id => employeeDataMap.get(id));
@@ -501,6 +559,33 @@ Strategic Learning Design Overview
 
 EXECUTIVE SUMMARY
 [3-4 powerful paragraphs that frame the situation positively. End by introducing "Six Core Development Domains" or "Eight Strategic Focus Areas" (whatever number you identify). Always reference "employees enrolled in Jericho" not total company size. Balance acknowledgment of current state with optimism about potential.]
+
+DATA MATURITY AND METHODOLOGY
+
+Current Assessment Phase: ${dataPhase.charAt(0).toUpperCase() + dataPhase.slice(1)}
+
+${dataPhaseDescription}
+
+Data Sources:
+Job Descriptions: ${hasJobDescriptions ? 'Complete' : 'Not available'}
+Self-Assessments: ${selfAssessmentRate.toFixed(0)}% complete
+Manager Assessments: ${managerAssessmentRate.toFixed(0)}% complete
+Employee Goals: ${hasGoals ? 'Available' : 'Not yet collected'}
+Diagnostic Surveys: ${hasDiagnostics ? 'Complete' : 'Not yet collected'}
+
+${dataPhase === 'initial' ? `Important Context: This analysis is based on job description requirements and represents the capabilities needed for each role. Current and target levels shown are initial estimates derived from job analysis, not yet validated by employee self-assessments or manager reviews. As employees complete self-assessments and managers provide their evaluations, capability levels and priorities will be refined to reflect actual proficiency more accurately. This initial phase provides a strategic starting point, with the understanding that recommendations will become increasingly precise as assessment data matures.
+
+What to Expect as Data Matures:
+- Self-assessments will reveal where employees feel strongest and where they recognize growth needs
+- Manager assessments will provide calibrated, validated capability levels
+- Goal data will help prioritize development based on career aspirations
+- Diagnostic responses will uncover motivation, learning preferences, and retention risks
+- The combination of these data sources will enable highly personalized, targeted development plans
+
+For now, this report provides a foundational roadmap based on role requirements. Think of it as identifying the "playing field" - the capabilities each role demands. As assessments come in, we'll see where individuals actually stand on that field and can fine-tune development approaches accordingly.` : 
+dataPhase === 'early' ? `Assessment Progress: Self-assessment and manager validation are underway. Current findings blend job description analysis with emerging assessment data. As assessment completion increases, capability levels will become more accurate and development priorities will sharpen. Expect this report to evolve significantly as the remaining assessments are completed.` :
+dataPhase === 'maturing' ? `Dataset Quality: With substantial assessment completion, this analysis reflects validated capability levels rather than estimates. The addition of goal and diagnostic data will further refine priorities and enable more personalized recommendations.` :
+`Comprehensive Analysis: This report draws from complete assessment cycles, employee goals, and diagnostic data, providing highly accurate capability levels and personalized development recommendations.`}
 
 STRATEGIC FOCUS AREAS
 
@@ -745,6 +830,18 @@ Remember: Momentum 360 is excellent for leadership development but the organizat
         })
         .slice(0, 3)
         .map((c) => `${c.cohort_name} (${c.employee_count} people)`),
+      data_maturity: {
+        phase: dataPhase,
+        phase_description: dataPhaseDescription,
+        self_assessment_rate: Math.round(selfAssessmentRate),
+        manager_assessment_rate: Math.round(managerAssessmentRate),
+        has_job_descriptions: hasJobDescriptions,
+        has_goals: hasGoals,
+        has_diagnostics: hasDiagnostics,
+        total_capabilities: totalCapabilities,
+        self_assessed_count: selfAssessmentCount,
+        manager_assessed_count: managerAssessmentCount,
+      },
     };
 
     const budgetScenarios = {
