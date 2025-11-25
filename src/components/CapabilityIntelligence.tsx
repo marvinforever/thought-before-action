@@ -242,7 +242,7 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
         description: `Assigned ${discrepancy.capability_name} to all ${discrepancy.employees_without_ids.length} missing employee(s)`
       });
 
-      handleAnalyzeRoles(); // Refresh the analysis
+      await handleAnalyzeRoles(); // Refresh the analysis to remove the discrepancy
     } catch (error: any) {
       console.error("Error assigning capability:", error);
       toast({
