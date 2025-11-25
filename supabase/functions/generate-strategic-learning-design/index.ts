@@ -530,7 +530,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 4096,
+        max_tokens: 8192,  // Increased for longer narratives (2500-3500 words)
         system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. ABSOLUTE REQUIREMENT: Your output will be displayed directly to executives with NO post-processing. You MUST write in completely clean professional prose with ZERO markdown characters. This means: ZERO asterisks (*), ZERO hash symbols (#), ZERO underscores (_), ZERO brackets, ZERO bold/italic markers of any kind. Use plain text with colons for headings (not ## or #). For lists, use numbers (1., 2., 3.) or narrative prose. This is NON-NEGOTIABLE.",
         messages: [
           { role: "user", content: narrativePrompt }
@@ -538,14 +538,18 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       }),
     });
 
+    console.log("Claude API response status:", aiResponse.status);
+    
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error("Claude API error:", errorText);
       throw new Error(`Failed to generate narrative: ${errorText}`);
     }
 
+    console.log("Parsing Claude response...");
     const aiData = await aiResponse.json();
     let narrative = aiData.content[0]?.text || "Narrative generation failed.";
+    console.log("Narrative length:", narrative.length, "characters");
     
     // AGGRESSIVE post-processing to remove ALL markdown formatting
     narrative = narrative
@@ -696,6 +700,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
     };
 
     // Insert report into database
+    console.log("Inserting report into database...");
     const { data: newReport, error: insertError } = await supabase
       .from("strategic_learning_reports")
       .insert({
@@ -711,9 +716,11 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       .single();
 
     if (insertError) {
-      console.error("Error in generate-strategic-learning-design:", insertError);
+      console.error("Error inserting report:", insertError);
       throw insertError;
     }
+    
+    console.log("Report inserted successfully, ID:", newReport.id);
 
     // Insert cohorts (map to table schema)
     const cohortInserts = validCohorts.map((c) => {
@@ -759,6 +766,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
     // });
 
     console.log("Report generated successfully:", newReport.id);
+    console.log("Preparing response with", validCohorts.length, "cohorts");
 
     return new Response(
       JSON.stringify({ report: newReport, cohorts: validCohorts, cached: false }),
