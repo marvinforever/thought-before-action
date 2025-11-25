@@ -34,9 +34,10 @@ serve(async (req) => {
       .select(`
         id,
         title,
+        description,
         profile_id,
         is_current,
-        profiles!inner(full_name, email)
+        profiles!inner(full_name, email, role)
       `)
       .eq('company_id', company_id)
       .eq('is_current', true);
@@ -45,16 +46,50 @@ serve(async (req) => {
 
     console.log('Found job descriptions:', jobDescriptions?.length || 0);
 
+    // Helper function to extract title from description if title is null
+    const extractTitle = (jd: any): string => {
+      if (jd.title?.trim()) {
+        return jd.title.trim();
+      }
+
+      // Try to extract from description
+      if (jd.description) {
+        // Look for patterns like "Job Title: X" or "Position: X"
+        const patterns = [
+          /Job Title[:\s]+([^\n]+)/i,
+          /Position[:\s]+([^\n]+)/i,
+          /Title[:\s]+([^\n]+)/i,
+          /Role[:\s]+([^\n]+)/i,
+        ];
+
+        for (const pattern of patterns) {
+          const match = jd.description.match(pattern);
+          if (match && match[1]?.trim()) {
+            return match[1].trim();
+          }
+        }
+      }
+
+      // Fall back to employee's role from profile
+      if (jd.profiles?.role?.trim()) {
+        return jd.profiles.role.trim();
+      }
+
+      return 'Untitled';
+    };
+
     // Group by normalized job title
     const roleGroups: Record<string, any[]> = {};
     (jobDescriptions || []).forEach((jd: any) => {
-      const normalizedTitle = jd.title?.trim().toLowerCase() || 'untitled';
+      const extractedTitle = extractTitle(jd);
+      const normalizedTitle = extractedTitle.toLowerCase();
+      
       if (!roleGroups[normalizedTitle]) {
         roleGroups[normalizedTitle] = [];
       }
       roleGroups[normalizedTitle].push({
         profile_id: jd.profile_id,
-        title: jd.title,
+        title: extractedTitle,
         full_name: jd.profiles?.full_name,
         email: jd.profiles?.email
       });
