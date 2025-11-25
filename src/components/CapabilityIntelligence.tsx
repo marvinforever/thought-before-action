@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Plus, AlertCircle, CheckCircle2, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useViewAs } from "@/contexts/ViewAsContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
@@ -63,23 +64,31 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
   const [potentialCapabilities, setPotentialCapabilities] = useState<PotentialCapability[]>([]);
   
   const { toast } = useToast();
+  const { viewAsCompanyId } = useViewAs();
 
   const handleAnalyzeRoles = async () => {
     setAnalyzingRoles(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      let companyId = viewAsCompanyId;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
+      // If not viewing as another company, get from user's profile
+      if (!companyId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
 
-      if (!profile?.company_id) throw new Error("No company found");
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
+
+        companyId = profile?.company_id;
+      }
+
+      if (!companyId) throw new Error("No company found");
 
       const { data, error } = await supabase.functions.invoke('analyze-role-consistency', {
-        body: { company_id: profile.company_id }
+        body: { company_id: companyId }
       });
 
       if (error) throw error;
@@ -105,19 +114,26 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
   const handleScanForGaps = async () => {
     setScanningGaps(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      let companyId = viewAsCompanyId;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
+      // If not viewing as another company, get from user's profile
+      if (!companyId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
 
-      if (!profile?.company_id) throw new Error("No company found");
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
+
+        companyId = profile?.company_id;
+      }
+
+      if (!companyId) throw new Error("No company found");
 
       const { data, error } = await supabase.functions.invoke('discover-capability-gaps', {
-        body: { company_id: profile.company_id }
+        body: { company_id: companyId }
       });
 
       if (error) throw error;
