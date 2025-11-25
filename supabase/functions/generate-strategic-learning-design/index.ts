@@ -529,13 +529,13 @@ OUTPUT STRUCTURE (2000-3000 words):
    - Execution Test: Can org realistically deliver while running business?
    - ROI Test: Would you bet your bonus on measurable improvement?
 
-WRITING STYLE REQUIREMENTS:
-- Write in polished, professional prose suitable for executive review
-- Use clear section headings but NO markdown formatting (no asterisks, no bold markers)
-- Avoid repetitive emphasis formatting
-- Write naturally with varied sentence structure
-- Use numbered lists for priorities and key points
+CRITICAL FORMATTING REQUIREMENTS:
+- Write in clean, professional prose suitable for executive review
+- DO NOT USE ANY MARKDOWN: no asterisks (*), no hash symbols (#), no underscores (_), no bold/italic markers
+- Section headings should be plain text followed by a colon
+- Use numbered lists (1., 2., 3.) for priorities and key points
 - Present data and insights conversationally but professionally
+- If you need emphasis, use capital letters or careful word choice, NOT markdown formatting
 
 Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by choosing what NOT to do. Evidence-based but not academic. Clear and direct communication.`;
 
@@ -550,7 +550,7 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
         max_tokens: 4096,
-        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. Write in polished professional prose without markdown formatting - no asterisks, no bold markers, just clean readable text with clear headings.",
+        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. CRITICAL: Write ONLY in clean professional prose. NEVER use markdown formatting. NO asterisks, NO hash symbols, NO underscores, NO bold/italic markers. Use plain text with colons for headings and numbered lists for priorities.",
         messages: [
           { role: "user", content: narrativePrompt }
         ],
@@ -564,7 +564,19 @@ Tone: Confident, advisory, strategic through constraint. Demonstrate wisdom by c
     }
 
     const aiData = await aiResponse.json();
-    const narrative = aiData.content[0]?.text || "Narrative generation failed.";
+    let narrative = aiData.content[0]?.text || "Narrative generation failed.";
+    
+    // Post-process to remove any markdown formatting that slipped through
+    narrative = narrative
+      .replace(/\*\*\*/g, '')  // Remove triple asterisks
+      .replace(/\*\*/g, '')    // Remove double asterisks (bold)
+      .replace(/\*/g, '')      // Remove single asterisks (italic)
+      .replace(/___/g, '')     // Remove triple underscores
+      .replace(/__/g, '')      // Remove double underscores
+      .replace(/_/g, '')       // Remove single underscores
+      .replace(/###\s+/g, '')  // Remove ### headers
+      .replace(/##\s+/g, '')   // Remove ## headers
+      .replace(/#\s+/g, '');   // Remove # headers
 
     // Calculate ROI projections based on actual data
     const avgTurnoverCost = 75000; // Includes recruiting, training, productivity loss
