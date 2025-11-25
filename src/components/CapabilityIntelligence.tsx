@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Plus, AlertCircle, CheckCircle2, Users, UserPlus, UsersRound, X } from "lucide-react";
+import { Loader2, Search, Plus, AlertCircle, CheckCircle2, Users, UserPlus, UsersRound, X, UserMinus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useViewAs } from "@/contexts/ViewAsContext";
@@ -32,6 +32,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface RoleAnalysis {
   role_title: string;
@@ -278,14 +284,31 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
     if (!discrepancy.employees_with_ids || discrepancy.employees_with_ids.length === 0) return;
 
     try {
-      // Delete all employee_capabilities records for this capability and these employees
-      const { error } = await supabase
+      // Get all employee_capabilities records for this capability and these employees
+      const { data: existingCapabilities, error: fetchError } = await supabase
         .from('employee_capabilities')
-        .delete()
+        .select('id')
         .eq('capability_id', discrepancy.capability_id)
         .in('profile_id', discrepancy.employees_with_ids);
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
+
+      if (!existingCapabilities || existingCapabilities.length === 0) {
+        toast({
+          title: "No records found",
+          description: "No capability assignments to remove"
+        });
+        return;
+      }
+
+      // Delete the records
+      const idsToDelete = existingCapabilities.map(cap => cap.id);
+      const { error: deleteError } = await supabase
+        .from('employee_capabilities')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (deleteError) throw deleteError;
 
       toast({
         title: "Success",
@@ -458,15 +481,22 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
                                     <UsersRound className="h-3 w-3 mr-1" />
                                     Assign to All
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleUnassignFromAll(disc)}
-                                    className="flex-1"
-                                  >
-                                    <X className="h-3 w-3 mr-1" />
-                                    Unassign All
-                                  </Button>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          onClick={() => handleUnassignFromAll(disc)}
+                                        >
+                                          <UserMinus className="h-3 w-3" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Unassign from all employees</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   <Button
                                     size="sm"
                                     variant="ghost"
