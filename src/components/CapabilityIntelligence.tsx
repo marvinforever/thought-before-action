@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Plus, AlertCircle, CheckCircle2, Users } from "lucide-react";
+import { Loader2, Search, Plus, AlertCircle, CheckCircle2, Users, UserPlus, UsersRound, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useViewAs } from "@/contexts/ViewAsContext";
@@ -23,6 +23,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface RoleAnalysis {
   role_title: string;
@@ -39,6 +48,7 @@ interface RoleAnalysis {
     employees_without: number;
     employees_with_names: string[];
     employees_without_names: string[];
+    employees_without_ids: string[];
   }>;
   has_discrepancies: boolean;
 }
@@ -68,6 +78,11 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
   
   const [scanningGaps, setScanningGaps] = useState(false);
   const [potentialCapabilities, setPotentialCapabilities] = useState<PotentialCapability[]>([]);
+  
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedDiscrepancy, setSelectedDiscrepancy] = useState<RoleAnalysis["discrepancies"][0] | null>(null);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [assigning, setAssigning] = useState(false);
   
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
@@ -160,6 +175,102 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
     } finally {
       setScanningGaps(false);
     }
+  };
+
+  const handleOpenAssignDialog = (discrepancy: RoleAnalysis["discrepancies"][0]) => {
+    setSelectedDiscrepancy(discrepancy);
+    setSelectedEmployeeIds([]);
+    setAssignDialogOpen(true);
+  };
+
+  const handleAssignToSelected = async () => {
+    if (!selectedDiscrepancy || selectedEmployeeIds.length === 0) return;
+
+    setAssigning(true);
+    try {
+      const assignments = selectedEmployeeIds.map(profileId => ({
+        profile_id: profileId,
+        capability_id: selectedDiscrepancy.capability_id,
+        current_level: 'foundational' as const,
+        target_level: 'advancing' as const,
+      }));
+
+      const { error } = await supabase
+        .from('employee_capabilities')
+        .insert(assignments);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Assigned ${selectedDiscrepancy.capability_name} to ${selectedEmployeeIds.length} employee(s)`
+      });
+
+      setAssignDialogOpen(false);
+      handleAnalyzeRoles(); // Refresh the analysis
+    } catch (error: any) {
+      console.error("Error assigning capability:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign capability",
+        variant: "destructive"
+      });
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleAssignToAll = async (discrepancy: RoleAnalysis["discrepancies"][0]) => {
+    if (!discrepancy.employees_without_ids || discrepancy.employees_without_ids.length === 0) return;
+
+    try {
+      const assignments = discrepancy.employees_without_ids.map(profileId => ({
+        profile_id: profileId,
+        capability_id: discrepancy.capability_id,
+        current_level: 'foundational' as const,
+        target_level: 'advancing' as const,
+      }));
+
+      const { error } = await supabase
+        .from('employee_capabilities')
+        .insert(assignments);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Assigned ${discrepancy.capability_name} to all ${discrepancy.employees_without_ids.length} missing employee(s)`
+      });
+
+      handleAnalyzeRoles(); // Refresh the analysis
+    } catch (error: any) {
+      console.error("Error assigning capability:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign capability",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDismiss = (discrepancy: RoleAnalysis["discrepancies"][0]) => {
+    // Remove this discrepancy from the current view
+    setRoleAnalyses(prev => 
+      prev.map(role => {
+        if (role.role_title === selectedRole) {
+          return {
+            ...role,
+            discrepancies: role.discrepancies.filter(d => d.capability_id !== discrepancy.capability_id)
+          };
+        }
+        return role;
+      })
+    );
+
+    toast({
+      title: "Dismissed",
+      description: `Removed ${discrepancy.capability_name} from inconsistency list`
+    });
   };
 
   const getScoreColor = (score: number) => {
@@ -298,6 +409,33 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
                                     </ul>
                                   </div>
                                 </div>
+                                
+                                <div className="flex gap-2 pt-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOpenAssignDialog(disc)}
+                                    className="flex-1"
+                                  >
+                                    <UserPlus className="h-3 w-3 mr-1" />
+                                    Select & Assign
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAssignToAll(disc)}
+                                    className="flex-1"
+                                  >
+                                    <UsersRound className="h-3 w-3 mr-1" />
+                                    Assign to All
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDismiss(disc)}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -422,6 +560,55 @@ export default function CapabilityIntelligence({ onCreateCapability }: Capabilit
           </CardContent>
         </Card>
       </TabsContent>
+
+      {/* Select & Assign Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign {selectedDiscrepancy?.capability_name}</DialogTitle>
+            <DialogDescription>
+              Select which employees should be assigned this capability
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {selectedDiscrepancy?.employees_without_ids?.map((id, idx) => (
+              <div key={id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`employee-${id}`}
+                  checked={selectedEmployeeIds.includes(id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedEmployeeIds(prev => [...prev, id]);
+                    } else {
+                      setSelectedEmployeeIds(prev => prev.filter(eid => eid !== id));
+                    }
+                  }}
+                />
+                <label
+                  htmlFor={`employee-${id}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  {selectedDiscrepancy.employees_without_names[idx]}
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAssignToSelected}
+              disabled={selectedEmployeeIds.length === 0 || assigning}
+            >
+              {assigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Assign to {selectedEmployeeIds.length} Selected
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Tabs>
   );
 }
