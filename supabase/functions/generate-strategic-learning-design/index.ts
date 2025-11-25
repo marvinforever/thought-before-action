@@ -506,17 +506,33 @@ OUTPUT STRUCTURE (2500-3500 words):
 5. IMPACT AND ROI CONTEXT:
    Conversationally discuss the expected business impact. Reference industry benchmarks naturally. Connect specific capability development to business outcomes.
 
-CRITICAL FORMATTING REQUIREMENTS - ABSOLUTELY NO EXCEPTIONS:
-- This document will be displayed directly to executives. It MUST be clean prose with ZERO markdown.
-- Structure your response with PARAGRAPH BREAKS (use double line breaks between paragraphs)
-- Section headings: Use plain text followed by a colon on its own line (e.g., "Executive Overview:" not "## Executive Overview")
-- NEVER use asterisks (*), hash symbols (#), underscores (_), brackets, or bold/italic markers
-- For emphasis: Use capital letters or careful word choice, NEVER markdown
-- Lists: Use numbered lists (1., 2., 3.) on separate lines or write as narrative prose
-- Separate major sections with a blank line
-- Keep paragraph breaks to maintain readability
-- DO NOT mention budget recommendations or implementation quarters
+CRITICAL FORMATTING REQUIREMENTS:
+Your response will be displayed in a web interface that preserves line breaks. You MUST use proper spacing and structure.
+
+REQUIRED SPACING:
+- Put TWO line breaks (press Enter twice) between every paragraph
+- Put TWO line breaks after every section heading
+- Put TWO line breaks between sections
+- Put a blank line before and after any numbered lists
+
+SECTION HEADINGS:
+Write headings as plain text with a colon, on their own line with a blank line after.
+Example:
+Executive Overview:
+
+[content starts here]
+
+NO MARKDOWN EVER:
+- No asterisks, hash symbols, underscores, brackets
+- No bold, italic, or formatting markers
+- Use CAPITAL LETTERS for emphasis if needed
+- Write as clean professional prose
+
+CONTENT REQUIREMENTS:
 - Focus on WHO needs WHAT and WHY in narrative form
+- Use actual employee names throughout
+- Connect to business impact
+- DO NOT mention budget amounts or specific quarters
 
 Tone: Strategic, advisory, people-focused. Write like a trusted consultant who knows these individuals and their business. Evidence-based but conversational. Clear and engaging.`;
 
@@ -531,7 +547,7 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
         max_tokens: 8192,  // Increased for longer narratives (2500-3500 words)
-        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint. ABSOLUTE REQUIREMENT: Your output will be displayed directly to executives with NO post-processing. You MUST write in completely clean professional prose with ZERO markdown characters (no asterisks, hash symbols, underscores, brackets, or bold/italic markers). Use paragraph breaks (double newlines) to separate ideas. Use plain text with colons for section headings. For lists, use numbered items on separate lines. Structure and readability are critical - use whitespace and paragraph breaks generously.",
+        system: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You're evidence-based, strategic, and RUTHLESSLY PRIORITIZED. You understand that small-to-medium organizations (20-200 employees) can only execute 5-8 major learning initiatives per year. Your job is to help organizations FOCUS by choosing what NOT to do as much as what TO do. You filter every training cohort through: Business Criticality (blocks revenue/creates risk), Urgency (needed in 12 months), and Leverage (multiplier effect). You consolidate related skills, defer non-critical items to Year 2-3, and move universal skills to self-serve. You speak like a confident strategic advisor who demonstrates wisdom through constraint.\n\nFORMATTING IS CRITICAL: Your output will be displayed directly in a web interface with NO markdown processing. You must structure your response as clean prose with PROPER PARAGRAPH BREAKS.\n\nUse double line breaks (\\n\\n) between:\n- Paragraphs\n- Section headings and their content\n- Different sections\n- List items and the next paragraph\n\nFor section headings, put the title on its own line followed by a colon, then a blank line, then the content.\n\nExample format:\nExecutive Overview:\n\nThis organization has identified 12 critical capability gaps across 24 employees. The most urgent needs center on leadership development and strategic thinking.\n\n[blank line here]\n\nSarah Johnson, Mike Chen, and Jennifer Williams all need to advance their leadership capabilities from developing to independent level. This matters because...\n\n[another blank line]\n\nCapability Development Priorities:\n\nLeadership and People Management\n\n[content here]\n\nNEVER use markdown (no *, #, _, [], or **). Use capital letters for emphasis if needed.",
         messages: [
           { role: "user", content: narrativePrompt }
         ],
@@ -549,8 +565,8 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
     console.log("Parsing Claude response...");
     const aiData = await aiResponse.json();
     let narrative = aiData.content[0]?.text || "Narrative generation failed.";
-    console.log("Narrative length:", narrative.length, "characters");
-    console.log("First 500 chars of raw narrative:", narrative.substring(0, 500));
+    console.log("Raw narrative length:", narrative.length, "characters");
+    console.log("Line breaks in raw narrative:", (narrative.match(/\n/g) || []).length);
     
     // Post-process to remove markdown while PRESERVING structure
     narrative = narrative
@@ -564,13 +580,14 @@ Tone: Strategic, advisory, people-focused. Write like a trusted consultant who k
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       // Normalize line breaks: ensure double newlines for paragraph breaks
       .replace(/\r\n/g, '\n')  // Normalize Windows line endings
-      .replace(/\n{3,}/g, '\n\n')  // Collapse 3+ newlines to 2
+      .replace(/\n{4,}/g, '\n\n')  // Collapse 4+ newlines to 2, but keep intentional doubles
       // Clean up any multiple spaces on same line (but NOT across lines)
       .replace(/[^\S\n]+/g, ' ')  // Replace multiple spaces/tabs with single space, but preserve newlines
       .trim();
     
-    console.log("Post-processed narrative length:", narrative.length);
-    console.log("First 500 chars after processing:", narrative.substring(0, 500));
+    console.log("Processed narrative length:", narrative.length);
+    console.log("Line breaks after processing:", (narrative.match(/\n/g) || []).length);
+    console.log("Double line breaks (paragraphs):", (narrative.match(/\n\n/g) || []).length);
 
     // Calculate ROI projections based on actual data
     const avgTurnoverCost = 75000; // Includes recruiting, training, productivity loss
