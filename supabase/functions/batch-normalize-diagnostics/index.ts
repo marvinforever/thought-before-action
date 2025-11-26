@@ -75,9 +75,6 @@ serve(async (req) => {
           results.processed++;
         }
         
-        // Small delay to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
       } catch (error) {
         console.error(`Error processing ${diagnostic.id}:`, error);
         results.failed++;
