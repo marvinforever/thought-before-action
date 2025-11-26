@@ -138,38 +138,22 @@ const Dashboard = () => {
       const scores = normalizedScores || [];
       const diagnosticsCompleted = scores.length;
 
-      // Calculate averages from pre-calculated scores (0-100 scale)
-      const avgRetentionScore = scores.length > 0 
-        ? Math.round(scores.reduce((sum, s) => sum + (s.retention_score || 0), 0) / scores.length)
-        : 0;
+      // Helper to calculate average excluding nulls
+      const calculateAverage = (field: keyof typeof scores[0]) => {
+        const validScores = scores.filter(s => s[field] !== null && s[field] !== undefined);
+        if (validScores.length === 0) return 0;
+        return Math.round(validScores.reduce((sum, s) => sum + (s[field] as number), 0) / validScores.length);
+      };
 
-      const avgEngagement = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + (s.engagement_score || 0), 0) / scores.length)
-        : 0;
-
-      const burnoutScore = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + (s.burnout_score || 0), 0) / scores.length)
-        : 0;
-
-      const managerEffectiveness = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + (s.manager_score || 0), 0) / scores.length)
-        : 0;
-
-      const careerPathScore = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + (s.career_score || 0), 0) / scores.length)
-        : 0;
-
-      const roleClarity = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + (s.clarity_score || 0), 0) / scores.length)
-        : 0;
-
-      const learningEngagement = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + (s.learning_score || 0), 0) / scores.length)
-        : 0;
-
-      const skillsScore = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + (s.skills_score || 0), 0) / scores.length)
-        : 0;
+      // Calculate averages from pre-calculated scores (0-100 scale), excluding null values
+      const avgRetentionScore = calculateAverage('retention_score');
+      const avgEngagement = calculateAverage('engagement_score');
+      const burnoutScore = calculateAverage('burnout_score');
+      const managerEffectiveness = calculateAverage('manager_score');
+      const careerPathScore = calculateAverage('career_score');
+      const roleClarity = calculateAverage('clarity_score');
+      const learningEngagement = calculateAverage('learning_score');
+      const skillsScore = calculateAverage('skills_score');
 
       // Calculate retention risk counts based on individual retention scores
       const retentionScores = scores.map(s => s.retention_score || 0);
