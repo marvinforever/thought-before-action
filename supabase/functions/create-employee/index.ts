@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
     console.log('Profile created successfully')
 
     return new Response(
-      JSON.stringify({ id: userId }),
+      JSON.stringify({ employeeId: userId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
