@@ -758,7 +758,16 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
       }
     ];
 
-    // Non-streaming response (original behavior)
+    // Save user message
+    await supabase
+      .from('conversation_messages')
+      .insert({
+        conversation_id: conversation.id,
+        role: 'user',
+        content: message,
+      });
+
+    // Streaming response
     console.log('Calling Lovable AI with context type:', contextType);
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -771,20 +780,109 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
         messages: aiMessages,
         tools,
         temperature: 0.8,
-        max_tokens: 1000,
+        max_tokens: 2000,
+        stream: true,
       }),
     });
 
     if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limits exceeded. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'AI credits exhausted. Please contact your administrator.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       const errorText = await aiResponse.text();
       console.error('Lovable AI error:', aiResponse.status, errorText);
-      throw new Error(`AI request failed: ${aiResponse.status}`);
+      return new Response(
+        JSON.stringify({ error: 'AI service temporarily unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const aiData = await aiResponse.json();
-    const aiMessage = aiData.choices[0].message;
-    let assistantMessage = aiMessage.content || '';
+    // Create a TransformStream to process the AI response and send it to the client
+    const responseStream = new TransformStream();
+    const writer = responseStream.writable.getWriter();
+    const encoder = new TextEncoder();
 
+    // Process the AI stream in the background
+    (async () => {
+      try {
+        const reader = aiResponse.body!.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedContent = '';
+        let buffer = '';
+
+        // Send conversation ID first
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ conversationId: conversation.id })}\n\n`));
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                
+                if (content) {
+                  accumulatedContent += content;
+                  await writer.write(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+                }
+              } catch (e) {
+                console.error('Failed to parse SSE data:', e);
+              }
+            }
+          }
+        }
+
+        // Save assistant message
+        if (accumulatedContent) {
+          await supabase
+            .from('conversation_messages')
+            .insert({
+              conversation_id: conversation.id,
+              role: 'assistant',
+              content: accumulatedContent,
+            });
+
+          // Update conversation timestamp
+          await supabase
+            .from('conversations')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', conversation.id);
+        }
+
+        // Send done signal
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+      } catch (error) {
+        console.error('Stream processing error:', error);
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return new Response(responseStream.readable, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+    });
+
+    // NOTE: Tool calling will be re-implemented in a future update
+    // For now, focusing on core streaming chat functionality
+    /*
     // Handle tool calls if present
     if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
       const toolResults = [];
@@ -978,31 +1076,7 @@ Keep responses conversational and concise. Don't write essays—keep it tight an
         assistantMessage = assistantMessage + '\n\n' + toolResults.join('\n');
       }
     }
-
-    // Save assistant message
-    await supabase
-      .from('conversation_messages')
-      .insert({
-        conversation_id: conversation.id,
-        role: 'assistant',
-        content: assistantMessage,
-      });
-
-    // Update conversation timestamp
-    await supabase
-      .from('conversations')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', conversation.id);
-
-    return new Response(
-      JSON.stringify({
-        conversationId: conversation.id,
-        message: assistantMessage,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    */
 
   } catch (error) {
     console.error('Error in chat-with-jericho:', error);
