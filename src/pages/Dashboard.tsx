@@ -106,13 +106,14 @@ const Dashboard = () => {
         companyId = profile.company_id;
       }
 
-      // Only get employees and diagnostics for THIS specific company
+      // Only get active employees and diagnostics for THIS specific company
       // Get employees and diagnostics - check both submitted_at and typeform_submit_date
       const [employeesRes, diagnosticDataRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("id", { count: "exact" })
-          .eq("company_id", companyId),
+          .eq("company_id", companyId)
+          .eq("is_active", true),
         supabase
           .from("diagnostic_responses")
           .select("*")
