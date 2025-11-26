@@ -28,6 +28,7 @@ export function AssignRoleDialog({ open, onOpenChange, employeeId, employeeName 
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log("AssignRoleDialog opened:", { open, employeeId, employeeName });
     if (open) {
       loadCurrentRoles();
     }
@@ -35,13 +36,16 @@ export function AssignRoleDialog({ open, onOpenChange, employeeId, employeeName 
 
   const loadCurrentRoles = async () => {
     try {
+      console.log("Loading roles for user:", employeeId);
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", employeeId);
 
+      console.log("Load roles result:", { data, error });
       if (error) throw error;
       setCurrentRoles(data?.map(r => r.role as Role) || []);
+      console.log("Current roles set to:", data?.map(r => r.role));
     } catch (error: any) {
       console.error("Error loading roles:", error);
       toast({
