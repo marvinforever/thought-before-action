@@ -97,7 +97,7 @@ export function TeamDiagnosticSnapshot() {
         .select("*")
         .in("profile_id", employeeIds)
         .eq("company_id", companyId)
-        .not("submitted_at", "is", null);
+        .not("typeform_submit_date", "is", null);
 
       const diagnosticData = diagnostics || [];
       const uniqueEmployeesWithDiagnostics = new Set(diagnosticData.map(d => d.profile_id).filter(Boolean)).size;
