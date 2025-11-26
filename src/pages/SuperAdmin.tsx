@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
@@ -103,6 +103,17 @@ const SuperAdmin = () => {
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [roleDialogUser, setRoleDialogUser] = useState<any>(null);
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editUserForm, setEditUserForm] = useState({
+    full_name: "",
+    email: "",
+    role: "",
+    company_id: "",
+    phone: "",
+    is_active: true
+  });
+  const [updatingUser, setUpdatingUser] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -1563,6 +1574,64 @@ const SuperAdmin = () => {
     }
   };
 
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setEditUserForm({
+      full_name: user.full_name || "",
+      email: user.email || "",
+      role: user.role || "",
+      company_id: user.company_id || "",
+      phone: user.phone || "",
+      is_active: user.is_active !== false
+    });
+    setEditUserDialogOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser || !editUserForm.full_name || !editUserForm.email || !editUserForm.company_id) {
+      toast({
+        title: "Validation error",
+        description: "Name, email, and company are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUpdatingUser(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: editUserForm.full_name,
+          email: editUserForm.email.toLowerCase().trim(),
+          role: editUserForm.role || null,
+          company_id: editUserForm.company_id,
+          phone: editUserForm.phone || null,
+          is_active: editUserForm.is_active,
+        })
+        .eq("id", editingUser.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+
+      setEditUserDialogOpen(false);
+      setEditingUser(null);
+      loadAllSystemUsers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingUser(false);
+    }
+  };
+
   if (loading || !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1896,17 +1965,27 @@ const SuperAdmin = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setRoleDialogUser(user);
-                                  setIsRoleDialogOpen(true);
-                                }}
-                              >
-                                <Shield className="h-4 w-4 mr-2" />
-                                Edit Roles
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditUser(user)}
+                                >
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setRoleDialogUser(user);
+                                    setIsRoleDialogOpen(true);
+                                  }}
+                                >
+                                  <Shield className="h-4 w-4 mr-2" />
+                                  Roles
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -3014,6 +3093,120 @@ const SuperAdmin = () => {
           employeeName={roleDialogUser.full_name || roleDialogUser.email}
         />
       )}
+
+      {/* Edit User Dialog */}
+      <Dialog open={editUserDialogOpen} onOpenChange={setEditUserDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user information for {editingUser?.full_name || editingUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Full Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editUserForm.full_name}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, full_name: e.target.value })}
+                  placeholder="John Doe"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editUserForm.email}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                  placeholder="john@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-company">Company *</Label>
+                <Select
+                  value={editUserForm.company_id}
+                  onValueChange={(value) => setEditUserForm({ ...editUserForm, company_id: value })}
+                >
+                  <SelectTrigger id="edit-company">
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-role">Job Title</Label>
+                <Input
+                  id="edit-role"
+                  value={editUserForm.role}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, role: e.target.value })}
+                  placeholder="Account Manager"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editUserForm.phone}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, phone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={editUserForm.is_active ? "active" : "inactive"}
+                  onValueChange={(value) => setEditUserForm({ ...editUserForm, is_active: value === "active" })}
+                >
+                  <SelectTrigger id="edit-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditUserDialogOpen(false);
+                setEditingUser(null);
+              }}
+              disabled={updatingUser}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateUser} disabled={updatingUser}>
+              {updatingUser ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
