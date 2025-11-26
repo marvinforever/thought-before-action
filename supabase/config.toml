@@ -3,6 +3,12 @@ project_id = "aiihzjkspwsriktvrdle"
 [functions.send-welcome-email]
 verify_jwt = true
 
+[functions.normalize-diagnostic-scores]
+verify_jwt = true
+
+[functions.batch-normalize-diagnostics]
+verify_jwt = true
+
 [functions.setup-demo-company]
 verify_jwt = true
 

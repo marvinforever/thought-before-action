@@ -939,6 +939,69 @@ export type Database = {
           },
         ]
       }
+      diagnostic_scores: {
+        Row: {
+          burnout_score: number | null
+          calculated_at: string
+          career_score: number | null
+          clarity_score: number | null
+          company_id: string
+          created_at: string
+          engagement_score: number | null
+          id: string
+          learning_score: number | null
+          manager_score: number | null
+          profile_id: string
+          retention_score: number | null
+          skills_score: number | null
+        }
+        Insert: {
+          burnout_score?: number | null
+          calculated_at?: string
+          career_score?: number | null
+          clarity_score?: number | null
+          company_id: string
+          created_at?: string
+          engagement_score?: number | null
+          id?: string
+          learning_score?: number | null
+          manager_score?: number | null
+          profile_id: string
+          retention_score?: number | null
+          skills_score?: number | null
+        }
+        Update: {
+          burnout_score?: number | null
+          calculated_at?: string
+          career_score?: number | null
+          clarity_score?: number | null
+          company_id?: string
+          created_at?: string
+          engagement_score?: number | null
+          id?: string
+          learning_score?: number | null
+          manager_score?: number | null
+          profile_id?: string
+          retention_score?: number | null
+          skills_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostic_scores_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_scores_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_deliveries: {
         Row: {
           body: string | null

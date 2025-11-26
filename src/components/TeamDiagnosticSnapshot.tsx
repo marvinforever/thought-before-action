@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, TrendingUp, TrendingDown, Target, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
-import { useToast } from "@/hooks/use-toast";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { toast } from "sonner";
 
 interface DomainScore {
   domain: string;
@@ -24,39 +25,33 @@ export function TeamDiagnosticSnapshot() {
     domainScores: [] as DomainScore[],
   });
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [normalizing, setNormalizing] = useState(false);
   const { viewAsCompanyId } = useViewAs();
-
-  const parseSupportQuality = (v: any): number => {
-    if (v === null || v === undefined) return 0;
-    const n = Number(v);
-    if (!Number.isNaN(n) && n > 0) return n;
-    const s = String(v).toLowerCase();
-    if (s.includes('excellent')) return 10;
-    if (s.includes('very good')) return 9;
-    if (s.includes('good')) return 8;
-    if (s.includes('fair')) return 6;
-    if (s.includes('poor')) return 3;
-    return 0;
-  };
-
-  const parseEnergyLevel = (v: any): number => {
-    if (v === null || v === undefined) return 0;
-    const n = Number(v);
-    if (!Number.isNaN(n) && n > 0) return n;
-    const s = String(v).toLowerCase();
-    if (s.includes('very energized') || s.includes('extremely energized')) return 10;
-    if (s.includes('energized')) return 8;
-    if (s.includes('somewhat energized') || s.includes('moderately')) return 6;
-    if (s.includes('neutral')) return 5;
-    if (s.includes('somewhat drained') || s.includes('tired')) return 3;
-    if (s.includes('very drained') || s.includes('exhausted')) return 1;
-    return 0;
-  };
 
   useEffect(() => {
     loadTeamStats();
   }, [viewAsCompanyId]);
+
+  const handleBatchNormalize = async () => {
+    try {
+      setNormalizing(true);
+      toast.info("Starting diagnostic normalization... This may take a few minutes.");
+      
+      const { data, error } = await supabase.functions.invoke('batch-normalize-diagnostics');
+      
+      if (error) throw error;
+      
+      toast.success(`Normalized ${data.processed} diagnostics. Failed: ${data.failed}`);
+      
+      // Reload data
+      loadTeamStats();
+    } catch (error: any) {
+      console.error("Batch normalization error:", error);
+      toast.error("Failed to normalize diagnostics");
+    } finally {
+      setNormalizing(false);
+    }
+  };
 
   const loadTeamStats = async () => {
     setLoading(true);
@@ -68,7 +63,7 @@ export function TeamDiagnosticSnapshot() {
       let companyId = viewAsCompanyId;
 
       if (companyId) {
-        // Super admin viewing as company - get all active employees in that company
+        // Super admin viewing as company - get all active employees
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id")
@@ -92,97 +87,49 @@ export function TeamDiagnosticSnapshot() {
         return;
       }
 
-      // Get diagnostic data for team members - check both submitted_at and typeform_submit_date
-      const { data: diagnostics } = await supabase
-        .from("diagnostic_responses")
+      // Get pre-calculated diagnostic scores
+      const { data: scores, error: scoresError } = await supabase
+        .from("diagnostic_scores")
         .select("*")
-        .in("profile_id", employeeIds)
-        .eq("company_id", companyId)
-        .or("typeform_submit_date.not.is.null,submitted_at.not.is.null");
+        .in("profile_id", employeeIds);
 
-      const diagnosticData = diagnostics || [];
-      const uniqueEmployeesWithDiagnostics = new Set(diagnosticData.map(d => d.profile_id).filter(Boolean)).size;
+      if (scoresError) {
+        console.error("Error loading scores:", scoresError);
+        setLoading(false);
+        return;
+      }
 
-      // 1. RETENTION & FLIGHT RISK
-      const retentionScores = diagnosticData.map(d => parseInt(d.would_stay_if_offered_similar) || 0).filter(s => s > 0);
-      const highRiskCount = retentionScores.filter(s => s <= 5).length;
-      const retentionRisk = retentionScores.length > 0 ? Math.round((highRiskCount / retentionScores.length) * 100) : 0;
+      if (!scores || scores.length === 0) {
+        setStats({
+          teamSize: employeeIds.length,
+          diagnosticsCompleted: 0,
+          avgEngagement: 0,
+          retentionRisk: 0,
+          atRiskEmployees: 0,
+          domainScores: [],
+        });
+        setLoading(false);
+        return;
+      }
 
-      // 2. ENGAGEMENT INDEX
-      const engagementScores = diagnosticData.map(d => {
-        const scores = (d.additional_responses as any)?.engagement_scores;
-        const hasValidScores = scores && Object.values(scores).some((v: any) => v > 0);
-        
-        if (hasValidScores) {
-          const growthPath = scores.growth_path_score || 0;
-          const managerFeedback = scores.manager_feedback_score || 0;
-          const valued = scores.valued_score || 0;
-          const energy = scores.energy_score || 0;
-          return (growthPath + managerFeedback + valued + energy) / 4;
-        } else {
-          const growthPath = d.sees_growth_path ? 10 : 0;
-          const managerFeedback = parseSupportQuality(d.manager_support_quality);
-          const valued = d.feels_valued ? 10 : 0;
-          const energy = parseEnergyLevel(d.daily_energy_level);
-          const total = growthPath + managerFeedback + valued + energy;
-          return total > 0 ? total / 4 : 0;
-        }
-      }).filter(s => s > 0);
-      const avgEngagement = engagementScores.length > 0 ? parseFloat(((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10).toFixed(2)) : 0;
-      
-      const energyScores = diagnosticData.map(d => parseEnergyLevel(d.daily_energy_level)).filter(s => s > 0);
-
-      // 3. BURNOUT
-      const burnoutMap: Record<string, number> = {
-        'Never or almost never': 1,
-        'Rarely (monthly)': 2,
-        'Sometimes (weekly)': 3,
-        'Often (several times a week)': 4,
-        'Frequently (daily)': 5,
+      // Calculate domain averages from pre-calculated scores
+      const avgScore = (field: 'retention_score' | 'engagement_score' | 'burnout_score' | 'manager_score' | 'career_score' | 'clarity_score' | 'learning_score' | 'skills_score') => {
+        const values = scores
+          .map(s => s[field])
+          .filter((v): v is number => v !== null && typeof v === 'number');
+        return values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
       };
-      const burnoutScores = diagnosticData.map(d => burnoutMap[d.burnout_frequency || ''] || 0).filter(s => s > 0);
-      const burnoutScore = burnoutScores.length > 0 ? Math.round((burnoutScores.reduce((a, b) => a + b, 0) / burnoutScores.length) * 20) : 0;
 
-      // 4. MANAGER EFFECTIVENESS
-      const managerScores = diagnosticData.map(d => parseSupportQuality(d.manager_support_quality)).filter(s => s > 0);
-      const managerEffectiveness = managerScores.length > 0 ? Math.round((managerScores.reduce((a, b) => a + b, 0) / managerScores.length) * 10) : 0;
+      const retentionScore = avgScore('retention_score');
+      const engagementScore = avgScore('engagement_score');
+      const burnoutScore = avgScore('burnout_score');
+      const managerScore = avgScore('manager_score');
+      const careerScore = avgScore('career_score');
+      const clarityScore = avgScore('clarity_score');
+      const learningScore = avgScore('learning_score');
+      const skillsScore = avgScore('skills_score');
 
-      // 5. CAREER DEVELOPMENT
-      const careerPathCount = diagnosticData.filter(d => d.sees_growth_path === true).length;
-      const careerPathScore = diagnosticData.length > 0 ? Math.round((careerPathCount / diagnosticData.length) * 100) : 0;
-
-      // 6. ROLE CLARITY
-      const clarityScores = diagnosticData.map(d => {
-        const score = d.role_clarity_score;
-        if (score !== null && score !== undefined) return Number(score);
-        // Fallback: if they have a written job description, assume moderate clarity
-        if (d.has_written_job_description === true) return 7;
-        return 0;
-      }).filter(s => s > 0);
-      const roleClarity = clarityScores.length > 0 ? Math.round((clarityScores.reduce((a, b) => a + b, 0) / clarityScores.length) * 10) : 0;
-
-      // 7. LEARNING ENGAGEMENT
-      const learningScores = diagnosticData.map(d => {
-        const hours = parseFloat(d.weekly_development_hours as any) || 0;
-        const learningData = (d.additional_responses as any)?.learning_scores;
-        const qualityRating = learningData?.quality_rating || 0;
-        const needsMet = learningData?.needs_met_percentage || 0;
-        
-        const timeScore = Math.min(hours * 25, 100);
-        const qualityScore = qualityRating * 10;
-        const needsScore = needsMet;
-        
-        return (timeScore * 0.5) + (qualityScore * 0.3) + (needsScore * 0.2);
-      }).filter(s => s > 0);
-      const learningEngagement = learningScores.length > 0 ? Math.round(learningScores.reduce((a, b) => a + b, 0) / learningScores.length) : 0;
-
-      // 8. SKILLS
-      const confidenceScores = diagnosticData.map(d => {
-        const score = d.confidence_score;
-        if (score !== null && score !== undefined) return Number(score);
-        return 0;
-      }).filter(s => s > 0);
-      const skillsScore = confidenceScores.length > 0 ? Math.round((confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length) * 10) : 0;
+      const atRiskCount = scores.filter(s => (s.retention_score || 50) < 50).length;
 
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
         if (score >= 75) return "low";
@@ -192,30 +139,26 @@ export function TeamDiagnosticSnapshot() {
       };
 
       const domainScores: DomainScore[] = [
-        { domain: "Retention", score: 100 - retentionRisk, risk: getRiskLevel(100 - retentionRisk), impact: `${highRiskCount} at risk` },
-        { domain: "Engagement", score: avgEngagement, risk: getRiskLevel(avgEngagement), impact: `${energyScores.filter(s => s <= 5).length} low energy` },
-        { domain: "Burnout", score: 100 - burnoutScore, risk: getRiskLevel(100 - burnoutScore), impact: `${burnoutScores.filter(s => s >= 4).length} high burnout` },
-        { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: `${managerScores.filter(s => s <= 5).length} low support` },
-        { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: `${diagnosticData.length - careerPathCount} no path` },
-        { domain: "Clarity", score: roleClarity, risk: getRiskLevel(roleClarity), impact: `${clarityScores.filter(s => s <= 5).length} unclear roles` },
-        { domain: "Learning", score: learningEngagement, risk: getRiskLevel(learningEngagement), impact: `${learningScores.filter(s => s < 50).length} low engagement` },
-        { domain: "Skills", score: skillsScore, risk: getRiskLevel(skillsScore), impact: `${confidenceScores.filter(s => s <= 5).length} low confidence` },
+        { domain: "Retention", score: retentionScore, risk: getRiskLevel(retentionScore), impact: `${atRiskCount} at risk` },
+        { domain: "Engagement", score: engagementScore, risk: getRiskLevel(engagementScore), impact: "Overall team morale" },
+        { domain: "Burnout", score: burnoutScore, risk: getRiskLevel(burnoutScore), impact: "Work-life balance" },
+        { domain: "Manager", score: managerScore, risk: getRiskLevel(managerScore), impact: "Leadership support" },
+        { domain: "Career", score: careerScore, risk: getRiskLevel(careerScore), impact: "Growth opportunities" },
+        { domain: "Clarity", score: clarityScore, risk: getRiskLevel(clarityScore), impact: "Role understanding" },
+        { domain: "Learning", score: learningScore, risk: getRiskLevel(learningScore), impact: "Development activity" },
+        { domain: "Skills", score: skillsScore, risk: getRiskLevel(skillsScore), impact: "Capability confidence" },
       ];
 
       setStats({
         teamSize: employeeIds.length,
-        diagnosticsCompleted: uniqueEmployeesWithDiagnostics,
-        avgEngagement,
-        retentionRisk,
-        atRiskEmployees: highRiskCount,
+        diagnosticsCompleted: scores.length,
+        avgEngagement: engagementScore,
+        retentionRisk: 100 - retentionScore,
+        atRiskEmployees: atRiskCount,
         domainScores,
       });
     } catch (error: any) {
-      toast({
-        title: "Error loading team stats",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Error loading team stats: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -266,11 +209,22 @@ export function TeamDiagnosticSnapshot() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Team Diagnostic Snapshot</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Team Diagnostic Snapshot</CardTitle>
+            <Button 
+              onClick={handleBatchNormalize}
+              disabled={normalizing}
+              variant="outline"
+              size="sm"
+            >
+              {normalizing ? "Normalizing..." : "Normalize Diagnostics"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="text-center py-8">
           <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p className="text-muted-foreground">No diagnostic data available yet. Encourage your team to complete their assessments.</p>
+          <p className="text-muted-foreground mb-4">No diagnostic scores calculated yet.</p>
+          <p className="text-sm text-muted-foreground">Click "Normalize Diagnostics" to process existing diagnostic data.</p>
         </CardContent>
       </Card>
     );
@@ -332,8 +286,20 @@ export function TeamDiagnosticSnapshot() {
       {/* Team Health Radar */}
       <Card>
         <CardHeader>
-          <CardTitle>Team Health Overview</CardTitle>
-          <p className="text-sm text-muted-foreground">8-domain assessment of your team's well-being and performance</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Team Health Overview</CardTitle>
+              <p className="text-sm text-muted-foreground">8-domain assessment powered by AI normalization</p>
+            </div>
+            <Button 
+              onClick={handleBatchNormalize}
+              disabled={normalizing}
+              variant="ghost"
+              size="sm"
+            >
+              {normalizing ? "Normalizing..." : "Refresh Scores"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[400px]">
