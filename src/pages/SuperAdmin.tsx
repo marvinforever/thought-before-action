@@ -11,10 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { AssignRoleDialog } from "@/components/AssignRoleDialog";
 
 interface CompanyStats {
   id: string;
@@ -96,6 +97,13 @@ const SuperAdmin = () => {
   const [isEditScoresDialogOpen, setIsEditScoresDialogOpen] = useState(false);
   const [savingScores, setSavingScores] = useState(false);
   
+  // All users management state
+  const [allSystemUsers, setAllSystemUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [roleDialogUser, setRoleDialogUser] = useState<any>(null);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { setViewAsCompany } = useViewAs();
@@ -103,6 +111,53 @@ const SuperAdmin = () => {
   useEffect(() => {
     checkSuperAdminAccess();
   }, []);
+
+  const loadAllSystemUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          full_name,
+          email,
+          role,
+          phone,
+          is_active,
+          is_admin,
+          is_super_admin,
+          company_id,
+          companies (name)
+        `)
+        .order("full_name");
+
+      if (error) throw error;
+
+      const usersWithRoles = await Promise.all((data || []).map(async (user) => {
+        const { data: rolesData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+
+        return {
+          ...user,
+          company_name: user.companies?.name || "No Company",
+          user_roles: rolesData?.map(r => r.role) || []
+        };
+      }));
+
+      setAllSystemUsers(usersWithRoles);
+    } catch (error) {
+      console.error("Error loading all users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load users",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
   
   useEffect(() => {
     if (!diagnosticCompanyId && companies.length) {
@@ -1589,6 +1644,10 @@ const SuperAdmin = () => {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="all-users">
+            <Users2 className="h-4 w-4 mr-2" />
+            All Users
+          </TabsTrigger>
           <TabsTrigger value="diagnostics">Import Diagnostics</TabsTrigger>
           <TabsTrigger value="email-testing">
             <Mail className="h-4 w-4 mr-2" />
@@ -1722,6 +1781,141 @@ const SuperAdmin = () => {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="all-users" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All System Users</CardTitle>
+                  <CardDescription>
+                    View and manage all users across all companies, including role assignments
+                  </CardDescription>
+                </div>
+                <Button onClick={loadAllSystemUsers} disabled={loadingUsers}>
+                  {loadingUsers ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Users2 className="mr-2 h-4 w-4" />
+                      {allSystemUsers.length > 0 ? 'Refresh' : 'Load Users'}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {allSystemUsers.length > 0 && (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or email..."
+                      value={userSearchTerm}
+                      onChange={(e) => setUserSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {loadingUsers && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              )}
+
+              {!loadingUsers && allSystemUsers.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  Click "Load Users" to view all system users
+                </div>
+              )}
+
+              {!loadingUsers && allSystemUsers.length > 0 && (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Company</TableHead>
+                        <TableHead>Job Title</TableHead>
+                        <TableHead>Roles</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allSystemUsers
+                        .filter((user) => {
+                          if (!userSearchTerm) return true;
+                          const search = userSearchTerm.toLowerCase();
+                          return (
+                            user.full_name?.toLowerCase().includes(search) ||
+                            user.email?.toLowerCase().includes(search) ||
+                            user.company_name?.toLowerCase().includes(search)
+                          );
+                        })
+                        .map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">
+                              {user.full_name || 'N/A'}
+                            </TableCell>
+                            <TableCell>{user.email || 'N/A'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{user.company_name}</Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {user.role || '-'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {user.is_super_admin && (
+                                  <Badge variant="destructive">Super Admin</Badge>
+                                )}
+                                {user.is_admin && !user.is_super_admin && (
+                                  <Badge variant="secondary">Admin (Legacy)</Badge>
+                                )}
+                                {user.user_roles?.map((role: string) => (
+                                  <Badge key={role} variant="secondary">
+                                    {role}
+                                  </Badge>
+                                ))}
+                                {!user.is_super_admin && !user.is_admin && user.user_roles?.length === 0 && (
+                                  <span className="text-sm text-muted-foreground">No roles</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={user.is_active ? "default" : "secondary"}>
+                                {user.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setRoleDialogUser(user);
+                                  setIsRoleDialogOpen(true);
+                                }}
+                              >
+                                <Shield className="h-4 w-4 mr-2" />
+                                Edit Roles
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="diagnostics" className="space-y-6">
@@ -2801,6 +2995,25 @@ const SuperAdmin = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Role Assignment Dialog */}
+      {roleDialogUser && (
+        <AssignRoleDialog
+          open={isRoleDialogOpen}
+          onOpenChange={(open) => {
+            setIsRoleDialogOpen(open);
+            if (!open) {
+              setRoleDialogUser(null);
+              // Refresh user list to show updated roles
+              if (allSystemUsers.length > 0) {
+                loadAllSystemUsers();
+              }
+            }
+          }}
+          employeeId={roleDialogUser.id}
+          employeeName={roleDialogUser.full_name || roleDialogUser.email}
+        />
+      )}
     </div>
   );
 };
