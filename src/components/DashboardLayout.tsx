@@ -236,15 +236,7 @@ const DashboardLayout = () => {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => {
-                  // Force navigation even if already on the page
-                  if (location.pathname === "/dashboard/my-growth-plan") {
-                    // If already on the page, use state to signal tab change
-                    navigate("/dashboard/my-growth-plan", { state: { tab: "roadmap" }, replace: true });
-                  } else {
-                    navigate("/dashboard/my-growth-plan?tab=roadmap");
-                  }
-                }}
+                onClick={() => navigate("/dashboard/growth-roadmap")}
                 className="gap-2"
               >
                 <Map className="h-4 w-4" />
