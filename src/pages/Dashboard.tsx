@@ -107,6 +107,7 @@ const Dashboard = () => {
       }
 
       // Only get employees and diagnostics for THIS specific company
+      // Get employees and diagnostics - check both submitted_at and typeform_submit_date
       const [employeesRes, diagnosticDataRes] = await Promise.all([
         supabase
           .from("profiles")
@@ -116,7 +117,7 @@ const Dashboard = () => {
           .from("diagnostic_responses")
           .select("*")
           .eq("company_id", companyId)
-          .not("submitted_at", "is", null),
+          .or("typeform_submit_date.not.is.null,submitted_at.not.is.null"),
       ]);
 
       const diagnostics = diagnosticDataRes.data || [];
