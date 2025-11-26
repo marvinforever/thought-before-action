@@ -40,6 +40,20 @@ export function TeamDiagnosticSnapshot() {
     return 0;
   };
 
+  const parseEnergyLevel = (v: any): number => {
+    if (v === null || v === undefined) return 0;
+    const n = Number(v);
+    if (!Number.isNaN(n) && n > 0) return n;
+    const s = String(v).toLowerCase();
+    if (s.includes('very energized') || s.includes('extremely energized')) return 10;
+    if (s.includes('energized')) return 8;
+    if (s.includes('somewhat energized') || s.includes('moderately')) return 6;
+    if (s.includes('neutral')) return 5;
+    if (s.includes('somewhat drained') || s.includes('tired')) return 3;
+    if (s.includes('very drained') || s.includes('exhausted')) return 1;
+    return 0;
+  };
+
   useEffect(() => {
     loadTeamStats();
   }, [viewAsCompanyId]);
@@ -96,7 +110,9 @@ export function TeamDiagnosticSnapshot() {
       // 2. ENGAGEMENT INDEX
       const engagementScores = diagnosticData.map(d => {
         const scores = (d.additional_responses as any)?.engagement_scores;
-        if (scores) {
+        const hasValidScores = scores && Object.values(scores).some((v: any) => v > 0);
+        
+        if (hasValidScores) {
           const growthPath = scores.growth_path_score || 0;
           const managerFeedback = scores.manager_feedback_score || 0;
           const valued = scores.valued_score || 0;
@@ -106,13 +122,14 @@ export function TeamDiagnosticSnapshot() {
           const growthPath = d.sees_growth_path ? 10 : 0;
           const managerFeedback = parseSupportQuality(d.manager_support_quality);
           const valued = d.feels_valued ? 10 : 0;
-          const energy = Number(d.daily_energy_level) || 0;
-          return (growthPath + managerFeedback + valued + energy) / 4;
+          const energy = parseEnergyLevel(d.daily_energy_level);
+          const total = growthPath + managerFeedback + valued + energy;
+          return total > 0 ? total / 4 : 0;
         }
       }).filter(s => s > 0);
       const avgEngagement = engagementScores.length > 0 ? parseFloat(((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10).toFixed(2)) : 0;
       
-      const energyScores = diagnosticData.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0);
+      const energyScores = diagnosticData.map(d => parseEnergyLevel(d.daily_energy_level)).filter(s => s > 0);
 
       // 3. BURNOUT
       const burnoutMap: Record<string, number> = {
@@ -126,7 +143,7 @@ export function TeamDiagnosticSnapshot() {
       const burnoutScore = burnoutScores.length > 0 ? Math.round((burnoutScores.reduce((a, b) => a + b, 0) / burnoutScores.length) * 20) : 0;
 
       // 4. MANAGER EFFECTIVENESS
-      const managerScores = diagnosticData.map(d => parseInt(d.manager_support_quality) || 0).filter(s => s > 0);
+      const managerScores = diagnosticData.map(d => parseSupportQuality(d.manager_support_quality)).filter(s => s > 0);
       const managerEffectiveness = managerScores.length > 0 ? Math.round((managerScores.reduce((a, b) => a + b, 0) / managerScores.length) * 10) : 0;
 
       // 5. CAREER DEVELOPMENT
@@ -134,7 +151,13 @@ export function TeamDiagnosticSnapshot() {
       const careerPathScore = diagnosticData.length > 0 ? Math.round((careerPathCount / diagnosticData.length) * 100) : 0;
 
       // 6. ROLE CLARITY
-      const clarityScores = diagnosticData.map(d => d.role_clarity_score || 0).filter(s => s > 0);
+      const clarityScores = diagnosticData.map(d => {
+        const score = d.role_clarity_score;
+        if (score !== null && score !== undefined) return Number(score);
+        // Fallback: if they have a written job description, assume moderate clarity
+        if (d.has_written_job_description === true) return 7;
+        return 0;
+      }).filter(s => s > 0);
       const roleClarity = clarityScores.length > 0 ? Math.round((clarityScores.reduce((a, b) => a + b, 0) / clarityScores.length) * 10) : 0;
 
       // 7. LEARNING ENGAGEMENT
@@ -153,7 +176,11 @@ export function TeamDiagnosticSnapshot() {
       const learningEngagement = learningScores.length > 0 ? Math.round(learningScores.reduce((a, b) => a + b, 0) / learningScores.length) : 0;
 
       // 8. SKILLS
-      const confidenceScores = diagnosticData.map(d => d.confidence_score || 0).filter(s => s > 0);
+      const confidenceScores = diagnosticData.map(d => {
+        const score = d.confidence_score;
+        if (score !== null && score !== undefined) return Number(score);
+        return 0;
+      }).filter(s => s > 0);
       const skillsScore = confidenceScores.length > 0 ? Math.round((confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length) * 10) : 0;
 
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
