@@ -166,18 +166,18 @@ const Dashboard = () => {
       const replacementMultiplier = 1.5;
       const turnoverCost = highRiskCount * avgSalary * replacementMultiplier;
 
-      // Domain scores with risk levels
+      // Domain scores with risk levels (consistent with TeamDiagnosticSnapshot)
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
-        if (score >= 80) return "low";    // 80+ = Low Risk (green)
-        if (score >= 60) return "high";   // 60-79 = Medium Risk (orange)
-        return "critical";                 // <60 = High Risk (red)
+        if (score >= 80) return "low";      // 80+ = Low Risk (green)
+        if (score >= 60) return "high";     // 60-79 = High Risk (orange)
+        return "critical";                   // <60 = Critical (red)
       };
 
       const domainScores: DomainScore[] = [
-        { domain: "Retention", score: avgRetentionScore, risk: getRiskLevel(avgRetentionScore), impact: `${totalAtRisk} at risk (${highRiskCount} high, ${mediumRiskCount} medium)` },
-        { domain: "Engagement", score: avgEngagement, risk: getRiskLevel(avgEngagement), impact: "" },
-        { domain: "Burnout", score: burnoutScore, risk: getRiskLevel(burnoutScore), impact: "" },
-        { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: "" },
+        { domain: "Retention", score: avgRetentionScore, risk: getRiskLevel(avgRetentionScore), impact: `Avg: ${avgRetentionScore}/100 (${totalAtRisk} individuals need attention)` },
+        { domain: "Engagement", score: avgEngagement, risk: getRiskLevel(avgEngagement), impact: `Average: ${avgEngagement}/100` },
+        { domain: "Burnout", score: burnoutScore, risk: getRiskLevel(burnoutScore), impact: `Average: ${burnoutScore}/100` },
+        { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: `Average: ${managerEffectiveness}/100` },
         { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: "" },
         { domain: "Clarity", score: roleClarity, risk: getRiskLevel(roleClarity), impact: "" },
         { domain: "Learning", score: learningEngagement, risk: getRiskLevel(learningEngagement), impact: "" },
