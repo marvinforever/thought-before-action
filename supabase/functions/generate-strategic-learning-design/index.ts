@@ -718,7 +718,7 @@ CRITICAL FORMATTING REQUIREMENTS:
 - Single line breaks for paragraphs and bullets
 - Professional consulting report style
 - Name specific individuals throughout  
-- Extremely detailed - this should be 8000-12000 words minimum
+- Comprehensive and detailed - aim for 4000-6000 words
 
 TONE REQUIREMENTS:
 - Warm, supportive, encouraging
