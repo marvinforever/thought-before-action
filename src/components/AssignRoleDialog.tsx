@@ -55,19 +55,41 @@ export function AssignRoleDialog({ open, onOpenChange, employeeId, employeeName 
   const handleAddRole = async (role: Role) => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      console.log("Attempting to add role:", role, "to user:", employeeId);
+      
+      const { data, error } = await supabase
         .from("user_roles")
-        .insert({ user_id: employeeId, role });
+        .insert({ user_id: employeeId, role })
+        .select();
 
-      if (error) throw error;
+      console.log("Insert result:", { data, error });
+
+      if (error) {
+        console.error("Insert error:", error);
+        throw error;
+      }
+
+      // Verify the insert actually worked
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("user_roles")
+        .select("*")
+        .eq("user_id", employeeId)
+        .eq("role", role);
+
+      console.log("Verification result:", { verifyData, verifyError });
+
+      if (!verifyData || verifyData.length === 0) {
+        throw new Error("Role was not saved - RLS policy may be blocking the insert");
+      }
 
       toast({
         title: "Success",
         description: `${role} role assigned to ${employeeName}`,
       });
 
-      loadCurrentRoles();
+      await loadCurrentRoles();
     } catch (error: any) {
+      console.error("Full error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to assign role",
