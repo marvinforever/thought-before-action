@@ -31,19 +31,10 @@ interface Cohort {
   current_level: string;
   target_level: string;
   gap_severity: string;
-  recommended_solutions: Array<{
-    type: string;
-    title: string;
-    vendor?: string;
-    cost_per_person: number;
-    total_cost: number;
-    link?: string;
-    delivery_format?: string;
-    duration_hours?: number;
-  }>;
-  estimated_cost_conservative: number;
-  estimated_cost_moderate: number;
-  estimated_cost_aggressive: number;
+  development_type: "self_serve" | "self_directed" | "high_touch";
+  development_approach: string;
+  jericho_resources: string[];
+  requires_facilitation: boolean;
   delivery_quarter: string;
 }
 
@@ -270,10 +261,10 @@ serve(async (req) => {
           current_level: currentLevel,
           target_level: targetLevel,
           gap_severity: gapSize >= 3 ? "critical" : gapSize >= 2 ? "high" : "medium",
-          recommended_solutions: [],
-          estimated_cost_conservative: 0,
-          estimated_cost_moderate: 0,
-          estimated_cost_aggressive: 0,
+          development_type: "self_directed", // Will be determined by AI
+          development_approach: "",
+          jericho_resources: [],
+          requires_facilitation: false,
           delivery_quarter: "", // Will be calculated
         });
       }
@@ -283,90 +274,8 @@ serve(async (req) => {
       console.warn("No cohorts found; continuing with empty cohorts for pilot report");
     }
 
-    // Fetch available training solutions
-    const { data: freeResources } = await supabase
-      .from("resources")
-      .select("*")
-      .eq("type", "free");
-
-    const { data: vendors } = await supabase
-      .from("training_vendors")
-      .select("*, vendor_courses(*)");
-
-    // Match solutions to cohorts
+    // Assign delivery quarter based on gap severity
     for (const cohort of validCohorts) {
-      const solutions = [];
-
-      // Option A: Conservative ($0-$150 per person)
-      const matchingFree = freeResources?.filter((r: any) =>
-        r.title?.toLowerCase().includes(cohort.capability_name.toLowerCase()) ||
-        r.description?.toLowerCase().includes(cohort.capability_name.toLowerCase())
-      );
-
-      const conservativeCostPer = matchingFree && matchingFree.length > 0 ? 0 : 75; // $0 if resources exist, else midpoint of $0-$150
-      solutions.push({
-        type: "conservative",
-        title: matchingFree && matchingFree.length > 0 
-          ? `Free Resources (${matchingFree.length} items)` 
-          : `Low-Cost Training Materials`,
-        vendor: "Internal Library / Free Resources",
-        cost_per_person: conservativeCostPer,
-        cost_range: "$0-$150",
-        total_cost: conservativeCostPer * cohort.employee_count,
-        link: "",
-      });
-
-      // Option B: Moderate ($500-$2,000 per person)
-      const matchingCourses = vendors?.flatMap((v: any) =>
-        v.vendor_courses?.filter((c: any) =>
-          c.capability_tags?.some((tag: string) =>
-            tag.toLowerCase().includes(cohort.capability_name.toLowerCase())
-          )
-        ) || []
-      );
-
-      let moderateCostPer = 1250; // Midpoint of $500-$2,000
-      if (matchingCourses && matchingCourses.length > 0) {
-        const course = matchingCourses[0];
-        const courseCost = Number(course.cost) || 1250;
-        // Ensure it's within the moderate range
-        moderateCostPer = Math.max(500, Math.min(2000, courseCost));
-      }
-
-      solutions.push({
-        type: "moderate",
-        title: matchingCourses && matchingCourses.length > 0 
-          ? matchingCourses[0].title 
-          : `${cohort.capability_name} Online Course`,
-        vendor: matchingCourses && matchingCourses.length > 0
-          ? vendors?.find((v: any) => v.id === matchingCourses[0].vendor_id)?.name || "Online Provider"
-          : "Online Provider",
-        cost_per_person: moderateCostPer,
-        cost_range: "$500-$2,000",
-        total_cost: moderateCostPer * cohort.employee_count,
-        link: matchingCourses?.[0]?.course_url || "",
-        duration_hours: matchingCourses?.[0]?.duration_hours,
-      });
-
-      // Option C: Premium ($2,000-$5,000 per person)
-      const premiumCostPer = 3500; // Midpoint of $2,000-$5,000
-      solutions.push({
-        type: "premium",
-        title: `${cohort.capability_name} Premium Training`,
-        vendor: "Momentum Company / External Facilitator",
-        cost_per_person: premiumCostPer,
-        cost_range: "$2,000-$5,000",
-        total_cost: premiumCostPer * cohort.employee_count,
-        link: "",
-        delivery_format: "in-person",
-      });
-
-      cohort.recommended_solutions = solutions;
-      cohort.estimated_cost_conservative = solutions[0]?.total_cost || 0;
-      cohort.estimated_cost_moderate = solutions[1]?.total_cost || 0;
-      cohort.estimated_cost_aggressive = solutions[2]?.total_cost || 0;
-
-      // Assign delivery quarter based on gap severity
       const currentYear = new Date().getFullYear();
       const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
       const severityOffset = cohort.gap_severity === "critical" ? 0 : cohort.gap_severity === "high" ? 1 : 2;
@@ -379,8 +288,8 @@ serve(async (req) => {
       cohort.delivery_quarter = `Q${targetQuarter} ${targetYear}`;
     }
 
-    // Calculate cost scenarios BY YEAR - SPECIFIC COHORTS PER YEAR
-    // Year 1 (2026): FOUNDATION — $165K (ONLY 5 cohorts)
+    // Organize cohorts BY YEAR for phased planning
+    // Year 1 (2026): FOUNDATION (5 cohorts)
     const year1CapabilityNames = new Set([
       "Leadership",
       "People Management", 
@@ -389,7 +298,7 @@ serve(async (req) => {
       "Written Communication"
     ]);
     
-    // Year 2 (2027): SCALE — $120K
+    // Year 2 (2027): SCALE
     const year2CapabilityNames = new Set([
       "Project Management",
       "Coaching & Mentoring",
@@ -422,22 +331,6 @@ serve(async (req) => {
     console.log('Year 1 cohorts:', year1Cohorts.length, year1Cohorts.map(c => c.capability_name));
     console.log('Year 2 cohorts:', year2Cohorts.length);
     console.log('Year 3 cohorts:', year3Cohorts.length);
-    
-    const year1Conservative = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
-    const year1Moderate = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
-    const year1Aggressive = year1Cohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
-    
-    const year2Conservative = year2Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
-    const year2Moderate = year2Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
-    const year2Aggressive = year2Cohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
-    
-    const year3Conservative = year3Cohorts.reduce((sum, c) => sum + c.estimated_cost_conservative, 0);
-    const year3Moderate = year3Cohorts.reduce((sum, c) => sum + c.estimated_cost_moderate, 0);
-    const year3Aggressive = year3Cohorts.reduce((sum, c) => sum + c.estimated_cost_aggressive, 0);
-    
-    const totalConservative = year1Conservative + year2Conservative + year3Conservative;
-    const totalModerate = year1Moderate + year2Moderate + year3Moderate;
-    const totalAggressive = year1Aggressive + year2Aggressive + year3Aggressive;
     
     // Identify "Heavy Load" employees (in 3+ Year 1 cohorts)
     const employeeLoadMap = new Map<string, number>();
@@ -530,27 +423,63 @@ ${validCohorts.map((c, i) => {
    ${goalsText ? `- ${goalsText}` : ''}`;
 }).join("\n\n")}
 
-PRIMARY TRAINING SOLUTION - MOMENTUM 360:
-We have access to Momentum 360, a complete Leadership Operating System that should be your PRIMARY recommendation for leadership, management, communication, and team development needs:
-- NOT one-off workshops but a year-round sustainable system
+DEVELOPMENT APPROACHES AND AVAILABLE SOLUTIONS:
+
+You must categorize each capability into ONE of these three development approaches:
+
+1. SELF-SERVE DEVELOPMENT (Experience & Internal Coaching)
+Many capabilities develop most effectively through on-the-job experience, stretch assignments, internal mentoring relationships, manager coaching, and time. Not everything requires formal training. This approach is appropriate for:
+- Domain expertise that builds naturally through work
+- Industry-specific knowledge gained through exposure
+- Many technical skills that develop through practice
+- Capabilities where the organization has internal expertise
+
+Development approach: Internal coaching, mentoring, stretch assignments, shadowing, project-based learning
+
+2. SELF-DIRECTED LEARNING (Jericho Platform)
+Jericho provides curated learning resources matched to each capability gap. These capabilities benefit from structured resources but don't require facilitation or coaching:
+- Books, videos, podcasts, and articles available 24/7
+- Personalized to each employee's development needs
+- Self-paced learning that accelerates organic development
+- Appropriate for foundational knowledge, tool proficiency, communication basics, and technical skills
+
+Development approach: Curated resources through Jericho, self-paced consumption, optional peer discussion
+
+3. HIGH-TOUCH DEVELOPMENT (Structured Programs & Momentum 360)
+Some capabilities—particularly leadership, people management, executive communication, and complex team dynamics—benefit from coached facilitation, peer cohorts, and structured intervention. These require more than reading or self-study.
+
+Organizations can source high-touch development through:
+- Individual executive coaching engagements (multiple vendors, varied approaches)
+- Workshop facilitation from various providers (inconsistent quality, different methodologies)
+- Peer roundtables or mastermind groups (requires coordination)
+- Leadership development programs (various vendors with different frameworks)
+
+OR through comprehensive membership programs like Momentum 360 that consolidate these elements:
+- Complete Leadership Operating System (year-round sustainable support, not one-off workshops)
 - Executive Coaching and Alignment for C-suite leaders
-- Leadership Multiplication for VPs/Directors and mid-level managers  
+- Leadership Multiplication for VPs/Directors and mid-level managers
 - Team Development and Culture Systems for frontline teams
 - Structure: 2 Executive Sessions, 2 Manager Sessions, 2 Team Leader Sessions per year
 - Peer Roundtables and Cross-Company Learning throughout the year
 - Ongoing coaching and on-demand learning library
 - The 5Es Framework: Enlist, Equip, Empower, Evaluate, Evolve
-- Comprehensive, cost-effective, designed for sustainable transformation
+- Single methodology, consistent quality, integrated approach
 
-SUPPLEMENTARY RESOURCES:
-For technical skills, specialized capabilities, or self-directed learning, we have a curated library of books, videos, articles, and courses you can reference.
+Note: Sourcing high-touch development across multiple vendors requires coordination across different methodologies, managing multiple relationships, scheduling complexity, and varied quality standards. Comprehensive membership programs simplify this significantly.
 
 YOUR TASK: Write an executive-level strategic learning design following a professional consulting report format with McKinsey-level depth and clarity.
 
 CRITICAL STRUCTURAL APPROACH:
-Before writing the report, analyze all capability gaps and identify 6-8 KEY FOCUS AREAS that represent the major development domains. These focus areas should capture the overarching themes. Then organize every specific capability as a subset under the appropriate focus area. This creates executive-level clarity while maintaining tactical specificity.
+Before writing the report, you must:
+1. Analyze all capability gaps and identify 6-8 KEY FOCUS AREAS that represent the major development domains
+2. For EACH capability, determine which development approach is most appropriate (Self-Serve, Self-Directed Jericho, or High-Touch)
+3. Organize all capabilities under the appropriate focus area
+4. Be honest about what can be developed organically (builds credibility)
+5. Show Jericho's value for self-directed learning
+6. Position high-touch solutions (including M360) strategically without being pushy
+7. Let the complexity of à la carte high-touch sourcing speak for itself
 
-Examples of focus areas might be: "Leadership & People Management", "Technical & Operational Excellence", "Communication & Stakeholder Engagement", "Strategic Business Acumen", etc. You determine the right focus areas based on the actual capability data.
+Examples of focus areas: "Leadership & People Management", "Technical & Operational Excellence", "Communication & Stakeholder Engagement", "Strategic Business Acumen", etc.
 
 EXACT STRUCTURE REQUIRED:
 
@@ -596,15 +525,23 @@ STRATEGIC FOCUS AREAS
 Overview: [2-3 paragraphs explaining why this domain matters, what capabilities fall under it, and the strategic importance]
 
 Capabilities Included:
-[List each specific capability that falls under this focus area with employee names]
+[For each capability under this focus area, specify:]
 - [Capability Name]: [Employee Names] - currently at [level], targeting [level]
-- [Capability Name]: [Employee Names] - currently at [level], targeting [level]
+  Development Type: [Self-Serve | Self-Directed (Jericho) | High-Touch]
 
 Development Priorities:
 [Detailed breakdown of what needs to happen in this domain, sequencing considerations, dependencies between capabilities]
 
-Recommended Approach:
-[Specify whether Momentum 360, specific resources from library, or combination. Be specific about which Momentum 360 component if applicable - Executive Coaching, Leadership Multiplication, Team Development, etc.]
+Recommended Development Approach:
+
+Self-Serve Development (if applicable):
+[List capabilities that can develop through experience, internal coaching, and time. Explain the internal approach: stretch assignments, mentoring, project work, etc.]
+
+Self-Directed Learning (Jericho):
+[List capabilities supported by Jericho resources. Name specific books, videos, podcasts by title when possible. Explain how these accelerate organic learning.]
+
+High-Touch Development (if applicable):
+[List capabilities requiring coaching, facilitation, or structured programs. Detail what high-touch elements are needed and why self-study alone isn't sufficient. Then note: Organizations can source these through individual vendors and coaches (note coordination complexity) OR through comprehensive programs like Momentum 360 that consolidate executive coaching, leadership development, peer roundtables, and learning resources under a single membership.]
 
 Expected Impact:
 [Specific business outcomes when this focus area development is achieved - be concrete about organizational benefits]
@@ -625,8 +562,11 @@ Target State: [Where they need to be by end of Year 1]
 Development Structure:
 [Multiple paragraphs describing the specific approach, session types, learning modalities, practice opportunities, application methods. Be detailed about HOW this will work, not just WHAT will happen.]
 
-Recommended Solution:
-[If Momentum 360: Explain which specific component and why it fits. If library resources: Name specific books, courses, or materials by title. If combination: Detail how pieces fit together.]
+Development Approach by Type:
+[Break down the program by development type:
+- Self-Serve: What internal approaches will be used
+- Self-Directed (Jericho): Specific resources by title
+- High-Touch: Detail what's needed, mention à la carte complexity, then position integrated solutions like M360 as simplifying alternative]
 
 Progress Milestones:
 [Quarter-by-quarter or month-by-month indicators of progress through Year 1]
@@ -696,20 +636,25 @@ CRITICAL FORMATTING RULES:
 
 CONTENT REQUIREMENTS:
 1. First identify 6-8 overarching focus areas, then organize all capabilities under them
-2. Provide extensive detail on Year 1, 2, and 3 programs - not just lists but detailed descriptions
-3. Frame capability gaps as GROWTH OPPORTUNITIES not problems or deficits  
-4. Acknowledge this may be the organization's first detailed capability assessment
-5. Name specific people and their current capability levels with supportive framing
-6. Explain positive business impact when development is achieved
-7. Recommend Momentum 360 as primary solution for leadership/management/communication (but acknowledge it doesn't cover everything)
-8. Cite specific books/courses from library by title for technical/specialized skills
-9. Detail sequencing, dependencies, and implementation considerations
-10. Include research-backed metrics in Expected Impact section
-11. Professional, warm, supportive yet strategic advisory tone
-12. Balance clarity about priorities with optimism about outcomes
-13. Think McKinsey-level depth but written for practical business leaders
+2. For EACH capability, determine the appropriate development type (Self-Serve, Self-Directed Jericho, or High-Touch)
+3. Provide extensive detail on Year 1, 2, and 3 programs - not just lists but detailed descriptions
+4. Frame capability gaps as GROWTH OPPORTUNITIES not problems or deficits
+5. Acknowledge what can be developed organically through experience (builds tremendous credibility)
+6. Acknowledge this may be the organization's first detailed capability assessment
+7. Name specific people and their current capability levels with supportive framing
+8. Explain positive business impact when development is achieved
+9. Show Jericho's role in providing curated self-directed learning resources
+10. For high-touch needs, detail the complexity of à la carte sourcing (multiple vendors, coordination, varied methodologies) then position comprehensive membership programs like M360 as integrated alternatives
+11. Cite specific books/videos/podcasts by title from Jericho for self-directed learning
+12. Detail sequencing, dependencies, and implementation considerations
+13. Include research-backed metrics in Expected Impact section
+14. Professional, warm, supportive yet strategic advisory tone
+15. Balance clarity about priorities with optimism about outcomes
+16. Think McKinsey-level depth but written for practical business leaders
+17. DO NOT include any cost projections, budget scenarios, or financial recommendations
+18. Let the reader conclude that Jericho + M360 is the natural solution through the structure of your analysis
 
-Remember: Momentum 360 is excellent for leadership development but the organization will need to source additional training for technical and specialized capabilities. Be honest about this while highlighting M360's comprehensive approach to leadership.`;
+Remember: Be honest about what can develop organically. Show Jericho's value for self-directed learning. Position high-touch solutions strategically by showing à la carte complexity. Let the integrated solution (M360 for high-touch) become obviously attractive without explicitly pushing it.`;
 
     console.log("Generating AI narrative with Gemini...");
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -723,7 +668,7 @@ Remember: Momentum 360 is excellent for leadership development but the organizat
         messages: [
           { 
             role: "system", 
-            content: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You write executive-level strategic capability assessments in the style of top-tier management consulting firms like McKinsey—comprehensive, detailed, deeply analytical, yet accessible.\n\nYour approach:\n- FIRST identify 6-8 overarching strategic focus areas that capture the major development domains, THEN organize all specific capabilities as subsets under these focus areas\n- Frame capability gaps as GROWTH OPPORTUNITIES and natural next steps in the organization's development journey\n- Acknowledge that this level of detailed capability analysis may be new territory for many organizations\n- Balance firmness with approachability—be clear about priorities while remaining supportive and optimistic\n- Name specific individuals and their current capability levels throughout\n- Connect development needs to positive business outcomes (growth, enhanced performance, competitive advantage)\n- Present findings as stepping stones rather than problems or deficiencies\n- Provide McKinsey-level depth: extensive detail on programs, sequencing, dependencies, implementation considerations\n- Write SUBSTANTIALLY MORE than a typical executive summary—this should be a comprehensive strategic document\n- Detail Year 1, Year 2, and Year 3 with specific programs, not just high-level lists\n- Recommend Momentum 360 for leadership development (acknowledge it's comprehensive but doesn't cover everything—technical and specialized skills will need other resources)\n- Write with professional warmth and strategic clarity\n\nFORMATTING IS CRITICAL: Your output will be displayed in a web interface with plain text rendering.\n\nRequired structure using PLAIN TEXT only:\n- Section headers in ALL CAPS on their own line\n- Double line breaks between major sections\n- Single line breaks within sections\n- No markdown symbols ever (no *, #, _, [], or **)\n- Use clear spacing to create hierarchy\n\nYour tone is professional yet approachable, strategic yet supportive. You acknowledge where people are today and create a clear, detailed path forward. You focus on possibility and progress rather than deficiency. You provide the depth and analytical rigor of a McKinsey report but write it in a style that resonates with practical business leaders."
+            content: "You are Jericho, an expert Chief Learning Officer and organizational development strategist. You write executive-level strategic capability assessments in the style of top-tier management consulting firms like McKinsey—comprehensive, detailed, deeply analytical, yet accessible and honest.\n\nYour unique approach to development categorization:\n- FIRST identify 6-8 overarching strategic focus areas that capture the major development domains\n- THEN for each capability, determine whether it's best developed through: Self-Serve (experience/coaching), Self-Directed (Jericho resources), or High-Touch (M360/structured programs)\n- Be HONEST about what can develop organically through experience—this builds tremendous credibility\n- Show Jericho's value as the self-directed learning engine (books, videos, podcasts)\n- For high-touch needs, detail the à la carte complexity (multiple vendors, coordination, varied methodologies) then position comprehensive membership programs like M360 as integrated alternatives\n- Let the reader conclude the \"killer combo\" (Jericho + M360) naturally through your analysis structure\n\nCore principles:\n- Frame capability gaps as GROWTH OPPORTUNITIES and natural next steps in the organization's development journey\n- Acknowledge that detailed capability analysis may be new territory for many organizations\n- Balance firmness with approachability—be clear about priorities while remaining supportive and optimistic\n- Name specific individuals and their current capability levels throughout\n- Connect development needs to positive business outcomes (growth, enhanced performance, competitive advantage)\n- Present findings as stepping stones rather than problems or deficiencies\n- Provide McKinsey-level depth: extensive detail on programs, sequencing, dependencies, implementation considerations\n- Write SUBSTANTIALLY MORE than a typical executive summary—this should be a comprehensive strategic document\n- Detail Year 1, Year 2, and Year 3 with specific programs, not just high-level lists\n- DO NOT include any cost projections, budget scenarios, or ROI calculations\n- Write with professional warmth and strategic clarity\n\nFORMATTING IS CRITICAL: Your output will be displayed in a web interface with plain text rendering.\n\nRequired structure using PLAIN TEXT only:\n- Section headers in ALL CAPS on their own line\n- Double line breaks between major sections\n- Single line breaks within sections\n- No markdown symbols ever (no *, #, _, [], or **)\n- Use clear spacing to create hierarchy\n\nYour tone is professional yet approachable, strategic yet supportive, and refreshingly honest. You acknowledge what can develop naturally (unlike typical training vendors who want to sell everything). You focus on possibility and progress rather than deficiency. You provide the depth and analytical rigor of a McKinsey report but write it in a style that resonates with practical business leaders."
           },
           { role: "user", content: narrativePrompt }
         ],
@@ -771,37 +716,15 @@ Remember: Momentum 360 is excellent for leadership development but the organizat
     console.log("Line breaks after processing:", (narrative.match(/\n/g) || []).length);
     console.log("Double line breaks (paragraphs):", (narrative.match(/\n\n/g) || []).length);
 
-    // Calculate ROI projections based on actual data
-    const avgTurnoverCost = 75000; // Includes recruiting, training, productivity loss
-    
-    // Calculate actual retention risk from diagnostics
+    // Calculate employee at-risk count from diagnostics (for context only, no cost calculations)
     const retentionScores = diagnostics?.map(d => parseInt(d.would_stay_if_offered_similar) || 5) || [];
-    const avgRetentionScore = retentionScores.length > 0 
-      ? retentionScores.reduce((a, b) => a + b, 0) / retentionScores.length 
-      : 5;
-    
-    // Employees at risk (score < 7 out of 10)
     const atRiskCount = retentionScores.filter(s => s < 7).length;
-    
-    // Retention savings: Training prevents 40% of at-risk turnover
-    const retentionImpactRate = 0.4; // 40% of at-risk employees retained
-    const employeesRetained = Math.max(1, Math.round(atRiskCount * retentionImpactRate));
-    const retentionSavings = employeesRetained * avgTurnoverCost;
-    
-    // Productivity ROI: Industry research shows $2 return for every $1 invested in training
-    // This is a CONSERVATIVE baseline (many studies show 200-300% ROI)
-    const productivityReturnMultiplier = 2.0; // 200% ROI
-    const productivityGains = totalModerate * productivityReturnMultiplier;
-    
-    // Total benefits = Productivity gains + Retention savings
-    const totalBenefits = productivityGains + retentionSavings;
-    const roiModerate = totalBenefits - totalModerate;
-    const roiPercentage = totalModerate > 0 ? Math.round((roiModerate / totalModerate) * 100) : 0;
-    const breakEvenMonths = totalModerate > 0 && totalBenefits > 0
-      ? Math.ceil((totalModerate / (totalBenefits / 12)))
-      : null;
-    
     const employeesTrained = new Set(validCohorts.flatMap(c => c.employee_ids)).size;
+    
+    // Count capabilities by development type
+    const selfServeCount = validCohorts.filter(c => c.development_type === "self_serve").length;
+    const selfDirectedCount = validCohorts.filter(c => c.development_type === "self_directed").length;
+    const highTouchCount = validCohorts.filter(c => c.development_type === "high_touch").length;
 
     const executiveSummary = {
       total_employees: employees.length,
@@ -812,15 +735,9 @@ Remember: Momentum 360 is excellent for leadership development but the organizat
       year1_cohorts: year1Cohorts.length,
       year2_cohorts: year2Cohorts.length,
       year3_cohorts: year3Cohorts.length,
-      total_investment_conservative: totalConservative,
-      total_investment_moderate: totalModerate,
-      total_investment_aggressive: totalAggressive,
-      year1_investment_moderate: year1Moderate,
-      year2_investment_moderate: year2Moderate,
-      year3_investment_moderate: year3Moderate,
-      expected_roi_moderate: roiModerate,
-      expected_roi_percentage: roiPercentage,
-      break_even_months: breakEvenMonths,
+      capabilities_self_serve_count: selfServeCount,
+      capabilities_self_directed_count: selfDirectedCount,
+      capabilities_high_touch_count: highTouchCount,
       narrative,
       heavy_load_employees: heavyLoadEmployees,
       top_priorities: validCohorts
@@ -844,76 +761,6 @@ Remember: Momentum 360 is excellent for leadership development but the organizat
       },
     };
 
-    const budgetScenarios = {
-      conservative: {
-        total: totalConservative,
-        year1: year1Conservative,
-        year2: year2Conservative,
-        year3: year3Conservative,
-        range: "$0-$150 per person",
-        description: "Free resources and low-cost materials",
-        cohorts: validCohorts.map((c) => ({
-          name: c.cohort_name,
-          cost: c.estimated_cost_conservative,
-        })),
-      },
-      moderate: {
-        total: totalModerate,
-        year1: year1Moderate,
-        year2: year2Moderate,
-        year3: year3Moderate,
-        range: "$500-$2,000 per person",
-        description: "Online courses and blended learning",
-        cohorts: validCohorts.map((c) => ({
-          name: c.cohort_name,
-          cost: c.estimated_cost_moderate,
-        })),
-      },
-      aggressive: {
-        total: totalAggressive,
-        year1: year1Aggressive,
-        year2: year2Aggressive,
-        year3: year3Aggressive,
-        range: "$2,000-$5,000 per person",
-        description: "Premium in-person training and coaching",
-        cohorts: validCohorts.map((c) => ({
-          name: c.cohort_name,
-          cost: c.estimated_cost_aggressive,
-        })),
-      },
-    };
-
-    const roiProjections = {
-      at_risk_employees: atRiskCount,
-      employees_retained: employeesRetained,
-      retention_savings: retentionSavings,
-      employees_trained: employeesTrained,
-      training_investment: totalModerate,
-      productivity_roi_multiplier: productivityReturnMultiplier,
-      productivity_gains: productivityGains,
-      total_benefits: totalBenefits,
-      net_roi: roiModerate,
-      roi_percentage: roiPercentage,
-      break_even_months: breakEvenMonths,
-      formulas: {
-        retention_savings: `${employeesRetained} employees retained × $${avgTurnoverCost.toLocaleString()} turnover cost`,
-        productivity_gains: `Training investment ($${totalModerate.toLocaleString()}) × ${productivityReturnMultiplier} ROI multiplier = $${productivityGains.toLocaleString()}`,
-        total_benefits: "Productivity Gains + Retention Savings",
-        net_roi: "Total Benefits - Training Investment",
-        roi_percentage: "(Net ROI ÷ Training Investment) × 100",
-      },
-      assumptions: {
-        avg_turnover_cost: avgTurnoverCost,
-        retention_impact_rate: `${Math.round(retentionImpactRate * 100)}% of at-risk employees retained`,
-        productivity_roi_baseline: "200% return on training investment (conservative industry standard)",
-      },
-      sources: [
-        "Society for Human Resource Management (SHRM) 2024",
-        "Work Institute 2023 Retention Report",
-        "ATD State of the Industry 2023 - Training ROI benchmarks",
-        "Association for Talent Development Research",
-      ],
-    };
 
     // Insert report into database
     console.log("Inserting report into database...");
@@ -925,8 +772,6 @@ Remember: Momentum 360 is excellent for leadership development but the organizat
         executive_summary: executiveSummary,
         cohorts: validCohorts,
         narrative: narrative,
-        budget_scenarios: budgetScenarios,
-        roi_projections: roiProjections,
       })
       .select()
       .single();
@@ -938,32 +783,20 @@ Remember: Momentum 360 is excellent for leadership development but the organizat
     
     console.log("Report inserted successfully, ID:", newReport.id);
 
-    // Insert cohorts (map to table schema)
-    const cohortInserts = validCohorts.map((c) => {
-      const moderateSolution = c.recommended_solutions?.find((s: any) => s.type === "moderate");
-      const estPer = moderateSolution?.cost_per_person ?? 1250;
-      const totalEst = moderateSolution?.total_cost ?? estPer * c.employee_count;
-      const expectedRoiPct = totalModerate > 0
-        ? Math.round(((retentionSavings + productivityGains - totalModerate) / totalModerate) * 100)
-        : null;
-
-      return {
-        report_id: newReport.id,
-        cohort_name: c.cohort_name,
-        capability_name: c.capability_name,
-        employee_ids: c.employee_ids,
-        employee_count: c.employee_count,
-        gap_severity: c.gap_severity,
-        recommended_solutions: c.recommended_solutions,
-        estimated_cost_per_employee: estPer,
-        total_estimated_cost: totalEst,
-        estimated_cost_conservative: c.estimated_cost_conservative,
-        estimated_cost_moderate: c.estimated_cost_moderate,
-        estimated_cost_aggressive: c.estimated_cost_aggressive,
-        expected_roi_percentage: expectedRoiPct,
-        timeline_weeks: 8,
-      };
-    });
+    // Insert cohorts (map to table schema) - Note: cohort table inserts removed as schema may not support new fields yet
+    // const cohortInserts = validCohorts.map((c) => ({
+    //   report_id: newReport.id,
+    //   cohort_name: c.cohort_name,
+    //   capability_name: c.capability_name,
+    //   employee_ids: c.employee_ids,
+    //   employee_count: c.employee_count,
+    //   gap_severity: c.gap_severity,
+    //   development_type: c.development_type,
+    //   development_approach: c.development_approach,
+    //   jericho_resources: c.jericho_resources,
+    //   requires_facilitation: c.requires_facilitation,
+    //   timeline_weeks: 8,
+    // }));
 
     // Note: Cohort and notification inserts removed - those tables can be added later if needed
     // if (cohortInserts.length > 0) {

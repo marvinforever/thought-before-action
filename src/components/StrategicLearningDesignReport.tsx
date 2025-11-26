@@ -24,8 +24,6 @@ type Report = {
   id: string;
   company_id: string;
   executive_summary: any;
-  budget_scenarios: any;
-  roi_projections: any;
   cohorts: any;
   narrative: string;
   generated_at: string;
@@ -39,14 +37,13 @@ type Cohort = {
   capability_id?: string;
   employee_ids: string[];
   employee_count: number;
-  priority: number;
   current_level: string;
   target_level: string;
   gap_severity: string;
-  recommended_solutions: any[];
-  estimated_cost_conservative: number;
-  estimated_cost_moderate: number;
-  estimated_cost_aggressive: number;
+  development_type?: "self_serve" | "self_directed" | "high_touch";
+  development_approach?: string;
+  jericho_resources?: string[];
+  requires_facilitation?: boolean;
   delivery_quarter: string;
 };
 
@@ -490,7 +487,7 @@ export default function StrategicLearningDesignReport() {
       // Executive Summary
       addText('EXECUTIVE SUMMARY', 14, true);
       const summary = report.executive_summary;
-      addText(`Total Employees: ${summary.total_employees}`);
+      addText(`Total Employees in Jericho: ${summary.total_employees}`);
       addText(`Employees Needing Training: ${summary.employees_needing_training}`);
       addText(`Total Training Cohorts: ${summary.total_cohorts}`);
       yPosition += 5;
@@ -631,8 +628,6 @@ export default function StrategicLearningDesignReport() {
   }
 
   const summary = report.executive_summary;
-  const scenarios = report.budget_scenarios;
-  const roi = report.roi_projections;
 
   return (
     <div className="container mx-auto p-8 space-y-8">
