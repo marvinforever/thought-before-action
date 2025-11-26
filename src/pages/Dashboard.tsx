@@ -189,23 +189,9 @@ const Dashboard = () => {
         return "critical";                 // <60 = High Risk (red)
       };
 
-      // Retention uses count-based risk assessment: 0 = low, 1 = moderate, >2 = critical
-      const getRetentionRisk = (atRiskCount: number): "low" | "medium" | "high" | "critical" => {
-        if (atRiskCount === 0) return "low";       // 0 at risk = Low
-        if (atRiskCount === 1) return "high";      // 1 at risk = Moderate (orange)
-        return "critical";                         // 2+ at risk = Critical (red)
-      };
-
-      // Engagement uses quartile-based risk assessment
-      const getEngagementRisk = (score: number): "low" | "medium" | "high" | "critical" => {
-        if (score >= 75) return "low";       // Top quartile = Low risk
-        if (score >= 25) return "high";      // Middle quartiles = Moderate risk (orange)
-        return "critical";                   // Bottom quartile = High risk (red)
-      };
-
       const domainScores: DomainScore[] = [
-        { domain: "Retention", score: avgRetentionScore, risk: getRetentionRisk(totalAtRisk), impact: `${totalAtRisk} at risk (${highRiskCount} high, ${mediumRiskCount} medium)` },
-        { domain: "Engagement", score: avgEngagement, risk: getEngagementRisk(avgEngagement), impact: ">75 = Low, 26-74 = Moderate, <26 = High" },
+        { domain: "Retention", score: avgRetentionScore, risk: getRiskLevel(avgRetentionScore), impact: `${totalAtRisk} at risk (${highRiskCount} high, ${mediumRiskCount} medium)` },
+        { domain: "Engagement", score: avgEngagement, risk: getRiskLevel(avgEngagement), impact: "" },
         { domain: "Burnout", score: burnoutScore, risk: getRiskLevel(burnoutScore), impact: "" },
         { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: "" },
         { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: "" },
