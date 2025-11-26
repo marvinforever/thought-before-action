@@ -1588,6 +1588,8 @@ const SuperAdmin = () => {
   };
 
   const handleUpdateUser = async () => {
+    console.log("handleUpdateUser called", { editingUser, editUserForm });
+    
     if (!editingUser || !editUserForm.full_name || !editUserForm.email || !editUserForm.company_id) {
       toast({
         title: "Validation error",
@@ -1599,7 +1601,9 @@ const SuperAdmin = () => {
 
     setUpdatingUser(true);
     try {
-      const { error } = await supabase
+      console.log("Attempting to update user:", editingUser.id, editUserForm);
+      
+      const { data, error } = await supabase
         .from("profiles")
         .update({
           full_name: editUserForm.full_name,
@@ -1609,9 +1613,15 @@ const SuperAdmin = () => {
           phone: editUserForm.phone || null,
           is_active: editUserForm.is_active,
         })
-        .eq("id", editingUser.id);
+        .eq("id", editingUser.id)
+        .select();
 
-      if (error) throw error;
+      console.log("Update result:", { data, error });
+
+      if (error) {
+        console.error("Update error:", error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -1620,8 +1630,12 @@ const SuperAdmin = () => {
 
       setEditUserDialogOpen(false);
       setEditingUser(null);
-      loadAllSystemUsers();
+      
+      // Refresh the user list
+      console.log("Refreshing user list...");
+      await loadAllSystemUsers();
     } catch (error: any) {
+      console.error("Full update error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update user",
