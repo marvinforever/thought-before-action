@@ -135,9 +135,14 @@ serve(async (req) => {
       `)
       .in("profile_id", employees.map((e) => e.id));
 
-    // Fetch diagnostics
+    // Fetch diagnostics AND normalized scores
     const { data: diagnostics } = await supabase
       .from("diagnostic_responses")
+      .select("*")
+      .eq("company_id", companyId);
+    
+    const { data: diagnosticScores } = await supabase
+      .from("diagnostic_scores")
       .select("*")
       .eq("company_id", companyId);
 
@@ -372,289 +377,360 @@ serve(async (req) => {
     const goalsContext = targets && targets.length > 0
       ? `\n\n**Employee 90-Day Goals:**\n${targets.map(t => `- ${t.goal_text} (${employeeDataMap.get(t.profile_id)?.full_name || 'Unknown'})`).join('\n')}`
       : '';
+    
+    // Calculate diagnostic score averages across company
+    const calculateScoreAverage = (field: string) => {
+      if (!diagnosticScores || diagnosticScores.length === 0) return 0;
+      const validScores = diagnosticScores
+        .map((d: any) => d[field])
+        .filter((score: any) => score !== null && score !== undefined);
+      if (validScores.length === 0) return 0;
+      return Math.round(validScores.reduce((sum: number, score: number) => sum + score, 0) / validScores.length);
+    };
+    
+    const orgRetentionScore = calculateScoreAverage('retention_score');
+    const orgEngagementScore = calculateScoreAverage('engagement_score');
+    const orgBurnoutScore = calculateScoreAverage('burnout_score');
+    const orgManagerScore = calculateScoreAverage('manager_score');
+    const orgCareerScore = calculateScoreAverage('career_score');
+    const orgClarityScore = calculateScoreAverage('clarity_score');
+    const orgLearningScore = calculateScoreAverage('learning_score');
+    const orgSkillsScore = calculateScoreAverage('skills_score');
+    
+    const hasDiagnosticData = diagnosticScores && diagnosticScores.length > 0 && orgRetentionScore > 0;
 
     // Generate AI narrative using Gemini
-    const narrativePrompt = `You are analyzing capability development needs for a strategic learning design. This organization has ${validCohorts.length} identified capability gaps across ${employees.length} employees currently enrolled in Jericho.
+    const narrativePrompt = `You are creating a comprehensive Strategic Learning Design Report for an organization.
 
-Company Context:
-- Employees Enrolled in Jericho: ${employees.length} (represents only those using the platform, NOT total company size)
-- Capability Gaps Identified: ${validCohorts.length}
-- Total employees needing development: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
-${businessGoalsContext}
-${goalsContext}
+CONTEXT AND DATA:
+Company: Analyzing ${employees.length} employees currently enrolled in Jericho (NOTE: This is NOT total company size, only those using the platform)
+Capability Gaps Identified: ${validCohorts.length} distinct capability development opportunities
+Total Employees Needing Development: ${new Set(validCohorts.flatMap(c => c.employee_ids)).size}
 
-DATA MATURITY ASSESSMENT:
-Current Phase: ${dataPhase.toUpperCase()}
+${hasDiagnosticData ? `
+ORGANIZATIONAL DIAGNOSTIC SCORES (0-100 scale):
+- Retention: ${orgRetentionScore}
+- Engagement: ${orgEngagementScore}
+- Burnout (low risk = high score): ${orgBurnoutScore}
+- Manager Support: ${orgManagerScore}
+- Career Development: ${orgCareerScore}
+- Role Clarity: ${orgClarityScore}
+- Learning Engagement: ${orgLearningScore}
+- Skills Application: ${orgSkillsScore}
+
+These scores provide critical context for capability development priorities and urgency.` : ''}
+
+DATA MATURITY PHASE: ${dataPhase.toUpperCase()}
 ${dataPhaseDescription}
 
-Data Completeness:
+Data Sources Available:
 - Job Descriptions: ${hasJobDescriptions ? `${jobDescriptions.length} employees` : 'None'}
-- Self-Assessments: ${selfAssessmentRate.toFixed(0)}% complete (${selfAssessmentCount} of ${totalCapabilities} capabilities)
-- Manager Assessments: ${managerAssessmentRate.toFixed(0)}% complete (${managerAssessmentCount} of ${totalCapabilities} capabilities)
-- Employee Goals: ${hasGoals ? `${targets.length} active goals` : 'None yet'}
-- Diagnostic Responses: ${hasDiagnostics ? `${diagnostics.length} employees` : 'None yet'}
-
-CRITICAL CONTEXT FOR YOUR ANALYSIS:
-The capabilities you're analyzing were identified through job description analysis. ${
-  dataPhase === 'initial' 
-    ? 'Employees have NOT yet validated these capabilities through self-assessment, and managers have NOT yet confirmed them. This means current capability levels are ESTIMATES based on job requirements, not validated assessments. Your recommendations should acknowledge this early phase and explain that priorities and gaps will become more precise as self-assessments and manager assessments are completed.'
-    : dataPhase === 'early'
-    ? 'Some employees have begun self-assessments, but the dataset is incomplete. Your recommendations should note that findings will sharpen significantly as assessment completion increases.'
-    : dataPhase === 'maturing'
-    ? 'Most assessments are complete, providing a solid foundation for recommendations. Additional goal and diagnostic data will further refine priorities.'
-    : 'You have comprehensive data including validated assessments, goals, and diagnostics. Your recommendations can be highly specific and personalized.'
-}
+- Self-Assessments: ${selfAssessmentRate.toFixed(0)}% complete
+- Manager Assessments: ${managerAssessmentRate.toFixed(0)}% complete
+- Employee Goals: ${hasGoals ? `${targets.length} active goals` : 'Not yet collected'}
+- Diagnostic Surveys: ${hasDiagnosticData ? `${diagnosticScores.length} employees` : 'Not yet collected'}
+${businessGoalsContext}
+${goalsContext}
 
 DETAILED CAPABILITY GAP DATA (WHO NEEDS WHAT):
 ${validCohorts.map((c, i) => {
   const cohortEmployees = c.employee_ids.map(id => employeeDataMap.get(id));
   const employeeNames = cohortEmployees.map(e => e?.full_name || 'Unknown').join(', ');
-  const employeeRoles = cohortEmployees.map(e => e?.role || 'No role specified').join(', ');
-  const cohortGoals = cohortEmployees.flatMap(e => e?.goals || []).filter(g => g);
-  const goalsText = cohortGoals.length > 0 
-    ? ` Personal goals: ${cohortGoals.slice(0, 2).map(g => g.goal_text).join('; ')}` 
-    : '';
   return `${i + 1}. ${c.cohort_name}
    - WHO: ${employeeNames}
-   - ROLES: ${employeeRoles}
-   - CURRENT STATE: ${c.current_level}
-   - TARGET STATE: ${c.target_level}
-   - URGENCY: ${c.gap_severity}
-   ${goalsText ? `- ${goalsText}` : ''}`;
+   - CURRENT: ${c.current_level} → TARGET: ${c.target_level}
+   - URGENCY: ${c.gap_severity}`;
 }).join("\n\n")}
 
-DEVELOPMENT APPROACHES AND AVAILABLE SOLUTIONS:
+YOUR TASK: Create a comprehensive Strategic Learning Design Report following the EXACT structure below. This should be a detailed consulting-quality document (25+ pages worth of content) that provides extensive analysis and actionable recommendations.
 
-You must categorize each capability into ONE of these three development approaches:
+REQUIRED REPORT STRUCTURE:
 
-1. SELF-SERVE DEVELOPMENT (Experience & Internal Coaching)
-Many capabilities develop most effectively through on-the-job experience, stretch assignments, internal mentoring relationships, manager coaching, and time. Not everything requires formal training. This approach is appropriate for:
-- Domain expertise that builds naturally through work
-- Industry-specific knowledge gained through exposure
-- Many technical skills that develop through practice
-- Capabilities where the organization has internal expertise
+========================================
+STRATEGIC LEARNING DESIGN REPORT
+========================================
 
-Development approach: Internal coaching, mentoring, stretch assignments, shadowing, project-based learning
+A Comprehensive Plan for Organizational Capability Development
 
-2. SELF-DIRECTED LEARNING (Jericho Platform)
-Jericho provides curated learning resources matched to each capability gap. These capabilities benefit from structured resources but don't require facilitation or coaching:
-- Books, videos, podcasts, and articles available 24/7
-- Personalized to each employee's development needs
-- Self-paced learning that accelerates organic development
-- Appropriate for foundational knowledge, tool proficiency, communication basics, and technical skills
-
-Development approach: Curated resources through Jericho, self-paced consumption, optional peer discussion
-
-3. HIGH-TOUCH DEVELOPMENT (Structured Programs & Momentum 360)
-Some capabilities—particularly leadership, people management, executive communication, and complex team dynamics—benefit from coached facilitation, peer cohorts, and structured intervention. These require more than reading or self-study.
-
-Organizations can source high-touch development through:
-- Individual executive coaching engagements (multiple vendors, varied approaches)
-- Workshop facilitation from various providers (inconsistent quality, different methodologies)
-- Peer roundtables or mastermind groups (requires coordination)
-- Leadership development programs (various vendors with different frameworks)
-
-OR through comprehensive membership programs like Momentum 360 that consolidate these elements:
-- Complete Leadership Operating System (year-round sustainable support, not one-off workshops)
-- Executive Coaching and Alignment for C-suite leaders
-- Leadership Multiplication for VPs/Directors and mid-level managers
-- Team Development and Culture Systems for frontline teams
-- Structure: 2 Executive Sessions, 2 Manager Sessions, 2 Team Leader Sessions per year
-- Peer Roundtables and Cross-Company Learning throughout the year
-- Ongoing coaching and on-demand learning library
-- The 5Es Framework: Enlist, Equip, Empower, Evaluate, Evolve
-- Single methodology, consistent quality, integrated approach
-
-Note: Sourcing high-touch development across multiple vendors requires coordination across different methodologies, managing multiple relationships, scheduling complexity, and varied quality standards. Comprehensive membership programs simplify this significantly.
-
-YOUR TASK: Write an executive-level strategic learning design following a professional consulting report format with McKinsey-level depth and clarity.
-
-CRITICAL STRUCTURAL APPROACH:
-Before writing the report, you must:
-1. Analyze all capability gaps and identify 6-8 KEY FOCUS AREAS that represent the major development domains
-2. For EACH capability, determine which development approach is most appropriate (Self-Serve, Self-Directed Jericho, or High-Touch)
-3. Organize all capabilities under the appropriate focus area
-4. Be honest about what can be developed organically (builds credibility)
-5. Show Jericho's value for self-directed learning
-6. Position high-touch solutions (including M360) strategically without being pushy
-7. Let the complexity of à la carte high-touch sourcing speak for itself
-
-Examples of focus areas: "Leadership & People Management", "Technical & Operational Excellence", "Communication & Stakeholder Engagement", "Strategic Business Acumen", etc.
-
-EXACT STRUCTURE REQUIRED:
-
-STRATEGIC CAPABILITY ASSESSMENT
-Strategic Learning Design Overview
+Prepared by The Momentum Company in partnership with Organizational Leadership
 
 EXECUTIVE SUMMARY
-[3-4 powerful paragraphs that frame the situation positively. End by introducing "Six Core Development Domains" or "Eight Strategic Focus Areas" (whatever number you identify). Always reference "employees enrolled in Jericho" not total company size. Balance acknowledgment of current state with optimism about potential.]
+
+[Write 4-5 detailed paragraphs that:]
+- Open with a powerful statement about this being a roadmap of potential, not a list of deficiencies
+- Reference the ${validCohorts.length} distinct capability development opportunities across ${employees.length} employees enrolled in Jericho
+- Explain this is derived from multi-layered analysis: job descriptions, diagnostic survey, and Jericho platform assessments
+- Describe the three-year learning design that systematically cultivates capabilities from foundation to strategic application
+- Frame this as positioning the organization at the forefront of strategic talent development
+- End with optimism about organizational agility, resilience, and market leadership
+
+UNDERSTANDING OUR CAPABILITY FRAMEWORK
+
+What Are Capabilities?
+
+[2-3 paragraphs explaining that capabilities are the specific skills, knowledge, and behaviors that enable people to perform effectively and advance. Explain that all ${validCohorts.length} capability gaps have been systematically identified and organized by competencies they represent.]
+
+The Four Proficiency Levels
+
+LEVEL 1: FOUNDATIONAL
+[Detailed paragraph: Beginning of development journey, acquiring foundational knowledge, building understanding, just starting to apply. Need structured learning, guided practice, regular feedback to progress.]
+
+LEVEL 2: ADVANCING  
+[Detailed paragraph: Progressing in development, have basic proficiency, building toward higher skill levels. Can apply with some consistency, may need coaching for complex situations. Ready for more responsibility.]
+
+LEVEL 3: INDEPENDENT
+[Detailed paragraph: Full competency and autonomy. Operate without close supervision, make sound decisions, handle complex or novel situations effectively.]
+
+LEVEL 4: MASTERY
+[Detailed paragraph: Deeply embodied capability, represent excellence. Set examples, mentor others, continuously refine approach. Recognized as go-to experts, help establish organizational standards.]
 
 DATA MATURITY AND METHODOLOGY
 
 Current Assessment Phase: ${dataPhase.charAt(0).toUpperCase() + dataPhase.slice(1)}
 
-${dataPhaseDescription}
+[Copy the phase description verbatim and expand with context about data sources]
 
-Data Sources:
-Job Descriptions: ${hasJobDescriptions ? 'Complete' : 'Not available'}
-Self-Assessments: ${selfAssessmentRate.toFixed(0)}% complete
-Manager Assessments: ${managerAssessmentRate.toFixed(0)}% complete
-Employee Goals: ${hasGoals ? 'Available' : 'Not yet collected'}
-Diagnostic Surveys: ${hasDiagnostics ? 'Complete' : 'Not yet collected'}
+This analysis is based on ${dataPhase === 'initial' ? 'three' : 'multiple'} data sources:
+- Job Descriptions: ${hasJobDescriptions ? 'Complete analysis of all current role descriptions to identify capability requirements' : 'Not yet available'}
+- Diagnostic Survey: ${hasDiagnosticData ? `Comprehensive ${diagnosticScores.length}-person survey assessing role clarity, confidence, workload, wellbeing, learning preferences, manager support, and growth barriers` : 'Not yet administered'}
+- Initial Jericho Assessment: Employees baseline capability self-assessments (${selfAssessmentRate.toFixed(0)}% complete)
 
-${dataPhase === 'initial' ? `Important Context: This analysis is based on job description requirements and represents the capabilities needed for each role. Current and target levels shown are initial estimates derived from job analysis, not yet validated by employee self-assessments or manager reviews. As employees complete self-assessments and managers provide their evaluations, capability levels and priorities will be refined to reflect actual proficiency more accurately. This initial phase provides a strategic starting point, with the understanding that recommendations will become increasingly precise as assessment data matures.
+${dataPhase === 'initial' ? `Important Context: This analysis represents initial estimates derived from job description analysis ${hasDiagnosticData ? 'and diagnostic survey data' : ''}, not yet validated by complete capability self-assessments from employees or manager assessments. Current and target levels shown reflect the organizations capability requirements based on role analysis. As employees complete capability self-assessments inside the Jericho platform and managers provide their capability assessments through Jericho, the data will mature significantly and recommendations will become increasingly precise. This initial phase provides a strategic starting point with the understanding that recommendations will become more targeted as assessment data matures.` : ''}
 
 What to Expect as Data Matures:
-- Self-assessments will reveal where employees feel strongest and where they recognize growth needs
-- Manager assessments will provide calibrated, validated capability levels
-- Goal data will help prioritize development based on career aspirations
-- Diagnostic responses will uncover motivation, learning preferences, and retention risks
+- Capability self-assessments will reveal where employees feel strongest and where they recognize growth needs
+- Manager capability assessments will provide calibrated, validated capability levels across the team
+- Goal data will help prioritize development based on career aspirations and business needs
+- Diagnostic insights will uncover motivation, learning preferences, engagement drivers, and retention risks
 - The combination of these data sources will enable highly personalized, targeted development plans
 
-For now, this report provides a foundational roadmap based on role requirements. Think of it as identifying the "playing field" - the capabilities each role demands. As assessments come in, we'll see where individuals actually stand on that field and can fine-tune development approaches accordingly.` : 
-dataPhase === 'early' ? `Assessment Progress: Self-assessment and manager validation are underway. Current findings blend job description analysis with emerging assessment data. As assessment completion increases, capability levels will become more accurate and development priorities will sharpen. Expect this report to evolve significantly as the remaining assessments are completed.` :
-dataPhase === 'maturing' ? `Dataset Quality: With substantial assessment completion, this analysis reflects validated capability levels rather than estimates. The addition of goal and diagnostic data will further refine priorities and enable more personalized recommendations.` :
-`Comprehensive Analysis: This report draws from complete assessment cycles, employee goals, and diagnostic data, providing highly accurate capability levels and personalized development recommendations.`}
+${hasDiagnosticData ? `
+KEY FINDINGS FROM DIAGNOSTIC SURVEY
 
-STRATEGIC FOCUS AREAS
+A comprehensive diagnostic survey was administered to ${diagnosticScores.length} team members across 8 key dimensions. The findings validate the capability gaps identified through job analysis and provide critical context for development strategy.
 
-[For EACH of the 6-8 focus areas you identified, create a detailed section:]
+1. RETENTION AND ENGAGEMENT (Score: ${orgRetentionScore}/100)
+[2-3 paragraphs analyzing retention intent. If score below 70, call this MATERIAL CONCERN. Discuss flight risk, what percentage represents high/moderate/low risk. Connect to capability development as retention strategy.]
 
-[NUMBER]. [FOCUS AREA NAME IN ALL CAPS]
+2. EMPLOYEE ENGAGEMENT (Score: ${orgEngagementScore}/100)  
+[2-3 paragraphs on engagement levels. Discuss energy, motivation, connection to work. Acknowledge engagement present but note constraints if score moderate.]
 
-Overview: [2-3 paragraphs explaining why this domain matters, what capabilities fall under it, and the strategic importance]
+3. BURNOUT AND WELLBEING (Score: ${orgBurnoutScore}/100)
+[2-3 paragraphs. If score below 60, mark as CRITICAL FINDING. Discuss mental drain, personal sacrifice, exhaustion patterns. Frame as systemic issue affecting capacity for development.]
 
-Capabilities Included:
-[For each capability under this focus area, specify:]
-- [Capability Name]: [Employee Names] - currently at [level], targeting [level]
-  Development Type: [Self-Serve | Self-Directed (Jericho) | High-Touch]
+4. MANAGER SUPPORT FOR GROWTH (Score: ${orgManagerScore}/100)
+[2-3 paragraphs. If score below 70, mark as KEY GAP. Discuss manager effectiveness in supporting development. Connect directly to Leadership & People Management priority.]
 
-Development Priorities:
-[Detailed breakdown of what needs to happen in this domain, sequencing considerations, dependencies between capabilities]
+5. CAREER DEVELOPMENT CLARITY (Score: ${orgCareerScore}/100)
+[2-3 paragraphs on growth path visibility. Note variance across organization. Discuss career conversations and advancement clarity.]
 
-Recommended Development Approach:
+6. ROLE CLARITY (Score: ${orgClarityScore}/100)
+[2-3 paragraphs on role expectations clarity. High score is strength. Lower score indicates confusion about responsibilities.]
 
-Self-Serve Development (if applicable):
-[List capabilities that can develop through experience, internal coaching, and time. Explain the internal approach: stretch assignments, mentoring, project work, etc.]
+7. LEARNING ENGAGEMENT (Score: ${orgLearningScore}/100)
+[2-3 paragraphs on time dedicated to development. Discuss learning capacity, constraints, preferences for in-person vs. digital.]
 
-Self-Directed Learning (Jericho):
-[List capabilities supported by Jericho resources. Name specific books, videos, podcasts by title when possible. Explain how these accelerate organic learning.]
+8. SKILLS APPLICATION (Score: ${orgSkillsScore}/100)  
+[2-3 paragraphs on how frequently employees apply key capabilities. High score shows active practice. Lower score shows opportunity for application.]
 
-High-Touch Development (if applicable):
-[List capabilities requiring coaching, facilitation, or structured programs. Detail what high-touch elements are needed and why self-study alone isn't sufficient. Then note: Organizations can source these through individual vendors and coaches (note coordination complexity) OR through comprehensive programs like Momentum 360 that consolidate executive coaching, leadership development, peer roundtables, and learning resources under a single membership.]
+DIAGNOSTIC IMPLICATIONS FOR LEARNING DESIGN
 
-Expected Impact:
-[Specific business outcomes when this focus area development is achieved - be concrete about organizational benefits]
+The survey findings validate and deepen the capability gaps identified through job analysis. ${hasDiagnosticData ? 'Six' : 'Several'} critical implications:
 
-Strategic Development Roadmap
+[Number each implication 1-6 and provide 2-3 sentences each:]
+1. [Wellbeing as prerequisite - if burnout low, address workload before heavy development]
+2. [Manager development criticality - connect to manager scores]
+3. [Time-efficient delivery - reference learning score and available hours]
+4. [Modality preferences - in-person vs digital based on data]
+5. [Retention urgency - if retention low, emphasize growth visibility]
+6. [Engagement leverage - how to unlock full engagement through development]
+` : ''}
 
-YEAR 1: FOUNDATION AND IMMEDIATE IMPACT
+ORGANIZATIONAL CAPABILITY ASSESSMENT
 
-[Provide SUBSTANTIAL DETAIL for Year 1. For each major program or initiative:]
+Based on ${hasDiagnosticData ? 'the diagnostic survey and' : ''} job description analysis, the ${employees.length}-person cohort demonstrates ${hasDiagnosticData && orgEngagementScore >= 75 ? 'solid operational competence' : 'foundational capabilities'}. The organizations core strengths include:
 
-[PROGRAM NAME IN ALL CAPS]
-Focus Area: [Which of the 6-8 focus areas this addresses]
-Audience: [Specific employee names and their roles]
-Duration: [Specific timeframe]
-Current State: [Where these people are today across relevant capabilities]
-Target State: [Where they need to be by end of Year 1]
+[Bullet list of 4-6 organizational strengths based on data]
 
-Development Structure:
-[Multiple paragraphs describing the specific approach, session types, learning modalities, practice opportunities, application methods. Be detailed about HOW this will work, not just WHAT will happen.]
+SIX STRATEGIC FOCUS AREAS
 
-Development Approach by Type:
-[Break down the program by development type:
-- Self-Serve: What internal approaches will be used
-- Self-Directed (Jericho): Specific resources by title
-- High-Touch: Detail what's needed, mention à la carte complexity, then position integrated solutions like M360 as simplifying alternative]
+[For EACH of 6 focus areas, create this detailed structure:]
 
-Progress Milestones:
-[Quarter-by-quarter or month-by-month indicators of progress through Year 1]
+[NUMBER]. [FOCUS AREA NAME - e.g., LEADERSHIP AND PEOPLE DEVELOPMENT]
 
-Expected Impact:
-[Specific, measurable outcomes and benefits to individuals and organization]
+Why It Matters:  
+[2-3 paragraphs on strategic importance and multiplier effect]
 
-Dependencies and Prerequisites:
-[What needs to happen first, what can run in parallel, any foundational work required]
+Primary Capabilities:
+[Comma-separated list of all capabilities in this domain]
 
-[Repeat for each Year 1 program - should be 4-6 detailed program descriptions]
+Who Is Impacted:
+[List all employee names who need development in this area]
+
+Current State:
+[2-3 sentences describing current capability levels across the group]
+
+Desired State:
+[2-3 sentences painting picture of target state]
+
+Potential Cost of Inaction:
+[Bullet list of 4-5 specific negative outcomes if not addressed]
+
+How Well Know Its Working:
+[Bullet list of 4-5 measurable indicators of success]
+
+[Repeat for all 6 focus areas - typical areas: Leadership & People Development, Communication & Stakeholder Engagement, Commercial Growth & Client Strategy, Operational Excellence & Execution, Analytical Rigor & Financial Management, Technical/Domain Expertise]
+
+YEAR 1 DEVELOPMENT PRIORITIES
+
+Priority 1: [Name]
+Priority 2: [Name]  
+Priority 3: [Name]
+Priority 4: [Name]
+Priority 5: [Name]
+
+[For EACH priority, provide this structure:]
+
+PRIORITY [NUMBER]: [NAME IN ALL CAPS]
+
+Target Audience:
+[List specific employee names]
+
+Why This Priority:
+[2-3 paragraphs connecting to diagnostic findings, business needs, foundational importance]
+
+Desired State:
+[2-3 sentences of target outcomes]
+
+How Well Know Its Working:
+[Bullet list of success metrics]
+
+Potential Training Options:
+[Bullet list of 4-6 specific development approaches, including Momentum 360 elements, vendor options, internal approaches, digital resources via Jericho]
+
+YEAR 1 LEARNING PATHWAY: MOMENTUM 360 AS STRATEGIC FOUNDATION
+
+Momentum 360 is recommended as the strategic backbone of Year 1 development. Rather than listing specific package pricing, the recommendation focuses on what capabilities organizations need across three leadership tiers:
+
+EXECUTIVE SUPPORT (C-Suite/Senior Leadership)
+[Detailed paragraph describing executive coaching, roundtable seats, retreat experiences, digital library access, people analytics dashboard]
+
+MID-LEVEL SUPPORT (VP/Director Level)  
+[Detailed paragraph on champion coaching, mastermind sessions, virtual roundtables, intensive experiences, training tracks]
+
+TEAM-LEVEL SUPPORT (Frontline Leaders and Individual Contributors)
+[Detailed paragraph on Thriving Leader program, coaching seats, accelerator workshops, intensive team experiences, Academy digital vault]
+
+Why This Approach:
+[2-3 paragraphs explaining flexibility - can use M360 exclusively, use for exec/mid-level and source team training elsewhere, or supplement with specialized vendors]
+
+YEAR 1 IMPLEMENTATION: PHASE-BASED APPROACH
+
+[Note: If organization is agriculture/seasonal, adapt to agricultural cycles. Otherwise use quarterly structure]
+
+PHASE 1: Foundation and Enrollment (Winter/Early Spring OR Q1)
+[Detailed paragraph listing 6-8 specific initiatives with timeline]
+
+PHASE 2: Skill Building and Application (Spring/Early Summer OR Q2)
+[Detailed paragraph listing 6-8 specific initiatives with timeline]
+
+PHASE 3: Momentum and Integration (Summer/Early Fall OR Q3)  
+[Detailed paragraph listing 6-8 specific initiatives with timeline]
+
+PHASE 4: Assessment and Planning (Fall/Early Winter OR Q4)
+[Detailed paragraph listing 6-8 specific initiatives with timeline]
+
+MOMENTUM 360 PLUS OTHER OPTIONS MODEL
+
+While Momentum 360 is recommended as the strategic foundation, it is not the only option. Organizations can implement this learning design using multiple sources:
+
+[Bullet list with detailed sub-bullets:]
+- Momentum 360 components: [list]
+- Vendor partnerships: [list]
+- Internal resources: [list]
+- Digital/Self-Directed: [list]
+- Community College: [list]  
+- Jericho AI and Resources: [list]
+
+[Closing paragraph on flexibility and commitment to systematic development]
 
 YEAR 2: ADVANCEMENT AND SCALE
 
-[Provide SUBSTANTIAL DETAIL for Year 2 - same structure as Year 1]
+Building on Year 1 foundation, Year 2 shifts focus from individual skill-building to strategic application and organizational integration. With common language and foundational capabilities established, Year 2 develops advanced capabilities and crosses the threshold into organizational transformation.
 
-Building on Year 1 Foundation:
-[Explain how Year 2 builds on what was accomplished in Year 1]
+YEAR 2 FOCUS AREAS
 
-[Then detail 4-6 Year 2 programs using same detailed structure as Year 1]
+[For EACH of 4 focus areas, write detailed subsection:]
+
+[FOCUS AREA NAME]
+[2-3 detailed paragraphs on what this focus area entails, who participates, development approach, expected results]
 
 YEAR 3: MASTERY AND SUSTAINABILITY  
 
-[Provide SUBSTANTIAL DETAIL for Year 3 - same structure as Year 1]
+Year 3 focuses on embedding developed capabilities into organizational DNA and creating self-sustaining development culture. Goal: organizational excellence becomes self-perpetuating without reliance on external resources.
 
-Toward Organizational Excellence:
-[Explain how Year 3 creates long-term capability and sustainability]
+[For EACH of 3-4 programs, write detailed subsection:]
 
-[Then detail 3-5 Year 3 programs using same detailed structure as Year 1]
+[PROGRAM NAME]
+[2-3 detailed paragraphs on structure, participants, how it creates sustainability]
 
-Implementation Considerations
+CRITICAL SUCCESS FACTORS
 
-Sequencing and Phasing:
-[Detailed explanation of why things are sequenced this way, which initiatives should start first, how to phase implementation]
+[Bullet list of 8 factors with 1-2 sentences each:]
+- Leadership Commitment: [detail]
+- Manager Accountability: [detail]
+- Time Protection: [detail]
+- Clear Metrics: [detail]
+- Jericho Integration: [detail]
+- Peer Accountability: [detail]
+- Flexibility: [detail]
+- Recognition: [detail]
 
-Resource Requirements:
-[What the organization needs to provide - time commitments, internal support, leadership engagement]
+EXPECTED ORGANIZATIONAL IMPACT
 
-Success Metrics:
-[How to measure progress - specific indicators, checkpoints, evaluation methods]
+Systematic capability development generates impact across multiple dimensions:
 
-Expected Impact
+Individual Level
+[Bullet list of 4 specific outcomes]
 
-[Include specific metrics and research-backed outcomes. Multiple paragraphs covering:]
-- Individual capability development outcomes
-- Team performance improvements  
-- Organizational efficiency and effectiveness gains
-- Leadership capacity and bench strength
-- Cultural and engagement benefits
-- Competitive advantage and market position improvements
+Team Level  
+[Bullet list of 4 specific outcomes]
 
-[Ground these in research where possible, e.g., "Research from ATD shows organizations with comprehensive leadership development see X% improvement in Y metric"]
+Organizational Level
+[Bullet list of 6 specific outcomes]
+
+[Final paragraph citing research: Research from the Association for Talent Development shows organizations with comprehensive training programs have 218% higher income per employee and 24% higher profit margins...]
 
 CONCLUSION
 
-[3-4 paragraphs summarizing the strategic opportunity, the thoughtful phased approach, and the transformational potential ahead. End on a confident, forward-looking note about organizational capability and competitive positioning.]
+[4-5 paragraphs wrapping up:]
+- The ${validCohorts.length} identified capability gaps represent ${validCohorts.length} distinct opportunities to invest in people
+- Diagnostic survey confirms foundation is strong
+- Current constraints are addressable through intentional development
+- Three-year roadmap is ambitious yet pragmatic
+- Provides blueprint for immediate Year 1 impact while building toward long-term sustainable growth
+- Close with powerful statement about organizational transformation and competitive positioning
 
-CRITICAL FORMATTING RULES:
-- PLAIN TEXT ONLY - absolutely NO markdown syntax (no asterisks, hash symbols, underscores, bold/italic markers)  
-- Create structure through line breaks and ALL CAPS section headers
-- Use double line breaks between major sections
-- Use single line breaks for sub-items  
-- Section headers in ALL CAPS with no symbols
-- Professional consulting report style - McKinsey depth and clarity
-- Name specific individuals throughout
-- Be SUBSTANTIALLY MORE DETAILED than a typical executive summary - this should be a comprehensive strategic document
+CRITICAL FORMATTING REQUIREMENTS:
+- ABSOLUTELY NO MARKDOWN SYNTAX - no asterisks, hash symbols, underscores, bold/italic markers, brackets
+- Use ALL CAPS for section headers only
+- Double line breaks between major sections  
+- Single line breaks for paragraphs and bullets
+- Professional consulting report style
+- Name specific individuals throughout  
+- Extremely detailed - this should be 8000-12000 words minimum
 
-CONTENT REQUIREMENTS:
-1. First identify 6-8 overarching focus areas, then organize all capabilities under them
-2. For EACH capability, determine the appropriate development type (Self-Serve, Self-Directed Jericho, or High-Touch)
-3. Provide extensive detail on Year 1, 2, and 3 programs - not just lists but detailed descriptions
-4. Frame capability gaps as GROWTH OPPORTUNITIES not problems or deficits
-5. Acknowledge what can be developed organically through experience (builds tremendous credibility)
-6. Acknowledge this may be the organization's first detailed capability assessment
-7. Name specific people and their current capability levels with supportive framing
-8. Explain positive business impact when development is achieved
-9. Show Jericho's role in providing curated self-directed learning resources
-10. For high-touch needs, detail the complexity of à la carte sourcing (multiple vendors, coordination, varied methodologies) then position comprehensive membership programs like M360 as integrated alternatives
-11. Cite specific books/videos/podcasts by title from Jericho for self-directed learning
-12. Detail sequencing, dependencies, and implementation considerations
-13. Include research-backed metrics in Expected Impact section
-14. Professional, warm, supportive yet strategic advisory tone
-15. Balance clarity about priorities with optimism about outcomes
-16. Think McKinsey-level depth but written for practical business leaders
-17. DO NOT include any cost projections, budget scenarios, or financial recommendations
-18. Let the reader conclude that Jericho + M360 is the natural solution through the structure of your analysis
+TONE REQUIREMENTS:
+- Warm, supportive, encouraging
+- Frame gaps as "opportunities for growth" not problems
+- Balance firmness with friendliness
+- Acknowledge this may be first detailed capability analysis
+- Professional but approachable
+- Strategic clarity with optimism
+- McKinsey-level depth but accessible language
+- NEVER include cost projections or budget recommendations
 
-Remember: Be honest about what can develop organically. Show Jericho's value for self-directed learning. Position high-touch solutions strategically by showing à la carte complexity. Let the integrated solution (M360 for high-touch) become obviously attractive without explicitly pushing it.`;
+Remember: This is a comprehensive strategic document, not a brief summary. Provide extensive detail in every section. Be thorough, specific, and actionable while maintaining supportive tone.`;
 
     console.log("Generating AI narrative with Gemini...");
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
