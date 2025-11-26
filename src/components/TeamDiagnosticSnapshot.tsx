@@ -91,13 +91,13 @@ export function TeamDiagnosticSnapshot() {
         return;
       }
 
-      // Get diagnostic data for team members
+      // Get diagnostic data for team members - check both submitted_at and typeform_submit_date
       const { data: diagnostics } = await supabase
         .from("diagnostic_responses")
         .select("*")
         .in("profile_id", employeeIds)
         .eq("company_id", companyId)
-        .not("typeform_submit_date", "is", null);
+        .or("typeform_submit_date.not.is.null,submitted_at.not.is.null");
 
       const diagnosticData = diagnostics || [];
       const uniqueEmployeesWithDiagnostics = new Set(diagnosticData.map(d => d.profile_id).filter(Boolean)).size;
