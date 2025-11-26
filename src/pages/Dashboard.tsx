@@ -138,9 +138,12 @@ const Dashboard = () => {
       const scores = normalizedScores || [];
       const diagnosticsCompleted = scores.length;
 
-      // Helper to calculate average excluding nulls
+      // Helper to calculate average excluding nulls and zeros (0 = missing data)
       const calculateAverage = (field: keyof typeof scores[0]) => {
-        const validScores = scores.filter(s => s[field] !== null && s[field] !== undefined);
+        const validScores = scores.filter(s => {
+          const value = s[field];
+          return value !== null && value !== undefined && typeof value === 'number' && value > 0;
+        });
         if (validScores.length === 0) return 0;
         return Math.round(validScores.reduce((sum, s) => sum + (s[field] as number), 0) / validScores.length);
       };
