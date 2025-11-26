@@ -68,11 +68,12 @@ export function TeamDiagnosticSnapshot() {
       let companyId = viewAsCompanyId;
 
       if (companyId) {
-        // Super admin viewing as company - get all employees in that company
+        // Super admin viewing as company - get all active employees in that company
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id")
-          .eq("company_id", companyId);
+          .eq("company_id", companyId)
+          .eq("is_active", true);
         
         employeeIds = profiles?.map(p => p.id) || [];
       } else {
