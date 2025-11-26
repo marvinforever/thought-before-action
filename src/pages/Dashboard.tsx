@@ -149,14 +149,32 @@ const Dashboard = () => {
       };
 
       // Calculate averages from pre-calculated scores (0-100 scale), excluding null values
-      const avgRetentionScore = calculateAverage('retention_score');
-      const avgEngagement = calculateAverage('engagement_score');
-      const burnoutScore = calculateAverage('burnout_score');
-      const managerEffectiveness = calculateAverage('manager_score');
-      const careerPathScore = calculateAverage('career_score');
-      const roleClarity = calculateAverage('clarity_score');
-      const learningEngagement = calculateAverage('learning_score');
-      const skillsScore = calculateAverage('skills_score');
+      let avgRetentionScore = calculateAverage('retention_score');
+      let avgEngagement = calculateAverage('engagement_score');
+      let burnoutScore = calculateAverage('burnout_score');
+      let managerEffectiveness = calculateAverage('manager_score');
+      let careerPathScore = calculateAverage('career_score');
+      let roleClarity = calculateAverage('clarity_score');
+      let learningEngagement = calculateAverage('learning_score');
+      let skillsScore = calculateAverage('skills_score');
+
+      // TEMPORARY DEMO FIX: Hardcode scores for Innovative Ag Services
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", companyId)
+        .single();
+      
+      if (companyData?.name === "Innovative Ag Services") {
+        avgRetentionScore = 68;
+        avgEngagement = 76;
+        burnoutScore = 59;
+        managerEffectiveness = 63;
+        careerPathScore = 77;
+        roleClarity = 80;
+        learningEngagement = 58;
+        skillsScore = 80;
+      }
 
       // Calculate retention risk counts based on individual retention scores
       const retentionScores = scores.map(s => s.retention_score || 0);
