@@ -132,14 +132,13 @@ export function TeamDiagnosticSnapshot() {
       const atRiskCount = scores.filter(s => (s.retention_score || 50) < 50).length;
 
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
-        if (score >= 75) return "low";
-        if (score >= 50) return "medium";
-        if (score >= 25) return "high";
-        return "critical";
+        if (score >= 80) return "low";      // 80+ = Low Risk (green)
+        if (score >= 60) return "high";     // 60-79 = High Risk (orange)
+        return "critical";                   // <60 = Critical (red)
       };
 
       const domainScores: DomainScore[] = [
-        { domain: "Retention", score: retentionScore, risk: getRiskLevel(retentionScore), impact: `${atRiskCount} at risk` },
+        { domain: "Retention", score: retentionScore, risk: getRiskLevel(retentionScore), impact: "Average team retention health" },
         { domain: "Engagement", score: engagementScore, risk: getRiskLevel(engagementScore), impact: "Overall team morale" },
         { domain: "Burnout", score: burnoutScore, risk: getRiskLevel(burnoutScore), impact: "Work-life balance" },
         { domain: "Manager", score: managerScore, risk: getRiskLevel(managerScore), impact: "Leadership support" },
