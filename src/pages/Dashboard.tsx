@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock } from "lucide-react";
 import { Gauge } from "@/components/ui/gauge";
 import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
@@ -13,6 +14,7 @@ import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { DomainDrilldownDialog } from "@/components/DomainDrilldownDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
 
 interface DomainScore {
   domain: string;
@@ -41,23 +43,37 @@ const Dashboard = () => {
     recentActivity: [] as Array<{ type: string; description: string; timestamp: Date; icon: string }>,
   });
   const [loading, setLoading] = useState(true);
+  const [normalizing, setNormalizing] = useState(false);
   const [drilldownOpen, setDrilldownOpen] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<DomainScore | null>(null);
   const [employeeDetails, setEmployeeDetails] = useState<any[]>([]);
   const { viewAsCompanyId } = useViewAs();
 
-  // Normalize manager support quality to a 1-10 number even if stored as text labels
-  const parseSupportQuality = (v: any): number => {
-    if (v === null || v === undefined) return 0;
-    const n = Number(v);
-    if (!Number.isNaN(n) && n > 0) return n; // already numeric 1-10
-    const s = String(v).toLowerCase();
-    if (s.includes('excellent')) return 10;
-    if (s.includes('very good')) return 9;
-    if (s.includes('good')) return 8;
-    if (s.includes('fair')) return 6;
-    if (s.includes('poor')) return 3;
-    return 0;
+  const handleBatchNormalize = async () => {
+    setNormalizing(true);
+    toast.info("Starting diagnostic normalization...", {
+      description: "This may take a few minutes for all records"
+    });
+
+    try {
+      const { data, error } = await supabase.functions.invoke('batch-normalize-diagnostics');
+      
+      if (error) throw error;
+
+      toast.success("Normalization complete!", {
+        description: `Processed ${data.processed} diagnostics successfully`
+      });
+
+      // Reload stats to show updated scores
+      loadStats();
+    } catch (error: any) {
+      console.error('Batch normalization error:', error);
+      toast.error("Failed to normalize diagnostics", {
+        description: error.message || "Please try again"
+      });
+    } finally {
+      setNormalizing(false);
+    }
   };
 
   useEffect(() => {
@@ -106,165 +122,65 @@ const Dashboard = () => {
         companyId = profile.company_id;
       }
 
-      // Only get active employees and diagnostics for THIS specific company
-      // Get employees and diagnostics - check both submitted_at and typeform_submit_date
-      const [employeesRes, diagnosticDataRes] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact" })
-          .eq("company_id", companyId)
-          .eq("is_active", true),
-        supabase
-          .from("diagnostic_responses")
-          .select("*")
-          .eq("company_id", companyId)
-          .or("typeform_submit_date.not.is.null,submitted_at.not.is.null"),
-      ]);
+      // Get employees count
+      const { data: employeeRows, count: employeeCount } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact" })
+        .eq("company_id", companyId)
+        .eq("is_active", true);
 
-      const diagnostics = diagnosticDataRes.data || [];
-      const employeeRows = employeesRes.data || [];
-      const employeeIds = new Set(employeeRows.map((e: any) => e.id));
+      // Query pre-calculated diagnostic scores from the normalized table
+      const { data: normalizedScores } = await supabase
+        .from("diagnostic_scores")
+        .select("*")
+        .eq("company_id", companyId);
 
-      // Define a stricter completion rule to avoid counting partial/test rows
-      const completeDiagnostics = diagnostics.filter((d: any) => {
-        if (!d?.profile_id || !employeeIds.has(d.profile_id)) return false;
-        const rc = Number(d.role_clarity_score) || 0;
-        const msq = parseSupportQuality(d.manager_support_quality);
-        const energy = Number(d.daily_energy_level) || 0;
-        const conf = Number(d.confidence_score) || 0;
-        const engagement = (d.additional_responses as any)?.engagement_scores;
-        const engagementSum = engagement
-          ? [engagement.energy_score, engagement.valued_score, engagement.growth_path_score, engagement.manager_feedback_score]
-              .map((v: any) => Number(v) || 0)
-              .reduce((a: number, b: number) => a + b, 0)
-          : 0;
-        // Consider complete if key scores are present (typical of real submissions)
-        return (rc > 0 && msq > 0 && energy > 0) || (conf > 0 && engagementSum > 0);
-      });
+      const scores = normalizedScores || [];
+      const diagnosticsCompleted = scores.length;
 
-      // Count unique current employees with a completed diagnostic
-      const completedProfileIds = new Set(completeDiagnostics.map((d: any) => d.profile_id));
-
-      const employeeCount = employeesRes.count ?? employeeRows.length;
-      const diagnosticsCompleted = completedProfileIds.size;
-      
-      console.log('Dashboard Stats Debug:', {
-        employeeCount,
-        totalDiagnostics: diagnostics.length,
-        uniqueDiagProfiles: new Set(diagnostics.map((d: any) => d.profile_id).filter(Boolean)).size,
-        diagnosticsCompleted,
-        percentage: employeeCount > 0 ? Math.round((diagnosticsCompleted / employeeCount) * 100) : 0
-      });
-
-      // 1. RETENTION & FLIGHT RISK - Two-question formula
-      // Formula: ((Q1: would_stay + Q2: growth_path) / 2) × 10 = Score (0-100)
-      // Thresholds: < 60 = Critical Risk, 60-79 = Watch List, 80+ = Low Risk
-      const retentionScores = completeDiagnostics.map(d => {
-        const stayScore = parseInt(d.would_stay_if_offered_similar) || 0;
-        const growthScore = (d.additional_responses as any)?.engagement_scores?.growth_path_score || 0;
-        
-        // Skip if either score is missing
-        if (stayScore === 0 || growthScore === 0) return null;
-        
-        // Calculate retention score: average of the two questions, scaled to 0-100
-        const retentionScore = ((stayScore + growthScore) / 2) * 10;
-        return retentionScore;
-      }).filter(s => s !== null) as number[];
-      
-      // Count employees by risk category
-      const highRiskCount = retentionScores.filter(s => s < 60).length; // Critical: < 60
-      const mediumRiskCount = retentionScores.filter(s => s >= 60 && s < 80).length; // Watch List: 60-79
-      const lowRiskCount = retentionScores.filter(s => s >= 80).length; // Low Risk: 80+
-      const totalAtRisk = highRiskCount + mediumRiskCount; // Combined at-risk count
-      
-      // Calculate average retention score
-      const avgRetentionScore = retentionScores.length > 0 
-        ? Math.round(retentionScores.reduce((a, b) => a + b, 0) / retentionScores.length) 
+      // Calculate averages from pre-calculated scores (0-100 scale)
+      const avgRetentionScore = scores.length > 0 
+        ? Math.round(scores.reduce((sum, s) => sum + (s.retention_score || 0), 0) / scores.length)
         : 0;
-      
-      // Calculate turnover cost (only for high risk employees - most likely to leave)
-      const avgSalary = 75000; // Industry average salary
-      const replacementMultiplier = 1.5; // 150% of salary for replacement cost
+
+      const avgEngagement = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + (s.engagement_score || 0), 0) / scores.length)
+        : 0;
+
+      const burnoutScore = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + (s.burnout_score || 0), 0) / scores.length)
+        : 0;
+
+      const managerEffectiveness = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + (s.manager_score || 0), 0) / scores.length)
+        : 0;
+
+      const careerPathScore = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + (s.career_score || 0), 0) / scores.length)
+        : 0;
+
+      const roleClarity = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + (s.clarity_score || 0), 0) / scores.length)
+        : 0;
+
+      const learningEngagement = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + (s.learning_score || 0), 0) / scores.length)
+        : 0;
+
+      const skillsScore = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + (s.skills_score || 0), 0) / scores.length)
+        : 0;
+
+      // Calculate retention risk counts based on individual retention scores
+      const retentionScores = scores.map(s => s.retention_score || 0);
+      const highRiskCount = retentionScores.filter(s => s < 60).length;
+      const mediumRiskCount = retentionScores.filter(s => s >= 60 && s < 80).length;
+      const totalAtRisk = highRiskCount + mediumRiskCount;
+
+      // Calculate turnover cost
+      const avgSalary = 75000;
+      const replacementMultiplier = 1.5;
       const turnoverCost = highRiskCount * avgSalary * replacementMultiplier;
-      
-      console.log('Retention Breakdown:', {
-        totalEmployees: completeDiagnostics.length,
-        withRetentionData: retentionScores.length,
-        highRisk: highRiskCount,
-        mediumRisk: mediumRiskCount,
-        lowRisk: lowRiskCount,
-        avgScore: avgRetentionScore,
-        estimatedCost: turnoverCost
-      });
-
-      // 2. ENGAGEMENT INDEX - 4-question formula
-      // (Q28 + Q29 + Q31 + Q32) / 4 × 10 = Score out of 100
-      // Q28: Growth path, Q29: Manager feedback, Q31: Feel valued, Q32: Daily energy
-      const engagementScores = completeDiagnostics.map(d => {
-        const scores = (d.additional_responses as any)?.engagement_scores;
-        if (scores) {
-          // Use raw 1-10 scores from additional_responses (new data)
-          const growthPath = scores.growth_path_score || 0;
-          const managerFeedback = scores.manager_feedback_score || 0;
-          const valued = scores.valued_score || 0;
-          const energy = scores.energy_score || 0;
-          return (growthPath + managerFeedback + valued + energy) / 4;
-        } else {
-          // Fallback for old data without engagement_scores
-          const growthPath = d.sees_growth_path ? 10 : 0;
-          const managerFeedback = parseSupportQuality(d.manager_support_quality);
-          const valued = d.feels_valued ? 10 : 0;
-          const energy = Number(d.daily_energy_level) || 0;
-          return (growthPath + managerFeedback + valued + energy) / 4;
-        }
-      }).filter(s => s > 0);
-      const avgEngagement = engagementScores.length > 0 ? parseFloat(((engagementScores.reduce((a, b) => a + b, 0) / engagementScores.length) * 10).toFixed(2)) : 0;
-      
-      // Keep energy scores for impact calculation
-      const energyScores = completeDiagnostics.map(d => parseInt(d.daily_energy_level) || 0).filter(s => s > 0);
-
-      // 3. BURNOUT
-      const burnoutMap: Record<string, number> = {
-        'Never or almost never': 1,
-        'Rarely (monthly)': 2,
-        'Sometimes (weekly)': 3,
-        'Often (several times a week)': 4,
-        'Frequently (daily)': 5,
-      };
-      const burnoutScores = completeDiagnostics.map(d => burnoutMap[d.burnout_frequency || ''] || 0).filter(s => s > 0);
-      const burnoutScore = burnoutScores.length > 0 ? Math.round((burnoutScores.reduce((a, b) => a + b, 0) / burnoutScores.length) * 20) : 0;
-
-      // 4. MANAGER EFFECTIVENESS
-      const managerScores = completeDiagnostics.map(d => parseSupportQuality(d.manager_support_quality)).filter(s => s > 0);
-      const managerEffectiveness = managerScores.length > 0 ? Math.round((managerScores.reduce((a, b) => a + b, 0) / managerScores.length) * 10) : 0;
-
-      // 5. CAREER DEVELOPMENT
-      const careerPathCount = completeDiagnostics.filter(d => d.sees_growth_path === true).length;
-      const careerPathScore = completeDiagnostics.length > 0 ? Math.round((careerPathCount / completeDiagnostics.length) * 100) : 0;
-
-      // 6. ROLE CLARITY
-      const clarityScores = completeDiagnostics.map(d => d.role_clarity_score || 0).filter(s => s > 0);
-      const roleClarity = clarityScores.length > 0 ? Math.round((clarityScores.reduce((a, b) => a + b, 0) / clarityScores.length) * 10) : 0;
-
-      // 7. LEARNING ENGAGEMENT - Blended approach
-      // 50% time investment (hours * 25, max 100) + 30% quality rating + 20% needs met
-      const learningScores = completeDiagnostics.map(d => {
-        const hours = parseFloat(d.weekly_development_hours as any) || 0;
-        const learningData = (d.additional_responses as any)?.learning_scores;
-        const qualityRating = learningData?.quality_rating || 0;
-        const needsMet = learningData?.needs_met_percentage || 0;
-        
-        const timeScore = Math.min(hours * 25, 100); // 1hr=25, 2hr=50, 3hr=75, 4hr=100
-        const qualityScore = qualityRating * 10; // 1-10 scale to 0-100
-        const needsScore = needsMet; // Already 0-100 percentage
-        
-        return (timeScore * 0.5) + (qualityScore * 0.3) + (needsScore * 0.2);
-      }).filter(s => s > 0);
-      const learningEngagement = learningScores.length > 0 ? Math.round(learningScores.reduce((a, b) => a + b, 0) / learningScores.length) : 0;
-
-      // 8. SKILLS - Direct confidence score
-      const confidenceScores = completeDiagnostics.map(d => d.confidence_score || 0).filter(s => s > 0);
-      const skillsScore = confidenceScores.length > 0 ? Math.round((confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length) * 10) : 0;
 
       // Domain scores with risk levels
       const getRiskLevel = (score: number): "low" | "medium" | "high" | "critical" => {
@@ -290,7 +206,7 @@ const Dashboard = () => {
       const domainScores: DomainScore[] = [
         { domain: "Retention", score: avgRetentionScore, risk: getRetentionRisk(totalAtRisk), impact: `${totalAtRisk} at risk (${highRiskCount} high, ${mediumRiskCount} medium)` },
         { domain: "Engagement", score: avgEngagement, risk: getEngagementRisk(avgEngagement), impact: ">75 = Low, 26-74 = Moderate, <26 = High" },
-        { domain: "Burnout", score: 100 - burnoutScore, risk: getRiskLevel(100 - burnoutScore), impact: "" },
+        { domain: "Burnout", score: burnoutScore, risk: getRiskLevel(burnoutScore), impact: "" },
         { domain: "Manager", score: managerEffectiveness, risk: getRiskLevel(managerEffectiveness), impact: "" },
         { domain: "Career", score: careerPathScore, risk: getRiskLevel(careerPathScore), impact: "" },
         { domain: "Clarity", score: roleClarity, risk: getRiskLevel(roleClarity), impact: "" },
@@ -358,7 +274,7 @@ const Dashboard = () => {
         .slice(0, 10);
 
       setStats({
-        employees: employeeCount,
+        employees: employeeCount || 0,
         diagnosticsCompleted,
         avgEngagement,
         retentionRisk: 100 - avgRetentionScore, // Inverted for legacy display
@@ -551,9 +467,18 @@ const Dashboard = () => {
         </TabsList>
 
         <TabsContent value="health" className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">Executive Dashboard</h1>
-            <p className="text-muted-foreground">Comprehensive organizational intelligence & risk analysis</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Executive Dashboard</h1>
+              <p className="text-muted-foreground">Comprehensive organizational intelligence & risk analysis</p>
+            </div>
+            <Button 
+              onClick={handleBatchNormalize} 
+              disabled={normalizing}
+              variant="outline"
+            >
+              {normalizing ? "Normalizing..." : "Normalize Diagnostics"}
+            </Button>
           </div>
 
       {/* Growth at a Glance - Featured for Individual Users */}
