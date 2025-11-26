@@ -1059,6 +1059,13 @@ const SuperAdmin = () => {
         let profileId = existing?.id;
 
         if (!profileId) {
+          // Validate required fields
+          if (!record.email || !record.fullName) {
+            errors.push(`Missing email or name for record: ${JSON.stringify(record)}`);
+            failedCount++;
+            continue;
+          }
+          
           // Create new employee
           const { data: authData, error: authError } = await supabase.functions.invoke("create-employee", {
             body: {
@@ -1282,6 +1289,11 @@ const SuperAdmin = () => {
       let profileId = existing?.id;
 
       if (!profileId) {
+        // Validate email
+        if (!manualEmail.trim()) {
+          throw new Error("Email is required");
+        }
+        
         const { data: authData, error: authError } = await supabase.functions.invoke("create-employee", {
           body: {
             email: manualEmail.trim(),
