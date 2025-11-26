@@ -6,6 +6,199 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Deterministic scoring functions
+const calculateRetentionScore = (d: any): number | null => {
+  const scores: number[] = [];
+  
+  // would_stay_if_offered_similar (0-100)
+  const stayText = d.would_stay_if_offered_similar?.toLowerCase() || '';
+  if (stayText.includes('definitely stay')) scores.push(95);
+  else if (stayText.includes('probably stay')) scores.push(78);
+  else if (stayText.includes('unsure')) scores.push(50);
+  else if (stayText.includes('probably leave')) scores.push(30);
+  else if (stayText.includes('definitely leave')) scores.push(10);
+  
+  // daily_energy_level (0-100)
+  const energyText = d.daily_energy_level?.toLowerCase() || '';
+  if (energyText.includes('very energized') || energyText.includes('energized')) scores.push(95);
+  else if (energyText.includes('somewhat energized')) scores.push(78);
+  else if (energyText.includes('neutral')) scores.push(55);
+  else if (energyText.includes('somewhat drained')) scores.push(40);
+  else if (energyText.includes('very drained') || energyText.includes('drained')) scores.push(15);
+  
+  // work_life_integration_score (scale to 0-100)
+  if (d.work_life_integration_score !== null && d.work_life_integration_score !== undefined) {
+    scores.push(d.work_life_integration_score * 10);
+  }
+  
+  return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+};
+
+const calculateEngagementScore = (d: any): number | null => {
+  const scores: number[] = [];
+  
+  // feels_valued (0-100)
+  if (d.feels_valued === true) scores.push(90);
+  else if (d.feels_valued === false) scores.push(20);
+  
+  // focus_quality (0-100)
+  const focusText = d.focus_quality?.toLowerCase() || '';
+  if (focusText.includes('excellent')) scores.push(95);
+  else if (focusText.includes('good')) scores.push(78);
+  else if (focusText.includes('fair')) scores.push(50);
+  else if (focusText.includes('poor')) scores.push(20);
+  
+  // confidence_score (scale to 0-100)
+  if (d.confidence_score !== null && d.confidence_score !== undefined) {
+    scores.push(d.confidence_score * 10);
+  }
+  
+  return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+};
+
+const calculateBurnoutScore = (d: any): number | null => {
+  const scores: number[] = [];
+  
+  // burnout_frequency (0-100, higher = less burnout)
+  const burnoutText = d.burnout_frequency?.toLowerCase() || '';
+  if (burnoutText.includes('never') || burnoutText.includes('rarely')) scores.push(95);
+  else if (burnoutText.includes('sometimes') || burnoutText.includes('occasionally')) scores.push(68);
+  else if (burnoutText.includes('often') || burnoutText.includes('frequently')) scores.push(40);
+  else if (burnoutText.includes('always') || burnoutText.includes('constantly')) scores.push(15);
+  
+  // mental_drain_frequency (0-100, higher = less drain)
+  const drainText = d.mental_drain_frequency?.toLowerCase() || '';
+  if (drainText.includes('never') || drainText.includes('rarely')) scores.push(95);
+  else if (drainText.includes('sometimes') || drainText.includes('occasionally')) scores.push(68);
+  else if (drainText.includes('often') || drainText.includes('frequently')) scores.push(40);
+  else if (drainText.includes('always') || drainText.includes('constantly')) scores.push(15);
+  
+  // work_life_sacrifice_frequency (0-100, higher = less sacrifice)
+  const sacrificeText = d.work_life_sacrifice_frequency?.toLowerCase() || '';
+  if (sacrificeText.includes('never') || sacrificeText.includes('rarely')) scores.push(95);
+  else if (sacrificeText.includes('sometimes') || sacrificeText.includes('occasionally')) scores.push(68);
+  else if (sacrificeText.includes('often') || sacrificeText.includes('frequently')) scores.push(40);
+  else if (sacrificeText.includes('always') || sacrificeText.includes('constantly')) scores.push(15);
+  
+  // daily_energy_level contributes to burnout too
+  const energyText = d.daily_energy_level?.toLowerCase() || '';
+  if (energyText.includes('very energized') || energyText.includes('energized')) scores.push(95);
+  else if (energyText.includes('somewhat energized')) scores.push(78);
+  else if (energyText.includes('neutral')) scores.push(55);
+  else if (energyText.includes('somewhat drained')) scores.push(40);
+  else if (energyText.includes('very drained') || energyText.includes('drained')) scores.push(15);
+  
+  return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+};
+
+const calculateManagerScore = (d: any): number | null => {
+  // Handle both numeric (1-10) and text values
+  if (typeof d.manager_support_quality === 'number') {
+    return Math.round(d.manager_support_quality * 10);
+  }
+  
+  const managerText = d.manager_support_quality?.toLowerCase() || '';
+  if (managerText.includes('exceptional') || managerText.includes('very supportive')) return 95;
+  else if (managerText.includes('good support') || managerText.includes('somewhat supportive')) return 78;
+  else if (managerText.includes('adequate') || managerText.includes('neutral')) return 55;
+  else if (managerText.includes('poor') || managerText.includes('not supportive')) return 20;
+  
+  return null;
+};
+
+const calculateCareerScore = (d: any): number | null => {
+  let score = 0;
+  let hasData = false;
+  
+  // Each boolean = 25 points
+  if (d.sees_growth_path === true) { score += 25; hasData = true; }
+  if (d.sees_leadership_path === true) { score += 25; hasData = true; }
+  if (d.company_supporting_goal === true) { score += 25; hasData = true; }
+  
+  // Has written job description adds clarity
+  if (d.has_written_job_description === true) { score += 25; hasData = true; }
+  
+  // Growth barrier penalty
+  if (d.growth_barrier && d.growth_barrier.length > 0) {
+    score -= 15;
+    hasData = true;
+  }
+  
+  return hasData ? Math.max(0, Math.min(100, score)) : null;
+};
+
+const calculateClarityScore = (d: any): number | null => {
+  const scores: number[] = [];
+  
+  // role_clarity_score (scale to 0-100)
+  if (d.role_clarity_score !== null && d.role_clarity_score !== undefined) {
+    scores.push(d.role_clarity_score * 10);
+  }
+  
+  // has_written_job_description bonus
+  if (d.has_written_job_description === true) scores.push(100);
+  else if (d.has_written_job_description === false) scores.push(0);
+  
+  // confidence_score contributes to clarity
+  if (d.confidence_score !== null && d.confidence_score !== undefined) {
+    scores.push(d.confidence_score * 10);
+  }
+  
+  return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+};
+
+const calculateLearningScore = (d: any): number | null => {
+  let score = 0;
+  let hasData = false;
+  
+  // Weekly development hours (0 = 0, 1-2 = 40, 3-5 = 70, 6+ = 100)
+  if (d.weekly_development_hours !== null && d.weekly_development_hours !== undefined) {
+    const hours = d.weekly_development_hours;
+    if (hours === 0) score = 0;
+    else if (hours <= 2) score = 40;
+    else if (hours <= 5) score = 70;
+    else score = 100;
+    hasData = true;
+  }
+  
+  // Learning motivation present (+15)
+  if (d.learning_motivation && d.learning_motivation.length > 0) {
+    score += 15;
+    hasData = true;
+  }
+  
+  // Each learning medium (+5)
+  if (d.reads_books_articles === true) { score += 5; hasData = true; }
+  if (d.listens_to_podcasts === true) { score += 5; hasData = true; }
+  if (d.watches_youtube === true) { score += 5; hasData = true; }
+  
+  return hasData ? Math.min(100, score) : null;
+};
+
+const calculateSkillsScore = (d: any): number | null => {
+  const scores: number[] = [];
+  
+  const scoreFrequency = (freq: string): number => {
+    const text = freq?.toLowerCase() || '';
+    if (text.includes('daily') || text.includes('very often')) return 20;
+    if (text.includes('weekly') || text.includes('often')) return 15;
+    if (text.includes('monthly') || text.includes('sometimes')) return 10;
+    if (text.includes('rarely')) return 5;
+    if (text.includes('never')) return 0;
+    return 0;
+  };
+  
+  // Score each skill frequency
+  if (d.technical_application_frequency) scores.push(scoreFrequency(d.technical_application_frequency));
+  if (d.leadership_application_frequency) scores.push(scoreFrequency(d.leadership_application_frequency));
+  if (d.communication_application_frequency) scores.push(scoreFrequency(d.communication_application_frequency));
+  if (d.strategic_thinking_application_frequency) scores.push(scoreFrequency(d.strategic_thinking_application_frequency));
+  if (d.adaptability_application_frequency) scores.push(scoreFrequency(d.adaptability_application_frequency));
+  
+  // Convert to 0-100 scale (max possible is 5 skills * 20 = 100)
+  return scores.length > 0 ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 5) : null;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -14,7 +207,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     
@@ -34,118 +226,19 @@ serve(async (req) => {
       throw new Error('Diagnostic not found');
     }
     
-    // Prepare data for LLM
-    const prompt = `You are a data normalization expert. Given the following diagnostic survey response, calculate normalized scores (0-100) for 8 key organizational health domains.
-
-DIAGNOSTIC DATA:
-${JSON.stringify(diagnostic, null, 2)}
-
-SCORING GUIDELINES:
-
-1. RETENTION SCORE (0-100):
-- Based on: would_stay_if_offered_similar, daily_energy_level, work_life_integration_score
-- Text mappings: "Definitely stay" → 90-100, "Probably stay" → 70-85, "Unsure" → 40-60, "Probably leave" → 20-40, "Definitely leave" → 0-20
-- Energy level: "Very energized" → 90-100, "Somewhat energized" → 70-85, "Neutral" → 50-60, "Somewhat drained" → 30-50, "Very drained" → 0-30
-- Work-life: Higher is better (scale 1-10 if numeric)
-
-2. ENGAGEMENT SCORE (0-100):
-- Based on: feels_valued, what_enjoy_most, focus_quality, confidence_score
-- feels_valued: true → 80-100, false → 0-40
-- Focus quality: "Excellent" → 90-100, "Good" → 70-85, "Fair" → 40-60, "Poor" → 0-40
-- Confidence: Scale 1-10 or similar
-
-3. BURNOUT SCORE (0-100, where 100 = no burnout, 0 = severe burnout):
-- Based on: burnout_frequency, mental_drain_frequency, work_life_sacrifice_frequency, daily_energy_level
-- Burnout frequency: "Never/Rarely" → 90-100, "Sometimes" → 60-75, "Often" → 30-50, "Always" → 0-30
-- Mental drain: Same mapping
-- Work-life sacrifice: Less frequent = higher score
-
-4. MANAGER SCORE (0-100):
-- Based on: manager_support_quality
-- Text mappings: "Exceptional support" / "Very supportive" → 90-100, "Good support" / "Somewhat supportive" → 70-85, "Adequate" / "Neutral" → 50-60, "Poor" / "Not supportive" → 0-40
-
-5. CAREER SCORE (0-100):
-- Based on: sees_growth_path, sees_leadership_path, company_supporting_goal, growth_barrier
-- Each boolean true → +25 points, false → 0 points
-- If growth_barrier exists (non-null text) → -10 to -20 points depending on severity
-
-6. CLARITY SCORE (0-100):
-- Based on: role_clarity_score, has_written_job_description, confidence_score
-- role_clarity_score: Scale 1-10 or similar, normalize to 0-100
-- has_written_job_description: true → +20 points, false → 0 points
-
-7. LEARNING SCORE (0-100):
-- Based on: weekly_development_hours, learning_motivation, learning_preference, reads_books_articles, listens_to_podcasts, watches_youtube
-- Weekly hours: 0 → 0 points, 1-2 → 40, 3-5 → 70, 6+ → 100
-- Learning motivation present (non-null) → +15 points
-- Each learning medium true → +5 points
-
-8. SKILLS SCORE (0-100):
-- Based on: technical_application_frequency, leadership_application_frequency, communication_application_frequency, strategic_thinking_application_frequency, adaptability_application_frequency
-- Frequency mappings: "Daily/Very often" → 20 points per skill, "Weekly/Often" → 15 points, "Monthly/Sometimes" → 10 points, "Rarely" → 5 points, "Never" → 0 points
-- Average across all skills
-
-IMPORTANT:
-- Handle null/missing values gracefully - use only available data
-- For text values, be flexible with exact wording (e.g., "very energized" = "Very energized")
-- If insufficient data for a domain, set score to null
-- Return ONLY valid JSON, no markdown, no explanations
-
-OUTPUT FORMAT (return exactly this structure):
-{
-  "retention_score": <number 0-100 or null>,
-  "engagement_score": <number 0-100 or null>,
-  "burnout_score": <number 0-100 or null>,
-  "manager_score": <number 0-100 or null>,
-  "career_score": <number 0-100 or null>,
-  "clarity_score": <number 0-100 or null>,
-  "learning_score": <number 0-100 or null>,
-  "skills_score": <number 0-100 or null>
-}`;
-
-    // Call Lovable AI
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a data normalization expert. Return ONLY valid JSON with no markdown formatting or explanations.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const content = aiData.choices[0].message.content;
+    // Calculate all scores deterministically
+    const scores = {
+      retention_score: calculateRetentionScore(diagnostic),
+      engagement_score: calculateEngagementScore(diagnostic),
+      burnout_score: calculateBurnoutScore(diagnostic),
+      manager_score: calculateManagerScore(diagnostic),
+      career_score: calculateCareerScore(diagnostic),
+      clarity_score: calculateClarityScore(diagnostic),
+      learning_score: calculateLearningScore(diagnostic),
+      skills_score: calculateSkillsScore(diagnostic),
+    };
     
-    // Parse AI response (handle potential markdown wrapping)
-    let scores;
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      scores = JSON.parse(jsonMatch ? jsonMatch[0] : content);
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', content);
-      throw new Error('Invalid AI response format');
-    }
-    
-    console.log('Normalized scores:', scores);
+    console.log('Calculated scores:', scores);
     
     // Store normalized scores
     const { error: upsertError } = await supabase
