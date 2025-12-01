@@ -59,14 +59,23 @@ export default function AssignResourceDialog({
 
   useEffect(() => {
     if (open) {
-      loadData();
+      loadEmployees();
       if (defaultCapabilityId) {
         setSelectedCapabilityId(defaultCapabilityId);
       }
     }
   }, [open, defaultCapabilityId]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (selectedEmployeeId) {
+      loadEmployeeCapabilities(selectedEmployeeId);
+    } else {
+      setCapabilities([]);
+      setSelectedCapabilityId("");
+    }
+  }, [selectedEmployeeId]);
+
+  const loadEmployees = async () => {
     try {
       setLoading(true);
 
@@ -90,17 +99,43 @@ export default function AssignResourceDialog({
 
       if (employeeError) throw employeeError;
       setEmployees(employeeData as Employee[]);
-
-      const { data: capabilityData, error: capabilityError } = await supabase
-        .from("capabilities")
-        .select("id, name")
-        .order("name");
-
-      if (capabilityError) throw capabilityError;
-      setCapabilities(capabilityData as Capability[]);
     } catch (error: any) {
       toast({
-        title: "Error loading data",
+        title: "Error loading employees",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadEmployeeCapabilities = async (employeeId: string) => {
+    try {
+      setLoading(true);
+
+      const { data: capabilityData, error } = await supabase
+        .from("employee_capabilities")
+        .select(`
+          capability_id,
+          capabilities (
+            id,
+            name
+          )
+        `)
+        .eq("profile_id", employeeId);
+
+      if (error) throw error;
+
+      const caps = capabilityData
+        ?.map(ec => ec.capabilities)
+        .filter(Boolean)
+        .map(c => ({ id: c.id, name: c.name })) || [];
+
+      setCapabilities(caps as Capability[]);
+    } catch (error: any) {
+      toast({
+        title: "Error loading capabilities",
         description: error.message,
         variant: "destructive",
       });
@@ -207,9 +242,10 @@ export default function AssignResourceDialog({
               <Select
                 value={selectedCapabilityId}
                 onValueChange={setSelectedCapabilityId}
+                disabled={!selectedEmployeeId}
               >
                 <SelectTrigger id="capability">
-                  <SelectValue placeholder="Link to a capability (optional)" />
+                  <SelectValue placeholder={selectedEmployeeId ? "Link to a capability (optional)" : "Select an employee first"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
@@ -220,6 +256,11 @@ export default function AssignResourceDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {selectedEmployeeId && capabilities.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  This employee has no assigned capabilities
+                </p>
+              )}
             </div>
           </div>
         )}
