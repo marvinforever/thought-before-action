@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, UserPlus, Plus } from "lucide-react";
 import AssignResourceDialog from "@/components/AssignResourceDialog";
 import ImportResourceDialog from "@/components/ImportResourceDialog";
@@ -43,6 +44,7 @@ export default function Resources() {
   } | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedCapabilityForImport, setSelectedCapabilityForImport] = useState<string | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<string>("by-capability");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -252,143 +254,262 @@ export default function Resources() {
         </div>
       </div>
 
-      {Object.keys(groupedByCapability).length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">No resources found</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Accordion type="multiple" className="space-y-4">
-          {Object.entries(groupedByCapability).map(([capability, capabilityResources]) => {
-            const capabilityId = capabilityResources[0]?.capabilities.find(c => c.name === capability)?.id;
-            return (
-              <AccordionItem key={capability} value={capability} className="border rounded-lg">
-                <AccordionTrigger className="px-6 hover:no-underline">
-                  <div className="flex items-center justify-between w-full pr-4">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-xl font-semibold">{capability}</h2>
-                      <Badge variant="outline">{capabilityResources.length} resources</Badge>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedCapabilityForImport(capabilityId);
-                        setImportDialogOpen(true);
-                      }}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Resource
-                    </Button>
-                  </div>
-                </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {capabilityResources.map((resource) => (
-                    <Card key={resource.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {getContentIcon(resource.content_type)}
-                            <h3 className="font-semibold text-lg">{resource.title}</h3>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {resource.rating && (
-                              <div className="flex items-center gap-1 text-yellow-500">
-                                <Star className="h-4 w-4 fill-current" />
-                                <span className="text-sm font-medium">{resource.rating}</span>
+      <Tabs value={viewMode} onValueChange={setViewMode} className="w-full">
+        <TabsList>
+          <TabsTrigger value="by-capability">By Capability</TabsTrigger>
+          <TabsTrigger value="master-list">Master List</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="by-capability">
+          {Object.keys(groupedByCapability).length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">No resources found</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Accordion type="multiple" className="space-y-4">
+              {Object.entries(groupedByCapability).map(([capability, capabilityResources]) => {
+                const capabilityId = capabilityResources[0]?.capabilities.find(c => c.name === capability)?.id;
+                return (
+                  <AccordionItem key={capability} value={capability} className="border rounded-lg">
+                    <AccordionTrigger className="px-6 hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-xl font-semibold">{capability}</h2>
+                          <Badge variant="outline">{capabilityResources.length} resources</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCapabilityForImport(capabilityId);
+                            setImportDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Resource
+                        </Button>
+                      </div>
+                    </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-6">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {capabilityResources.map((resource) => (
+                        <Card key={resource.id} className="hover:shadow-md transition-shadow">
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {getContentIcon(resource.content_type)}
+                                <h3 className="font-semibold text-lg">{resource.title}</h3>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {resource.rating && (
+                                  <div className="flex items-center gap-1 text-yellow-500">
+                                    <Star className="h-4 w-4 fill-current" />
+                                    <span className="text-sm font-medium">{resource.rating}</span>
+                                  </div>
+                                )}
+                                {resource.capability_level && (
+                                  <Badge className={getLevelColor(resource.capability_level)}>
+                                    {getLevelLabel(resource.capability_level)}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {resource.capabilities.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {resource.capabilities.map(cap => (
+                                  <Badge key={cap.id} variant="outline" className="text-xs">
+                                    {cap.name}
+                                  </Badge>
+                                ))}
                               </div>
                             )}
-                            {resource.capability_level && (
-                              <Badge className={getLevelColor(resource.capability_level)}>
-                                {getLevelLabel(resource.capability_level)}
-                              </Badge>
+
+                            {resource.authors && (
+                              <CardDescription className="text-sm">
+                                by {resource.authors}
+                              </CardDescription>
+                            )}
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {resource.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-3">
+                                {resource.description}
+                              </p>
+                            )}
+                            {resource.publisher && (
+                              <p className="text-xs text-muted-foreground">
+                                Publisher: {resource.publisher}
+                              </p>
+                            )}
+                            {resource.estimated_time_minutes && (
+                              <p className="text-xs text-muted-foreground">
+                                Est. time: {resource.estimated_time_minutes} min
+                              </p>
+                            )}
+                            <div className="flex gap-2">
+                              {resource.external_url && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  asChild
+                                >
+                                  <a
+                                    href={resource.external_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2"
+                                  >
+                                    View Resource
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                </Button>
+                              )}
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => {
+                                    setSelectedResource({
+                                      id: resource.id,
+                                      title: resource.title,
+                                      capabilities: resource.capabilities,
+                                    });
+                                    setAssignDialogOpen(true);
+                                  }}
+                                  className="gap-1"
+                                >
+                                  <UserPlus className="h-3 w-3" />
+                                  Assign
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          )}
+        </TabsContent>
+
+        <TabsContent value="master-list">
+          {filteredResources.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">No resources found</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Level</TableHead>
+                      <TableHead>Capabilities</TableHead>
+                      <TableHead>Author</TableHead>
+                      <TableHead>Rating</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredResources.map((resource) => (
+                      <TableRow key={resource.id}>
+                        <TableCell className="font-medium">
+                          {resource.title}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getContentIcon(resource.content_type)}
+                            <span className="text-sm capitalize">{resource.content_type}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {resource.capability_level && (
+                            <Badge className={getLevelColor(resource.capability_level)}>
+                              {getLevelLabel(resource.capability_level)}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {resource.capabilities.length > 0 ? (
+                              resource.capabilities.map(cap => (
+                                <Badge key={cap.id} variant="outline" className="text-xs">
+                                  {cap.name}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-sm text-muted-foreground">None</span>
                             )}
                           </div>
-                        </div>
-                        
-                        {resource.capabilities.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {resource.capabilities.map(cap => (
-                              <Badge key={cap.id} variant="outline" className="text-xs">
-                                {cap.name}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-
-                        {resource.authors && (
-                          <CardDescription className="text-sm">
-                            by {resource.authors}
-                          </CardDescription>
-                        )}
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {resource.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {resource.description}
-                          </p>
-                        )}
-                        {resource.publisher && (
-                          <p className="text-xs text-muted-foreground">
-                            Publisher: {resource.publisher}
-                          </p>
-                        )}
-                        {resource.estimated_time_minutes && (
-                          <p className="text-xs text-muted-foreground">
-                            Est. time: {resource.estimated_time_minutes} min
-                          </p>
-                        )}
-                        <div className="flex gap-2">
-                          {resource.external_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                              asChild
-                            >
-                              <a
-                                href={resource.external_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2"
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {resource.authors || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {resource.rating && (
+                            <div className="flex items-center gap-1 text-yellow-500">
+                              <Star className="h-4 w-4 fill-current" />
+                              <span className="text-sm font-medium">{resource.rating}</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {resource.external_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
                               >
-                                View Resource
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </Button>
-                          )}
-                          {isAdmin && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                setSelectedResource({
-                                  id: resource.id,
-                                  title: resource.title,
-                                  capabilities: resource.capabilities,
-                                });
-                                setAssignDialogOpen(true);
-                              }}
-                              className="gap-1"
-                            >
-                              <UserPlus className="h-3 w-3" />
-                              Assign
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
-      )}
+                                <a
+                                  href={resource.external_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </Button>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                  setSelectedResource({
+                                    id: resource.id,
+                                    title: resource.title,
+                                    capabilities: resource.capabilities,
+                                  });
+                                  setAssignDialogOpen(true);
+                                }}
+                              >
+                                <UserPlus className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {selectedResource && (
         <AssignResourceDialog
