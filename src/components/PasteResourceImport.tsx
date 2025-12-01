@@ -189,13 +189,16 @@ export default function PasteResourceImport() {
         if (resource.selectedCapabilities && resource.selectedCapabilities.length > 0) {
           const capabilityLinks = resource.selectedCapabilities.map(capId => ({
             resource_id: insertResult.data.id,
-            capability_id: capId,
-            capability_level: resource.capabilityLevel || 'foundational'
+            capability_id: capId
           }));
 
-          await supabase
+          const linkResult: any = await supabase
             .from('resource_capabilities')
             .insert(capabilityLinks);
+          
+          if (linkResult.error) {
+            console.error('Failed to link capabilities:', linkResult.error);
+          }
         }
 
         successCount++;
@@ -362,8 +365,7 @@ export default function PasteResourceImport() {
                     )}
                   </div>
 
-                  {resource.is_valid && (
-                    <div className="space-y-3 pt-3 border-t">
+                      <div className="space-y-3 pt-3 border-t">
                       <Label>Link to Capabilities (optional)</Label>
                       <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                         {capabilities.map(cap => (
@@ -381,28 +383,7 @@ export default function PasteResourceImport() {
                           </label>
                         ))}
                       </div>
-
-                      {resource.selectedCapabilities && resource.selectedCapabilities.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Capability Level</Label>
-                          <Select
-                            value={resource.capabilityLevel}
-                            onValueChange={(value: CapabilityLevel) => handleUpdateResource(index, { capabilityLevel: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="foundational">Foundational</SelectItem>
-                              <SelectItem value="advancing">Advancing</SelectItem>
-                              <SelectItem value="independent">Independent</SelectItem>
-                              <SelectItem value="mastery">Mastery</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
                     </div>
-                  )}
                 </CardContent>
               </Card>
             ))}
