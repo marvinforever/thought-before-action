@@ -205,8 +205,7 @@ export default function ImportResourceDialog({
         if (resource.selectedCapabilities && resource.selectedCapabilities.length > 0) {
           const capabilityLinks = resource.selectedCapabilities.map(capId => ({
             resource_id: insertedResource.id,
-            capability_id: capId,
-            capability_level: resource.capabilityLevel || 'foundational'
+            capability_id: capId
           }));
 
           const { error: linkError } = await supabase
@@ -388,26 +387,6 @@ export default function ImportResourceDialog({
                             ))}
                           </div>
                         </div>
-
-                        {resource.selectedCapabilities && resource.selectedCapabilities.length > 0 && (
-                          <div className="space-y-2">
-                            <Label>Capability Level</Label>
-                            <Select
-                              value={resource.capabilityLevel}
-                              onValueChange={(value) => handleUpdateResource(index, { capabilityLevel: value as CapabilityLevel })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="foundational">Foundational</SelectItem>
-                                <SelectItem value="advancing">Advancing</SelectItem>
-                                <SelectItem value="independent">Independent</SelectItem>
-                                <SelectItem value="mastery">Mastery</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
                       </div>
                     </div>
 
