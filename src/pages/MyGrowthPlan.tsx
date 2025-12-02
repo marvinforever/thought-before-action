@@ -22,6 +22,7 @@ import { OrganizationalContextTab } from "@/components/OrganizationalContextTab"
 import { CompanyStrategicLearningTab } from "@/components/CompanyStrategicLearningTab";
 import { SelfAssessCapabilitiesDialog } from "@/components/SelfAssessCapabilitiesDialog";
 import { CapabilityMasteryMeter } from "@/components/CapabilityMasteryMeter";
+import { ViewJobDescriptionDialog } from "@/components/ViewJobDescriptionDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
 
 type GrowthPlanResource = {
@@ -92,6 +93,8 @@ export default function MyGrowthPlan() {
   const [selectedCapability, setSelectedCapability] = useState<EmployeeCapability | null>(null);
   const [selfAssessDialogOpen, setSelfAssessDialogOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [viewJdDialogOpen, setViewJdDialogOpen] = useState(false);
+  const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -893,7 +896,14 @@ export default function MyGrowthPlan() {
           <CardContent>
             <div className="space-y-3">
               {jobDescriptions.slice(0, 3).map((jobDesc) => (
-                <Card key={jobDesc.id} className="border-l-4 border-l-muted">
+                <Card 
+                  key={jobDesc.id} 
+                  className="border-l-4 border-l-muted cursor-pointer hover:border-l-primary hover:bg-muted/50 transition-colors"
+                  onClick={() => {
+                    setSelectedJobDescription(jobDesc);
+                    setViewJdDialogOpen(true);
+                  }}
+                >
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -918,7 +928,10 @@ export default function MyGrowthPlan() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleReanalyze(jobDesc)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReanalyze(jobDesc);
+                        }}
                         disabled={isReanalyzing}
                         className="flex-shrink-0"
                       >
@@ -933,6 +946,14 @@ export default function MyGrowthPlan() {
           </CardContent>
         </Card>
       )}
+
+      <ViewJobDescriptionDialog
+        open={viewJdDialogOpen}
+        onOpenChange={setViewJdDialogOpen}
+        jobDescription={selectedJobDescription}
+        onReanalyze={handleReanalyze}
+        isReanalyzing={isReanalyzing}
+      />
 
       {/* Achievements */}
       <AchievementsCard />
