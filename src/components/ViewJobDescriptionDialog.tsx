@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, RotateCw } from "lucide-react";
 
 interface JobDescription {
@@ -59,11 +58,11 @@ export function ViewJobDescriptionDialog({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0 max-h-[400px] pr-4">
+        <div className="flex-1 min-h-0 overflow-y-auto max-h-[400px] pr-2 border rounded-md p-4 bg-muted/30">
           <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
             {jobDescription.description}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
           {onReanalyze && (

@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles, X } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles, X, ChevronDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
@@ -882,25 +883,53 @@ export default function MyGrowthPlan() {
       {/* 90 Day Tracker */}
       <NinetyDayTracker />
 
-      {jobDescriptions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Job Description History
-            </CardTitle>
-            <CardDescription>
-              Previous job descriptions analyzed for your role
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {jobDescriptions.slice(0, 3).map((jobDesc) => (
+      {jobDescriptions.length > 0 && (() => {
+        const currentJd = jobDescriptions.find(jd => jd.is_current) || jobDescriptions[0];
+        const historicalJds = jobDescriptions.filter(jd => jd.id !== currentJd?.id);
+        
+        return (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    {currentJd?.title || "My Role"}
+                  </CardTitle>
+                  <CardDescription>
+                    Your current role and responsibilities
+                  </CardDescription>
+                </div>
+                {historicalJds.length > 0 && (
+                  <Select
+                    onValueChange={(id) => {
+                      const jd = jobDescriptions.find(j => j.id === id);
+                      if (jd) {
+                        setSelectedJobDescription(jd);
+                        setViewJdDialogOpen(true);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="View history" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {historicalJds.map((jd) => (
+                        <SelectItem key={jd.id} value={jd.id}>
+                          {jd.title || "Untitled"} - {new Date(jd.created_at).toLocaleDateString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {currentJd && (
                 <Card 
-                  key={jobDesc.id} 
-                  className="border-l-4 border-l-muted cursor-pointer hover:border-l-primary hover:bg-muted/50 transition-colors"
+                  className="border-l-4 border-l-primary cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => {
-                    setSelectedJobDescription(jobDesc);
+                    setSelectedJobDescription(currentJd);
                     setViewJdDialogOpen(true);
                   }}
                 >
@@ -908,20 +937,17 @@ export default function MyGrowthPlan() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold text-sm">{jobDesc.title || "Untitled"}</h4>
-                          {jobDesc.is_current && (
-                            <Badge variant="default" className="text-xs">Current</Badge>
-                          )}
+                          <Badge variant="default" className="text-xs">Current</Badge>
+                          <p className="text-xs text-muted-foreground">
+                            Analyzed {new Date(currentJd.created_at).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          Analyzed {new Date(jobDesc.created_at).toLocaleDateString()}
-                        </p>
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {jobDesc.description}
+                          {currentJd.description}
                         </p>
-                        {jobDesc.analysis_results?.suggestions && (
+                        {currentJd.analysis_results?.suggestions && (
                           <p className="text-xs text-muted-foreground mt-2">
-                            {jobDesc.analysis_results.suggestions.length} capabilities identified
+                            {currentJd.analysis_results.suggestions.length} capabilities identified • Click to view full description
                           </p>
                         )}
                       </div>
@@ -930,7 +956,7 @@ export default function MyGrowthPlan() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleReanalyze(jobDesc);
+                          handleReanalyze(currentJd);
                         }}
                         disabled={isReanalyzing}
                         className="flex-shrink-0"
@@ -941,11 +967,11 @@ export default function MyGrowthPlan() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <ViewJobDescriptionDialog
         open={viewJdDialogOpen}
