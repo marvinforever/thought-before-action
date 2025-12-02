@@ -951,19 +951,6 @@ export default function MyGrowthPlan() {
                           </p>
                         )}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReanalyze(currentJd);
-                        }}
-                        disabled={isReanalyzing}
-                        className="flex-shrink-0"
-                      >
-                        <RotateCw className="h-3 w-3 mr-1" />
-                        Re-analyze
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -977,8 +964,6 @@ export default function MyGrowthPlan() {
         open={viewJdDialogOpen}
         onOpenChange={setViewJdDialogOpen}
         jobDescription={selectedJobDescription}
-        onReanalyze={handleReanalyze}
-        isReanalyzing={isReanalyzing}
       />
 
       {/* Achievements */}
