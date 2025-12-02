@@ -22,6 +22,8 @@ interface DiscoveredResource {
   description: string;
   content_type: string;
   source: string;
+  pricing_type?: 'free' | 'paid' | 'subscription' | 'freemium' | 'unknown';
+  pricing_label?: string;
   isValid?: boolean;
   isImporting?: boolean;
   isImported?: boolean;
@@ -197,6 +199,22 @@ export function DiscoverResources() {
     }
   };
 
+  const getPricingBadge = (type?: string, label?: string) => {
+    if (!type || type === 'unknown') return null;
+    switch (type) {
+      case 'free':
+        return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs">✓ Free</Badge>;
+      case 'paid':
+        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-xs">💰 Paid</Badge>;
+      case 'subscription':
+        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs">🔄 Subscription</Badge>;
+      case 'freemium':
+        return <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs">{label || 'Freemium'}</Badge>;
+      default:
+        return null;
+    }
+  };
+
   const selectedCap = capabilities.find(c => c.id === selectedCapability);
 
   return (
@@ -332,8 +350,9 @@ export function DiscoverResources() {
                       <h4 className="font-medium">{resource.title}</h4>
                     </div>
                     <p className="text-sm text-muted-foreground">{resource.description}</p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="text-xs">{resource.source}</Badge>
+                      {getPricingBadge(resource.pricing_type, resource.pricing_label)}
                       <a 
                         href={resource.url} 
                         target="_blank" 

@@ -16,6 +16,47 @@ interface SearchResult {
   description: string;
   content_type: string;
   source: string;
+  pricing_type?: 'free' | 'paid' | 'subscription' | 'freemium' | 'unknown';
+  pricing_label?: string;
+}
+
+// Pricing classification by domain
+const domainPricing: { [key: string]: { type: 'free' | 'paid' | 'subscription' | 'freemium', label: string } } = {
+  'youtube.com': { type: 'free', label: 'Free' },
+  'youtu.be': { type: 'free', label: 'Free' },
+  'spotify.com': { type: 'free', label: 'Free' },
+  'apple.com': { type: 'free', label: 'Free' },
+  'podcasts.google.com': { type: 'free', label: 'Free' },
+  'listennotes.com': { type: 'free', label: 'Free' },
+  'overcast.fm': { type: 'free', label: 'Free' },
+  'pocketcasts.com': { type: 'free', label: 'Free' },
+  'anchor.fm': { type: 'free', label: 'Free' },
+  'medium.com': { type: 'freemium', label: 'Some Paywalled' },
+  'hbr.org': { type: 'freemium', label: 'Some Paywalled' },
+  'forbes.com': { type: 'free', label: 'Free' },
+  'inc.com': { type: 'free', label: 'Free' },
+  'entrepreneur.com': { type: 'free', label: 'Free' },
+  'fastcompany.com': { type: 'free', label: 'Free' },
+  'businessinsider.com': { type: 'freemium', label: 'Some Paywalled' },
+  'mckinsey.com': { type: 'free', label: 'Free' },
+  'coursera.org': { type: 'freemium', label: 'Audit Free' },
+  'edx.org': { type: 'freemium', label: 'Audit Free' },
+  'udemy.com': { type: 'paid', label: 'Paid Course' },
+  'linkedin.com': { type: 'subscription', label: 'Subscription' },
+  'skillshare.com': { type: 'subscription', label: 'Subscription' },
+  'pluralsight.com': { type: 'subscription', label: 'Subscription' },
+  'masterclass.com': { type: 'subscription', label: 'Subscription' },
+};
+
+// Get pricing info from URL
+function getPricingInfo(url: string): { type: 'free' | 'paid' | 'subscription' | 'freemium' | 'unknown', label: string } {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    for (const [domain, pricing] of Object.entries(domainPricing)) {
+      if (hostname.includes(domain)) return pricing;
+    }
+  } catch {}
+  return { type: 'unknown', label: 'Unknown' };
 }
 
 // Platform-specific domain filters
@@ -187,11 +228,16 @@ serve(async (req) => {
           return matches;
         });
 
-        // Ensure correct content type
-        const typedResources = filteredResources.map(r => ({
-          ...r,
-          content_type: platformContentTypes[platform] || getContentTypeFromUrl(r.url),
-        }));
+        // Ensure correct content type and add pricing info
+        const typedResources = filteredResources.map(r => {
+          const pricing = getPricingInfo(r.url);
+          return {
+            ...r,
+            content_type: platformContentTypes[platform] || getContentTypeFromUrl(r.url),
+            pricing_type: pricing.type,
+            pricing_label: pricing.label,
+          };
+        });
 
         allResources.push(...typedResources);
         
