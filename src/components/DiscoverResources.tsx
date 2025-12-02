@@ -143,7 +143,7 @@ export function DiscoverResources() {
         return;
       }
 
-      // Insert resource
+      // Insert resource (source is not a column in the resources table)
       const { data: newResource, error: insertError } = await supabase
         .from("resources")
         .insert({
@@ -152,7 +152,6 @@ export function DiscoverResources() {
           url: resource.url,
           description: resource.description,
           content_type: resource.content_type as any,
-          source: resource.source,
         })
         .select()
         .single();
