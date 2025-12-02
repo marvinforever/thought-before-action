@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Target, TrendingUp, Calendar, MessageSquare, CheckCircle2, Zap } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, MessageSquare, CheckCircle2, Zap, Expand } from "lucide-react";
 import { toast } from "sonner";
 import { JerichoChat } from "@/components/JerichoChat";
+import { TimelineSectionDialog } from "@/components/TimelineSectionDialog";
 
 interface Sprint {
   week: number;
@@ -30,6 +31,8 @@ export default function GrowthRoadmap() {
   const [capabilities, setCapabilities] = useState<any[]>([]);
   const [currentTargets, setCurrentTargets] = useState<NinetyDayTarget[]>([]);
   const [completedTargets, setCompletedTargets] = useState<NinetyDayTarget[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<'today' | '90days' | '1year' | '3years'>('today');
 
   useEffect(() => {
     loadRoadmapData();
@@ -77,8 +80,7 @@ export default function GrowthRoadmap() {
         .select('*')
         .eq('profile_id', user.id)
         .eq('completed', true)
-        .order('updated_at', { ascending: false })
-        .limit(5);
+        .order('updated_at', { ascending: false });
 
       setGoals(goalsData);
       setCapabilities(capabilitiesData || []);
@@ -114,6 +116,11 @@ export default function GrowthRoadmap() {
       }
     });
     return sprints.slice(0, 4); // Show up to 4 sprints
+  };
+
+  const openSection = (section: 'today' | '90days' | '1year' | '3years') => {
+    setActiveSection(section);
+    setDialogOpen(true);
   };
 
   if (loading) {
@@ -163,10 +170,16 @@ export default function GrowthRoadmap() {
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
             {/* TODAY - Sprints + Capability State */}
-            <Card className="p-6 relative z-10 border-primary">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-primary" />
-                <h3 className="font-bold">Today</h3>
+            <Card 
+              className="p-6 relative z-10 border-primary cursor-pointer hover:shadow-lg transition-shadow group"
+              onClick={() => openSection('today')}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <h3 className="font-bold">Today</h3>
+                </div>
+                <Expand className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               
               {/* Current Sprints */}
@@ -177,12 +190,15 @@ export default function GrowthRoadmap() {
                     Active Sprints
                   </p>
                   <div className="space-y-1.5">
-                    {sprints.map((item, idx) => (
+                    {sprints.slice(0, 2).map((item, idx) => (
                       <div key={idx} className="text-xs bg-primary/10 rounded px-2 py-1">
                         <span className="text-muted-foreground">Week {item.sprint.week}:</span>{' '}
                         {item.sprint.focus}
                       </div>
                     ))}
+                    {sprints.length > 2 && (
+                      <p className="text-xs text-muted-foreground">+{sprints.length - 2} more</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -191,7 +207,7 @@ export default function GrowthRoadmap() {
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Current Capabilities</p>
                 <div className="space-y-1">
-                  {capabilities.slice(0, 4).map((cap) => (
+                  {capabilities.slice(0, 3).map((cap) => (
                     <div key={cap.id} className="text-xs flex justify-between">
                       <span className="truncate mr-2">{cap.capabilities?.name}</span>
                       <span className="capitalize text-muted-foreground shrink-0">
@@ -199,32 +215,44 @@ export default function GrowthRoadmap() {
                       </span>
                     </div>
                   ))}
+                  {capabilities.length > 3 && (
+                    <p className="text-xs text-muted-foreground">+{capabilities.length - 3} more</p>
+                  )}
                 </div>
               </div>
             </Card>
 
             {/* 90 DAYS - Completed Targets */}
-            <Card className="p-6 relative z-10">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-accent" />
-                <h3 className="font-bold">90 Days</h3>
+            <Card 
+              className="p-6 relative z-10 cursor-pointer hover:shadow-lg transition-shadow group"
+              onClick={() => openSection('90days')}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-accent" />
+                  <h3 className="font-bold">90 Days</h3>
+                </div>
+                <Expand className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Completed Goals</p>
                 {completedTargets.length > 0 ? (
                   <div className="space-y-1.5">
-                    {completedTargets.slice(0, 3).map((target) => (
+                    {completedTargets.slice(0, 2).map((target) => (
                       <div key={target.id} className="text-xs flex items-start gap-1.5">
                         <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0 mt-0.5" />
                         <span className="line-clamp-2">
-                          {target.goal_text?.substring(0, 60)}{target.goal_text && target.goal_text.length > 60 ? '...' : ''}
+                          {target.goal_text?.substring(0, 50)}{target.goal_text && target.goal_text.length > 50 ? '...' : ''}
                         </span>
                       </div>
                     ))}
+                    {completedTargets.length > 2 && (
+                      <p className="text-xs text-muted-foreground">+{completedTargets.length - 2} more</p>
+                    )}
                   </div>
                 ) : (
                   <div className="text-xs text-muted-foreground italic">
-                    No completed goals yet. Keep pushing!
+                    No completed goals yet.
                   </div>
                 )}
                 
@@ -233,7 +261,7 @@ export default function GrowthRoadmap() {
                   <div className="pt-2 border-t mt-2">
                     <p className="text-xs text-muted-foreground">
                       <Target className="inline h-3 w-3 mr-1" />
-                      {currentTargets.length} goal{currentTargets.length !== 1 ? 's' : ''} in progress
+                      {currentTargets.length} in progress
                     </p>
                   </div>
                 )}
@@ -241,10 +269,16 @@ export default function GrowthRoadmap() {
             </Card>
 
             {/* 1 YEAR - Vision */}
-            <Card className="p-6 relative z-10">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <h3 className="font-bold">1 Year</h3>
+            <Card 
+              className="p-6 relative z-10 cursor-pointer hover:shadow-lg transition-shadow group"
+              onClick={() => openSection('1year')}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <h3 className="font-bold">1 Year</h3>
+                </div>
+                <Expand className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Your Vision</p>
@@ -259,10 +293,16 @@ export default function GrowthRoadmap() {
             </Card>
 
             {/* 3 YEARS */}
-            <Card className="p-6 relative z-10 border-2 border-primary">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
-                <h3 className="font-bold">3 Years</h3>
+            <Card 
+              className="p-6 relative z-10 border-2 border-primary cursor-pointer hover:shadow-lg transition-shadow group"
+              onClick={() => openSection('3years')}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                  <h3 className="font-bold">3 Years</h3>
+                </div>
+                <Expand className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Dream Role</p>
@@ -330,6 +370,18 @@ export default function GrowthRoadmap() {
           </Button>
         </Card>
       </div>
+
+      {/* Timeline Section Dialog */}
+      <TimelineSectionDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        section={activeSection}
+        capabilities={capabilities}
+        currentTargets={currentTargets}
+        completedTargets={completedTargets}
+        oneYearVision={goals?.one_year_vision}
+        threeYearVision={goals?.three_year_vision}
+      />
 
       {/* Jericho Chat */}
       {showJericho && (
