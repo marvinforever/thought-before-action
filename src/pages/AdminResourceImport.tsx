@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileUp, Download, Loader2, Upload } from "lucide-react";
+import { FileUp, Download, Loader2 } from "lucide-react";
 import { importResourcesFromCSV, generateCSVTemplate, ImportResult } from "@/utils/importResourcesFromCSV";
 import {
   Table,
@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import PasteResourceImport from "@/components/PasteResourceImport";
+import SmartResourceImport from "@/components/SmartResourceImport";
 
 export default function AdminResourceImport() {
   const [importing, setImporting] = useState(false);
@@ -22,7 +22,6 @@ export default function AdminResourceImport() {
   const [csvResults, setCsvResults] = useState<ImportResult[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-
 
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -119,103 +118,104 @@ export default function AdminResourceImport() {
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight">Resource Import Center</h1>
           <p className="text-muted-foreground text-lg">
-            Import learning resources by pasting URLs or uploading CSV files
+            Import learning resources with AI-powered metadata extraction and capability matching
           </p>
         </div>
 
-        {/* Paste & Import Interface */}
-        <PasteResourceImport />
+        {/* Smart Import - Primary */}
+        <SmartResourceImport />
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <FileUp className="h-5 w-5 text-primary" />
-            <CardTitle>CSV Import</CardTitle>
-          </div>
-          <CardDescription>
-            Import multiple resources from a CSV file with support for multiple capabilities per resource
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleDownloadTemplate}
-              className="flex-1"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Template
-            </Button>
-          </div>
-          
-          <div className="space-y-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleCSVUpload}
-              className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
-            {csvFile && (
-              <p className="text-sm text-muted-foreground">
-                Selected: {csvFile.name}
-              </p>
-            )}
-          </div>
-
-          <Button 
-            onClick={handleImportCSV} 
-            disabled={importing || !csvFile}
-            className="w-full"
-          >
-            {importing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              <>
-                <FileUp className="mr-2 h-4 w-4" />
-                Import CSV
-              </>
-            )}
-          </Button>
-
-          {csvResults && csvResults.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <h3 className="font-semibold text-sm">Import Results</h3>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16">Row</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead className="w-24">Status</TableHead>
-                      <TableHead>Message</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {csvResults.map((result, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{result.row}</TableCell>
-                        <TableCell className="font-medium">{result.title}</TableCell>
-                        <TableCell>
-                          <Badge variant={result.success ? "default" : "destructive"}>
-                            {result.success ? "Success" : "Failed"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {result.error || "Imported successfully"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+        {/* CSV Import - Secondary */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FileUp className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-lg">Bulk CSV Import</CardTitle>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <CardDescription>
+              Import multiple resources from a CSV file (for advanced users)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleDownloadTemplate}
+                size="sm"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Template
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleCSVUpload}
+                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {csvFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {csvFile.name}
+                </p>
+              )}
+            </div>
+
+            <Button 
+              onClick={handleImportCSV} 
+              disabled={importing || !csvFile}
+              size="sm"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <FileUp className="mr-2 h-4 w-4" />
+                  Import CSV
+                </>
+              )}
+            </Button>
+
+            {csvResults && csvResults.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <h3 className="font-semibold text-sm">Import Results</h3>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Row</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead className="w-24">Status</TableHead>
+                        <TableHead>Message</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {csvResults.map((result, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{result.row}</TableCell>
+                          <TableCell className="font-medium">{result.title}</TableCell>
+                          <TableCell>
+                            <Badge variant={result.success ? "default" : "destructive"}>
+                              {result.success ? "Success" : "Failed"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {result.error || "Imported successfully"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
