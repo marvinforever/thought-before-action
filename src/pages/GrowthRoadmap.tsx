@@ -102,6 +102,19 @@ export default function GrowthRoadmap() {
     return ((currentIndex + 1) / (targetIndex + 1)) * 100;
   };
 
+  const getProgressColor = (progress: number) => {
+    if (progress >= 100) return 'bg-green-500';
+    if (progress >= 75) return 'bg-emerald-500';
+    if (progress >= 50) return 'bg-yellow-500';
+    if (progress >= 25) return 'bg-orange-500';
+    return 'bg-red-500';
+  };
+
+  const getLevelIndex = (level: string) => {
+    const levels = ['foundational', 'developing', 'proficient', 'advanced', 'expert'];
+    return levels.indexOf(level?.toLowerCase()) + 1;
+  };
+
   // Extract all sprints from current targets
   const getAllSprints = () => {
     const sprints: { sprint: Sprint; goalText: string }[] = [];
@@ -322,35 +335,54 @@ export default function GrowthRoadmap() {
         <div className="space-y-4">
           <h2 className="text-2xl font-bold">Capability Development Path</h2>
           <div className="grid gap-4">
-            {capabilities.map((cap) => (
-              <Card key={cap.id} className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">{cap.capabilities?.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {cap.capabilities?.category}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium capitalize">
-                        {cap.current_level || 'Not set'} → {cap.target_level || 'Not set'}
+            {capabilities.map((cap) => {
+              const progress = calculateProgress(cap.current_level, cap.target_level);
+              const currentLevelIdx = getLevelIndex(cap.current_level);
+              const targetLevelIdx = getLevelIndex(cap.target_level);
+              
+              return (
+                <Card key={cap.id} className="p-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{cap.capabilities?.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {cap.capabilities?.category}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium capitalize">
+                          {cap.current_level || 'Not set'} → {cap.target_level || 'Not set'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Level {currentLevelIdx || '?'} of {targetLevelIdx || '?'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Progress</span>
-                      <span>{Math.round(calculateProgress(cap.current_level, cap.target_level))}%</span>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className={`font-semibold ${
+                          progress >= 100 ? 'text-green-500' :
+                          progress >= 75 ? 'text-emerald-500' :
+                          progress >= 50 ? 'text-yellow-600' :
+                          progress >= 25 ? 'text-orange-500' :
+                          'text-red-500'
+                        }`}>
+                          {Math.round(progress)}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={progress}
+                        indicatorClassName={getProgressColor(progress)}
+                        className="h-3"
+                      />
                     </div>
-                    <Progress 
-                      value={calculateProgress(cap.current_level, cap.target_level)} 
-                    />
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
 
