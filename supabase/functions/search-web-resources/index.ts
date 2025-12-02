@@ -18,6 +18,89 @@ interface SearchResult {
   source: string;
 }
 
+// Platform-specific domain filters
+const platformDomains: { [key: string]: string[] } = {
+  youtube: ['youtube.com', 'youtu.be'],
+  podcasts: ['spotify.com', 'apple.com', 'podcasts.google.com', 'overcast.fm', 'pocketcasts.com', 'stitcher.com', 'podbean.com', 'buzzsprout.com', 'anchor.fm', 'listennotes.com', 'podcast'],
+  articles: ['medium.com', 'hbr.org', 'forbes.com', 'inc.com', 'entrepreneur.com', 'fastcompany.com', 'businessinsider.com', 'mckinsey.com', 'blog'],
+  courses: ['coursera.org', 'udemy.com', 'linkedin.com/learning', 'skillshare.com', 'edx.org', 'pluralsight.com', 'masterclass.com'],
+};
+
+// Platform-specific content type labels
+const platformContentTypes: { [key: string]: string } = {
+  youtube: 'video',
+  podcasts: 'podcast',
+  articles: 'article',
+  courses: 'course',
+};
+
+// Platform-specific search queries
+function buildPlatformQuery(capabilityName: string, platform: string): string {
+  switch (platform) {
+    case 'youtube':
+      return `"${capabilityName}" tutorial OR training OR guide video site:youtube.com`;
+    case 'podcasts':
+      return `"${capabilityName}" podcast episode site:spotify.com OR site:apple.com/podcast OR site:listennotes.com`;
+    case 'articles':
+      return `"${capabilityName}" article OR guide OR insights site:hbr.org OR site:medium.com OR site:forbes.com OR site:mckinsey.com`;
+    case 'courses':
+      return `"${capabilityName}" online course site:coursera.org OR site:udemy.com OR site:linkedin.com/learning OR site:edx.org`;
+    default:
+      return `"${capabilityName}" learning resources`;
+  }
+}
+
+// Platform-specific system prompts
+function buildSystemPrompt(platform: string, domains: string[]): string {
+  const contentType = platformContentTypes[platform] || 'resource';
+  const domainList = domains.join(', ');
+  
+  return `You are a learning resource curator specializing in ${contentType}s. Search the web and return REAL, SPECIFIC ${contentType} resources with valid URLs.
+
+CRITICAL RULES:
+1. You must ONLY return ${contentType} content
+2. Every URL MUST be from one of these domains: ${domainList}
+3. Do NOT include any other content types - ONLY ${contentType}s
+4. If you cannot find ${contentType}s, return an empty resources array
+
+For each resource found, return it in this exact JSON format:
+{
+  "resources": [
+    {
+      "title": "Exact title of the ${contentType}",
+      "url": "Full URL starting with https://",
+      "description": "Brief 1-2 sentence description",
+      "content_type": "${contentType}",
+      "source": "Platform name"
+    }
+  ]
+}
+
+Return 5-8 high-quality ${contentType}s maximum. URLs must be complete and working.`;
+}
+
+// Check if URL matches platform domains
+function urlMatchesPlatform(url: string, platform: string): boolean {
+  const domains = platformDomains[platform] || [];
+  try {
+    const urlObj = new URL(url);
+    return domains.some(domain => 
+      urlObj.hostname.includes(domain) || url.toLowerCase().includes(domain)
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Get content type from URL
+function getContentTypeFromUrl(url: string): string {
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'video';
+  if (lowerUrl.includes('spotify.com') || lowerUrl.includes('apple.com/podcast') || lowerUrl.includes('podcast')) return 'podcast';
+  if (lowerUrl.includes('coursera') || lowerUrl.includes('udemy') || lowerUrl.includes('linkedin.com/learning') || lowerUrl.includes('edx.org') || lowerUrl.includes('skillshare')) return 'course';
+  return 'article';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -41,141 +124,97 @@ serve(async (req) => {
       );
     }
 
-    // Build platform-specific search queries
-    const platformQueries: { [key: string]: string } = {
-      youtube: `best ${capabilityName} training videos YouTube 2024 2025`,
-      podcasts: `${capabilityName} podcast episodes professional development`,
-      articles: `${capabilityName} articles guides blog posts professional skills`,
-      courses: `${capabilityName} online course coursera udemy linkedin learning`,
-    };
-
     const selectedPlatforms = platforms.length > 0 ? platforms : ['youtube', 'podcasts', 'articles', 'courses'];
-    const searchQueries = selectedPlatforms.map(p => platformQueries[p] || `${capabilityName} learning resources`);
-    const combinedQuery = `Find the best learning resources for "${capabilityName}" including: ${searchQueries.join('. ')}. Return specific URLs with titles and descriptions.`;
-
+    
     console.log('Searching for resources:', { capabilityName, platforms: selectedPlatforms });
 
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a learning resource curator. Search the web and return REAL, SPECIFIC learning resources with valid URLs. 
-            
-For each resource found, return it in this exact JSON format:
-{
-  "resources": [
-    {
-      "title": "Exact title of the resource",
-      "url": "Full URL starting with https://",
-      "description": "Brief 1-2 sentence description of what it covers",
-      "content_type": "video|podcast|article|course|book",
-      "source": "Platform name (YouTube, Spotify, Coursera, etc.)"
-    }
-  ]
-}
-
-IMPORTANT:
-- Only return REAL resources with VALID URLs that actually exist
-- Include a mix of content types when available
-- Prioritize high-quality, reputable sources
-- Return 8-12 resources maximum
-- URLs must be complete and working`
-          },
-          {
-            role: 'user',
-            content: combinedQuery
-          }
-        ],
-        temperature: 0.2,
-        max_tokens: 4000,
-        return_images: false,
-        return_related_questions: false,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Perplexity API error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to search for resources', details: errorText }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    // Search each platform separately for better filtering
+    const allResources: SearchResult[] = [];
     
-    console.log('Perplexity response:', content.substring(0, 500));
+    for (const platform of selectedPlatforms) {
+      const query = buildPlatformQuery(capabilityName, platform);
+      const domains = platformDomains[platform] || [];
+      const systemPrompt = buildSystemPrompt(platform, domains);
+      
+      console.log(`Searching ${platform}:`, query);
 
-    // Parse the JSON response
-    let resources: SearchResult[] = [];
-    try {
-      // Try to extract JSON from the response
-      const jsonMatch = content.match(/\{[\s\S]*"resources"[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        resources = parsed.resources || [];
-      } else {
-        // Try to parse the whole content as JSON
-        const parsed = JSON.parse(content);
-        resources = parsed.resources || [];
+      try {
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: query }
+            ],
+            temperature: 0.1,
+            max_tokens: 2000,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error(`Perplexity API error for ${platform}:`, response.status);
+          continue;
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        
+        console.log(`${platform} response:`, content.substring(0, 300));
+
+        // Parse the JSON response
+        let resources: SearchResult[] = [];
+        try {
+          const jsonMatch = content.match(/\{[\s\S]*"resources"[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            resources = parsed.resources || [];
+          }
+        } catch (parseError) {
+          console.error(`Failed to parse ${platform} response:`, parseError);
+        }
+
+        // Post-filter to ensure URLs match the platform
+        const filteredResources = resources.filter(r => {
+          const matches = urlMatchesPlatform(r.url, platform);
+          if (!matches) {
+            console.log(`Filtered out non-matching URL: ${r.url}`);
+          }
+          return matches;
+        });
+
+        // Ensure correct content type
+        const typedResources = filteredResources.map(r => ({
+          ...r,
+          content_type: platformContentTypes[platform] || getContentTypeFromUrl(r.url),
+        }));
+
+        allResources.push(...typedResources);
+        
+        console.log(`${platform}: Found ${resources.length}, filtered to ${typedResources.length}`);
+        
+      } catch (platformError) {
+        console.error(`Error searching ${platform}:`, platformError);
       }
-    } catch (parseError) {
-      console.error('Failed to parse JSON response:', parseError);
-      // Try to extract resources from text
-      const urlPattern = /https?:\/\/[^\s\)\"]+/g;
-      const urls = content.match(urlPattern) || [];
-      resources = urls.slice(0, 10).map((url: string) => ({
-        title: url.includes('youtube') ? 'YouTube Video' : 
-               url.includes('spotify') ? 'Podcast Episode' :
-               url.includes('coursera') || url.includes('udemy') ? 'Online Course' : 'Learning Resource',
-        url: url,
-        description: `Resource about ${capabilityName}`,
-        content_type: url.includes('youtube') ? 'video' : 
-                      url.includes('spotify') || url.includes('podcast') ? 'podcast' :
-                      url.includes('coursera') || url.includes('udemy') ? 'course' : 'article',
-        source: new URL(url).hostname.replace('www.', ''),
-      }));
     }
 
-    // Validate URLs
-    const validatedResources = await Promise.all(
-      resources.map(async (resource: SearchResult) => {
-        try {
-          const urlCheck = await fetch(resource.url, { 
-            method: 'HEAD',
-            signal: AbortSignal.timeout(5000)
-          });
-          return {
-            ...resource,
-            isValid: urlCheck.ok,
-          };
-        } catch {
-          return {
-            ...resource,
-            isValid: false,
-          };
-        }
-      })
+    // Remove duplicates by URL
+    const uniqueResources = allResources.filter((resource, index, self) =>
+      index === self.findIndex(r => r.url === resource.url)
     );
 
-    const validResources = validatedResources.filter(r => r.isValid);
-
-    console.log(`Found ${resources.length} resources, ${validResources.length} validated`);
+    console.log(`Total unique resources found: ${uniqueResources.length}`);
 
     return new Response(
       JSON.stringify({ 
-        resources: validResources,
+        resources: uniqueResources,
         capability: capabilityName,
-        totalFound: resources.length,
-        validCount: validResources.length,
+        totalFound: uniqueResources.length,
+        validCount: uniqueResources.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
