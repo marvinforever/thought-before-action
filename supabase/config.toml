@@ -1,5 +1,8 @@
 project_id = "aiihzjkspwsriktvrdle"
 
+[functions.search-web-resources]
+verify_jwt = true
+
 [functions.send-welcome-email]
 verify_jwt = true
 

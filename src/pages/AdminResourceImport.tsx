@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileUp, Download, Loader2 } from "lucide-react";
+import { FileUp, Download, Loader2, Sparkles, Search } from "lucide-react";
 import { importResourcesFromCSV, generateCSVTemplate, ImportResult } from "@/utils/importResourcesFromCSV";
 import {
   Table,
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import SmartResourceImport from "@/components/SmartResourceImport";
+import { DiscoverResources } from "@/components/DiscoverResources";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminResourceImport() {
   const [importing, setImporting] = useState(false);
@@ -122,11 +124,32 @@ export default function AdminResourceImport() {
           </p>
         </div>
 
-        {/* Smart Import - Primary */}
-        <SmartResourceImport />
+        <Tabs defaultValue="smart" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="smart" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Smart Import
+            </TabsTrigger>
+            <TabsTrigger value="discover" className="gap-2">
+              <Search className="h-4 w-4" />
+              Discover Resources
+            </TabsTrigger>
+            <TabsTrigger value="csv" className="gap-2">
+              <FileUp className="h-4 w-4" />
+              CSV Import
+            </TabsTrigger>
+          </TabsList>
 
-        {/* CSV Import - Secondary */}
-        <Card>
+          <TabsContent value="smart">
+            <SmartResourceImport />
+          </TabsContent>
+
+          <TabsContent value="discover">
+            <DiscoverResources />
+          </TabsContent>
+
+          <TabsContent value="csv">
+            <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <FileUp className="h-5 w-5 text-muted-foreground" />
@@ -216,6 +239,8 @@ export default function AdminResourceImport() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
