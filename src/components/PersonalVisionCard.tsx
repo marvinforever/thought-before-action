@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Edit, Save, X } from "lucide-react";
+import { Eye, Edit, Save, X, Expand } from "lucide-react";
+import { ViewVisionDialog } from "./ViewVisionDialog";
 
 type PersonalGoals = {
   id: string;
@@ -19,7 +20,14 @@ export default function PersonalVisionCard() {
   const [oneYearVision, setOneYearVision] = useState("");
   const [threeYearVision, setThreeYearVision] = useState("");
   const [saving, setSaving] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [viewDialogType, setViewDialogType] = useState<"1-year" | "3-year">("1-year");
   const { toast } = useToast();
+
+  const openVisionDialog = (type: "1-year" | "3-year") => {
+    setViewDialogType(type);
+    setViewDialogOpen(true);
+  };
 
   useEffect(() => {
     loadVisions();
@@ -147,11 +155,19 @@ export default function PersonalVisionCard() {
               className="min-h-[100px]"
             />
           ) : (
-            <ScrollArea className="h-[100px] rounded-md border bg-muted/50">
-              <p className="text-sm p-4">
-                {oneYearVision || "No vision set yet. Click edit to add your 1-year vision."}
-              </p>
-            </ScrollArea>
+            <div 
+              className="group relative cursor-pointer"
+              onClick={() => openVisionDialog("1-year")}
+            >
+              <ScrollArea className="h-[100px] rounded-md border bg-muted/50 transition-colors hover:bg-muted/70 hover:border-primary/50">
+                <p className="text-sm p-4">
+                  {oneYearVision || "No vision set yet. Click edit to add your 1-year vision."}
+                </p>
+              </ScrollArea>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Expand className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
           )}
         </div>
         
@@ -170,14 +186,29 @@ export default function PersonalVisionCard() {
               className="min-h-[100px]"
             />
           ) : (
-            <ScrollArea className="h-[100px] rounded-md border bg-muted/50">
-              <p className="text-sm p-4">
-                {threeYearVision || "No vision set yet. Click edit to add your 3-year vision."}
-              </p>
-            </ScrollArea>
+            <div 
+              className="group relative cursor-pointer"
+              onClick={() => openVisionDialog("3-year")}
+            >
+              <ScrollArea className="h-[100px] rounded-md border bg-muted/50 transition-colors hover:bg-muted/70 hover:border-primary/50">
+                <p className="text-sm p-4">
+                  {threeYearVision || "No vision set yet. Click edit to add your 3-year vision."}
+                </p>
+              </ScrollArea>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Expand className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
           )}
         </div>
       </CardContent>
+
+      <ViewVisionDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        type={viewDialogType}
+        content={viewDialogType === "1-year" ? oneYearVision : threeYearVision}
+      />
     </Card>
   );
 }
