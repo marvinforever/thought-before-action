@@ -4,17 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Target, TrendingUp, Calendar, MessageSquare } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, Calendar, MessageSquare, CheckCircle2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { JerichoChat } from "@/components/JerichoChat";
+
+interface Sprint {
+  week: number;
+  focus: string;
+  completed?: boolean;
+}
+
+interface NinetyDayTarget {
+  id: string;
+  goal_text: string | null;
+  completed: boolean | null;
+  sprints: any;
+  category: string;
+}
 
 export default function GrowthRoadmap() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [showJericho, setShowJericho] = useState(false);
-  const [roadmapData, setRoadmapData] = useState<any>(null);
   const [goals, setGoals] = useState<any>(null);
   const [capabilities, setCapabilities] = useState<any[]>([]);
+  const [currentTargets, setCurrentTargets] = useState<NinetyDayTarget[]>([]);
+  const [completedTargets, setCompletedTargets] = useState<NinetyDayTarget[]>([]);
 
   useEffect(() => {
     loadRoadmapData();
@@ -48,21 +63,27 @@ export default function GrowthRoadmap() {
         `)
         .eq('profile_id', user.id);
 
-      // Load 90-day targets
-      const { data: targetsData } = await supabase
+      // Load current (incomplete) 90-day targets with sprints
+      const { data: currentTargetsData } = await supabase
         .from('ninety_day_targets')
         .select('*')
         .eq('profile_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(3);
+        .or('completed.is.null,completed.eq.false')
+        .order('created_at', { ascending: false });
+
+      // Load completed 90-day targets
+      const { data: completedTargetsData } = await supabase
+        .from('ninety_day_targets')
+        .select('*')
+        .eq('profile_id', user.id)
+        .eq('completed', true)
+        .order('updated_at', { ascending: false })
+        .limit(5);
 
       setGoals(goalsData);
       setCapabilities(capabilitiesData || []);
-      setRoadmapData({
-        goals: goalsData,
-        capabilities: capabilitiesData || [],
-        targets: targetsData || []
-      });
+      setCurrentTargets(currentTargetsData || []);
+      setCompletedTargets(completedTargetsData || []);
     } catch (error: any) {
       console.error('Error loading roadmap:', error);
       toast.error('Failed to load growth roadmap');
@@ -79,6 +100,22 @@ export default function GrowthRoadmap() {
     return ((currentIndex + 1) / (targetIndex + 1)) * 100;
   };
 
+  // Extract all sprints from current targets
+  const getAllSprints = () => {
+    const sprints: { sprint: Sprint; goalText: string }[] = [];
+    currentTargets.forEach(target => {
+      if (target.sprints && Array.isArray(target.sprints)) {
+        target.sprints.forEach((sprint: Sprint) => {
+          sprints.push({
+            sprint,
+            goalText: target.goal_text || ''
+          });
+        });
+      }
+    });
+    return sprints.slice(0, 4); // Show up to 4 sprints
+  };
+
   if (loading) {
     return (
       <div className="container max-w-6xl py-8">
@@ -86,6 +123,8 @@ export default function GrowthRoadmap() {
       </div>
     );
   }
+
+  const sprints = getAllSprints();
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,51 +162,98 @@ export default function GrowthRoadmap() {
           <div className="absolute top-12 left-0 right-0 h-1 bg-border" />
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
-            {/* TODAY */}
+            {/* TODAY - Sprints + Capability State */}
             <Card className="p-6 relative z-10 border-primary">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-3 h-3 rounded-full bg-primary" />
                 <h3 className="font-bold">Today</h3>
               </div>
+              
+              {/* Current Sprints */}
+              {sprints.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <p className="text-sm font-medium text-primary flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
+                    Active Sprints
+                  </p>
+                  <div className="space-y-1.5">
+                    {sprints.map((item, idx) => (
+                      <div key={idx} className="text-xs bg-primary/10 rounded px-2 py-1">
+                        <span className="text-muted-foreground">Week {item.sprint.week}:</span>{' '}
+                        {item.sprint.focus}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Current Capability State */}
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Current State</p>
+                <p className="text-sm text-muted-foreground">Current Capabilities</p>
                 <div className="space-y-1">
-                  {capabilities.slice(0, 3).map((cap) => (
-                    <div key={cap.id} className="text-xs">
-                      {cap.capabilities?.name}: {cap.current_level}
+                  {capabilities.slice(0, 4).map((cap) => (
+                    <div key={cap.id} className="text-xs flex justify-between">
+                      <span className="truncate mr-2">{cap.capabilities?.name}</span>
+                      <span className="capitalize text-muted-foreground shrink-0">
+                        {cap.current_level || 'N/A'}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
             </Card>
 
-            {/* 90 DAYS */}
+            {/* 90 DAYS - Completed Targets */}
             <Card className="p-6 relative z-10">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-3 h-3 rounded-full bg-accent" />
                 <h3 className="font-bold">90 Days</h3>
               </div>
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Quick Wins</p>
-                {roadmapData?.targets.slice(0, 2).map((target: any) => (
-                  <div key={target.id} className="text-xs">
-                    <Target className="inline h-3 w-3 mr-1" />
-                    {target.goal_text?.substring(0, 40)}...
+                <p className="text-sm text-muted-foreground">Completed Goals</p>
+                {completedTargets.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {completedTargets.slice(0, 3).map((target) => (
+                      <div key={target.id} className="text-xs flex items-start gap-1.5">
+                        <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">
+                          {target.goal_text?.substring(0, 60)}{target.goal_text && target.goal_text.length > 60 ? '...' : ''}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <div className="text-xs text-muted-foreground italic">
+                    No completed goals yet. Keep pushing!
+                  </div>
+                )}
+                
+                {/* Show in-progress count */}
+                {currentTargets.length > 0 && (
+                  <div className="pt-2 border-t mt-2">
+                    <p className="text-xs text-muted-foreground">
+                      <Target className="inline h-3 w-3 mr-1" />
+                      {currentTargets.length} goal{currentTargets.length !== 1 ? 's' : ''} in progress
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
 
-            {/* 1 YEAR */}
+            {/* 1 YEAR - Vision */}
             <Card className="p-6 relative z-10">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-3 h-3 rounded-full bg-blue-500" />
                 <h3 className="font-bold">1 Year</h3>
               </div>
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Next Level</p>
-                <div className="text-sm font-medium">
-                  {goals?.one_year_vision || 'Set your 1-year vision'}
+                <p className="text-sm text-muted-foreground">Your Vision</p>
+                <div className="text-sm">
+                  {goals?.one_year_vision ? (
+                    <p className="line-clamp-4">{goals.one_year_vision}</p>
+                  ) : (
+                    <p className="text-muted-foreground italic">Set your 1-year vision</p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -181,7 +267,11 @@ export default function GrowthRoadmap() {
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Dream Role</p>
                 <div className="text-sm font-medium">
-                  {goals?.three_year_vision || 'Set your 3-year vision'}
+                  {goals?.three_year_vision ? (
+                    <p className="line-clamp-4">{goals.three_year_vision}</p>
+                  ) : (
+                    <p className="text-muted-foreground italic">Set your 3-year vision</p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -203,11 +293,8 @@ export default function GrowthRoadmap() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {cap.current_level} → {cap.target_level}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Priority: {cap.priority || 'Not set'}
+                      <div className="text-sm font-medium capitalize">
+                        {cap.current_level || 'Not set'} → {cap.target_level || 'Not set'}
                       </div>
                     </div>
                   </div>
