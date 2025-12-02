@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, RotateCw } from "lucide-react";
+import { FileText } from "lucide-react";
 
 interface JobDescription {
   id: string;
@@ -23,16 +23,12 @@ interface ViewJobDescriptionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   jobDescription: JobDescription | null;
-  onReanalyze?: (jobDesc: JobDescription) => void;
-  isReanalyzing?: boolean;
 }
 
 export function ViewJobDescriptionDialog({
   open,
   onOpenChange,
   jobDescription,
-  onReanalyze,
-  isReanalyzing = false,
 }: ViewJobDescriptionDialogProps) {
   if (!jobDescription) return null;
 
@@ -64,17 +60,7 @@ export function ViewJobDescriptionDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          {onReanalyze && (
-            <Button
-              variant="outline"
-              onClick={() => onReanalyze(jobDescription)}
-              disabled={isReanalyzing}
-            >
-              <RotateCw className={`h-4 w-4 mr-2 ${isReanalyzing ? 'animate-spin' : ''}`} />
-              Re-analyze
-            </Button>
-          )}
+        <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>
             Close
           </Button>
