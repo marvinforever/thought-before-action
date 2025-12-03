@@ -11,11 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield, Pencil } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield, Pencil, FolderTree } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { AssignRoleDialog } from "@/components/AssignRoleDialog";
+import { CapabilityTaxonomyManager } from "@/components/CapabilityTaxonomyManager";
 
 interface CompanyStats {
   id: string;
@@ -1723,6 +1724,10 @@ const SuperAdmin = () => {
             Email Testing
           </TabsTrigger>
           <TabsTrigger value="edit-scores">Edit Scores</TabsTrigger>
+          <TabsTrigger value="taxonomy">
+            <FolderTree className="h-4 w-4 mr-2" />
+            Taxonomy
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -2404,6 +2409,10 @@ const SuperAdmin = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="taxonomy" className="space-y-6">
+          <CapabilityTaxonomyManager />
         </TabsContent>
       </Tabs>
 
