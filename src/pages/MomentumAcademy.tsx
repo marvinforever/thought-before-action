@@ -23,7 +23,10 @@ import {
   Eye,
   Trash2,
   Globe,
-  RefreshCw
+  RefreshCw,
+  Youtube,
+  Podcast,
+  Loader2
 } from "lucide-react";
 
 interface Article {
@@ -58,6 +61,9 @@ export default function MomentumAcademy() {
   
   const [createOpen, setCreateOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [transcriptUrl, setTranscriptUrl] = useState("");
+  const [transcriptExtracted, setTranscriptExtracted] = useState(false);
   const [newArticle, setNewArticle] = useState({
     content_type: "original",
     source_content: "",
@@ -99,6 +105,49 @@ export default function MomentumAcademy() {
     }
   };
 
+  const extractTranscript = async () => {
+    if (!transcriptUrl.trim()) {
+      toast({ title: "Error", description: "Please enter a URL", variant: "destructive" });
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-content-transcript', {
+        body: { url: transcriptUrl },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setNewArticle({
+          ...newArticle,
+          source_content: data.transcript,
+          source_url: data.metadata?.source_url || transcriptUrl,
+          source_name: data.metadata?.source_name || "",
+          source_author: data.metadata?.author || "",
+        });
+        setTranscriptExtracted(true);
+        
+        if (data.requiresManualTranscript) {
+          toast({ 
+            title: "Partial extraction", 
+            description: "Please paste the full transcript in the content area below" 
+          });
+        } else {
+          toast({ title: "Success", description: "Transcript extracted! Review and edit below." });
+        }
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to extract transcript", variant: "destructive" });
+      }
+    } catch (error: any) {
+      console.error('Extract error:', error);
+      toast({ title: "Error", description: error.message || "Failed to extract content", variant: "destructive" });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   const generateArticle = async () => {
     if (!newArticle.source_content.trim()) {
       toast({ title: "Error", description: "Please provide source content", variant: "destructive" });
@@ -114,15 +163,7 @@ export default function MomentumAcademy() {
       if (error) throw error;
 
       toast({ title: "Success", description: "Article generated successfully!" });
-      setCreateOpen(false);
-      setNewArticle({
-        content_type: "original",
-        source_content: "",
-        source_url: "",
-        source_name: "",
-        source_author: "",
-        domain_ids: [],
-      });
+      resetCreateDialog();
       fetchArticles();
     } catch (error: any) {
       console.error('Generation error:', error);
@@ -130,6 +171,20 @@ export default function MomentumAcademy() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const resetCreateDialog = () => {
+    setCreateOpen(false);
+    setTranscriptUrl("");
+    setTranscriptExtracted(false);
+    setNewArticle({
+      content_type: "original",
+      source_content: "",
+      source_url: "",
+      source_name: "",
+      source_author: "",
+      domain_ids: [],
+    });
   };
 
   const togglePublished = async (article: Article) => {
@@ -208,7 +263,10 @@ export default function MomentumAcademy() {
             <Globe className="h-4 w-4 mr-2" />
             View Public Blog
           </Button>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <Dialog open={createOpen} onOpenChange={(open) => {
+            if (!open) resetCreateDialog();
+            else setCreateOpen(true);
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -219,11 +277,53 @@ export default function MomentumAcademy() {
               <DialogHeader>
                 <DialogTitle>Create New Article</DialogTitle>
                 <DialogDescription>
-                  Generate content from transcripts or summarize external sources
+                  Paste a YouTube or podcast URL to extract transcript, or enter content directly
                 </DialogDescription>
               </DialogHeader>
               <ScrollArea className="max-h-[60vh] pr-4">
                 <div className="space-y-4 py-4">
+                  {/* URL Extraction Section */}
+                  <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    <Label className="flex items-center gap-2">
+                      <Youtube className="h-4 w-4 text-red-500" />
+                      <Podcast className="h-4 w-4 text-purple-500" />
+                      Extract from URL (YouTube, Podcast, etc.)
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        placeholder="https://youtube.com/watch?v=... or podcast URL"
+                        value={transcriptUrl}
+                        onChange={(e) => setTranscriptUrl(e.target.value)}
+                        disabled={extracting}
+                      />
+                      <Button 
+                        onClick={extractTranscript} 
+                        disabled={extracting || !transcriptUrl.trim()}
+                        variant="secondary"
+                      >
+                        {extracting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Extract"
+                        )}
+                      </Button>
+                    </div>
+                    {transcriptExtracted && (
+                      <p className="text-sm text-green-600 flex items-center gap-1">
+                        ✓ Content extracted - review and edit below
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">or enter manually</span>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Content Type</Label>
                     <Select 
@@ -250,7 +350,7 @@ export default function MomentumAcademy() {
                     </Select>
                   </div>
 
-                  {newArticle.content_type === 'curated' && (
+                  {(newArticle.content_type === 'curated' || transcriptExtracted) && (
                     <>
                       <div className="space-y-2">
                         <Label>Source URL</Label>
@@ -264,7 +364,7 @@ export default function MomentumAcademy() {
                         <div className="space-y-2">
                           <Label>Source Name</Label>
                           <Input 
-                            placeholder="Harvard Business Review"
+                            placeholder="YouTube, HBR, etc."
                             value={newArticle.source_name}
                             onChange={(e) => setNewArticle({ ...newArticle, source_name: e.target.value })}
                           />
@@ -283,16 +383,23 @@ export default function MomentumAcademy() {
 
                   <div className="space-y-2">
                     <Label>
-                      {newArticle.content_type === 'original' 
-                        ? 'Source Content (transcript, notes, etc.)' 
-                        : 'Content to Summarize'}
+                      {transcriptExtracted 
+                        ? 'Extracted Transcript (review & edit)' 
+                        : newArticle.content_type === 'original' 
+                          ? 'Source Content (transcript, notes, etc.)' 
+                          : 'Content to Summarize'}
                     </Label>
                     <Textarea 
                       placeholder="Paste your content here..."
-                      className="min-h-[200px]"
+                      className="min-h-[200px] font-mono text-sm"
                       value={newArticle.source_content}
                       onChange={(e) => setNewArticle({ ...newArticle, source_content: e.target.value })}
                     />
+                    {newArticle.source_content && (
+                      <p className="text-xs text-muted-foreground">
+                        {newArticle.source_content.length.toLocaleString()} characters
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -318,13 +425,13 @@ export default function MomentumAcademy() {
                 </div>
               </ScrollArea>
               <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>
+                <Button variant="outline" onClick={resetCreateDialog}>
                   Cancel
                 </Button>
-                <Button onClick={generateArticle} disabled={generating}>
+                <Button onClick={generateArticle} disabled={generating || !newArticle.source_content.trim()}>
                   {generating ? (
                     <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Generating...
                     </>
                   ) : (
