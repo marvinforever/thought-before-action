@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   BookOpen, 
   Plus, 
@@ -26,7 +27,8 @@ import {
   RefreshCw,
   Youtube,
   Podcast,
-  Loader2
+  Loader2,
+  Database
 } from "lucide-react";
 
 interface Article {
@@ -64,6 +66,11 @@ export default function MomentumAcademy() {
   const [extracting, setExtracting] = useState(false);
   const [transcriptUrl, setTranscriptUrl] = useState("");
   const [transcriptExtracted, setTranscriptExtracted] = useState(false);
+  const [saveToLibrary, setSaveToLibrary] = useState(true);
+  const [extractedMetadata, setExtractedMetadata] = useState<{
+    type?: string;
+    title?: string;
+  } | null>(null);
   const [newArticle, setNewArticle] = useState({
     content_type: "original",
     source_content: "",
@@ -128,6 +135,10 @@ export default function MomentumAcademy() {
           source_author: data.metadata?.author || "",
         });
         setTranscriptExtracted(true);
+        setExtractedMetadata({
+          type: data.type,
+          title: data.metadata?.title,
+        });
         
         if (data.requiresManualTranscript) {
           toast({ 
@@ -156,6 +167,28 @@ export default function MomentumAcademy() {
 
     setGenerating(true);
     try {
+      // Save to knowledge library if enabled
+      if (saveToLibrary && newArticle.source_content.length > 100) {
+        const wordCount = newArticle.source_content.split(/\s+/).length;
+        const { error: libraryError } = await supabase
+          .from('knowledge_sources')
+          .insert({
+            title: extractedMetadata?.title || newArticle.source_name || 'Untitled Source',
+            source_url: newArticle.source_url || null,
+            source_type: 'transcript',
+            source_platform: newArticle.source_name || extractedMetadata?.type || 'manual',
+            author: newArticle.source_author || null,
+            transcript: newArticle.source_content,
+            word_count: wordCount,
+            domain_ids: newArticle.domain_ids,
+          });
+        
+        if (libraryError) {
+          console.error('Failed to save to library:', libraryError);
+          // Don't block article generation, just log the error
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('generate-academy-article', {
         body: newArticle,
       });
@@ -177,6 +210,8 @@ export default function MomentumAcademy() {
     setCreateOpen(false);
     setTranscriptUrl("");
     setTranscriptExtracted(false);
+    setSaveToLibrary(true);
+    setExtractedMetadata(null);
     setNewArticle({
       content_type: "original",
       source_content: "",
@@ -420,6 +455,24 @@ export default function MomentumAcademy() {
                           {domain.name}
                         </Badge>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Save to Knowledge Library */}
+                  <div className="flex items-center space-x-3 p-3 border rounded-lg bg-muted/30">
+                    <Checkbox 
+                      id="saveToLibrary" 
+                      checked={saveToLibrary}
+                      onCheckedChange={(checked) => setSaveToLibrary(checked === true)}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="saveToLibrary" className="flex items-center gap-2 cursor-pointer">
+                        <Database className="h-4 w-4 text-primary" />
+                        Save to Knowledge Library
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Store this transcript for Jericho to reference when generating future content
+                      </p>
                     </div>
                   </div>
                 </div>

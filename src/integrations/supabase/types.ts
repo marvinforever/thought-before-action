@@ -1696,6 +1696,57 @@ export type Database = {
           },
         ]
       }
+      knowledge_sources: {
+        Row: {
+          author: string | null
+          created_at: string
+          domain_ids: string[] | null
+          duration_minutes: number | null
+          id: string
+          metadata: Json | null
+          source_platform: string | null
+          source_type: string
+          source_url: string | null
+          tags: string[] | null
+          title: string
+          transcript: string
+          updated_at: string
+          word_count: number | null
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          domain_ids?: string[] | null
+          duration_minutes?: number | null
+          id?: string
+          metadata?: Json | null
+          source_platform?: string | null
+          source_type?: string
+          source_url?: string | null
+          tags?: string[] | null
+          title: string
+          transcript: string
+          updated_at?: string
+          word_count?: number | null
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          domain_ids?: string[] | null
+          duration_minutes?: number | null
+          id?: string
+          metadata?: Json | null
+          source_platform?: string | null
+          source_type?: string
+          source_url?: string | null
+          tags?: string[] | null
+          title?: string
+          transcript?: string
+          updated_at?: string
+          word_count?: number | null
+        }
+        Relationships: []
+      }
       leading_indicators: {
         Row: {
           company_id: string
