@@ -63,6 +63,8 @@ export default function MomentumAcademy() {
   
   const [createOpen, setCreateOpen] = useState(false);
   const [previewArticle, setPreviewArticle] = useState<Article | null>(null);
+  const [editFeedback, setEditFeedback] = useState("");
+  const [refining, setRefining] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [transcriptUrl, setTranscriptUrl] = useState("");
@@ -329,6 +331,46 @@ export default function MomentumAcademy() {
       }
       return <p key={index} className="mb-3 leading-relaxed">{line}</p>;
     });
+  };
+
+  const refineArticle = async () => {
+    if (!previewArticle || !editFeedback.trim()) return;
+    
+    setRefining(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('refine-academy-article', {
+        body: {
+          article_id: previewArticle.id,
+          feedback: editFeedback,
+          current_content: previewArticle.content,
+          current_title: previewArticle.title,
+          current_summary: previewArticle.summary,
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      // Update the preview article with refined content
+      setPreviewArticle(data.article);
+      // Update in the articles list too
+      setArticles(prev => prev.map(a => a.id === data.article.id ? data.article : a));
+      setEditFeedback("");
+      
+      toast({
+        title: "Article refined",
+        description: data.changes_made || "Your feedback has been applied",
+      });
+    } catch (error) {
+      console.error('Error refining article:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to refine article",
+        variant: "destructive",
+      });
+    } finally {
+      setRefining(false);
+    }
   };
 
   return (
@@ -717,7 +759,12 @@ export default function MomentumAcademy() {
       )}
 
       {/* Preview Dialog for Draft Articles */}
-      <Dialog open={!!previewArticle} onOpenChange={(open) => !open && setPreviewArticle(null)}>
+      <Dialog open={!!previewArticle} onOpenChange={(open) => {
+        if (!open) {
+          setPreviewArticle(null);
+          setEditFeedback("");
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <div className="flex items-center gap-2 mb-2">
@@ -737,7 +784,7 @@ export default function MomentumAcademy() {
               </DialogDescription>
             )}
           </DialogHeader>
-          <ScrollArea className="max-h-[60vh] pr-4">
+          <ScrollArea className="max-h-[50vh] pr-4">
             <div className="prose prose-sm dark:prose-invert max-w-none py-4">
               {previewArticle && renderArticleContent(previewArticle.content)}
             </div>
@@ -749,19 +796,56 @@ export default function MomentumAcademy() {
               </div>
             )}
           </ScrollArea>
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setPreviewArticle(null)}>
-              Close
-            </Button>
-            <Button onClick={() => {
-              if (previewArticle) {
-                togglePublished(previewArticle);
-                setPreviewArticle(null);
-              }
-            }}>
-              <Globe className="h-4 w-4 mr-2" />
-              Publish & View Live
-            </Button>
+          
+          {/* Edit with Jericho Section */}
+          <div className="border-t pt-4 space-y-3">
+            <Label className="flex items-center gap-2 text-sm font-medium">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Edit with Jericho
+            </Label>
+            <Textarea
+              placeholder="Tell Jericho how to improve this article... (e.g., 'Make the intro more engaging', 'Add a section about practical applications', 'Shorten to 500 words')"
+              value={editFeedback}
+              onChange={(e) => setEditFeedback(e.target.value)}
+              className="min-h-[80px]"
+            />
+            <div className="flex justify-between items-center">
+              <Button 
+                variant="secondary" 
+                onClick={refineArticle}
+                disabled={refining || !editFeedback.trim()}
+              >
+                {refining ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Refining...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Apply Changes
+                  </>
+                )}
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => {
+                  setPreviewArticle(null);
+                  setEditFeedback("");
+                }}>
+                  Close
+                </Button>
+                <Button onClick={() => {
+                  if (previewArticle) {
+                    togglePublished(previewArticle);
+                    setPreviewArticle(null);
+                    setEditFeedback("");
+                  }
+                }}>
+                  <Globe className="h-4 w-4 mr-2" />
+                  Publish & View Live
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
