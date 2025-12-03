@@ -186,6 +186,72 @@ export type Database = {
           },
         ]
       }
+      capability_domain_mappings: {
+        Row: {
+          capability_id: string
+          created_at: string
+          domain_id: string
+          id: string
+          is_primary: boolean | null
+        }
+        Insert: {
+          capability_id: string
+          created_at?: string
+          domain_id: string
+          id?: string
+          is_primary?: boolean | null
+        }
+        Update: {
+          capability_id?: string
+          created_at?: string
+          domain_id?: string
+          id?: string
+          is_primary?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_domain_mappings_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_domain_mappings_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "capability_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capability_domains: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       capability_level_history: {
         Row: {
           capability_id: string
