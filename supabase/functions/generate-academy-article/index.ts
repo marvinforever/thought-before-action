@@ -84,6 +84,39 @@ Return JSON with:
 
     console.log('Calling Lovable AI to generate article...');
 
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "create_article",
+          description: "Create a structured article with title, summary, and content",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { 
+                type: "string", 
+                description: "Engaging article title" 
+              },
+              summary: { 
+                type: "string", 
+                description: "2-3 sentence summary for preview cards" 
+              },
+              content: { 
+                type: "string", 
+                description: "Full article content in markdown format" 
+              },
+              reading_time_minutes: { 
+                type: "number", 
+                description: "Estimated reading time in minutes" 
+              }
+            },
+            required: ["title", "summary", "content", "reading_time_minutes"],
+            additionalProperties: false
+          }
+        }
+      }
+    ];
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -96,6 +129,8 @@ Return JSON with:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
+        tools,
+        tool_choice: { type: "function", function: { name: "create_article" } }
       }),
     });
 
@@ -106,19 +141,16 @@ Return JSON with:
     }
 
     const aiData = await response.json();
-    const responseText = aiData.choices?.[0]?.message?.content;
+    console.log('AI response received:', JSON.stringify(aiData).substring(0, 500));
 
-    if (!responseText) {
-      throw new Error('No response from AI');
+    // Extract from tool call
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== 'create_article') {
+      console.error('No valid tool call in response:', aiData);
+      throw new Error('AI did not return expected tool call');
     }
 
-    // Parse JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Could not parse AI response as JSON');
-    }
-
-    const articleData = JSON.parse(jsonMatch[0]);
+    const articleData = JSON.parse(toolCall.function.arguments);
 
     // Generate slug from title
     const slug = articleData.title
