@@ -62,6 +62,7 @@ export default function MomentumAcademy() {
   const [filterPublished, setFilterPublished] = useState<string>("all");
   
   const [createOpen, setCreateOpen] = useState(false);
+  const [previewArticle, setPreviewArticle] = useState<Article | null>(null);
   const [generating, setGenerating] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [transcriptUrl, setTranscriptUrl] = useState("");
@@ -304,6 +305,30 @@ export default function MomentumAcademy() {
       default:
         return <Badge>{type}</Badge>;
     }
+  };
+
+  const handleViewArticle = (article: Article) => {
+    if (article.is_published) {
+      window.open(`/academy/${article.slug}`, '_blank');
+    } else {
+      setPreviewArticle(article);
+    }
+  };
+
+  const renderArticleContent = (content: string | null) => {
+    if (!content) return null;
+    return content.split('\n').map((line, index) => {
+      if (line.startsWith('## ')) {
+        return <h2 key={index} className="text-xl font-semibold mt-6 mb-3">{line.replace('## ', '')}</h2>;
+      }
+      if (line.startsWith('### ')) {
+        return <h3 key={index} className="text-lg font-medium mt-4 mb-2">{line.replace('### ', '')}</h3>;
+      }
+      if (line.trim() === '') {
+        return <br key={index} />;
+      }
+      return <p key={index} className="mb-3 leading-relaxed">{line}</p>;
+    });
   };
 
   return (
@@ -666,7 +691,8 @@ export default function MomentumAcademy() {
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      onClick={() => window.open(`/academy/${article.slug}`, '_blank')}
+                      onClick={() => handleViewArticle(article)}
+                      title={article.is_published ? "View on public blog" : "Preview draft"}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -689,6 +715,56 @@ export default function MomentumAcademy() {
           ))}
         </div>
       )}
+
+      {/* Preview Dialog for Draft Articles */}
+      <Dialog open={!!previewArticle} onOpenChange={(open) => !open && setPreviewArticle(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-2">
+              {previewArticle && getContentTypeBadge(previewArticle.content_type)}
+              <Badge variant="outline">Draft Preview</Badge>
+              {previewArticle?.reading_time_minutes && (
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {previewArticle.reading_time_minutes} min read
+                </span>
+              )}
+            </div>
+            <DialogTitle className="text-2xl">{previewArticle?.title}</DialogTitle>
+            {previewArticle?.summary && (
+              <DialogDescription className="text-base mt-2">
+                {previewArticle.summary}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="prose prose-sm dark:prose-invert max-w-none py-4">
+              {previewArticle && renderArticleContent(previewArticle.content)}
+            </div>
+            {previewArticle?.source_name && (
+              <div className="mt-6 pt-4 border-t text-sm text-muted-foreground flex items-center gap-1">
+                <ExternalLink className="h-3 w-3" />
+                Source: {previewArticle.source_name}
+                {previewArticle.source_author && ` by ${previewArticle.source_author}`}
+              </div>
+            )}
+          </ScrollArea>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setPreviewArticle(null)}>
+              Close
+            </Button>
+            <Button onClick={() => {
+              if (previewArticle) {
+                togglePublished(previewArticle);
+                setPreviewArticle(null);
+              }
+            }}>
+              <Globe className="h-4 w-4 mr-2" />
+              Publish & View Live
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
