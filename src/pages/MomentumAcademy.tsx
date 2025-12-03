@@ -112,6 +112,8 @@ export default function MomentumAcademy() {
     }
   };
 
+  const [transcriptBlocked, setTranscriptBlocked] = useState(false);
+
   const extractTranscript = async () => {
     if (!transcriptUrl.trim()) {
       toast({ title: "Error", description: "Please enter a URL", variant: "destructive" });
@@ -119,6 +121,7 @@ export default function MomentumAcademy() {
     }
 
     setExtracting(true);
+    setTranscriptBlocked(false);
     try {
       const { data, error } = await supabase.functions.invoke('extract-content-transcript', {
         body: { url: transcriptUrl },
@@ -127,26 +130,49 @@ export default function MomentumAcademy() {
       if (error) throw error;
 
       if (data.success) {
-        setNewArticle({
-          ...newArticle,
-          source_content: data.transcript,
-          source_url: data.metadata?.source_url || transcriptUrl,
-          source_name: data.metadata?.source_name || "",
-          source_author: data.metadata?.author || "",
-        });
-        setTranscriptExtracted(true);
+        // Check if YouTube blocked the transcript
+        const isBlocked = data.transcript?.includes("YouTube is currently blocking") || 
+                         data.transcript?.includes("blocking us from fetching");
+        
         setExtractedMetadata({
           type: data.type,
           title: data.metadata?.title,
         });
         
-        if (data.requiresManualTranscript) {
+        if (isBlocked) {
+          // YouTube blocked - show metadata but prompt for manual transcript
+          setTranscriptBlocked(true);
+          setNewArticle({
+            ...newArticle,
+            source_content: "", // Leave empty for manual entry
+            source_url: data.metadata?.source_url || transcriptUrl,
+            source_name: data.metadata?.source_name || "YouTube",
+            source_author: data.metadata?.author || "",
+          });
+          setTranscriptExtracted(true);
           toast({ 
-            title: "Partial extraction", 
-            description: "Please paste the full transcript in the content area below" 
+            title: "Transcript Unavailable", 
+            description: "YouTube blocked auto-extraction. Please paste the transcript manually.",
+            variant: "destructive"
           });
         } else {
-          toast({ title: "Success", description: "Transcript extracted! Review and edit below." });
+          setNewArticle({
+            ...newArticle,
+            source_content: data.transcript,
+            source_url: data.metadata?.source_url || transcriptUrl,
+            source_name: data.metadata?.source_name || "",
+            source_author: data.metadata?.author || "",
+          });
+          setTranscriptExtracted(true);
+          
+          if (data.requiresManualTranscript) {
+            toast({ 
+              title: "Partial extraction", 
+              description: "Please paste the full transcript in the content area below" 
+            });
+          } else {
+            toast({ title: "Success", description: "Transcript extracted! Review and edit below." });
+          }
         }
       } else {
         toast({ title: "Error", description: data.error || "Failed to extract transcript", variant: "destructive" });
@@ -210,6 +236,7 @@ export default function MomentumAcademy() {
     setCreateOpen(false);
     setTranscriptUrl("");
     setTranscriptExtracted(false);
+    setTranscriptBlocked(false);
     setSaveToLibrary(true);
     setExtractedMetadata(null);
     setNewArticle({
@@ -343,10 +370,31 @@ export default function MomentumAcademy() {
                         )}
                       </Button>
                     </div>
-                    {transcriptExtracted && (
+                    {transcriptExtracted && !transcriptBlocked && (
                       <p className="text-sm text-green-600 flex items-center gap-1">
                         ✓ Content extracted - review and edit below
                       </p>
+                    )}
+                    {transcriptBlocked && (
+                      <div className="text-sm space-y-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
+                        <p className="text-amber-700 dark:text-amber-400 font-medium">
+                          ⚠️ YouTube blocked auto-extraction
+                        </p>
+                        <p className="text-amber-600 dark:text-amber-500 text-xs">
+                          To get the transcript manually:
+                        </p>
+                        <ol className="text-amber-600 dark:text-amber-500 text-xs list-decimal list-inside space-y-1">
+                          <li>Open the video on YouTube</li>
+                          <li>Click "...more" below the video</li>
+                          <li>Click "Show transcript"</li>
+                          <li>Copy all the text and paste below</li>
+                        </ol>
+                        {extractedMetadata?.title && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Video: <span className="font-medium">{extractedMetadata.title}</span>
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -418,15 +466,19 @@ export default function MomentumAcademy() {
 
                   <div className="space-y-2">
                     <Label>
-                      {transcriptExtracted 
-                        ? 'Extracted Transcript (review & edit)' 
-                        : newArticle.content_type === 'original' 
-                          ? 'Source Content (transcript, notes, etc.)' 
-                          : 'Content to Summarize'}
+                      {transcriptBlocked
+                        ? 'Paste YouTube Transcript Here'
+                        : transcriptExtracted 
+                          ? 'Extracted Transcript (review & edit)' 
+                          : newArticle.content_type === 'original' 
+                            ? 'Source Content (transcript, notes, etc.)' 
+                            : 'Content to Summarize'}
                     </Label>
                     <Textarea 
-                      placeholder="Paste your content here..."
-                      className="min-h-[200px] font-mono text-sm"
+                      placeholder={transcriptBlocked 
+                        ? "Paste the YouTube transcript here (copy from 'Show transcript' on YouTube)..." 
+                        : "Paste your content here..."}
+                      className={`min-h-[200px] font-mono text-sm ${transcriptBlocked && !newArticle.source_content ? 'border-amber-400 focus:border-amber-500' : ''}`}
                       value={newArticle.source_content}
                       onChange={(e) => setNewArticle({ ...newArticle, source_content: e.target.value })}
                     />
