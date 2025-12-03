@@ -20,6 +20,8 @@ import MyGrowthPlan from "./pages/MyGrowthPlan";
 import GrowthRoadmap from "./pages/GrowthRoadmap";
 import TrainingROI from "./pages/TrainingROI";
 import ManagerDashboard from "./pages/ManagerDashboard";
+import MomentumAcademy from "./pages/MomentumAcademy";
+import AcademyBlog from "./pages/AcademyBlog";
 import DashboardLayout from "./components/DashboardLayout";
 import NotFound from "./pages/NotFound";
 
@@ -81,7 +83,15 @@ const App = () => (
                 <ManagerDashboard />
               </ProtectedRoute>
             } />
+            <Route path="academy-admin" element={
+              <ProtectedRoute requireAdmin>
+                <MomentumAcademy />
+              </ProtectedRoute>
+            } />
           </Route>
+            {/* Public Academy Blog */}
+            <Route path="/academy" element={<AcademyBlog />} />
+            <Route path="/academy/:slug" element={<AcademyBlog />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

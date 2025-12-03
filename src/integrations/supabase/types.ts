@@ -14,6 +14,132 @@ export type Database = {
   }
   public: {
     Tables: {
+      academy_article_domains: {
+        Row: {
+          article_id: string
+          created_at: string
+          domain_id: string
+          id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          domain_id: string
+          id?: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          domain_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_article_domains_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "academy_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academy_article_domains_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "capability_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_articles: {
+        Row: {
+          content: string | null
+          content_type: string
+          created_at: string
+          id: string
+          is_published: boolean
+          published_at: string | null
+          reading_time_minutes: number | null
+          slug: string
+          source_author: string | null
+          source_name: string | null
+          source_url: string | null
+          summary: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          content_type?: string
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug: string
+          source_author?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          content_type?: string
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug?: string
+          source_author?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      academy_sources: {
+        Row: {
+          created_at: string
+          fetch_frequency_hours: number | null
+          id: string
+          is_active: boolean
+          last_fetched_at: string | null
+          name: string
+          source_type: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          fetch_frequency_hours?: number | null
+          id?: string
+          is_active?: boolean
+          last_fetched_at?: string | null
+          name: string
+          source_type?: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          fetch_frequency_hours?: number | null
+          id?: string
+          is_active?: boolean
+          last_fetched_at?: string | null
+          name?: string
+          source_type?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       achievements: {
         Row: {
           achieved_date: string | null
