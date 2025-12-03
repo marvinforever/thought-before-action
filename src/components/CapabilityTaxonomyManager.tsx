@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, Save, FolderTree } from "lucide-react";
+import { Loader2, Check, X, FolderTree, Filter } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Domain {
@@ -25,6 +23,7 @@ interface Capability {
 }
 
 interface DomainMapping {
+  id: string;
   capability_id: string;
   domain_id: string;
   is_primary: boolean;
@@ -35,10 +34,10 @@ export const CapabilityTaxonomyManager = () => {
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [mappings, setMappings] = useState<DomainMapping[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDomainFilter, setSelectedDomainFilter] = useState<string>("all");
+  const [pendingChanges, setPendingChanges] = useState<Map<string, string>>(new Map());
+  const [approvedCaps, setApprovedCaps] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [pendingChanges, setPendingChanges] = useState<Map<string, Set<string>>>(new Map());
-  const [primaryChanges, setPrimaryChanges] = useState<Map<string, string>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -63,21 +62,13 @@ export const CapabilityTaxonomyManager = () => {
       setMappings(mappingsRes.data || []);
 
       // Initialize pending changes from current mappings
-      const initialMappings = new Map<string, Set<string>>();
-      const initialPrimary = new Map<string, string>();
-      
+      const initialMappings = new Map<string, string>();
       (mappingsRes.data || []).forEach((m: DomainMapping) => {
-        if (!initialMappings.has(m.capability_id)) {
-          initialMappings.set(m.capability_id, new Set());
-        }
-        initialMappings.get(m.capability_id)!.add(m.domain_id);
         if (m.is_primary) {
-          initialPrimary.set(m.capability_id, m.domain_id);
+          initialMappings.set(m.capability_id, m.domain_id);
         }
       });
-      
       setPendingChanges(initialMappings);
-      setPrimaryChanges(initialPrimary);
     } catch (error) {
       console.error("Error loading taxonomy data:", error);
       toast({
@@ -90,75 +81,73 @@ export const CapabilityTaxonomyManager = () => {
     }
   };
 
-  const getCapabilityDomains = (capabilityId: string): Set<string> => {
-    return pendingChanges.get(capabilityId) || new Set();
+  const getCapabilityDomain = (capabilityId: string): string | undefined => {
+    return pendingChanges.get(capabilityId);
   };
 
-  const getPrimaryDomain = (capabilityId: string): string | undefined => {
-    return primaryChanges.get(capabilityId);
+  const getDomainName = (domainId: string): string => {
+    return domains.find(d => d.id === domainId)?.name || "Unknown";
   };
 
-  const toggleDomain = (capabilityId: string, domainId: string) => {
+  const changeDomain = (capabilityId: string, domainId: string) => {
     setPendingChanges(prev => {
-      const newMap = new Map(prev);
-      const currentDomains = new Set(newMap.get(capabilityId) || []);
-      
-      if (currentDomains.has(domainId)) {
-        currentDomains.delete(domainId);
-        // If we removed the primary, clear it
-        if (primaryChanges.get(capabilityId) === domainId) {
-          setPrimaryChanges(p => {
-            const newP = new Map(p);
-            newP.delete(capabilityId);
-            return newP;
-          });
-        }
-      } else {
-        currentDomains.add(domainId);
-        // If this is the first domain, make it primary
-        if (currentDomains.size === 1) {
-          setPrimaryChanges(p => {
-            const newP = new Map(p);
-            newP.set(capabilityId, domainId);
-            return newP;
-          });
-        }
-      }
-      
-      newMap.set(capabilityId, currentDomains);
-      return newMap;
-    });
-  };
-
-  const setPrimary = (capabilityId: string, domainId: string) => {
-    setPrimaryChanges(prev => {
       const newMap = new Map(prev);
       newMap.set(capabilityId, domainId);
       return newMap;
     });
+    // Remove from approved if changed
+    setApprovedCaps(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(capabilityId);
+      return newSet;
+    });
   };
 
-  const saveAllChanges = async () => {
+  const approveCap = (capabilityId: string) => {
+    setApprovedCaps(prev => {
+      const newSet = new Set(prev);
+      newSet.add(capabilityId);
+      return newSet;
+    });
+  };
+
+  const rejectCap = (capabilityId: string) => {
+    // Just remove approval - user should change the domain
+    setApprovedCaps(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(capabilityId);
+      return newSet;
+    });
+  };
+
+  const approveAllVisible = () => {
+    const visible = getFilteredCapabilities();
+    setApprovedCaps(prev => {
+      const newSet = new Set(prev);
+      visible.forEach(cap => newSet.add(cap.id));
+      return newSet;
+    });
+  };
+
+  const saveChanges = async () => {
     setSaving(true);
     try {
       // Delete all existing mappings
       const { error: deleteError } = await supabase
         .from("capability_domain_mappings")
         .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+        .neq("id", "00000000-0000-0000-0000-000000000000");
 
       if (deleteError) throw deleteError;
 
-      // Build new mappings
+      // Build new mappings from pending changes
       const newMappings: { capability_id: string; domain_id: string; is_primary: boolean }[] = [];
       
-      pendingChanges.forEach((domainIds, capabilityId) => {
-        domainIds.forEach(domainId => {
-          newMappings.push({
-            capability_id: capabilityId,
-            domain_id: domainId,
-            is_primary: primaryChanges.get(capabilityId) === domainId
-          });
+      pendingChanges.forEach((domainId, capabilityId) => {
+        newMappings.push({
+          capability_id: capabilityId,
+          domain_id: domainId,
+          is_primary: true
         });
       });
 
@@ -175,7 +164,6 @@ export const CapabilityTaxonomyManager = () => {
         description: `Updated ${newMappings.length} domain assignments`,
       });
 
-      // Reload to sync state
       loadData();
     } catch (error) {
       console.error("Error saving mappings:", error);
@@ -189,26 +177,40 @@ export const CapabilityTaxonomyManager = () => {
     }
   };
 
-  const filteredCapabilities = capabilities.filter(cap =>
-    cap.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cap.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getFilteredCapabilities = () => {
+    if (selectedDomainFilter === "all") {
+      return capabilities;
+    }
+    if (selectedDomainFilter === "unassigned") {
+      return capabilities.filter(cap => !pendingChanges.has(cap.id));
+    }
+    return capabilities.filter(cap => pendingChanges.get(cap.id) === selectedDomainFilter);
+  };
 
-  const getAssignmentStats = () => {
-    let assigned = 0;
+  const getStats = () => {
+    const byDomain = new Map<string, number>();
+    domains.forEach(d => byDomain.set(d.id, 0));
+    
     let unassigned = 0;
+    let approved = 0;
+
     capabilities.forEach(cap => {
-      const domains = pendingChanges.get(cap.id);
-      if (domains && domains.size > 0) {
-        assigned++;
+      const domainId = pendingChanges.get(cap.id);
+      if (domainId) {
+        byDomain.set(domainId, (byDomain.get(domainId) || 0) + 1);
       } else {
         unassigned++;
       }
+      if (approvedCaps.has(cap.id)) {
+        approved++;
+      }
     });
-    return { assigned, unassigned };
+
+    return { byDomain, unassigned, approved };
   };
 
-  const stats = getAssignmentStats();
+  const stats = getStats();
+  const filteredCaps = getFilteredCapabilities();
 
   if (loading) {
     return (
@@ -220,16 +222,8 @@ export const CapabilityTaxonomyManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Domains</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{domains.length}</div>
-          </CardContent>
-        </Card>
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Capabilities</CardTitle>
@@ -243,7 +237,7 @@ export const CapabilityTaxonomyManager = () => {
             <CardTitle className="text-sm font-medium text-muted-foreground">Assigned</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.assigned}</div>
+            <div className="text-2xl font-bold text-green-600">{capabilities.length - stats.unassigned}</div>
           </CardContent>
         </Card>
         <Card>
@@ -254,119 +248,146 @@ export const CapabilityTaxonomyManager = () => {
             <div className="text-2xl font-bold text-amber-600">{stats.unassigned}</div>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Approved</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.approved}</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Domain Legend */}
+      {/* Domain Distribution */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <FolderTree className="h-5 w-5" />
-            Domains
+            Domain Distribution
           </CardTitle>
-          <CardDescription>Click checkboxes to assign capabilities to domains. Click domain badge to set as primary.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {domains.map((domain, idx) => (
-              <Badge key={domain.id} variant="outline" className="text-xs">
-                {idx + 1}. {domain.name}
+            {domains.map((domain) => (
+              <Badge 
+                key={domain.id} 
+                variant="outline" 
+                className="text-xs cursor-pointer hover:bg-accent"
+                onClick={() => setSelectedDomainFilter(domain.id)}
+              >
+                {domain.name}: {stats.byDomain.get(domain.id) || 0}
               </Badge>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Assignment Table */}
+      {/* Main Review Interface */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <CardTitle>Capability → Domain Assignments</CardTitle>
-              <CardDescription>Assign each capability to one or more domains</CardDescription>
+              <CardTitle>Review Domain Assignments</CardTitle>
+              <CardDescription>Filter by domain, review AI suggestions, and adjust as needed</CardDescription>
             </div>
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search capabilities..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64"
-                />
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedDomainFilter} onValueChange={setSelectedDomainFilter}>
+                  <SelectTrigger className="w-[250px]">
+                    <SelectValue placeholder="Filter by domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Capabilities ({capabilities.length})</SelectItem>
+                    <SelectItem value="unassigned">Unassigned ({stats.unassigned})</SelectItem>
+                    {domains.map(domain => (
+                      <SelectItem key={domain.id} value={domain.id}>
+                        {domain.name} ({stats.byDomain.get(domain.id) || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Button onClick={saveAllChanges} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Save All Changes
+              <Button variant="outline" onClick={approveAllVisible} size="sm">
+                <Check className="h-4 w-4 mr-2" />
+                Approve All Visible
+              </Button>
+              <Button onClick={saveChanges} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Save Changes
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[600px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[250px]">Capability</TableHead>
-                  <TableHead className="w-[150px]">Current Category</TableHead>
-                  {domains.map((domain, idx) => (
-                    <TableHead key={domain.id} className="text-center w-[80px] text-xs">
-                      {idx + 1}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCapabilities.map((cap) => {
-                  const capDomains = getCapabilityDomains(cap.id);
-                  const primaryDomain = getPrimaryDomain(cap.id);
-                  
-                  return (
-                    <TableRow key={cap.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{cap.name}</span>
-                          {capDomains.size === 0 && (
-                            <span className="text-xs text-amber-600">No domain assigned</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          {cap.category || "Uncategorized"}
-                        </Badge>
-                      </TableCell>
-                      {domains.map((domain) => {
-                        const isAssigned = capDomains.has(domain.id);
-                        const isPrimary = primaryDomain === domain.id;
-                        
-                        return (
-                          <TableCell key={domain.id} className="text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              <Checkbox
-                                checked={isAssigned}
-                                onCheckedChange={() => toggleDomain(cap.id, domain.id)}
-                              />
-                              {isAssigned && (
-                                <button
-                                  onClick={() => setPrimary(cap.id, domain.id)}
-                                  className={`text-[10px] px-1 rounded ${
-                                    isPrimary 
-                                      ? "bg-primary text-primary-foreground" 
-                                      : "text-muted-foreground hover:text-foreground"
-                                  }`}
-                                >
-                                  {isPrimary ? "★" : "○"}
-                                </button>
-                              )}
-                            </div>
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <ScrollArea className="h-[500px]">
+            <div className="space-y-2">
+              {filteredCaps.map((cap) => {
+                const currentDomainId = getCapabilityDomain(cap.id);
+                const isApproved = approvedCaps.has(cap.id);
+                
+                return (
+                  <div 
+                    key={cap.id} 
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      isApproved ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-card'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0 mr-4">
+                      <div className="font-medium truncate">{cap.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Original category: {cap.category || "None"}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <Select 
+                        value={currentDomainId || ""} 
+                        onValueChange={(value) => changeDomain(cap.id, value)}
+                      >
+                        <SelectTrigger className="w-[220px]">
+                          <SelectValue placeholder="Select domain" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {domains.map(domain => (
+                            <SelectItem key={domain.id} value={domain.id}>
+                              {domain.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant={isApproved ? "default" : "outline"}
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => approveCap(cap.id)}
+                          title="Approve"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => rejectCap(cap.id)}
+                          title="Needs review"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {filteredCaps.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No capabilities found for this filter
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>
