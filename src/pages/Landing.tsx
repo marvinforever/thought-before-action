@@ -35,12 +35,7 @@ const Landing = () => {
               <Link to="/academy" className="text-sm text-muted-foreground hover:text-accent transition-colors">Academy</Link>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="ghost" asChild>
-                <Link to="/auth">Sign In</Link>
-              </Button>
-              <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-                <Link to="/auth">Get Started</Link>
-              </Button>
+              <span className="text-sm font-medium text-foreground">Text <span className="text-accent font-bold">"I'm Ready"</span> to <span className="font-bold">402.881.9986</span></span>
             </div>
           </div>
         </div>
@@ -65,16 +60,13 @@ const Landing = () => {
               Transform capability gaps into career momentum with AI-driven assessments, 
               tailored roadmaps, and your personal AI career coach.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" asChild className="text-lg px-8 bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/30">
-                <Link to="/auth">
-                  Start Your Journey
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="text-lg px-8 border-primary/30 hover:border-accent hover:text-accent">
-                <a href="#how-it-works">See How It Works</a>
-              </Button>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-lg font-medium text-foreground">
+                Text <span className="text-accent font-bold">"I'm Ready"</span> to
+              </p>
+              <a href="sms:4028819986?body=I'm%20Ready" className="text-3xl font-bold text-accent hover:underline">
+                402.881.9986
+              </a>
             </div>
           </div>
           
@@ -322,16 +314,13 @@ const Landing = () => {
           <p className="text-xl text-accent-foreground/80 mb-8">
             Join forward-thinking organizations using Jericho to transform employee development.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" asChild className="text-lg px-8 bg-primary text-primary-foreground hover:bg-primary/90">
-              <Link to="/auth">
-                Get Started Free
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="text-lg px-8 bg-transparent border-accent-foreground/30 text-accent-foreground hover:bg-accent-foreground/10">
-              <Link to="/academy">Explore Academy</Link>
-            </Button>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-lg font-medium text-accent-foreground">
+              Text <span className="font-bold">"I'm Ready"</span> to
+            </p>
+            <a href="sms:4028819986?body=I'm%20Ready" className="text-3xl font-bold text-accent-foreground hover:underline">
+              402.881.9986
+            </a>
           </div>
         </div>
       </section>
