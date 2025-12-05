@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { MessageSquare, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JerichoChat } from "@/components/JerichoChat";
@@ -8,6 +9,7 @@ export function FloatingJerichoButton() {
   const [isTextOpen, setIsTextOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [contextType, setContextType] = useState<string | undefined>();
+  const location = useLocation();
 
   useEffect(() => {
     // Listen for custom events to open Jericho with specific context
@@ -19,6 +21,11 @@ export function FloatingJerichoButton() {
     window.addEventListener('openJerichoChat' as any, handleOpenChat);
     return () => window.removeEventListener('openJerichoChat' as any, handleOpenChat);
   }, []);
+
+  // Hide on public landing page
+  if (location.pathname === "/") {
+    return null;
+  }
 
   return (
     <>
