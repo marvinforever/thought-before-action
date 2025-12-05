@@ -35,7 +35,7 @@ const Landing = () => {
               <Link to="/academy" className="text-sm text-muted-foreground hover:text-accent transition-colors">Academy</Link>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-foreground">Text <span className="text-accent font-bold">"I'm Ready"</span> to <span className="font-bold">402.881.9986</span></span>
+              <span className="text-sm font-medium text-foreground">Text <span className="text-accent font-bold">"Jericho"</span> to <span className="font-bold">402.881.9986</span></span>
             </div>
           </div>
         </div>
@@ -62,9 +62,9 @@ const Landing = () => {
             </p>
             <div className="flex flex-col items-center gap-2">
               <p className="text-lg font-medium text-foreground">
-                Text <span className="text-accent font-bold">"I'm Ready"</span> to
+                Text <span className="text-accent font-bold">"Jericho"</span> to
               </p>
-              <a href="sms:4028819986?body=I'm%20Ready" className="text-3xl font-bold text-accent hover:underline">
+              <a href="sms:4028819986?body=Jericho" className="text-3xl font-bold text-accent hover:underline">
                 402.881.9986
               </a>
             </div>
@@ -316,9 +316,9 @@ const Landing = () => {
           </p>
           <div className="flex flex-col items-center gap-2">
             <p className="text-lg font-medium text-accent-foreground">
-              Text <span className="font-bold">"I'm Ready"</span> to
+              Text <span className="font-bold">"Jericho"</span> to
             </p>
-            <a href="sms:4028819986?body=I'm%20Ready" className="text-3xl font-bold text-accent-foreground hover:underline">
+            <a href="sms:4028819986?body=Jericho" className="text-3xl font-bold text-accent-foreground hover:underline">
               402.881.9986
             </a>
           </div>
