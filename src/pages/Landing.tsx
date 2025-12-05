@@ -32,7 +32,7 @@ const Landing = () => {
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-sm text-muted-foreground hover:text-accent transition-colors">Features</a>
               <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-accent transition-colors">How It Works</a>
-              <Link to="/academy" className="text-sm text-muted-foreground hover:text-accent transition-colors">Academy</Link>
+              
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-foreground">Text <span className="text-accent font-bold">"Jericho"</span> to <span className="font-bold">402.881.9986</span></span>
