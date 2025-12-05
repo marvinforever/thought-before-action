@@ -74,10 +74,10 @@ const Landing = () => {
           <div className="mt-16 relative">
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10" />
             <div className="bg-gradient-to-br from-primary/20 to-accent/30 rounded-2xl p-8 backdrop-blur-sm border border-accent/30">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {["Leadership", "Communication", "Strategic Thinking"].map((cap, i) => (
                   <div key={i} className="bg-background/80 rounded-xl p-4 border border-border/50">
-                    <div className="text-sm font-medium text-foreground mb-2">{cap}</div>
+                    <div className="text-sm font-medium text-foreground mb-2 truncate">{cap}</div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-accent rounded-full transition-all duration-1000"
