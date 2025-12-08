@@ -112,6 +112,32 @@ Deno.serve(async (req) => {
 
     if (updateError) {
       console.error('Password update error:', updateError)
+      
+      // Check for specific error types and return user-friendly messages
+      const authError = updateError as any;
+      
+      if (authError.code === 'weak_password') {
+        const reasons = authError.reasons || [];
+        
+        if (reasons.includes('pwned')) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'This password has been found in a data breach and cannot be used. Please generate a unique password.',
+              code: 'password_compromised'
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            error: 'This password is too weak. Please use a stronger password with uppercase, lowercase, numbers, and special characters.',
+            code: 'password_weak'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
       throw updateError
     }
 
