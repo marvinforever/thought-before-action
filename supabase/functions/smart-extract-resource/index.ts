@@ -42,6 +42,87 @@ function extractYouTubeVideoId(url: string): string | null {
   return null;
 }
 
+// Extract YouTube playlist ID from URL
+function extractYouTubePlaylistId(url: string): string | null {
+  const match = url.match(/[?&]list=([^&\n?#]+)/);
+  return match ? match[1] : null;
+}
+
+// Fetch all videos from a YouTube playlist using YouTube Data API v3
+async function getYouTubePlaylistVideos(playlistId: string): Promise<Array<{
+  videoId: string;
+  title: string;
+  description: string;
+  thumbnail_url: string;
+  author: string;
+}>> {
+  const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY');
+  
+  if (!YOUTUBE_API_KEY) {
+    console.error('YOUTUBE_API_KEY not configured');
+    return [];
+  }
+  
+  const videos: Array<{
+    videoId: string;
+    title: string;
+    description: string;
+    thumbnail_url: string;
+    author: string;
+  }> = [];
+  
+  let nextPageToken: string | null = null;
+  let pageCount = 0;
+  const maxPages = 10; // Max 500 videos (50 per page)
+  
+  try {
+    do {
+      const apiUrl = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
+      apiUrl.searchParams.set('part', 'snippet');
+      apiUrl.searchParams.set('playlistId', playlistId);
+      apiUrl.searchParams.set('maxResults', '50');
+      apiUrl.searchParams.set('key', YOUTUBE_API_KEY);
+      if (nextPageToken) {
+        apiUrl.searchParams.set('pageToken', nextPageToken);
+      }
+      
+      const response = await fetch(apiUrl.toString());
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('YouTube API error:', response.status, errorText);
+        break;
+      }
+      
+      const data = await response.json();
+      
+      for (const item of data.items || []) {
+        const snippet = item.snippet;
+        if (snippet?.resourceId?.videoId) {
+          videos.push({
+            videoId: snippet.resourceId.videoId,
+            title: snippet.title || 'Untitled Video',
+            description: snippet.description || '',
+            thumbnail_url: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || '',
+            author: snippet.videoOwnerChannelTitle || snippet.channelTitle || 'Unknown'
+          });
+        }
+      }
+      
+      nextPageToken = data.nextPageToken || null;
+      pageCount++;
+      
+    } while (nextPageToken && pageCount < maxPages);
+    
+    console.log(`Extracted ${videos.length} videos from playlist ${playlistId}`);
+    return videos;
+    
+  } catch (error) {
+    console.error('Error fetching playlist videos:', error);
+    return [];
+  }
+}
+
 // Get video metadata using YouTube oEmbed API
 async function getYouTubeVideoMetadata(videoId: string): Promise<Partial<ResourceMetadata>> {
   try {
@@ -290,14 +371,53 @@ serve(async (req) => {
 
     console.log(`Processing ${urls.length} URLs, ${existingUrlMap.size} duplicates found`);
 
-    const results: ResourceMetadata[] = [];
-
+    // Expand playlist URLs into individual video URLs
+    const expandedUrls: string[] = [];
+    const playlistInfo: { playlistId: string; videoCount: number } | null = null;
+    
     for (const url of urls) {
       const trimmedUrl = url.trim();
       if (!trimmedUrl) continue;
+      
+      // Check if this is a playlist URL
+      const playlistId = extractYouTubePlaylistId(trimmedUrl);
+      if (playlistId) {
+        console.log(`Detected playlist: ${playlistId}, fetching videos...`);
+        const playlistVideos = await getYouTubePlaylistVideos(playlistId);
+        
+        if (playlistVideos.length > 0) {
+          // Add each video URL to the expanded list
+          for (const video of playlistVideos) {
+            expandedUrls.push(`https://www.youtube.com/watch?v=${video.videoId}`);
+          }
+          console.log(`Expanded playlist to ${playlistVideos.length} videos`);
+        } else {
+          // If playlist extraction failed, try to process as regular URL
+          expandedUrls.push(trimmedUrl);
+        }
+      } else {
+        expandedUrls.push(trimmedUrl);
+      }
+    }
+
+    // Re-check for duplicates with expanded URLs
+    const { data: expandedExistingResources } = await supabase
+      .from('resources')
+      .select('id, url')
+      .eq('company_id', companyId)
+      .in('url', expandedUrls);
+
+    const expandedExistingUrlMap = new Map(
+      (expandedExistingResources || []).map(r => [r.url, r.id])
+    );
+
+    const results: ResourceMetadata[] = [];
+
+    for (const trimmedUrl of expandedUrls) {
+      if (!trimmedUrl) continue;
 
       // Check for duplicate
-      const existingId = existingUrlMap.get(trimmedUrl);
+      const existingId = expandedExistingUrlMap.get(trimmedUrl);
       if (existingId) {
         results.push({
           url: trimmedUrl,
