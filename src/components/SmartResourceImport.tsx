@@ -9,7 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Link2, Loader2, CheckCircle2, XCircle, Edit2, Save, 
-  Sparkles, AlertCircle, Search, X, ChevronDown, ChevronUp 
+  Sparkles, AlertCircle, Search, X, ChevronDown, ChevronUp,
+  ListVideo
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -59,6 +60,11 @@ export default function SmartResourceImport() {
   };
 
   const urlCount = useMemo(() => parseUrls(urlInput).length, [urlInput]);
+  
+  // Detect if any URL contains a playlist
+  const hasPlaylist = useMemo(() => {
+    return parseUrls(urlInput).some(url => url.includes('list='));
+  }, [urlInput]);
 
   const handleExtract = async () => {
     const urls = parseUrls(urlInput);
@@ -294,9 +300,17 @@ https://coursera.org/course/...`}
             className="font-mono text-sm"
           />
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              {urlCount > 0 ? `${urlCount} URL${urlCount > 1 ? 's' : ''} detected` : 'No URLs detected'}
-            </span>
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">
+                {urlCount > 0 ? `${urlCount} URL${urlCount > 1 ? 's' : ''} detected` : 'No URLs detected'}
+              </span>
+              {hasPlaylist && (
+                <div className="flex items-center gap-2 text-sm text-primary">
+                  <ListVideo className="h-4 w-4" />
+                  <span>YouTube Playlist detected — will extract all videos</span>
+                </div>
+              )}
+            </div>
             <Button 
               onClick={handleExtract} 
               disabled={extracting || urlCount === 0}
@@ -304,7 +318,7 @@ https://coursera.org/course/...`}
               {extracting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
+                  {hasPlaylist ? 'Extracting playlist...' : 'Analyzing...'}
                 </>
               ) : (
                 <>
