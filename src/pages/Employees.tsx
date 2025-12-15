@@ -425,8 +425,8 @@ const Employees = () => {
 
       if (resetError) throw resetError;
 
-      // Send the welcome email
-      const loginUrl = `${window.location.origin}/auth`;
+      // Send the welcome email - use production URL, not preview URL
+      const loginUrl = 'https://thought-before-action.lovable.app/auth';
       const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
         body: {
           email: employeeForWelcomeEmail.email,
@@ -465,7 +465,8 @@ const Employees = () => {
     let failCount = 0;
 
     try {
-      const loginUrl = `${window.location.origin}/auth`;
+      // Use production URL, not preview URL
+      const loginUrl = 'https://thought-before-action.lovable.app/auth';
       
       for (const employeeId of Array.from(selectedEmployees)) {
         const employee = employees.find(e => e.id === employeeId);
