@@ -32,23 +32,12 @@ export function FloatingJerichoButton() {
       <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
         <Button
           size="lg"
-          variant="secondary"
-          className="rounded-full shadow-lg hover:shadow-xl transition-all h-12 w-12 p-0"
-          onClick={() => setIsVoiceOpen(true)}
-          title="Voice chat with Jericho"
-        >
-          <Mic className="h-5 w-5" />
-          <span className="sr-only">Voice chat with Jericho</span>
-        </Button>
-        
-        <Button
-          size="lg"
           className="rounded-full shadow-lg hover:shadow-xl transition-all h-14 w-14 p-0"
           onClick={() => setIsTextOpen(true)}
-          title="Text chat with Jericho"
+          title="Chat with Jericho"
         >
           <MessageSquare className="h-6 w-6" />
-          <span className="sr-only">Text chat with Jericho</span>
+          <span className="sr-only">Chat with Jericho</span>
         </Button>
       </div>
 
