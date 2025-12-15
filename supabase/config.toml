@@ -119,3 +119,6 @@ verify_jwt = true
 
 [functions.generate-academy-article]
 verify_jwt = true
+
+[functions.admin-force-reset-password]
+verify_jwt = false
