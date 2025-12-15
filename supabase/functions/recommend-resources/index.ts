@@ -14,6 +14,7 @@ serve(async (req) => {
   try {
     const { employeeId, companyId, triggerSource } = await req.json();
 
+    // Client for reading data (uses user's auth)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -22,6 +23,12 @@ serve(async (req) => {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
+    );
+
+    // Admin client for inserting recommendations (bypasses RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     // Fetch employee capabilities with gaps
@@ -283,7 +290,7 @@ Provide recommendations now, ensuring they match the employee's learning prefere
       };
     });
 
-    const { data: inserted, error: insertError } = await supabaseClient
+    const { data: inserted, error: insertError } = await supabaseAdmin
       .from('content_recommendations')
       .insert(recommendationsToInsert)
       .select();
