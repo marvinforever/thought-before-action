@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles, X, ChevronDown } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Target, TrendingUp, FileText, RotateCw, Sparkles, X, ChevronDown, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
@@ -1154,7 +1154,7 @@ export default function MyGrowthPlan() {
                       </p>
                     )}
                     <div className="flex gap-2">
-                      {resource.external_url && (
+                      {resource.external_url ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1169,6 +1169,23 @@ export default function MyGrowthPlan() {
                           >
                             View Resource
                             <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          asChild
+                        >
+                          <a
+                            href={`https://www.google.com/search?q=${encodeURIComponent(resource.title + (resource.authors ? ' ' + resource.authors : ''))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2"
+                          >
+                            Find Resource
+                            <Search className="h-3 w-3" />
                           </a>
                         </Button>
                       )}
@@ -1265,7 +1282,7 @@ export default function MyGrowthPlan() {
                         </p>
                       )}
                       <div className="flex gap-2">
-                        {resource.external_url && (
+                        {resource.external_url ? (
                           <Button
                             variant="outline"
                             size="sm"
@@ -1281,6 +1298,24 @@ export default function MyGrowthPlan() {
                             >
                               View Resource
                               <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            asChild
+                            onClick={() => markAsClicked(item.id)}
+                          >
+                            <a
+                              href={`https://www.google.com/search?q=${encodeURIComponent(resource.title + (resource.authors ? ' ' + resource.authors : ''))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2"
+                            >
+                              Find Resource
+                              <Search className="h-3 w-3" />
                             </a>
                           </Button>
                         )}
