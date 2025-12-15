@@ -26,20 +26,48 @@ const ResetPassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we have a valid session from the reset link
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    // If the recovery link uses PKCE (?code=...), we must exchange it for a session.
+    const bootstrapRecoverySession = async () => {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const hasHashToken = url.hash.includes("access_token=");
+
+      try {
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        }
+
+        // Hash-token flows may need a short tick before the session is available.
+        let { data: { session } } = await supabase.auth.getSession();
+        if (!session && hasHashToken) {
+          await new Promise((r) => setTimeout(r, 150));
+          ({ data: { session } } = await supabase.auth.getSession());
+        }
+
+        if (!session) {
+          toast({
+            title: "Invalid or expired link",
+            description: "Please request a new password reset link.",
+            variant: "destructive",
+          });
+          navigate("/auth");
+          return;
+        }
+      } catch (error: any) {
         toast({
           title: "Invalid or expired link",
-          description: "Please request a new password reset link.",
+          description: error?.message ?? "Please request a new password reset link.",
           variant: "destructive",
         });
         navigate("/auth");
+        return;
+      } finally {
+        setChecking(false);
       }
-      setChecking(false);
     };
-    checkSession();
+
+    bootstrapRecoverySession();
   }, [navigate, toast]);
 
   const getPasswordRequirements = (pwd: string) => [

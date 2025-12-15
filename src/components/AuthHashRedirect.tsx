@@ -3,21 +3,32 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 /**
  * Ensures password recovery links work even when the backend falls back to the Site URL ("/").
- * Supabase/Lovable Cloud recovery links often land at "/#access_token=...&type=recovery".
+ * Recovery links can arrive as:
+ * - /#access_token=...&type=recovery
+ * - /?code=... (PKCE) (sometimes with type=recovery)
  */
 export function AuthHashRedirect() {
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Only auto-redirect when the user lands on the public root.
+    if (location.pathname !== "/") return;
+
     const hash = location.hash ?? "";
-    const isRecovery = hash.includes("type=recovery") || hash.includes("error_description=Email%20link%20is%20invalid%20or%20has%20expired") || hash.includes("access_token=");
+    const search = location.search ?? "";
+
+    const isRecovery =
+      hash.includes("type=recovery") ||
+      hash.includes("access_token=") ||
+      search.includes("type=recovery") ||
+      search.includes("code=");
 
     if (!isRecovery) return;
 
-    // Preserve the full hash payload so ResetPassword can pick up the session.
-    navigate(`/reset-password${hash}`, { replace: true });
-  }, [location.hash, navigate]);
+    // Preserve query + hash so ResetPassword can complete the auth recovery flow.
+    navigate(`/reset-password${search}${hash}`, { replace: true });
+  }, [location.pathname, location.search, location.hash, navigate]);
 
   return null;
 }
