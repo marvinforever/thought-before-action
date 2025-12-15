@@ -54,11 +54,12 @@ serve(async (req) => {
       `)
       .eq("profile_id", employeeId);
 
-    // Get goals
+    // Get goals - ONLY professional goals (personal goals cannot legally be used in reviews)
     const { data: goals } = await supabase
       .from("ninety_day_targets")
-      .select("goal_text, completed, category")
+      .select("goal_text, completed, category, goal_type")
       .eq("profile_id", employeeId)
+      .neq("goal_type", "personal") // Exclude personal goals from performance reviews
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -70,12 +71,13 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    // Get habits (leading indicators) and completions
+    // Get habits (leading indicators) - ONLY professional habits (personal habits cannot legally be used in reviews)
     const { data: habits } = await supabase
       .from("leading_indicators")
-      .select("habit_name, habit_description, current_streak, longest_streak, target_frequency")
+      .select("habit_name, habit_description, current_streak, longest_streak, target_frequency, habit_type")
       .eq("profile_id", employeeId)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .neq("habit_type", "personal"); // Exclude personal habits from performance reviews
 
     const { data: habitCompletions } = await supabase
       .from("habit_completions")
