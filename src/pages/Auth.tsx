@@ -13,7 +13,15 @@ const Auth = () => {
   const navigate = useNavigate();
   
   // Check if user is already logged in and redirect to dashboard
+  // But skip redirect if this is a password recovery flow
   useEffect(() => {
+    const isRecoveryFlow = window.location.hash.includes("type=recovery") || 
+                           window.location.search.includes("type=recovery") ||
+                           window.location.search.includes("code=");
+    
+    // Don't auto-redirect if this looks like a recovery flow
+    if (isRecoveryFlow) return;
+
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -23,6 +31,8 @@ const Auth = () => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Don't redirect on password recovery events
+      if (event === "PASSWORD_RECOVERY") return;
       if (session) {
         navigate("/dashboard/my-growth-plan", { replace: true });
       }
