@@ -1754,6 +1754,7 @@ export type Database = {
           current_streak: number
           habit_description: string | null
           habit_name: string
+          habit_type: string
           id: string
           is_active: boolean
           linked_capability_id: string | null
@@ -1769,6 +1770,7 @@ export type Database = {
           current_streak?: number
           habit_description?: string | null
           habit_name: string
+          habit_type?: string
           id?: string
           is_active?: boolean
           linked_capability_id?: string | null
@@ -1784,6 +1786,7 @@ export type Database = {
           current_streak?: number
           habit_description?: string | null
           habit_name?: string
+          habit_type?: string
           id?: string
           is_active?: boolean
           linked_capability_id?: string | null
@@ -1975,6 +1978,7 @@ export type Database = {
           created_at: string
           goal_number: number
           goal_text: string | null
+          goal_type: string
           id: string
           profile_id: string
           quarter: string
@@ -1992,6 +1996,7 @@ export type Database = {
           created_at?: string
           goal_number: number
           goal_text?: string | null
+          goal_type?: string
           id?: string
           profile_id: string
           quarter: string
@@ -2009,6 +2014,7 @@ export type Database = {
           created_at?: string
           goal_number?: number
           goal_text?: string | null
+          goal_type?: string
           id?: string
           profile_id?: string
           quarter?: string
