@@ -113,7 +113,9 @@ serve(async (req) => {
     );
 
     // Fetch available resources with their capabilities via junction table
-    const { data: resourcesWithCaps, error: resourcesError } = await supabaseClient
+    const excludeIds = [...completedResourceIds, ...activeRecommendedIds];
+    
+    let resourceQuery = supabaseClient
       .from('resources')
       .select(`
         id,
@@ -131,8 +133,14 @@ serve(async (req) => {
         )
       `)
       .eq('company_id', companyId)
-      .eq('is_active', true)
-      .not('id', 'in', `(${[...completedResourceIds, ...activeRecommendedIds].join(',') || 'null'})`);
+      .eq('is_active', true);
+    
+    // Only add the exclusion filter if there are IDs to exclude
+    if (excludeIds.length > 0) {
+      resourceQuery = resourceQuery.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
+    
+    const { data: resourcesWithCaps, error: resourcesError } = await resourceQuery;
 
     if (resourcesError) throw resourcesError;
 
