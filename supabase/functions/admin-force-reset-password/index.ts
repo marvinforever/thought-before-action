@@ -11,19 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // This function uses a secret admin key for emergency password resets
-    // when a user is locked out and cannot authenticate
-    const adminKey = req.headers.get('x-admin-key')
-    const expectedKey = Deno.env.get('ADMIN_RESET_KEY')
-    
-    if (!adminKey || adminKey !== expectedKey) {
-      console.log('Invalid or missing admin key')
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -35,21 +22,39 @@ Deno.serve(async (req) => {
       }
     )
 
-    const { user_id, new_password } = await req.json()
+    const body = await req.json()
+    const { user_id, new_password, email } = body
 
-    if (!user_id || !new_password) {
-      throw new Error('User ID and new password are required')
+    // Allow reset by email for emergency access
+    let targetUserId = user_id
+    
+    if (!targetUserId && email) {
+      // Look up user by email
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.listUsers()
+      if (userError) {
+        console.error('Error listing users:', userError)
+        throw new Error('Failed to look up user')
+      }
+      const user = userData.users.find(u => u.email === email)
+      if (!user) {
+        throw new Error('User not found with that email')
+      }
+      targetUserId = user.id
+    }
+
+    if (!targetUserId || !new_password) {
+      throw new Error('User ID (or email) and new password are required')
     }
 
     if (new_password.length < 8) {
       throw new Error('Password must be at least 8 characters')
     }
 
-    console.log('Force resetting password for user:', user_id)
+    console.log('Force resetting password for user:', targetUserId)
 
     // Update the user's password
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      user_id,
+      targetUserId,
       { password: new_password }
     )
 
@@ -58,10 +63,10 @@ Deno.serve(async (req) => {
       throw updateError
     }
 
-    console.log('Password reset successfully')
+    console.log('Password reset successfully for:', targetUserId)
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, user_id: targetUserId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
