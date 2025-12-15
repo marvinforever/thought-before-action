@@ -21,6 +21,7 @@ type Habit = {
   habit_name: string;
   habit_description: string | null;
   target_frequency?: string;
+  habit_type?: string;
 };
 
 type AddHabitDialogProps = {
@@ -40,6 +41,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
   const [habitName, setHabitName] = useState("");
   const [habitDescription, setHabitDescription] = useState("");
   const [frequency, setFrequency] = useState("daily");
+  const [habitType, setHabitType] = useState<"professional" | "personal">("professional");
   const [saving, setSaving] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestedHabit[]>([]);
@@ -51,11 +53,13 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
       setHabitName(editingHabit.habit_name);
       setHabitDescription(editingHabit.habit_description || "");
       setFrequency(editingHabit.target_frequency || "daily");
+      setHabitType((editingHabit.habit_type as "professional" | "personal") || "professional");
     } else if (!open) {
       // Reset form when dialog closes
       setHabitName("");
       setHabitDescription("");
       setFrequency("daily");
+      setHabitType("professional");
       setSuggestions([]);
     }
   }, [editingHabit, open]);
@@ -120,6 +124,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
             habit_name: habitName.trim(),
             habit_description: habitDescription.trim() || null,
             target_frequency: frequency,
+            habit_type: habitType,
           })
           .eq("id", editingHabit.id)
           .eq("profile_id", user.id);
@@ -146,6 +151,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
           habit_name: habitName.trim(),
           habit_description: habitDescription.trim() || null,
           target_frequency: frequency,
+          habit_type: habitType,
           is_active: true,
         });
 
@@ -175,6 +181,7 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
     setHabitName("");
     setHabitDescription("");
     setFrequency("daily");
+    setHabitType("professional");
     setSuggestions([]);
     onClose();
   };
@@ -233,6 +240,25 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1.5">
                   How often should you complete this habit?
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="habit-type">Habit Type</Label>
+                <Select value={habitType} onValueChange={(v) => setHabitType(v as "professional" | "personal")}>
+                  <SelectTrigger id="habit-type" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  {habitType === "personal" 
+                    ? "Personal habits are private and will not be included in performance reviews."
+                    : "Professional habits may be referenced in performance reviews."
+                  }
                 </p>
               </div>
 
