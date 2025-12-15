@@ -25,15 +25,27 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [streamBuffer, setStreamBuffer] = useState(''); // Full content from server
+  const [displayedChars, setDisplayedChars] = useState(0); // Characters revealed so far
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or content updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, displayedChars]);
+
+  // Typing effect - reveal characters slowly
+  useEffect(() => {
+    if (isLoading && streamBuffer && displayedChars < streamBuffer.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedChars(prev => prev + 1);
+      }, 40); // 40ms per character for slower, human-like typing
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading, streamBuffer, displayedChars]);
 
   // Load conversation history on mount
   useEffect(() => {
@@ -101,6 +113,8 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setStreamBuffer(''); // Reset buffer for new message
+    setDisplayedChars(0); // Reset displayed chars
 
     // Add placeholder assistant message that will be updated
     const placeholderIndex = messages.length + 1;
@@ -177,15 +191,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
               
               if (data.content) {
                 accumulatedContent += data.content;
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  newMessages[placeholderIndex] = {
-                    role: 'assistant',
-                    content: accumulatedContent,
-                    timestamp: new Date(),
-                  };
-                  return newMessages;
-                });
+                setStreamBuffer(accumulatedContent); // Update buffer, typing effect will reveal it
               }
               
               if (data.done) {
@@ -269,9 +275,12 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
               }`}
             >
               <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                {msg.content}
+                {/* Show typed-out content for streaming message, otherwise show full content */}
+                {msg.role === 'assistant' && isLoading && idx === messages.length - 1
+                  ? streamBuffer.slice(0, displayedChars)
+                  : msg.content}
                 {/* Show typing cursor for active streaming message */}
-                {msg.role === 'assistant' && isLoading && idx === messages.length - 1 && (
+                {msg.role === 'assistant' && isLoading && idx === messages.length - 1 && displayedChars < streamBuffer.length && (
                   <span className="inline-block w-2 h-4 ml-1 bg-foreground/70 animate-pulse" />
                 )}
               </p>
