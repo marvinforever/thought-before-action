@@ -190,6 +190,7 @@ export default function SmartResourceImport() {
             title: resource.title,
             description: resource.description,
             url: resource.url,
+            external_url: resource.url,
             content_type: resource.content_type,
             authors: resource.author,
             estimated_time_minutes: resource.duration_minutes,
