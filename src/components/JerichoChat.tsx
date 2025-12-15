@@ -37,12 +37,16 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, displayedChars]);
 
-  // Typing effect - reveal characters slowly
+  // Typing effect - reveal characters slowly (word by word for more natural feel)
   useEffect(() => {
     if (isLoading && streamBuffer && displayedChars < streamBuffer.length) {
       const timeout = setTimeout(() => {
+        // Find next word boundary or reveal 1 char at a time
+        const remaining = streamBuffer.slice(displayedChars);
+        const nextSpace = remaining.indexOf(' ');
+        // Reveal one character at a time for natural typing
         setDisplayedChars(prev => prev + 1);
-      }, 40); // 40ms per character for slower, human-like typing
+      }, 25); // 25ms per character - feels like fast human typing
       return () => clearTimeout(timeout);
     }
   }, [isLoading, streamBuffer, displayedChars]);
