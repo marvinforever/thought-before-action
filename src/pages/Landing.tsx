@@ -34,8 +34,11 @@ const Landing = () => {
               <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-accent transition-colors">How It Works</a>
               
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-foreground">Text <span className="text-accent font-bold">"Jericho"</span> to <span className="font-bold">402.881.9986</span></span>
+            <div className="flex items-center gap-4">
+              <span className="hidden sm:inline text-sm font-medium text-foreground">Text <span className="text-accent font-bold">"Jericho"</span> to <span className="font-bold">402.881.9986</span></span>
+              <Link to="/auth">
+                <Button variant="outline" size="sm">Log In</Button>
+              </Link>
             </div>
           </div>
         </div>
