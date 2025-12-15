@@ -2,10 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { ViewAsProvider } from "@/contexts/ViewAsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthHashRedirect } from "@/components/AuthHashRedirect";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -35,6 +36,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthHashRedirect />
           <FloatingJerichoButton />
           <Routes>
             <Route path="/" element={<Landing />} />
@@ -43,54 +45,81 @@ const App = () => (
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/super-admin/demo" element={<SuperAdminDemo />} />
             <Route path="/dashboard" element={<DashboardLayout />}>
-              <Route index element={
-                <ProtectedRoute requireManager>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-            <Route path="employees" element={
-              <ProtectedRoute requireManager>
-                <Employees />
-              </ProtectedRoute>
-            } />
-            <Route path="capabilities" element={
-              <ProtectedRoute requireAdmin>
-                <Capabilities />
-              </ProtectedRoute>
-            } />
-            <Route path="resources" element={
-              <ProtectedRoute requireAdmin>
-                <Resources />
-              </ProtectedRoute>
-            } />
-            <Route path="resource-import" element={
-              <ProtectedRoute requireAdmin>
-                <AdminResourceImport />
-              </ProtectedRoute>
-            } />
-            <Route path="resource-research" element={
-              <ProtectedRoute requireAdmin>
-                <AdminResourceResearch />
-              </ProtectedRoute>
-            } />
-            <Route path="my-growth-plan" element={<MyGrowthPlan />} />
-            <Route path="growth-roadmap" element={<GrowthRoadmap />} />
-            <Route path="training-roi" element={
-              <ProtectedRoute requireAdmin>
-                <TrainingROI />
-              </ProtectedRoute>
-            } />
-            <Route path="manager" element={
-              <ProtectedRoute requireManager>
-                <ManagerDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="academy-admin" element={
-              <ProtectedRoute requireAdmin>
-                <MomentumAcademy />
-              </ProtectedRoute>
-            } />
-          </Route>
+              <Route
+                index
+                element={
+                  <ProtectedRoute requireManager>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="employees"
+                element={
+                  <ProtectedRoute requireManager>
+                    <Employees />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="capabilities"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Capabilities />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="resources"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Resources />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="resource-import"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminResourceImport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="resource-research"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminResourceResearch />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="my-growth-plan" element={<MyGrowthPlan />} />
+              <Route path="growth-roadmap" element={<GrowthRoadmap />} />
+              <Route
+                path="training-roi"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <TrainingROI />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="manager"
+                element={
+                  <ProtectedRoute requireManager>
+                    <ManagerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="academy-admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <MomentumAcademy />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
             {/* Public Academy Blog */}
             <Route path="/academy" element={<AcademyBlog />} />
             <Route path="/academy/:slug" element={<AcademyBlog />} />
