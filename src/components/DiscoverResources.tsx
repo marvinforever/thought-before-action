@@ -150,6 +150,7 @@ export function DiscoverResources() {
           company_id: companyId,
           title: resource.title,
           url: resource.url,
+          external_url: resource.url,
           description: resource.description,
           content_type: resource.content_type as any,
         })
