@@ -22,8 +22,8 @@ export function FloatingJerichoButton() {
     return () => window.removeEventListener('openJerichoChat' as any, handleOpenChat);
   }, []);
 
-  // Hide on public landing page
-  if (location.pathname === "/") {
+  // Hide on public landing page and auth page
+  if (location.pathname === "/" || location.pathname === "/auth") {
     return null;
   }
 
