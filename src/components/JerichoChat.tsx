@@ -268,24 +268,24 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
                   : 'bg-muted text-foreground'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              <p className="text-xs opacity-70 mt-1">
-                {msg.timestamp.toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                {msg.content}
+                {/* Show typing cursor for active streaming message */}
+                {msg.role === 'assistant' && isLoading && idx === messages.length - 1 && (
+                  <span className="inline-block w-2 h-4 ml-1 bg-foreground/70 animate-pulse" />
+                )}
               </p>
+              {(!isLoading || idx !== messages.length - 1 || msg.role === 'user') && (
+                <p className="text-xs opacity-70 mt-1">
+                  {msg.timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              )}
             </div>
           </div>
         ))}
-
-        {isLoading && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-muted rounded-lg p-3">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          </div>
-        )}
 
         <div ref={messagesEndRef} />
       </ScrollArea>
