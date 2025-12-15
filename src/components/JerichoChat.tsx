@@ -195,6 +195,16 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
               }
               
               if (data.done) {
+                // Update the actual message with final content before exiting
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[placeholderIndex] = {
+                    role: 'assistant',
+                    content: accumulatedContent,
+                    timestamp: new Date(),
+                  };
+                  return newMessages;
+                });
                 break;
               }
             } catch (e) {
