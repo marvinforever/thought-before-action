@@ -54,8 +54,8 @@ const getAvailableYears = () => {
 
 export default function NinetyDayTracker() {
   const [targets, setTargets] = useState<NinetyDayTarget[]>([]);
-  const [selectedQuarter, setSelectedQuarter] = useState(getCurrentQuarter());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedQuarter, setSelectedQuarter] = useState(() => getCurrentQuarter());
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [viewMode, setViewMode] = useState<"stacked" | "columns">("stacked");
   const [editingGoal, setEditingGoal] = useState<{
     quarter: string;
@@ -80,6 +80,13 @@ export default function NinetyDayTracker() {
   const {
     toast
   } = useToast();
+
+  // Reset to current quarter/year on mount
+  useEffect(() => {
+    setSelectedQuarter(getCurrentQuarter());
+    setSelectedYear(new Date().getFullYear());
+  }, []);
+
   useEffect(() => {
     loadTargets();
   }, [selectedYear]);
