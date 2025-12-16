@@ -43,10 +43,19 @@ export function useOnboardingProgress(): OnboardingProgress {
   const refresh = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log("useOnboardingProgress: No user found");
+        setLoading(false);
+        return;
+      }
+
+      console.log("useOnboardingProgress: Refreshing for user", user.id);
 
       // First refresh the completeness data via the database function
-      await supabase.rpc('refresh_user_completeness', { user_id: user.id });
+      const { error: rpcError } = await supabase.rpc('refresh_user_completeness', { user_id: user.id });
+      if (rpcError) {
+        console.error("useOnboardingProgress: RPC error", rpcError);
+      }
 
       // Then fetch the updated data
       const { data, error } = await supabase
@@ -54,6 +63,8 @@ export function useOnboardingProgress(): OnboardingProgress {
         .select("*")
         .eq("profile_id", user.id)
         .maybeSingle();
+
+      console.log("useOnboardingProgress: Data fetched", { data, error });
 
       if (error) throw error;
 
@@ -69,6 +80,11 @@ export function useOnboardingProgress(): OnboardingProgress {
           has_received_resource: data.has_received_resource || false,
           has_recent_achievements: data.has_recent_achievements || false,
         });
+      } else {
+        console.log("useOnboardingProgress: No data found, showing new user state");
+        // No data means new user - show onboarding
+        setScore(0);
+        setPhase("new");
       }
     } catch (error) {
       console.error("Error loading onboarding progress:", error);
