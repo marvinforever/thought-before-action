@@ -87,12 +87,12 @@ export function ViewGrowthPlanDialog({
           .eq("category", "professional")
           .order("created_at", { ascending: false }),
         
-        // Professional habits only
+        // Professional habits only (exclude personal, include null/professional)
         supabase
           .from("leading_indicators")
-          .select("id, habit_name, habit_description, target_frequency, current_streak")
+          .select("id, habit_name, habit_description, target_frequency, current_streak, habit_type")
           .eq("profile_id", employee.id)
-          .eq("habit_type", "professional")
+          .neq("habit_type", "personal")
           .eq("is_active", true)
           .order("created_at", { ascending: false }),
         
