@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
@@ -14,6 +14,7 @@ import { OneOnOneDialog } from "@/components/OneOnOneDialog";
 import { RecognitionDialog } from "@/components/RecognitionDialog";
 import { ScheduleReviewDialog } from "@/components/ScheduleReviewDialog";
 import { ManageMyTeamDialog } from "@/components/ManageMyTeamDialog";
+import { ViewGrowthPlanDialog } from "@/components/ViewGrowthPlanDialog";
 import { PendingCapabilitiesTab } from "@/components/PendingCapabilitiesTab";
 import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
 import { TeamAnalytics } from "@/components/TeamAnalytics";
@@ -46,6 +47,7 @@ export default function ManagerDashboard() {
   const [recognitionDialogOpen, setRecognitionDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
+  const [growthPlanDialogOpen, setGrowthPlanDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
@@ -190,6 +192,11 @@ export default function ManagerDashboard() {
     setReviewDialogOpen(true);
   };
 
+  const handleViewGrowthPlan = (employee: DirectReport) => {
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
+    setGrowthPlanDialogOpen(true);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <ViewAsCompanyBanner />
@@ -297,45 +304,54 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleOneOnOne(report)}
-                        >
-                          <MessageSquare className="h-3 w-3 mr-1" />
-                          1-on-1
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleRecognition(report)}
-                        >
-                          <Award className="h-3 w-3 mr-1" />
-                          Recognize
-                        </Button>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleViewCapabilities(report)}
-                        >
-                          View Caps
-                        </Button>
-                        <Button
-                          variant="accent"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleScheduleReview(report)}
-                        >
-                          <ClipboardCheck className="h-3 w-3 mr-1" />
-                          Review
-                        </Button>
-                      </div>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="w-full mb-2"
+                                      onClick={() => handleViewGrowthPlan(report)}
+                                    >
+                                      <Compass className="h-3 w-3 mr-1" />
+                                      View Growth Plan
+                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="flex-1"
+                                          onClick={() => handleOneOnOne(report)}
+                                        >
+                                          <MessageSquare className="h-3 w-3 mr-1" />
+                                          1-on-1
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="flex-1"
+                                          onClick={() => handleRecognition(report)}
+                                        >
+                                          <Award className="h-3 w-3 mr-1" />
+                                          Recognize
+                                        </Button>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="flex-1"
+                                          onClick={() => handleViewCapabilities(report)}
+                                        >
+                                          View Caps
+                                        </Button>
+                                        <Button
+                                          variant="accent"
+                                          size="sm"
+                                          className="flex-1"
+                                          onClick={() => handleScheduleReview(report)}
+                                        >
+                                          <ClipboardCheck className="h-3 w-3 mr-1" />
+                                          Review
+                                        </Button>
+                                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -398,6 +414,11 @@ export default function ManagerDashboard() {
                 loadDirectReports();
               }
             }}
+            employee={selectedEmployee}
+          />
+          <ViewGrowthPlanDialog
+            open={growthPlanDialogOpen}
+            onOpenChange={setGrowthPlanDialogOpen}
             employee={selectedEmployee}
           />
           {selectedEmployee.company_id && (
