@@ -386,8 +386,14 @@ Remember: A clear 3-year plan makes it nearly impossible for recruiters to pull 
         target_level: ec.target_level,
       })) || [],
       goals: {
-        one_year: goalsData.data?.one_year_vision,
-        three_year: goalsData.data?.three_year_vision,
+        professional: {
+          one_year: goalsData.data?.one_year_vision,
+          three_year: goalsData.data?.three_year_vision,
+        },
+        personal: {
+          one_year: goalsData.data?.personal_one_year_vision,
+          three_year: goalsData.data?.personal_three_year_vision,
+        },
       },
       ninety_day_targets: targetsData.data?.map(t => ({
         goal: t.goal_text,
