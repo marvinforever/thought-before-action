@@ -35,8 +35,8 @@ export function OnboardingProgressCard({ onOpenJericho, className }: OnboardingP
     );
   }
 
-  // Don't show if onboarding is complete
-  if (phase === "complete") {
+  // Don't show if onboarding is truly complete (score >= 100)
+  if (score >= 100) {
     return null;
   }
 
