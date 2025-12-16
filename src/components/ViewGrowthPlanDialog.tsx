@@ -79,12 +79,12 @@ export function ViewGrowthPlanDialog({
           .eq("profile_id", employee.id)
           .maybeSingle(),
         
-        // Professional 90-day goals only
+        // Professional 90-day goals only (category field stores personal/professional)
         supabase
           .from("ninety_day_targets")
           .select("id, goal_text, category, completed, by_when")
           .eq("profile_id", employee.id)
-          .eq("goal_type", "professional")
+          .eq("category", "professional")
           .order("created_at", { ascending: false }),
         
         // Professional habits only
