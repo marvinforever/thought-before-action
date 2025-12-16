@@ -2204,6 +2204,8 @@ export type Database = {
           created_at: string
           id: string
           one_year_vision: string | null
+          personal_one_year_vision: string | null
+          personal_three_year_vision: string | null
           profile_id: string
           three_year_vision: string | null
           updated_at: string
@@ -2213,6 +2215,8 @@ export type Database = {
           created_at?: string
           id?: string
           one_year_vision?: string | null
+          personal_one_year_vision?: string | null
+          personal_three_year_vision?: string | null
           profile_id: string
           three_year_vision?: string | null
           updated_at?: string
@@ -2222,6 +2226,8 @@ export type Database = {
           created_at?: string
           id?: string
           one_year_vision?: string | null
+          personal_one_year_vision?: string | null
+          personal_three_year_vision?: string | null
           profile_id?: string
           three_year_vision?: string | null
           updated_at?: string
