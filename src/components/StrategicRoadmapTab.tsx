@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Target, TrendingUp, MessageSquare } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Target, TrendingUp, MessageSquare, Sparkles, BookOpen, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { JerichoChat } from "@/components/JerichoChat";
 
@@ -13,6 +14,18 @@ export const StrategicRoadmapTab = () => {
   const [goals, setGoals] = useState<any>(null);
   const [capabilities, setCapabilities] = useState<any[]>([]);
   const [targets, setTargets] = useState<any[]>([]);
+  const [suggestedResources, setSuggestedResources] = useState<any[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  // Calculate current quarter
+  const getCurrentQuarter = () => {
+    const now = new Date();
+    const month = now.getMonth();
+    if (month < 3) return { quarter: 'Q1', year: now.getFullYear() };
+    if (month < 6) return { quarter: 'Q2', year: now.getFullYear() };
+    if (month < 9) return { quarter: 'Q3', year: now.getFullYear() };
+    return { quarter: 'Q4', year: now.getFullYear() };
+  };
 
   useEffect(() => {
     loadRoadmapData();
@@ -22,6 +35,8 @@ export const StrategicRoadmapTab = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      const { quarter, year } = getCurrentQuarter();
 
       const [goalsData, capabilitiesData, targetsData] = await Promise.all([
         supabase
@@ -44,8 +59,10 @@ export const StrategicRoadmapTab = () => {
           .from('ninety_day_targets')
           .select('*')
           .eq('profile_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(3)
+          .eq('quarter', quarter)
+          .eq('year', year)
+          .eq('goal_type', 'professional')
+          .order('goal_number', { ascending: true })
       ]);
 
       setGoals(goalsData.data);
@@ -59,13 +76,71 @@ export const StrategicRoadmapTab = () => {
     }
   };
 
-  const calculateProgress = (current: string, target: string) => {
-    const levels = ['foundational', 'developing', 'proficient', 'advanced', 'expert'];
-    const currentIndex = levels.indexOf(current?.toLowerCase());
-    const targetIndex = levels.indexOf(target?.toLowerCase());
-    if (currentIndex === -1 || targetIndex === -1) return 0;
-    return ((currentIndex + 1) / (targetIndex + 1)) * 100;
+  // Calculate overall capability score
+  const calculateCapabilityScore = () => {
+    if (capabilities.length === 0) return 0;
+    
+    const levels: Record<string, number> = {
+      'foundational': 1,
+      'developing': 2,
+      'proficient': 3,
+      'advanced': 4,
+      'expert': 5
+    };
+
+    let totalScore = 0;
+    let totalPossible = 0;
+
+    capabilities.forEach(cap => {
+      const currentLevel = cap.current_level?.toLowerCase();
+      const targetLevel = cap.target_level?.toLowerCase();
+      
+      if (levels[currentLevel] && levels[targetLevel]) {
+        totalScore += levels[currentLevel];
+        totalPossible += levels[targetLevel];
+      }
+    });
+
+    return totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
   };
+
+  const getSuggestedResources = async () => {
+    if (targets.length === 0) {
+      toast.error("Add some 90-day targets first to get resource suggestions");
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    try {
+      const targetTexts = targets
+        .filter(t => t.goal_text && !t.completed)
+        .map(t => t.goal_text)
+        .join('\n- ');
+
+      const { data, error } = await supabase.functions.invoke('recommend-resources', {
+        body: {
+          targetGoals: targetTexts,
+          capabilities: capabilities.map(c => c.capabilities?.name).filter(Boolean)
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.recommendations) {
+        setSuggestedResources(data.recommendations);
+        toast.success("Jericho found some resources for you!");
+      }
+    } catch (error: any) {
+      console.error('Error getting suggestions:', error);
+      toast.error("Failed to get resource suggestions");
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  const capabilityScore = calculateCapabilityScore();
+  const completedTargets = targets.filter(t => t.completed).length;
+  const totalTargets = targets.length;
 
   if (loading) {
     return (
@@ -104,14 +179,24 @@ export const StrategicRoadmapTab = () => {
               <div className="w-3 h-3 rounded-full bg-primary" />
               <h3 className="font-bold">Today</h3>
             </div>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Current State</p>
+            <div className="space-y-4">
+              {/* Capability Score */}
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Capability Score</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl font-bold text-primary">{capabilityScore}%</div>
+                  <Progress value={capabilityScore} className="flex-1 h-2" />
+                </div>
+              </div>
+              
+              {/* Current Capabilities Summary */}
               <div className="space-y-1">
-                {capabilities.slice(0, 3).map((cap) => (
-                  <div key={cap.id} className="text-xs">
-                    {cap.capabilities?.name}: {cap.current_level}
-                  </div>
-                ))}
+                <p className="text-xs text-muted-foreground">
+                  {capabilities.length} capabilities tracked
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {capabilities.filter(c => c.current_level === c.target_level).length} at target level
+                </p>
               </div>
             </div>
           </Card>
@@ -121,15 +206,30 @@ export const StrategicRoadmapTab = () => {
             <div className="flex items-center gap-2 mb-4">
               <div className="w-3 h-3 rounded-full bg-accent" />
               <h3 className="font-bold">90 Days</h3>
+              {totalTargets > 0 && (
+                <Badge variant="secondary" className="ml-auto text-xs">
+                  {completedTargets}/{totalTargets}
+                </Badge>
+              )}
             </div>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Quick Wins</p>
-              {targets.slice(0, 2).map((target: any) => (
-                <div key={target.id} className="text-xs">
-                  <Target className="inline h-3 w-3 mr-1" />
-                  {target.goal_text?.substring(0, 40)}...
-                </div>
-              ))}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              <p className="text-sm text-muted-foreground">Current Quarter Goals</p>
+              {targets.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No 90-day targets set</p>
+              ) : (
+                targets.map((target: any) => (
+                  <div key={target.id} className="flex items-start gap-2 text-xs">
+                    {target.completed ? (
+                      <CheckCircle2 className="h-3 w-3 mt-0.5 text-green-500 flex-shrink-0" />
+                    ) : (
+                      <Target className="h-3 w-3 mt-0.5 text-primary flex-shrink-0" />
+                    )}
+                    <span className={target.completed ? "line-through text-muted-foreground" : ""}>
+                      {target.goal_text || 'Untitled goal'}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 
@@ -140,9 +240,11 @@ export const StrategicRoadmapTab = () => {
               <h3 className="font-bold">1 Year</h3>
             </div>
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Next Level</p>
-              <div className="text-sm font-medium">
-                {goals?.one_year_vision || 'Set your 1-year vision'}
+              <p className="text-sm text-muted-foreground">Professional Vision</p>
+              <div className="text-sm">
+                {goals?.one_year_vision || (
+                  <span className="italic text-muted-foreground">Set your 1-year vision</span>
+                )}
               </div>
             </div>
           </Card>
@@ -155,52 +257,76 @@ export const StrategicRoadmapTab = () => {
             </div>
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Dream Role</p>
-              <div className="text-sm font-medium">
-                {goals?.three_year_vision || 'Set your 3-year vision'}
+              <div className="text-sm">
+                {goals?.three_year_vision || (
+                  <span className="italic text-muted-foreground">Set your 3-year vision</span>
+                )}
               </div>
             </div>
           </Card>
         </div>
       </div>
 
-      {/* Capability Progress */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">Capability Development Path</h2>
-        <div className="grid gap-4">
-          {capabilities.map((cap) => (
-            <Card key={cap.id} className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">{cap.capabilities?.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {cap.capabilities?.category}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">
-                      {cap.current_level} → {cap.target_level}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Priority: {cap.priority || 'Not set'}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Progress</span>
-                    <span>{Math.round(calculateProgress(cap.current_level, cap.target_level))}%</span>
-                  </div>
-                  <Progress 
-                    value={calculateProgress(cap.current_level, cap.target_level)} 
-                  />
-                </div>
-              </div>
-            </Card>
-          ))}
+      {/* Resource Suggestions Based on 90-Day Goals */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h3 className="font-bold">Jericho's Resource Suggestions</h3>
+          </div>
+          <Button 
+            onClick={getSuggestedResources} 
+            disabled={isLoadingSuggestions || targets.length === 0}
+            size="sm"
+          >
+            {isLoadingSuggestions ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Finding Resources...
+              </>
+            ) : (
+              <>
+                <BookOpen className="mr-2 h-4 w-4" />
+                Get Suggestions for My Goals
+              </>
+            )}
+          </Button>
         </div>
-      </div>
+        
+        {targets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Add 90-day targets to get personalized resource suggestions from Jericho.
+          </p>
+        ) : suggestedResources.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Click the button above to get resource suggestions based on your {targets.filter(t => !t.completed).length} active 90-day goals.
+          </p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {suggestedResources.map((resource: any, idx: number) => (
+              <Card key={idx} className="p-4 bg-muted/30">
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <BookOpen className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-sm">{resource.title}</h4>
+                      {resource.author && (
+                        <p className="text-xs text-muted-foreground">by {resource.author}</p>
+                      )}
+                    </div>
+                  </div>
+                  {resource.reason && (
+                    <p className="text-xs text-muted-foreground">{resource.reason}</p>
+                  )}
+                  {resource.type && (
+                    <Badge variant="outline" className="text-xs">{resource.type}</Badge>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {/* Call to Action */}
       <Card className="p-8 text-center bg-gradient-to-r from-primary/10 to-accent/10">

@@ -12,7 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    const { employeeId, companyId, triggerSource } = await req.json();
+    const body = await req.json();
+    
+    // Check if this is a goal-based suggestion request (simpler flow)
+    if (body.targetGoals) {
+      return await handleGoalBasedSuggestions(body);
+    }
+    
+    // Original full recommendation flow
+    const { employeeId, companyId, triggerSource } = body;
 
     // Client for reading data (uses user's auth)
     const supabaseClient = createClient(
@@ -326,3 +334,97 @@ Provide recommendations now, ensuring they match the employee's learning prefere
     );
   }
 });
+
+// Handle goal-based resource suggestions (simpler flow, doesn't save to DB)
+async function handleGoalBasedSuggestions(body: { targetGoals: string; capabilities?: string[] }) {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+
+  const systemPrompt = `You are Jericho, a leadership development coach helping professionals achieve their 90-day goals.
+
+Based on the user's 90-day goals, suggest 3-5 high-quality learning resources that would help them achieve these outcomes.
+
+For each resource, provide:
+- A specific book, article, course, video, or podcast that exists in the real world
+- The author or creator
+- The type of content (book, article, video, podcast, course)
+- A brief reason why this resource helps achieve their specific goals
+
+Return a JSON array with this structure:
+[
+  {
+    "title": "Resource Title",
+    "author": "Author Name",
+    "type": "book|video|podcast|course|article",
+    "reason": "How this helps achieve their specific 90-day goal"
+  }
+]
+
+Focus on practical, actionable resources. Prioritize well-known, highly-rated content. Match resource type variety (mix of quick reads and deeper content).`;
+
+  const userPrompt = `90-Day Goals:
+${body.targetGoals}
+
+${body.capabilities?.length ? `Related Capabilities: ${body.capabilities.join(', ')}` : ''}
+
+Please suggest resources that will help achieve these specific goals.`;
+
+  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    if (aiResponse.status === 429) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+      );
+    }
+    if (aiResponse.status === 402) {
+      return new Response(
+        JSON.stringify({ error: 'Payment required. Please add credits.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 402 }
+      );
+    }
+    throw new Error(`AI API returned ${aiResponse.status}`);
+  }
+
+  const aiData = await aiResponse.json();
+  const content = aiData.choices?.[0]?.message?.content;
+  
+  if (!content) throw new Error('No AI response received');
+
+  // Parse AI response
+  let recommendations;
+  try {
+    const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\[[\s\S]*\]/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    recommendations = JSON.parse(jsonStr);
+  } catch (parseError) {
+    console.error('Failed to parse AI response:', content);
+    throw new Error('Invalid AI response format');
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      recommendations,
+    }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    }
+  );
+}
