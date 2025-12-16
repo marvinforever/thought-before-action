@@ -71,6 +71,13 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
+    // Get professional vision (personal vision is intentionally excluded from performance reviews)
+    const { data: personalGoals } = await supabase
+      .from("personal_goals")
+      .select("one_year_vision, three_year_vision")
+      .eq("profile_id", employeeId)
+      .single();
+
     // Get habits (leading indicators) - ONLY professional habits (personal habits cannot legally be used in reviews)
     const { data: habits } = await supabase
       .from("leading_indicators")
@@ -100,6 +107,10 @@ serve(async (req) => {
         all: goals || [],
         completed: goals?.filter(g => g.completed) || [],
         inProgress: goals?.filter(g => !g.completed) || []
+      },
+      professionalVision: {
+        oneYear: personalGoals?.one_year_vision || null,
+        threeYear: personalGoals?.three_year_vision || null,
       },
       capabilityAdjustments: adjustments || [],
       habits: habits || [],
@@ -134,6 +145,10 @@ ${context.goals.completed.map(g => `✓ ${g.goal_text}`).join('\n')}
 
 In Progress:
 ${context.goals.inProgress.map(g => `○ ${g.goal_text}`).join('\n')}
+
+PROFESSIONAL VISION (How they see their career trajectory):
+- 1-Year Vision: ${context.professionalVision.oneYear || 'Not set'}
+- 3-Year Vision: ${context.professionalVision.threeYear || 'Not set'}
 
 CAPABILITY DEVELOPMENT:
 ${context.capabilities.map((cap: any) => `
