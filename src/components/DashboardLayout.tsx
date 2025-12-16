@@ -126,11 +126,13 @@ const DashboardLayout = () => {
 
   if (!user) return null;
 
-  // Role-based navigation: Employees only see My Growth Plan
+  // Role-based navigation: Employees only see My Growth Plan + My Capabilities + My Resources
   const navItems = isAdmin || isManager || isSuperAdmin 
     ? [
         { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
         { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
+        { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
+        { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
         ...(isManager ? [{ icon: Users, label: "My Team", path: "/dashboard/manager" }] : []),
         { icon: Users, label: "Employees", path: "/dashboard/employees" },
         { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
@@ -141,6 +143,8 @@ const DashboardLayout = () => {
       ]
     : [
         { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
+        { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
+        { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
         { icon: Settings, label: "Settings", path: "/dashboard/settings" },
       ];
 
