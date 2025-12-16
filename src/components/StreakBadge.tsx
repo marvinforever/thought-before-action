@@ -120,7 +120,7 @@ export function StreakBadge({ className, showLabel = true }: StreakBadgeProps) {
             )} />
             {showLabel && (
               <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
-                {streak.currentStreak}
+                {streak.currentStreak} day streak
               </span>
             )}
           </div>
