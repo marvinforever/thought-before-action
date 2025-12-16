@@ -13,14 +13,21 @@ const Auth = () => {
   const navigate = useNavigate();
   
   // Check if user is already logged in and redirect to dashboard
-  // But skip redirect if this is a password recovery flow
+  // But redirect to reset-password if this is a password recovery flow
   useEffect(() => {
-    const isRecoveryFlow = window.location.hash.includes("type=recovery") || 
-                           window.location.search.includes("type=recovery") ||
-                           window.location.search.includes("code=");
+    const hash = window.location.hash ?? "";
+    const search = window.location.search ?? "";
     
-    // Don't auto-redirect if this looks like a recovery flow
-    if (isRecoveryFlow) return;
+    const isRecoveryFlow = hash.includes("type=recovery") || 
+                           hash.includes("access_token=") ||
+                           search.includes("type=recovery") ||
+                           search.includes("code=");
+    
+    // If this is a recovery flow, redirect to reset-password with params preserved
+    if (isRecoveryFlow) {
+      navigate(`/reset-password${search}${hash}`, { replace: true });
+      return;
+    }
 
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();

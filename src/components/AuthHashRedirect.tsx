@@ -12,8 +12,8 @@ export function AuthHashRedirect() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only auto-redirect when the user lands on the public root.
-    if (location.pathname !== "/") return;
+    // Only auto-redirect when the user lands on the public root or auth page
+    if (location.pathname !== "/" && location.pathname !== "/auth") return;
 
     const hash = location.hash ?? "";
     const search = location.search ?? "";
