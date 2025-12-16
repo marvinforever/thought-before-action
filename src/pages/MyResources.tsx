@@ -600,13 +600,12 @@ export default function MyResources() {
                         </Button>
                       )}
                       <Button
-                        size="sm"
+                        size="icon"
                         variant="secondary"
                         onClick={() => handleOpenRating(resource)}
-                        className="gap-1"
+                        className="h-8 w-8 flex-shrink-0"
                       >
-                        <Star className="h-3 w-3" />
-                        Rate
+                        <Star className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>
@@ -741,12 +740,12 @@ export default function MyResources() {
                           </Button>
                         )}
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
                           onClick={() => handleOpenRating(resource)}
-                          className="gap-1"
+                          className="h-8 w-8 flex-shrink-0"
                         >
-                          <Star className="h-3 w-3" />
+                          <Star className="h-4 w-4" />
                         </Button>
                       </div>
                     </CardContent>
