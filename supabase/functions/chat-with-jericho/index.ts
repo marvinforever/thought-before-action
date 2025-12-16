@@ -179,8 +179,8 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     const isManager = managerAssignments && managerAssignments.length > 0;
     const teamMembers = isManager ? managerAssignments.map(m => m.profiles).filter(Boolean) : [];
 
-    // Fetch user context for Jericho
-    const [capabilitiesData, goalsData, targetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData] = await Promise.all([
+    // Fetch user context for Jericho (including onboarding data)
+    const [capabilitiesData, goalsData, targetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select('*, capabilities(name, description, category)')
@@ -219,6 +219,11 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .select('*')
         .eq('profile_id', user.id)
         .eq('is_active', true),
+      supabase
+        .from('user_data_completeness')
+        .select('*')
+        .eq('profile_id', user.id)
+        .maybeSingle(),
     ]);
 
     const userContext = {
@@ -360,7 +365,54 @@ RESPONSE STYLE:
 - Don't dump walls of text—break things up
 - Ask follow-up questions to keep the conversation going
 - Sound like a real person, not a corporate AI
-- When you use a tool, briefly confirm what you did`;
+- When you use a tool, briefly confirm what you did
+
+`;
+
+    // Add onboarding context if user is new or incomplete
+    const onboarding = onboardingData.data;
+    const onboardingScore = onboarding?.onboarding_score || 0;
+    const isNewUser = !onboarding || onboardingScore < 30;
+    const missingItems: string[] = [];
+    
+    if (!onboarding?.has_personal_vision) missingItems.push('vision (1-year and 3-year goals)');
+    if (!onboarding?.has_90_day_goals) missingItems.push('90-day targets');
+    if (!onboarding?.has_active_habits) missingItems.push('habits to track');
+    if (!onboarding?.has_self_assessed_capabilities) missingItems.push('capability self-assessment');
+    if (!onboarding?.has_recent_achievements) missingItems.push('achievements/wins');
+    
+    if (isNewUser) {
+      systemPrompt += `
+
+**ONBOARDING MODE - NEW USER (Score: ${onboardingScore}%)**
+This user is JUST GETTING STARTED with Jericho! Your priority is to help them set up their growth plan.
+
+MISSING FROM THEIR PROFILE:
+${missingItems.map(item => '- ' + item).join('\n')}
+
+ONBOARDING APPROACH:
+1. Welcome them warmly and explain you're here to help build their personalized growth plan
+2. Start with the EASIEST wins first to build momentum:
+   - Ask about their professional vision (where do they see themselves in 1-3 years?)
+   - Help them create ONE simple 90-day goal
+   - Suggest ONE habit they could track
+3. Use your tools to IMMEDIATELY capture what they share
+4. Celebrate each milestone: "Great! I just added that to your plan—you're making progress!"
+5. Keep it light and encouraging—don't overwhelm them
+
+SAMPLE OPENING (if this is their first message):
+"Hey! I'm Jericho, your AI career coach. I'm here to help you build a crystal-clear growth plan. Let's start simple—where do you want to be professionally in the next year? Just give me the 30-second version."`;
+    } else if (onboardingScore < 100) {
+      systemPrompt += `
+
+**CONTINUING ONBOARDING (Score: ${onboardingScore}%)**
+This user has started their growth plan but still needs to complete some items.
+
+STILL MISSING:
+${missingItems.map(item => '- ' + item).join('\n')}
+
+Naturally weave in prompts to complete their profile during conversation. When they complete something, celebrate it!`;
+    }
 
     if (contextType === 'roadmap') {
       const { data: roadmapData } = await supabase

@@ -2881,13 +2881,16 @@ export type Database = {
           created_at: string | null
           has_90_day_goals: boolean | null
           has_active_habits: boolean | null
+          has_chatted_with_jericho: boolean | null
           has_completed_diagnostic: boolean | null
           has_personal_vision: boolean | null
+          has_received_resource: boolean | null
           has_recent_achievements: boolean | null
           has_self_assessed_capabilities: boolean | null
           id: string
           last_jericho_prompt: string | null
           onboarding_phase: string | null
+          onboarding_score: number | null
           profile_id: string
           updated_at: string | null
         }
@@ -2895,13 +2898,16 @@ export type Database = {
           created_at?: string | null
           has_90_day_goals?: boolean | null
           has_active_habits?: boolean | null
+          has_chatted_with_jericho?: boolean | null
           has_completed_diagnostic?: boolean | null
           has_personal_vision?: boolean | null
+          has_received_resource?: boolean | null
           has_recent_achievements?: boolean | null
           has_self_assessed_capabilities?: boolean | null
           id?: string
           last_jericho_prompt?: string | null
           onboarding_phase?: string | null
+          onboarding_score?: number | null
           profile_id: string
           updated_at?: string | null
         }
@@ -2909,13 +2915,16 @@ export type Database = {
           created_at?: string | null
           has_90_day_goals?: boolean | null
           has_active_habits?: boolean | null
+          has_chatted_with_jericho?: boolean | null
           has_completed_diagnostic?: boolean | null
           has_personal_vision?: boolean | null
+          has_received_resource?: boolean | null
           has_recent_achievements?: boolean | null
           has_self_assessed_capabilities?: boolean | null
           id?: string
           last_jericho_prompt?: string | null
           onboarding_phase?: string | null
+          onboarding_score?: number | null
           profile_id?: string
           updated_at?: string | null
         }

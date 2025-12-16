@@ -15,6 +15,7 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 import { DomainDrilldownDialog } from "@/components/DomainDrilldownDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { OnboardingProgressCard } from "@/components/OnboardingProgressCard";
 
 interface DomainScore {
   domain: string;
@@ -471,6 +472,9 @@ const Dashboard = () => {
               {normalizing ? "Normalizing..." : "Normalize Diagnostics"}
             </Button>
           </div>
+
+      {/* Onboarding Progress Card */}
+      <OnboardingProgressCard />
 
       {/* Growth at a Glance - Featured for Individual Users */}
       <div className="mb-6">

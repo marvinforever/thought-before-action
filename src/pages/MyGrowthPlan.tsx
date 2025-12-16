@@ -11,6 +11,8 @@ import AchievementsCard from "@/components/AchievementsCard";
 import GreatnessTracker from "@/components/GreatnessTracker";
 import { ViewJobDescriptionDialog } from "@/components/ViewJobDescriptionDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { OnboardingProgressCard } from "@/components/OnboardingProgressCard";
+import { StreakBadge } from "@/components/StreakBadge";
 
 type JobDescription = {
   id: string;
@@ -84,13 +86,19 @@ export default function MyGrowthPlan() {
       <div className="relative overflow-hidden rounded-lg bg-primary p-8 text-primary-foreground shadow-lg">
         <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full -mr-32 -mt-32" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/10 rounded-full -ml-24 -mb-24" />
-        <div className="relative z-10">
-          <h1 className="text-4xl font-bold tracking-tight mb-2">My Growth Plan</h1>
-          <p className="text-primary-foreground/90 text-lg">
-            Your personalized development journey and goals
-          </p>
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight mb-2">My Growth Plan</h1>
+            <p className="text-primary-foreground/90 text-lg">
+              Your personalized development journey and goals
+            </p>
+          </div>
+          <StreakBadge className="bg-white/10 border-white/20" />
         </div>
       </div>
+
+      {/* Onboarding Progress */}
+      <OnboardingProgressCard />
 
       {/* Personal Vision and Greatness Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
