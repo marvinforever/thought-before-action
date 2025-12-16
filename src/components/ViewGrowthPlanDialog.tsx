@@ -96,11 +96,12 @@ export function ViewGrowthPlanDialog({
           .eq("is_active", true)
           .order("created_at", { ascending: false }),
         
-        // All achievements (achievements don't have personal/professional classification)
+        // Professional achievements only
         supabase
           .from("achievements")
           .select("id, achievement_text, category, achieved_date")
           .eq("profile_id", employee.id)
+          .eq("category", "professional")
           .order("achieved_date", { ascending: false })
           .limit(10),
       ]);
