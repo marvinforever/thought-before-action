@@ -25,6 +25,7 @@ import ManagerDashboard from "./pages/ManagerDashboard";
 import MomentumAcademy from "./pages/MomentumAcademy";
 import AcademyBlog from "./pages/AcademyBlog";
 import DashboardLayout from "./components/DashboardLayout";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -119,6 +120,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="settings" element={<Settings />} />
             </Route>
             {/* Public Academy Blog */}
             <Route path="/academy" element={<AcademyBlog />} />

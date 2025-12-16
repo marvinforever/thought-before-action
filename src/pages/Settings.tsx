@@ -1,0 +1,336 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const PASSWORD_REQUIREMENTS = {
+  minLength: 8,
+  hasUpperCase: /[A-Z]/,
+  hasLowerCase: /[a-z]/,
+  hasNumber: /[0-9]/,
+  hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/,
+};
+
+type PasswordStrength = "weak" | "fair" | "good" | "strong";
+
+const checkPasswordStrength = (password: string): PasswordStrength => {
+  let score = 0;
+  if (password.length >= PASSWORD_REQUIREMENTS.minLength) score++;
+  if (PASSWORD_REQUIREMENTS.hasUpperCase.test(password)) score++;
+  if (PASSWORD_REQUIREMENTS.hasLowerCase.test(password)) score++;
+  if (PASSWORD_REQUIREMENTS.hasNumber.test(password)) score++;
+  if (PASSWORD_REQUIREMENTS.hasSpecialChar.test(password)) score++;
+
+  if (score <= 2) return "weak";
+  if (score === 3) return "fair";
+  if (score === 4) return "good";
+  return "strong";
+};
+
+const getPasswordRequirements = (password: string) => [
+  { label: "At least 8 characters", met: password.length >= PASSWORD_REQUIREMENTS.minLength },
+  { label: "One uppercase letter", met: PASSWORD_REQUIREMENTS.hasUpperCase.test(password) },
+  { label: "One lowercase letter", met: PASSWORD_REQUIREMENTS.hasLowerCase.test(password) },
+  { label: "One number", met: PASSWORD_REQUIREMENTS.hasNumber.test(password) },
+  { label: "One special character", met: PASSWORD_REQUIREMENTS.hasSpecialChar.test(password) },
+];
+
+const strengthColors: Record<PasswordStrength, string> = {
+  weak: "bg-red-500",
+  fair: "bg-amber-500",
+  good: "bg-blue-500",
+  strong: "bg-green-500",
+};
+
+const strengthLabels: Record<PasswordStrength, string> = {
+  weak: "Weak",
+  fair: "Fair",
+  good: "Good",
+  strong: "Strong",
+};
+
+export default function Settings() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+        
+        setProfile({
+          full_name: data?.full_name || "",
+          email: user.email || "",
+        });
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const passwordStrength = checkPasswordStrength(newPassword);
+  const requirements = getPasswordRequirements(newPassword);
+  const allRequirementsMet = requirements.every((r) => r.met);
+  const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
+
+  const handleChangePassword = async () => {
+    if (!allRequirementsMet) {
+      toast({
+        title: "Password Requirements",
+        description: "Please meet all password requirements.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!passwordsMatch) {
+      toast({
+        title: "Passwords Don't Match",
+        description: "Please ensure both passwords match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        if (error.message.includes("pwned") || error.message.includes("compromised")) {
+          toast({
+            title: "Password Compromised",
+            description: "This password has been found in data breaches. Please choose a different password.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      toast({
+        title: "Password Updated",
+        description: "Your password has been changed successfully.",
+      });
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">Manage your account settings</p>
+      </div>
+
+      {/* Profile Info Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Profile Information
+          </CardTitle>
+          <CardDescription>Your account details</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                Name
+              </Label>
+              <div className="p-3 bg-muted rounded-md text-sm">
+                {profile?.full_name || "Not set"}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                Email
+              </Label>
+              <div className="p-3 bg-muted rounded-md text-sm">
+                {profile?.email || "Not set"}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Change Password Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Change Password
+          </CardTitle>
+          <CardDescription>Update your password to keep your account secure</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* New Password */}
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New Password</Label>
+            <div className="relative">
+              <Input
+                id="new-password"
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+              >
+                {showNewPassword ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Password Strength */}
+          {newPassword && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Password Strength</span>
+                <span
+                  className={cn(
+                    "text-sm font-medium",
+                    passwordStrength === "weak" && "text-red-500",
+                    passwordStrength === "fair" && "text-amber-500",
+                    passwordStrength === "good" && "text-blue-500",
+                    passwordStrength === "strong" && "text-green-500"
+                  )}
+                >
+                  {strengthLabels[passwordStrength]}
+                </span>
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-300",
+                    strengthColors[passwordStrength]
+                  )}
+                  style={{
+                    width:
+                      passwordStrength === "weak"
+                        ? "25%"
+                        : passwordStrength === "fair"
+                        ? "50%"
+                        : passwordStrength === "good"
+                        ? "75%"
+                        : "100%",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Requirements */}
+          {newPassword && (
+            <div className="space-y-2">
+              <span className="text-sm text-muted-foreground">Requirements</span>
+              <div className="grid gap-1">
+                {requirements.map((req, index) => (
+                  <div key={index} className="flex items-center gap-2 text-sm">
+                    {req.met ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <X className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className={req.met ? "text-green-600" : "text-muted-foreground"}>
+                      {req.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Confirm Password */}
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm New Password</Label>
+            <div className="relative">
+              <Input
+                id="confirm-password"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </div>
+            {confirmPassword && !passwordsMatch && (
+              <p className="text-sm text-red-500">Passwords do not match</p>
+            )}
+            {passwordsMatch && (
+              <p className="text-sm text-green-500 flex items-center gap-1">
+                <Check className="h-4 w-4" /> Passwords match
+              </p>
+            )}
+          </div>
+
+          <Button
+            onClick={handleChangePassword}
+            disabled={loading || !allRequirementsMet || !passwordsMatch}
+            className="w-full sm:w-auto"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              "Update Password"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
