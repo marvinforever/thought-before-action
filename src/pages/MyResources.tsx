@@ -49,11 +49,41 @@ export default function MyResources() {
   const [contentTypeFilter, setContentTypeFilter] = useState<string>("all");
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [selectedResource, setSelectedResource] = useState<any>(null);
+  const [isAdminOrManager, setIsAdminOrManager] = useState(false);
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const tabsRef = useRef<HTMLDivElement>(null);
   const { viewAsCompanyId } = useViewAs();
+
+  // Check if user is admin or manager
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check profile flags
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_super_admin, is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      // Check user_roles table
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .in("role", ["manager", "admin", "super_admin"]);
+
+      const hasAdminProfile = profile?.is_super_admin || profile?.is_admin;
+      const hasManagerRole = roles && roles.length > 0;
+      
+      setIsAdminOrManager(hasAdminProfile || hasManagerRole || false);
+    };
+
+    checkUserRole();
+  }, []);
 
   useEffect(() => {
     const stateTab = (location.state as any)?.tab;
@@ -498,8 +528,12 @@ export default function MyResources() {
               <TabsTrigger value="clicked">In Progress</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
               <TabsTrigger value="all-resources">All Resources ({allResources.length})</TabsTrigger>
-              <TabsTrigger value="company-learning">Company Learning</TabsTrigger>
-              <TabsTrigger value="organizational">Organizational View</TabsTrigger>
+              {isAdminOrManager && (
+                <>
+                  <TabsTrigger value="company-learning">Company Learning</TabsTrigger>
+                  <TabsTrigger value="organizational">Organizational View</TabsTrigger>
+                </>
+              )}
             </TabsList>
             <div className="flex items-center gap-2">
               <ContentTypeFilter value={contentTypeFilter} onChange={setContentTypeFilter} />
@@ -514,13 +548,17 @@ export default function MyResources() {
             </div>
           </TabsContent>
 
-          <TabsContent value="company-learning" className="mt-6">
-            <CompanyStrategicLearningTab />
-          </TabsContent>
+          {isAdminOrManager && (
+            <TabsContent value="company-learning" className="mt-6">
+              <CompanyStrategicLearningTab />
+            </TabsContent>
+          )}
 
-          <TabsContent value="organizational" className="mt-6">
-            <OrganizationalContextTab />
-          </TabsContent>
+          {isAdminOrManager && (
+            <TabsContent value="organizational" className="mt-6">
+              <OrganizationalContextTab />
+            </TabsContent>
+          )}
 
           <TabsContent value="all-resources" className="mt-6">
           {filteredAllResources.length === 0 ? (
