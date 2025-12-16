@@ -762,9 +762,19 @@ Use the vision and goal tools to capture what they share!`;
               content: `Successfully updated personal vision. ${functionArgs.one_year_vision ? '1-year vision set.' : ''} ${functionArgs.three_year_vision ? '3-year vision set.' : ''}`
             });
           } else if (functionName === 'add_90_day_target') {
-            const now = new Date();
-            const quarter = `Q${Math.ceil((now.getMonth() + 1) / 3)}`;
-            const year = now.getFullYear();
+            // Determine quarter and year from by_when date if provided, otherwise use current quarter
+            let quarter: string;
+            let year: number;
+            
+            if (functionArgs.by_when) {
+              const byWhenDate = new Date(functionArgs.by_when);
+              quarter = `Q${Math.ceil((byWhenDate.getMonth() + 1) / 3)}`;
+              year = byWhenDate.getFullYear();
+            } else {
+              const now = new Date();
+              quarter = `Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+              year = now.getFullYear();
+            }
             
             // Get the next goal number
             const { data: existingTargets } = await supabase
