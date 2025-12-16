@@ -19,6 +19,8 @@ import Resources from "./pages/Resources";
 import AdminResourceImport from "./pages/AdminResourceImport";
 import AdminResourceResearch from "./pages/AdminResourceResearch";
 import MyGrowthPlan from "./pages/MyGrowthPlan";
+import MyCapabilities from "./pages/MyCapabilities";
+import MyResources from "./pages/MyResources";
 import GrowthRoadmap from "./pages/GrowthRoadmap";
 import TrainingROI from "./pages/TrainingROI";
 import ManagerDashboard from "./pages/ManagerDashboard";
@@ -95,6 +97,8 @@ const App = () => (
                 }
               />
               <Route path="my-growth-plan" element={<MyGrowthPlan />} />
+              <Route path="my-capabilities" element={<MyCapabilities />} />
+              <Route path="my-resources" element={<MyResources />} />
               <Route path="growth-roadmap" element={<GrowthRoadmap />} />
               <Route
                 path="training-roi"
