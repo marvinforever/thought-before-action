@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
 import NinetyDayTracker from "@/components/NinetyDayTracker";
 import AchievementsCard from "@/components/AchievementsCard";
@@ -110,13 +111,21 @@ export default function MyGrowthPlan() {
       {/* Onboarding Progress */}
       <OnboardingProgressCard />
 
-      {/* Badge Showcase */}
-      <BadgeShowcase onNewBadge={handleNewBadge} />
-
-      {/* Personal Vision and Greatness Tracker */}
+      {/* Personal Vision and Greatness/Badges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PersonalVisionCard />
-        <GreatnessTracker />
+        <Tabs defaultValue="greatness" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="greatness">Habits</TabsTrigger>
+            <TabsTrigger value="badges">Badges</TabsTrigger>
+          </TabsList>
+          <TabsContent value="greatness" className="mt-4">
+            <GreatnessTracker />
+          </TabsContent>
+          <TabsContent value="badges" className="mt-4">
+            <BadgeShowcase onNewBadge={handleNewBadge} />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* 90 Day Tracker */}
