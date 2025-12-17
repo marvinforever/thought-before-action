@@ -832,7 +832,9 @@ Use the vision and goal tools to capture what they share!`;
                 profile_id: user.id,
                 company_id: effectiveCompanyId,
                 goal_text: functionArgs.goal_text,
-                category: functionArgs.category,
+                // The tracker UI uses `category` as the "lane" (personal vs professional).
+                // Preserve that behavior by mapping category from goal_type.
+                category: (functionArgs.goal_type === 'personal' ? 'personal' : 'professional'),
                 goal_type: functionArgs.goal_type || 'professional',
                 quarter,
                 year,
