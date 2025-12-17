@@ -180,7 +180,8 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     const teamMembers = isManager ? managerAssignments.map(m => m.profiles).filter(Boolean) : [];
 
     // Fetch user context for Jericho (including onboarding data)
-    const [capabilitiesData, goalsData, targetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData] = await Promise.all([
+    // Fetch ALL historical targets for pattern analysis (no limit)
+    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select('*, capabilities(name, description, category)')
@@ -194,8 +195,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .from('ninety_day_targets')
         .select('*')
         .eq('profile_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20),
+        .order('created_at', { ascending: false }),
       supabase
         .from('diagnostic_responses')
         .select('*')
@@ -225,6 +225,168 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .eq('profile_id', user.id)
         .maybeSingle(),
     ]);
+
+    // ==================== HISTORICAL GOAL INTELLIGENCE ====================
+    // Analyze all historical targets to understand patterns
+    const allTargets = allTargetsData.data || [];
+    const targetsData = { data: allTargets.slice(0, 20) }; // Keep recent 20 for display
+    
+    const analyzeGoalPatterns = (targets: any[]) => {
+      if (targets.length === 0) {
+        return {
+          hasHistory: false,
+          totalGoals: 0,
+          summary: "No goal history yet - this is their first time setting goals."
+        };
+      }
+
+      // Calculate completion rates
+      const completed = targets.filter(t => t.completed === true);
+      const incomplete = targets.filter(t => t.completed === false);
+      const overallCompletionRate = targets.length > 0 
+        ? Math.round((completed.length / targets.length) * 100) 
+        : 0;
+
+      // Analyze by goal type (personal vs professional)
+      const professional = targets.filter(t => t.goal_type === 'professional' || t.category === 'professional');
+      const personal = targets.filter(t => t.goal_type === 'personal' || t.category === 'personal');
+      const professionalCompleted = professional.filter(t => t.completed);
+      const personalCompleted = personal.filter(t => t.completed);
+      
+      const professionalRate = professional.length > 0 
+        ? Math.round((professionalCompleted.length / professional.length) * 100) 
+        : null;
+      const personalRate = personal.length > 0 
+        ? Math.round((personalCompleted.length / personal.length) * 100) 
+        : null;
+
+      // Analyze by category (career, skills, leadership, etc.)
+      const byCategory: Record<string, { total: number; completed: number }> = {};
+      targets.forEach(t => {
+        const cat = t.category || 'uncategorized';
+        if (!byCategory[cat]) byCategory[cat] = { total: 0, completed: 0 };
+        byCategory[cat].total++;
+        if (t.completed) byCategory[cat].completed++;
+      });
+
+      // Find strongest and weakest categories
+      const categoryStats = Object.entries(byCategory)
+        .filter(([_, stats]) => stats.total >= 2) // Only consider categories with 2+ goals
+        .map(([cat, stats]) => ({
+          category: cat,
+          rate: Math.round((stats.completed / stats.total) * 100),
+          total: stats.total,
+          completed: stats.completed
+        }))
+        .sort((a, b) => b.rate - a.rate);
+
+      const strongestCategory = categoryStats.length > 0 ? categoryStats[0] : null;
+      const weakestCategory = categoryStats.length > 1 ? categoryStats[categoryStats.length - 1] : null;
+
+      // Analyze goals per quarter
+      const byQuarter: Record<string, number> = {};
+      targets.forEach(t => {
+        const key = `${t.year}-${t.quarter}`;
+        byQuarter[key] = (byQuarter[key] || 0) + 1;
+      });
+      const quarterCounts = Object.values(byQuarter);
+      const avgGoalsPerQuarter = quarterCounts.length > 0 
+        ? (quarterCounts.reduce((a, b) => a + b, 0) / quarterCounts.length).toFixed(1)
+        : '0';
+
+      // Identify abandoned goals (incomplete and more than 90 days past by_when date)
+      const now = new Date();
+      const abandoned = incomplete.filter(t => {
+        if (!t.by_when) return false;
+        const dueDate = new Date(t.by_when);
+        const daysPast = (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24);
+        return daysPast > 90;
+      });
+
+      // Find recently completed goals (last 90 days)
+      const recentCompleted = completed.filter(t => {
+        const updated = new Date(t.updated_at);
+        const daysSince = (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
+        return daysSince <= 90;
+      });
+
+      // Analyze goal specificity (goals with by_when dates tend to be more successful)
+      const goalsWithDeadlines = targets.filter(t => t.by_when);
+      const deadlineGoalsCompleted = goalsWithDeadlines.filter(t => t.completed);
+      const deadlineCompletionRate = goalsWithDeadlines.length > 0
+        ? Math.round((deadlineGoalsCompleted.length / goalsWithDeadlines.length) * 100)
+        : null;
+      
+      const goalsWithoutDeadlines = targets.filter(t => !t.by_when);
+      const noDeadlineCompleted = goalsWithoutDeadlines.filter(t => t.completed);
+      const noDeadlineRate = goalsWithoutDeadlines.length > 0
+        ? Math.round((noDeadlineCompleted.length / goalsWithoutDeadlines.length) * 100)
+        : null;
+
+      // Generate insights
+      const insights: string[] = [];
+      
+      if (overallCompletionRate >= 80) {
+        insights.push("HIGH PERFORMER: This person completes most goals they set. Challenge them to aim higher.");
+      } else if (overallCompletionRate >= 50) {
+        insights.push("MODERATE SUCCESS: Completes about half their goals. Help them be more selective about what they commit to.");
+      } else if (overallCompletionRate < 50 && targets.length >= 5) {
+        insights.push("STRUGGLING WITH FOLLOW-THROUGH: Low completion rate. Focus on fewer, more achievable goals.");
+      }
+
+      if (professionalRate !== null && personalRate !== null) {
+        if (professionalRate > personalRate + 20) {
+          insights.push(`Stronger at professional goals (${professionalRate}%) vs personal (${personalRate}%). Personal goals may need more attention or realistic scoping.`);
+        } else if (personalRate > professionalRate + 20) {
+          insights.push(`Stronger at personal goals (${personalRate}%) vs professional (${professionalRate}%). May need more support on work-related goals.`);
+        }
+      }
+
+      if (deadlineCompletionRate !== null && noDeadlineRate !== null && deadlineCompletionRate > noDeadlineRate + 15) {
+        insights.push(`Goals with specific deadlines are completed more often (${deadlineCompletionRate}% vs ${noDeadlineRate}%). Encourage ALWAYS setting a "by when" date.`);
+      }
+
+      if (abandoned.length >= 2) {
+        insights.push(`Has ${abandoned.length} abandoned goals (overdue 90+ days). Consider cleaning these up or recommitting.`);
+      }
+
+      if (strongestCategory && weakestCategory && strongestCategory.rate > weakestCategory.rate + 30) {
+        insights.push(`Excels at ${strongestCategory.category} goals (${strongestCategory.rate}%) but struggles with ${weakestCategory.category} (${weakestCategory.rate}%).`);
+      }
+
+      return {
+        hasHistory: true,
+        totalGoals: targets.length,
+        completedGoals: completed.length,
+        overallCompletionRate,
+        professional: {
+          total: professional.length,
+          completed: professionalCompleted.length,
+          rate: professionalRate
+        },
+        personal: {
+          total: personal.length,
+          completed: personalCompleted.length,
+          rate: personalRate
+        },
+        avgGoalsPerQuarter,
+        abandonedGoals: abandoned.length,
+        recentlyCompleted: recentCompleted.map(t => ({
+          goal: t.goal_text,
+          category: t.category
+        })),
+        categoryBreakdown: categoryStats,
+        deadlineImpact: {
+          withDeadline: { rate: deadlineCompletionRate, count: goalsWithDeadlines.length },
+          withoutDeadline: { rate: noDeadlineRate, count: goalsWithoutDeadlines.length }
+        },
+        insights,
+        summary: `${targets.length} total goals, ${overallCompletionRate}% completion rate. ${insights[0] || ''}`
+      };
+    };
+
+    const goalPatterns = analyzeGoalPatterns(allTargets);
+    console.log('Goal patterns analysis:', goalPatterns.summary);
 
     const userContext = {
       profile: {
@@ -359,6 +521,41 @@ WHEN TO USE TOOLS:
 USER'S CURRENT GROWTH PLAN DATA:
 ${JSON.stringify(userContext, null, 2)}
 
+${goalPatterns.hasHistory ? `
+HISTORICAL GOAL INTELLIGENCE (Use this to coach smarter):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 OVERALL STATS:
+- Total Goals Set: ${goalPatterns.totalGoals}
+- Completed: ${goalPatterns.completedGoals}
+- Overall Completion Rate: ${goalPatterns.overallCompletionRate}%
+- Avg Goals Per Quarter: ${goalPatterns.avgGoalsPerQuarter}
+- Abandoned Goals (90+ days overdue): ${goalPatterns.abandonedGoals}
+
+📈 BY TYPE:
+- Professional: ${goalPatterns.professional?.total || 0} goals, ${goalPatterns.professional?.rate ?? 'N/A'}% completion
+- Personal: ${goalPatterns.personal?.total || 0} goals, ${goalPatterns.personal?.rate ?? 'N/A'}% completion
+
+📁 BY CATEGORY:
+${goalPatterns.categoryBreakdown?.map((c: any) => `- ${c.category}: ${c.total} goals, ${c.rate}% completion`).join('\n') || 'No category data yet'}
+
+⏰ DEADLINE IMPACT:
+- Goals WITH deadlines: ${goalPatterns.deadlineImpact?.withDeadline?.rate ?? 'N/A'}% completion (${goalPatterns.deadlineImpact?.withDeadline?.count || 0} goals)
+- Goals WITHOUT deadlines: ${goalPatterns.deadlineImpact?.withoutDeadline?.rate ?? 'N/A'}% completion (${goalPatterns.deadlineImpact?.withoutDeadline?.count || 0} goals)
+
+${(goalPatterns.recentlyCompleted?.length ?? 0) > 0 ? `🏆 RECENTLY COMPLETED (last 90 days):
+${goalPatterns.recentlyCompleted?.map((g: any) => `- "${g.goal}" (${g.category})`).join('\n')}` : ''}
+
+🧠 KEY INSIGHTS FOR COACHING:
+${(goalPatterns.insights?.length ?? 0) > 0 ? goalPatterns.insights?.map((i: string) => `• ${i}`).join('\n') : '• First-time goal setter or limited history'}
+
+USE THIS INTELLIGENCE WHEN:
+- Setting new goals: "Based on your history, you complete about ${goalPatterns.avgGoalsPerQuarter} goals per quarter..."
+- Noticing patterns: "I see you're strong at ${goalPatterns.categoryBreakdown?.[0]?.category || 'some'} goals but struggle with ${goalPatterns.categoryBreakdown?.slice(-1)[0]?.category || 'others'}..."
+- Encouraging deadlines: "Goals with specific dates are more likely to happen for you..."
+- Checking in on abandoned goals: "You have ${goalPatterns.abandonedGoals} goals from past quarters still open..."
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+` : ''}
+
 RESPONSE STYLE:
 - Keep responses SHORT and conversational—2-4 sentences per thought
 - Use natural, casual language like you're texting a mentee
@@ -366,6 +563,7 @@ RESPONSE STYLE:
 - Ask follow-up questions to keep the conversation going
 - Sound like a real person, not a corporate AI
 - When you use a tool, briefly confirm what you did
+- Reference their HISTORICAL PATTERNS to make goal-setting smarter and more personalized
 
 `;
 
