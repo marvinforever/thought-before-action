@@ -16,6 +16,8 @@ import { DomainDrilldownDialog } from "@/components/DomainDrilldownDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { OnboardingProgressCard } from "@/components/OnboardingProgressCard";
+import { BadgeShowcase } from "@/components/BadgeShowcase";
+import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
 
 interface DomainScore {
   domain: string;
@@ -49,6 +51,14 @@ const Dashboard = () => {
   const [selectedDomain, setSelectedDomain] = useState<DomainScore | null>(null);
   const [employeeDetails, setEmployeeDetails] = useState<any[]>([]);
   const { viewAsCompanyId } = useViewAs();
+  const { celebration, celebrate, onComplete } = useCelebration();
+
+  const handleNewBadge = (badge: { name: string; icon_emoji: string; description: string }) => {
+    celebrate(`Badge Earned: ${badge.name}`, "badge", {
+      badgeEmoji: badge.icon_emoji,
+      subtitle: badge.description
+    });
+  };
 
   const handleBatchNormalize = async () => {
     setNormalizing(true);
@@ -452,6 +462,16 @@ const Dashboard = () => {
     <div className="space-y-6">
       <ViewAsCompanyBanner />
       
+      {/* Badge Celebration Overlay */}
+      <CelebrationOverlay 
+        show={celebration.show}
+        message={celebration.message}
+        type={celebration.type}
+        badgeEmoji={celebration.badgeEmoji}
+        subtitle={celebration.subtitle}
+        onComplete={onComplete}
+      />
+      
       <Tabs defaultValue="health" className="space-y-6">
         <TabsList>
           <TabsTrigger value="health">Organizational Health</TabsTrigger>
@@ -475,6 +495,9 @@ const Dashboard = () => {
 
       {/* Onboarding Progress Card */}
       <OnboardingProgressCard />
+
+      {/* Badge Showcase */}
+      <BadgeShowcase onNewBadge={handleNewBadge} />
 
       {/* Growth at a Glance - Featured for Individual Users */}
       <div className="mb-6">

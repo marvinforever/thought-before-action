@@ -7,7 +7,9 @@ interface CelebrationOverlayProps {
   show: boolean;
   onComplete?: () => void;
   message?: string;
-  type?: "milestone" | "streak" | "achievement";
+  type?: "milestone" | "streak" | "achievement" | "badge";
+  badgeEmoji?: string;
+  subtitle?: string;
 }
 
 const confettiColors = [
@@ -55,7 +57,9 @@ export function CelebrationOverlay({
   show, 
   onComplete, 
   message = "Milestone Complete!",
-  type = "milestone" 
+  type = "milestone",
+  badgeEmoji,
+  subtitle
 }: CelebrationOverlayProps) {
   const [visible, setVisible] = useState(false);
 
@@ -65,12 +69,12 @@ export function CelebrationOverlay({
       const timer = setTimeout(() => {
         setVisible(false);
         onComplete?.();
-      }, 3000);
+      }, 3500);
       return () => clearTimeout(timer);
     }
   }, [show, onComplete]);
 
-  const Icon = type === "streak" ? Zap : type === "achievement" ? Trophy : Sparkles;
+  const Icon = type === "streak" ? Zap : type === "achievement" ? Trophy : type === "badge" ? null : Sparkles;
 
   return (
     <AnimatePresence>
@@ -101,7 +105,13 @@ export function CelebrationOverlay({
                   repeat: 2,
                 }}
               >
-                <Icon className="h-10 w-10 text-primary" />
+                {type === "badge" && badgeEmoji ? (
+                  <span className="text-5xl">{badgeEmoji}</span>
+                ) : Icon ? (
+                  <Icon className="h-10 w-10 text-primary" />
+                ) : (
+                  <Trophy className="h-10 w-10 text-primary" />
+                )}
               </motion.div>
               <div className="text-center">
                 <motion.h3 
@@ -112,6 +122,16 @@ export function CelebrationOverlay({
                 >
                   {message}
                 </motion.h3>
+                {subtitle && (
+                  <motion.p
+                    className="text-muted-foreground mt-1"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    {subtitle}
+                  </motion.p>
+                )}
                 <motion.div
                   className="flex items-center justify-center gap-1 mt-2"
                   initial={{ opacity: 0 }}
@@ -139,15 +159,21 @@ export function useCelebration() {
   const [celebration, setCelebration] = useState<{
     show: boolean;
     message: string;
-    type: "milestone" | "streak" | "achievement";
+    type: "milestone" | "streak" | "achievement" | "badge";
+    badgeEmoji?: string;
+    subtitle?: string;
   }>({
     show: false,
     message: "",
     type: "milestone",
   });
 
-  const celebrate = (message: string, type: "milestone" | "streak" | "achievement" = "milestone") => {
-    setCelebration({ show: true, message, type });
+  const celebrate = (
+    message: string, 
+    type: "milestone" | "streak" | "achievement" | "badge" = "milestone",
+    options?: { badgeEmoji?: string; subtitle?: string }
+  ) => {
+    setCelebration({ show: true, message, type, ...options });
   };
 
   const onComplete = () => {

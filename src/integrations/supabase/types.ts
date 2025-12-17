@@ -188,6 +188,48 @@ export type Database = {
           },
         ]
       }
+      badges: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          display_order: number
+          icon_emoji: string
+          id: string
+          name: string
+          requirement_type: string
+          requirement_value: number | null
+          slug: string
+          tier: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description: string
+          display_order?: number
+          icon_emoji?: string
+          id?: string
+          name: string
+          requirement_type: string
+          requirement_value?: number | null
+          slug: string
+          tier?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          display_order?: number
+          icon_emoji?: string
+          id?: string
+          name?: string
+          requirement_type?: string
+          requirement_value?: number | null
+          slug?: string
+          tier?: number
+        }
+        Relationships: []
+      }
       capabilities: {
         Row: {
           approved_at: string | null
@@ -2876,6 +2918,45 @@ export type Database = {
           },
         ]
       }
+      user_badges: {
+        Row: {
+          badge_id: string
+          earned_at: string
+          id: string
+          metadata: Json | null
+          profile_id: string
+        }
+        Insert: {
+          badge_id: string
+          earned_at?: string
+          id?: string
+          metadata?: Json | null
+          profile_id: string
+        }
+        Update: {
+          badge_id?: string
+          earned_at?: string
+          id?: string
+          metadata?: Json | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_badges_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_data_completeness: {
         Row: {
           created_at: string | null
@@ -3041,6 +3122,7 @@ export type Database = {
         }
         Returns: string
       }
+      check_and_award_badges: { Args: { user_id: string }; Returns: undefined }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
