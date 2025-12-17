@@ -134,9 +134,11 @@ export default function NinetyDayTracker() {
         }
       } = await supabase.auth.getUser();
       if (!user) return;
-      const {
-        data: profile
-      } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .maybeSingle();
       if (!profile) throw new Error("Profile not found");
       const payload = {
         profile_id: user.id,
@@ -144,6 +146,7 @@ export default function NinetyDayTracker() {
         quarter,
         year: selectedYear,
         category,
+        goal_type: category, // UI lanes: personal | professional
         goal_number: goalNumber,
         goal_text: formData.goalText || null,
         by_when: formData.byWhen || null,
