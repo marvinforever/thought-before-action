@@ -2291,6 +2291,81 @@ export type Database = {
           },
         ]
       }
+      point_config: {
+        Row: {
+          activity_type: string
+          base_points: number
+          created_at: string
+          description: string | null
+          id: string
+        }
+        Insert: {
+          activity_type: string
+          base_points: number
+          created_at?: string
+          description?: string | null
+          id?: string
+        }
+        Update: {
+          activity_type?: string
+          base_points?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      point_transactions: {
+        Row: {
+          activity_type: string
+          base_points: number
+          company_id: string
+          created_at: string
+          description: string | null
+          final_points: number
+          id: string
+          multiplier_applied: number
+          profile_id: string
+        }
+        Insert: {
+          activity_type: string
+          base_points: number
+          company_id: string
+          created_at?: string
+          description?: string | null
+          final_points: number
+          id?: string
+          multiplier_applied?: number
+          profile_id: string
+        }
+        Update: {
+          activity_type?: string
+          base_points?: number
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          final_points?: number
+          id?: string
+          multiplier_applied?: number
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_transactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_company_changes: {
         Row: {
           change_source: string | null
@@ -3043,6 +3118,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_scores: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          last_activity_date: string | null
+          monthly_points: number
+          profile_id: string
+          streak_multiplier: number
+          total_points: number
+          updated_at: string
+          weekly_points: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          last_activity_date?: string | null
+          monthly_points?: number
+          profile_id: string
+          streak_multiplier?: number
+          total_points?: number
+          updated_at?: string
+          weekly_points?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_activity_date?: string | null
+          monthly_points?: number
+          profile_id?: string
+          streak_multiplier?: number
+          total_points?: number
+          updated_at?: string
+          weekly_points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_scores_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_scores_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voice_sessions: {
         Row: {
           audio_minutes_used: number | null
@@ -3122,6 +3251,14 @@ export type Database = {
         }
         Returns: string
       }
+      award_points: {
+        Args: {
+          p_activity_type: string
+          p_description?: string
+          p_profile_id: string
+        }
+        Returns: number
+      }
       check_and_award_badges: { Args: { user_id: string }; Returns: undefined }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
@@ -3140,6 +3277,7 @@ export type Database = {
         Args: { user_id: string }
         Returns: undefined
       }
+      reset_periodic_points: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "manager" | "user"
