@@ -135,8 +135,8 @@ export function useOnboardingProgress(): OnboardingProgress {
     },
     {
       id: "capability",
-      label: "Self-Assess a Capability",
-      description: "Rate your skills in at least one area",
+      label: "Self-Assess Capabilities",
+      description: "Rate your skills across all assigned capabilities",
       points: 20,
       completed: completeness.has_self_assessed_capabilities,
     },
