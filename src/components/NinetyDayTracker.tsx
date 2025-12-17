@@ -160,6 +160,16 @@ export default function NinetyDayTracker() {
         onConflict: 'profile_id,quarter,year,category,goal_number'
       });
       if (error) throw error;
+      
+      // Award points for goal creation (only for new goals with text)
+      if (formData.goalText) {
+        await supabase.rpc('award_points', {
+          p_profile_id: user.id,
+          p_activity_type: 'goal_created',
+          p_description: `Created ${quarter} ${category} goal`
+        });
+      }
+      
       toast({
         title: "Goal saved",
         description: "Your 90-day target has been updated"
@@ -184,11 +194,25 @@ export default function NinetyDayTracker() {
   const handleToggleComplete = async (target: NinetyDayTarget) => {
     try {
       const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      
+      const {
         error
       } = await supabase.from("ninety_day_targets").update({
         completed: !target.completed
       }).eq("id", target.id);
       if (error) throw error;
+      
+      // Award points when goal is completed (not uncompleted)
+      if (!target.completed && user) {
+        await supabase.rpc('award_points', {
+          p_profile_id: user.id,
+          p_activity_type: 'goal_completed',
+          p_description: `Completed: ${target.goal_text?.substring(0, 50) || 'Goal'}`
+        });
+      }
+      
       await loadTargets();
     } catch (error: any) {
       toast({

@@ -117,6 +117,13 @@ export default function AchievementsCard() {
 
       if (error) throw error;
 
+      // Award points for logging achievement
+      await supabase.rpc('award_points', {
+        p_profile_id: user.id,
+        p_activity_type: 'achievement_logged',
+        p_description: `Achievement: ${newAchievement.text.substring(0, 30)}`
+      });
+
       toast({
         title: "Achievement added",
         description: "Congratulations on your accomplishment!",

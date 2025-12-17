@@ -201,6 +201,13 @@ export default function GreatnessTracker() {
         
         // Update streak
         await updateStreak(habitId, true);
+        
+        // Award points for habit completion
+        await supabase.rpc('award_points', {
+          p_profile_id: user.id,
+          p_activity_type: 'habit_completed',
+          p_description: 'Completed daily habit'
+        });
       }
 
       await loadHabits();
@@ -327,6 +334,13 @@ export default function GreatnessTracker() {
         });
 
       if (error) throw error;
+
+      // Award points for greatness key
+      await supabase.rpc('award_points', {
+        p_profile_id: user.id,
+        p_activity_type: 'greatness_key',
+        p_description: `Earned greatness key for ${streakLength}-day streak`
+      });
 
       await loadGreatnessKeys();
 
