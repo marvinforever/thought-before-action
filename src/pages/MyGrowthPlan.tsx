@@ -13,6 +13,8 @@ import { ViewJobDescriptionDialog } from "@/components/ViewJobDescriptionDialog"
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { OnboardingProgressCard } from "@/components/OnboardingProgressCard";
 import { StreakBadge } from "@/components/StreakBadge";
+import { BadgeShowcase } from "@/components/BadgeShowcase";
+import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
 
 type JobDescription = {
   id: string;
@@ -30,6 +32,14 @@ export default function MyGrowthPlan() {
   const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
+  const { celebration, celebrate, onComplete } = useCelebration();
+
+  const handleNewBadge = (badge: { name: string; icon_emoji: string; description: string }) => {
+    celebrate(`Badge Earned: ${badge.name}`, "badge", {
+      badgeEmoji: badge.icon_emoji,
+      subtitle: badge.description
+    });
+  };
 
   useEffect(() => {
     loadJobDescriptions();
@@ -99,6 +109,9 @@ export default function MyGrowthPlan() {
 
       {/* Onboarding Progress */}
       <OnboardingProgressCard />
+
+      {/* Badge Showcase */}
+      <BadgeShowcase onNewBadge={handleNewBadge} />
 
       {/* Personal Vision and Greatness Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -195,6 +208,16 @@ export default function MyGrowthPlan() {
 
       {/* Achievements */}
       <AchievementsCard />
+
+      {/* Badge Celebration Overlay */}
+      <CelebrationOverlay 
+        show={celebration.show}
+        message={celebration.message}
+        type={celebration.type}
+        badgeEmoji={celebration.badgeEmoji}
+        subtitle={celebration.subtitle}
+        onComplete={onComplete}
+      />
     </div>
   );
 }
