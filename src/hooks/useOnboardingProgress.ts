@@ -30,6 +30,7 @@ export function useOnboardingProgress(): OnboardingProgress {
     has_chatted_with_jericho: boolean;
     has_received_resource: boolean;
     has_recent_achievements: boolean;
+    has_completed_diagnostic: boolean;
   }>({
     has_personal_vision: false,
     has_90_day_goals: false,
@@ -38,6 +39,7 @@ export function useOnboardingProgress(): OnboardingProgress {
     has_chatted_with_jericho: false,
     has_received_resource: false,
     has_recent_achievements: false,
+    has_completed_diagnostic: false,
   });
 
   const refresh = useCallback(async () => {
@@ -79,6 +81,7 @@ export function useOnboardingProgress(): OnboardingProgress {
           has_chatted_with_jericho: data.has_chatted_with_jericho || false,
           has_received_resource: data.has_received_resource || false,
           has_recent_achievements: data.has_recent_achievements || false,
+          has_completed_diagnostic: data.has_completed_diagnostic || false,
         });
       } else {
         console.log("useOnboardingProgress: No data found, showing new user state");
@@ -106,24 +109,31 @@ export function useOnboardingProgress(): OnboardingProgress {
       completed: completeness.has_chatted_with_jericho,
     },
     {
+      id: "diagnostic",
+      label: "Complete Your Check-In",
+      description: "Tell Jericho: 'I want to do my check-in'",
+      points: 16,
+      completed: completeness.has_completed_diagnostic,
+    },
+    {
       id: "vision",
       label: "Set Your Vision",
       description: "Define your 1-year and 3-year goals",
-      points: 15,
+      points: 12,
       completed: completeness.has_personal_vision,
     },
     {
       id: "habit",
       label: "Create a Habit",
       description: "Add your first daily or weekly habit",
-      points: 15,
+      points: 12,
       completed: completeness.has_active_habits,
     },
     {
       id: "goal",
       label: "Set a 90-Day Goal",
       description: "Create your first quarterly target",
-      points: 20,
+      points: 15,
       completed: completeness.has_90_day_goals,
     },
     {
@@ -137,7 +147,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       id: "capability",
       label: "Self-Assess Capabilities",
       description: "Rate your skills across all assigned capabilities",
-      points: 20,
+      points: 15,
       completed: completeness.has_self_assessed_capabilities,
     },
     {

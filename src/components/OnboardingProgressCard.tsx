@@ -1,7 +1,7 @@
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen } from "lucide-react";
+import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -13,6 +13,7 @@ interface OnboardingProgressCardProps {
 
 const milestoneIcons: Record<string, React.ReactNode> = {
   jericho_chat: <MessageCircle className="h-4 w-4" />,
+  diagnostic: <ClipboardCheck className="h-4 w-4" />,
   vision: <Target className="h-4 w-4" />,
   habit: <Zap className="h-4 w-4" />,
   goal: <Target className="h-4 w-4" />,
