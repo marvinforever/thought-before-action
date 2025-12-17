@@ -16,6 +16,7 @@ import { OnboardingProgressCard } from "@/components/OnboardingProgressCard";
 import { StreakBadge } from "@/components/StreakBadge";
 import { BadgeShowcase } from "@/components/BadgeShowcase";
 import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
+import { CompanyLeaderboard } from "@/components/CompanyLeaderboard";
 
 type JobDescription = {
   id: string;
@@ -115,15 +116,19 @@ export default function MyGrowthPlan() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PersonalVisionCard />
         <Tabs defaultValue="greatness" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="greatness">Habits</TabsTrigger>
             <TabsTrigger value="badges">Badges</TabsTrigger>
+            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           </TabsList>
           <TabsContent value="greatness" className="mt-4">
             <GreatnessTracker />
           </TabsContent>
           <TabsContent value="badges" className="mt-4">
             <BadgeShowcase onNewBadge={handleNewBadge} />
+          </TabsContent>
+          <TabsContent value="leaderboard" className="mt-4">
+            <CompanyLeaderboard />
           </TabsContent>
         </Tabs>
       </div>
