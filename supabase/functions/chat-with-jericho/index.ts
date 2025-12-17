@@ -745,11 +745,6 @@ Use the vision and goal tools to capture what they share!`;
                 type: "string",
                 description: "The specific, measurable goal statement"
               },
-              category: {
-                type: "string",
-                enum: ["career", "skills", "leadership"],
-                description: "Goal category"
-              },
               goal_type: {
                 type: "string",
                 enum: ["professional", "personal"],
@@ -760,7 +755,7 @@ Use the vision and goal tools to capture what they share!`;
                 description: "Target completion date (YYYY-MM-DD format)"
               }
             },
-            required: ["goal_text", "category", "goal_type"]
+            required: ["goal_text", "goal_type"]
           }
         }
       },
@@ -768,7 +763,7 @@ Use the vision and goal tools to capture what they share!`;
         type: "function",
         function: {
           name: "update_90_day_target",
-          description: "Update an existing 90-day target. Use to modify text, mark complete, or change category.",
+          description: "Update an existing 90-day target. Use to modify text, mark complete, or change goal type.",
           parameters: {
             type: "object",
             properties: {
@@ -784,10 +779,10 @@ Use the vision and goal tools to capture what they share!`;
                 type: "boolean",
                 description: "Set to true to mark as complete"
               },
-              category: {
+              goal_type: {
                 type: "string",
-                enum: ["career", "skills", "leadership"],
-                description: "Updated category (if changing)"
+                enum: ["professional", "personal"],
+                description: "Updated goal type (if changing)"
               }
             },
             required: ["target_id"]
@@ -1124,6 +1119,11 @@ Use the vision and goal tools to capture what they share!`;
               year = now.getFullYear();
             }
             
+            // Derive the actual category from goal_type (tracker uses "personal" or "professional")
+            const derivedCategory = functionArgs.goal_type === 'personal' ? 'personal' : 'professional';
+            
+            console.log('Adding 90-day target:', { goal_text: functionArgs.goal_text, goal_type: functionArgs.goal_type, derivedCategory, quarter, year });
+            
             // Find an available goal slot (the UI only shows 3 goals per quarter/category: 1-3)
             const { data: existingTargets, error: existingError } = await supabase
               .from('ninety_day_targets')
@@ -1131,7 +1131,7 @@ Use the vision and goal tools to capture what they share!`;
               .eq('profile_id', user.id)
               .eq('quarter', quarter)
               .eq('year', year)
-              .eq('category', functionArgs.category)
+              .eq('category', derivedCategory)
               .in('goal_number', [1, 2, 3]);
 
             if (existingError) {
@@ -1180,9 +1180,7 @@ Use the vision and goal tools to capture what they share!`;
                 profile_id: user.id,
                 company_id: effectiveCompanyId,
                 goal_text: functionArgs.goal_text,
-                // The tracker UI uses `category` as the "lane" (personal vs professional).
-                // Preserve that behavior by mapping category from goal_type.
-                category: (functionArgs.goal_type === 'personal' ? 'personal' : 'professional'),
+                category: derivedCategory,
                 goal_type: functionArgs.goal_type || 'professional',
                 quarter,
                 year,
@@ -1190,6 +1188,8 @@ Use the vision and goal tools to capture what they share!`;
                 by_when: functionArgs.by_when || quarterEnd.toISOString().split('T')[0],
                 completed: false
               });
+            
+            console.log('Insert result:', { insertError, goal_text: functionArgs.goal_text, quarter, year, derivedCategory, availableNumber });
 
             if (insertError) {
               console.error('Error inserting target:', insertError);
