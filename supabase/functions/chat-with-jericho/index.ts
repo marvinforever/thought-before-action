@@ -565,6 +565,56 @@ RESPONSE STYLE:
 - When you use a tool, briefly confirm what you did
 - Reference their HISTORICAL PATTERNS to make goal-setting smarter and more personalized
 
+DIAGNOSTIC CHECK-IN PROTOCOL:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+When a user wants to do their "check-in", "diagnostic", "wellbeing assessment", or "pulse check":
+
+1. EXPLAIN THE PROCESS:
+   "Great! I'll walk you through a quick check-in covering 8 areas of your work life. It takes about 5-7 minutes and helps me understand how to support you better. Ready?"
+
+2. ASK QUESTIONS ONE AT A TIME, GROUPED BY DOMAIN:
+
+   **ROLE CLARITY (2 questions):**
+   - "How clear are you on what's expected of you in your role?" (Listen for: very clear, somewhat clear, not clear)
+   - "Do you have a written job description that accurately reflects what you do?" (yes/no)
+
+   **CONFIDENCE & SKILLS (1 question):**
+   - "On a scale of 1-10, how confident are you that you're meeting expectations?"
+
+   **WORKLOAD & BURNOUT (4 questions):**
+   - "How manageable is your typical weekly workload?" (very manageable, somewhat manageable, not manageable)
+   - "How often do you feel mentally drained after work?" (never, rarely, sometimes, often)
+   - "How often do you sacrifice personal time for work?" (never, rarely, sometimes, often)
+   - "How often do you feel exhausted or burned out?" (never, rarely, sometimes, often)
+
+   **LEARNING (1 question):**
+   - "How much time per week can you realistically dedicate to professional development?" (less than 1 hour, 1-3 hours, 4-6 hours, 7+ hours)
+
+   **CAREER & GROWTH (2 questions):**
+   - "On a scale of 1-10, how clearly do you see a path for growth here?"
+   - "Do you feel this organization is helping you toward your career goals?" (yes, no, not sure)
+
+   **MANAGER (1 question):**
+   - "On a scale of 1-10, how well does your manager support your growth?"
+
+   **ENGAGEMENT (2 questions):**
+   - "On a scale of 1-10, how valued do you feel for your contributions?"
+   - "How energized do you feel about your work most days?" (very energized, somewhat energized, not energized)
+
+   **RETENTION (1 question):**
+   - "If you were offered a similar job elsewhere, on a scale of 1-10, how likely would you be to stay here?"
+
+3. PROBING RULES:
+   - If they give a concerning answer (e.g., "often burned out", score < 6 on any scale), probe gently: "Tell me more about that..."
+   - Acknowledge their responses empathetically before moving on
+   - Don't rush—let them share if they want to
+
+4. COMPLETION:
+   - After collecting ALL responses, call the save_diagnostic_assessment tool with all the data
+   - Summarize their results: highlight 2-3 strengths and 2-3 growth areas
+   - Offer immediate coaching suggestions for their lowest-scoring domains
+   - Celebrate completing the check-in: "Great job completing this! It takes courage to reflect honestly."
+
 `;
 
     // Add onboarding context if user is new or incomplete
@@ -814,6 +864,98 @@ Use the vision and goal tools to capture what they share!`;
               }
             },
             required: ["habit_id"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "save_diagnostic_assessment",
+          description: "Save a diagnostic/wellbeing check-in assessment after conversationally gathering all responses from the user. Use ONLY after collecting responses for ALL 8 domains.",
+          parameters: {
+            type: "object",
+            properties: {
+              role_expectations_clarity: {
+                type: "string",
+                enum: ["very_clear", "somewhat_clear", "not_clear"],
+                description: "How clear are they on role expectations"
+              },
+              job_description_accurate: {
+                type: "boolean",
+                description: "Do they have a written job description that accurately reflects what they do"
+              },
+              confidence_meeting_expectations: {
+                type: "number",
+                description: "1-10 scale: How confident are they meeting expectations"
+              },
+              workload_manageable: {
+                type: "string",
+                enum: ["very_manageable", "somewhat_manageable", "not_manageable"],
+                description: "How manageable is their workload"
+              },
+              mentally_drained_frequency: {
+                type: "string",
+                enum: ["never", "rarely", "sometimes", "often"],
+                description: "How often do they feel mentally drained"
+              },
+              sacrifice_personal_time_frequency: {
+                type: "string",
+                enum: ["never", "rarely", "sometimes", "often"],
+                description: "How often do they sacrifice personal time for work"
+              },
+              burned_out_frequency: {
+                type: "string",
+                enum: ["never", "rarely", "sometimes", "often"],
+                description: "How often do they feel exhausted or burned out"
+              },
+              time_for_development: {
+                type: "string",
+                enum: ["less_than_1_hour", "1_to_3_hours", "4_to_6_hours", "7_plus_hours"],
+                description: "Weekly time available for professional development"
+              },
+              clear_path_growth: {
+                type: "number",
+                description: "1-10 scale: How clearly do they see a path for growth"
+              },
+              manager_support_growth: {
+                type: "number",
+                description: "1-10 scale: How well does their manager support their growth"
+              },
+              feel_valued: {
+                type: "number",
+                description: "1-10 scale: How valued do they feel for their contributions"
+              },
+              energized_about_work: {
+                type: "string",
+                enum: ["very_energized", "somewhat_energized", "not_energized"],
+                description: "How energized do they feel about work most days"
+              },
+              would_stay_elsewhere: {
+                type: "number",
+                description: "1-10 scale: If offered similar job elsewhere, how likely to stay"
+              },
+              org_helping_toward_goal: {
+                type: "string",
+                enum: ["yes", "no", "not_sure"],
+                description: "Do they feel the organization is helping them toward their career goal"
+              }
+            },
+            required: [
+              "role_expectations_clarity",
+              "job_description_accurate", 
+              "confidence_meeting_expectations",
+              "workload_manageable",
+              "mentally_drained_frequency",
+              "sacrifice_personal_time_frequency",
+              "burned_out_frequency",
+              "time_for_development",
+              "clear_path_growth",
+              "manager_support_growth",
+              "feel_valued",
+              "energized_about_work",
+              "would_stay_elsewhere",
+              "org_helping_toward_goal"
+            ]
           }
         }
       }
@@ -1104,6 +1246,239 @@ Use the vision and goal tools to capture what they share!`;
                 tool_call_id: toolCall.id,
                 role: 'tool',
                 content: `Successfully recorded achievement: "${functionArgs.achievement_text}"`
+              });
+            }
+          } else if (functionName === 'save_diagnostic_assessment') {
+            console.log('Processing diagnostic assessment...');
+            
+            // Normalization functions matching the ChatGPT spec exactly
+            const normalizeRoleClarity = (value: string): number => {
+              switch (value) {
+                case 'very_clear': return 100;
+                case 'somewhat_clear': return 70;
+                case 'not_clear': return 40;
+                default: return 50;
+              }
+            };
+
+            const normalizeYesNo = (value: boolean | string): number => {
+              if (value === true || value === 'yes') return 100;
+              if (value === 'not_sure') return 50;
+              return 0;
+            };
+
+            const normalizeWorkload = (value: string): number => {
+              switch (value) {
+                case 'very_manageable': return 100;
+                case 'somewhat_manageable': return 60;
+                case 'not_manageable': return 20;
+                default: return 50;
+              }
+            };
+
+            const normalizeFrequency = (value: string): number => {
+              switch (value) {
+                case 'never': return 100;
+                case 'rarely': return 80;
+                case 'sometimes': return 50;
+                case 'often': return 20;
+                default: return 50;
+              }
+            };
+
+            const normalizeEnergized = (value: string): number => {
+              switch (value) {
+                case 'very_energized': return 100;
+                case 'somewhat_energized': return 70;
+                case 'not_energized': return 30;
+                default: return 50;
+              }
+            };
+
+            const normalizeTimeForDevelopment = (value: string): number => {
+              switch (value) {
+                case 'less_than_1_hour': return 20;
+                case '1_to_3_hours': return 50;
+                case '4_to_6_hours': return 75;
+                case '7_plus_hours': return 90;
+                default: return 50;
+              }
+            };
+
+            const normalizeScale = (value: number): number => {
+              return Math.round(value * 10);
+            };
+
+            // Normalize all inputs
+            const roleClarity = normalizeRoleClarity(functionArgs.role_expectations_clarity);
+            const jobDescription = normalizeYesNo(functionArgs.job_description_accurate);
+            const confidenceScore = normalizeScale(functionArgs.confidence_meeting_expectations);
+            const workloadScore = normalizeWorkload(functionArgs.workload_manageable);
+            const mentallyDrainedScore = normalizeFrequency(functionArgs.mentally_drained_frequency);
+            const sacrificeScore = normalizeFrequency(functionArgs.sacrifice_personal_time_frequency);
+            const burnedOutScore = normalizeFrequency(functionArgs.burned_out_frequency);
+            const developmentTimeScore = normalizeTimeForDevelopment(functionArgs.time_for_development);
+            const clearPathScore = normalizeScale(functionArgs.clear_path_growth);
+            const managerSupportScore = normalizeScale(functionArgs.manager_support_growth);
+            const feelValuedScore = normalizeScale(functionArgs.feel_valued);
+            const energizedScore = normalizeEnergized(functionArgs.energized_about_work);
+            const stayScore = normalizeScale(functionArgs.would_stay_elsewhere);
+            const orgHelpingScore = normalizeYesNo(functionArgs.org_helping_toward_goal);
+
+            // Calculate category scores using the spec formulas
+            const clarityScore = Math.round((roleClarity + jobDescription) / 2);
+            const skillsScore = confidenceScore;
+            const engagementScore = Math.round((energizedScore + feelValuedScore) / 2);
+            const managerScore = managerSupportScore;
+            const careerScore = Math.round((clearPathScore + orgHelpingScore) / 2);
+            const retentionScore = stayScore;
+            const burnoutScore = Math.round((mentallyDrainedScore + sacrificeScore + burnedOutScore + workloadScore) / 4);
+            const learningScore = developmentTimeScore;
+
+            // Calculate risk tier
+            let riskFlags = 0;
+            if (retentionScore < 60) riskFlags++;
+            if (burnoutScore < 55) riskFlags++;
+            if (managerScore < 60) riskFlags++;
+            if (careerScore < 60) riskFlags++;
+            if (engagementScore < 60) riskFlags++;
+
+            let riskTier = 'low_risk';
+            if (riskFlags >= 2) riskTier = 'high_risk';
+            else if (riskFlags === 1) riskTier = 'watch_list';
+
+            console.log('Calculated scores:', {
+              clarity: clarityScore,
+              skills: skillsScore,
+              engagement: engagementScore,
+              manager: managerScore,
+              career: careerScore,
+              retention: retentionScore,
+              burnout: burnoutScore,
+              learning: learningScore,
+              riskTier,
+              riskFlags
+            });
+
+            // Save raw responses to diagnostic_responses
+            const { error: responseError } = await supabase
+              .from('diagnostic_responses')
+              .upsert({
+                profile_id: user.id,
+                company_id: effectiveCompanyId,
+                role_clarity_score: roleClarity,
+                has_written_job_description: functionArgs.job_description_accurate,
+                confidence_score: functionArgs.confidence_meeting_expectations,
+                workload_status: functionArgs.workload_manageable === 'very_manageable' ? 'manageable' : 
+                                 functionArgs.workload_manageable === 'somewhat_manageable' ? 'heavy' : 'overwhelmed',
+                mental_drain_frequency: functionArgs.mentally_drained_frequency,
+                work_life_sacrifice_frequency: functionArgs.sacrifice_personal_time_frequency,
+                burnout_frequency: functionArgs.burned_out_frequency,
+                weekly_development_hours: functionArgs.time_for_development === 'less_than_1_hour' ? 0.5 :
+                                           functionArgs.time_for_development === '1_to_3_hours' ? 2 :
+                                           functionArgs.time_for_development === '4_to_6_hours' ? 5 : 8,
+                sees_growth_path: clearPathScore >= 60,
+                company_supporting_goal: functionArgs.org_helping_toward_goal === 'yes',
+                manager_support_quality: managerSupportScore >= 80 ? 'very_supportive' :
+                                          managerSupportScore >= 60 ? 'somewhat_supportive' : 'not_supportive',
+                feels_valued: feelValuedScore >= 60,
+                daily_energy_level: functionArgs.energized_about_work === 'very_energized' ? 'very_energized' :
+                                     functionArgs.energized_about_work === 'somewhat_energized' ? 'somewhat_energized' : 'not_energized',
+                would_stay_if_offered_similar: retentionScore >= 80 ? 'yes' : retentionScore >= 50 ? 'maybe' : 'no',
+                submitted_at: new Date().toISOString(),
+                additional_responses: {
+                  raw_inputs: functionArgs,
+                  normalized_scores: {
+                    role_clarity: roleClarity,
+                    job_description: jobDescription,
+                    confidence: confidenceScore,
+                    workload: workloadScore,
+                    mentally_drained: mentallyDrainedScore,
+                    sacrifice: sacrificeScore,
+                    burned_out: burnedOutScore,
+                    development_time: developmentTimeScore,
+                    clear_path: clearPathScore,
+                    manager_support: managerSupportScore,
+                    feel_valued: feelValuedScore,
+                    energized: energizedScore,
+                    stay: stayScore,
+                    org_helping: orgHelpingScore
+                  }
+                }
+              }, { 
+                onConflict: 'profile_id',
+                ignoreDuplicates: false
+              });
+
+            if (responseError) {
+              console.error('Error saving diagnostic responses:', responseError);
+            }
+
+            // Save calculated scores to diagnostic_scores
+            const { error: scoresError } = await supabase
+              .from('diagnostic_scores')
+              .upsert({
+                profile_id: user.id,
+                company_id: effectiveCompanyId,
+                clarity_score: clarityScore,
+                skills_score: skillsScore,
+                engagement_score: engagementScore,
+                manager_score: managerScore,
+                career_score: careerScore,
+                retention_score: retentionScore,
+                burnout_score: burnoutScore,
+                learning_score: learningScore,
+                calculated_at: new Date().toISOString()
+              }, {
+                onConflict: 'profile_id',
+                ignoreDuplicates: false
+              });
+
+            if (scoresError) {
+              console.error('Error saving diagnostic scores:', scoresError);
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Failed to save diagnostic assessment: ${scoresError.message}`
+              });
+            } else {
+              // Build a summary for Jericho to share
+              const scoresSummary = [
+                { name: 'Role Clarity', score: clarityScore },
+                { name: 'Skills & Confidence', score: skillsScore },
+                { name: 'Engagement', score: engagementScore },
+                { name: 'Manager Support', score: managerScore },
+                { name: 'Career Growth', score: careerScore },
+                { name: 'Retention', score: retentionScore },
+                { name: 'Burnout Health', score: burnoutScore },
+                { name: 'Learning Capacity', score: learningScore }
+              ].sort((a, b) => a.score - b.score);
+
+              const strengths = scoresSummary.filter(s => s.score >= 70).slice(-3);
+              const growthAreas = scoresSummary.filter(s => s.score < 70).slice(0, 3);
+
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Diagnostic assessment saved successfully!
+
+SCORES SUMMARY:
+- Role Clarity: ${clarityScore}/100
+- Skills & Confidence: ${skillsScore}/100
+- Engagement: ${engagementScore}/100
+- Manager Support: ${managerScore}/100
+- Career Growth: ${careerScore}/100
+- Retention: ${retentionScore}/100
+- Burnout Health (higher = healthier): ${burnoutScore}/100
+- Learning Capacity: ${learningScore}/100
+
+RISK TIER: ${riskTier === 'high_risk' ? 'High Risk' : riskTier === 'watch_list' ? 'Watch List' : 'Low Risk'}
+
+TOP STRENGTHS: ${strengths.length > 0 ? strengths.map(s => `${s.name} (${s.score})`).join(', ') : 'All areas have room for growth'}
+
+GROWTH OPPORTUNITIES: ${growthAreas.length > 0 ? growthAreas.map(s => `${s.name} (${s.score})`).join(', ') : 'You\'re doing great across all areas!'}
+
+Share these results with empathy and offer 2-3 specific coaching suggestions for their lowest-scoring areas.`
               });
             }
           } else if (functionName === 'add_habit') {
