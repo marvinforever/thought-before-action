@@ -94,11 +94,24 @@ export default function PersonalVisionCard() {
         personal_three_year_vision: personalThreeYearVision || null,
       };
 
+      // Check if this is first time setting vision
+      const isFirstVision = !goals?.one_year_vision && !goals?.three_year_vision &&
+                           !goals?.personal_one_year_vision && !goals?.personal_three_year_vision;
+
       const { error } = await supabase
         .from("personal_goals")
         .upsert(payload as any, { onConflict: 'profile_id' });
 
       if (error) throw error;
+
+      // Award points for setting vision (only first time or significant update)
+      if (isFirstVision && (oneYearVision || threeYearVision || personalOneYearVision || personalThreeYearVision)) {
+        await supabase.rpc('award_points', {
+          p_profile_id: user.id,
+          p_activity_type: 'vision_set',
+          p_description: 'Set personal/professional vision'
+        });
+      }
 
       toast({
         title: "Vision saved",

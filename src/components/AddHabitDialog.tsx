@@ -157,6 +157,13 @@ export default function AddHabitDialog({ open, onClose, onHabitAdded, editingHab
 
         if (error) throw error;
 
+        // Award points for creating a new habit
+        await supabase.rpc('award_points', {
+          p_profile_id: user.id,
+          p_activity_type: 'habit_created',
+          p_description: `Created habit: ${habitName.trim()}`
+        });
+
         toast({
           title: "Success",
           description: "Habit added to your Greatness Tracker",

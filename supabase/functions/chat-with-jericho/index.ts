@@ -168,6 +168,14 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
 
       if (convError) throw convError;
       conversation = newConv;
+
+      // Award points for starting a new conversation with Jericho
+      const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await serviceClient.rpc('award_points', {
+        p_profile_id: user.id,
+        p_activity_type: 'chat_conversation',
+        p_description: 'Started conversation with Jericho'
+      });
     }
 
     // Check if user is a manager and fetch their team

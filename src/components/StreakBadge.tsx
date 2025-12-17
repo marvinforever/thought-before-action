@@ -67,6 +67,13 @@ export function StreakBadge({ className, showLabel = true }: StreakBadgeProps) {
                 total_logins: existingStreak.total_logins + 1,
               })
               .eq("profile_id", user.id);
+            
+            // Award points for daily login
+            await supabase.rpc('award_points', {
+              p_profile_id: user.id,
+              p_activity_type: 'daily_login',
+              p_description: `Day ${newStreak} login streak`
+            });
           }
 
           setStreak({
@@ -85,6 +92,13 @@ export function StreakBadge({ className, showLabel = true }: StreakBadgeProps) {
               last_login_date: today,
               total_logins: 1,
             });
+
+          // Award points for first login
+          await supabase.rpc('award_points', {
+            p_profile_id: user.id,
+            p_activity_type: 'daily_login',
+            p_description: 'First login'
+          });
 
           setStreak({
             currentStreak: 1,
