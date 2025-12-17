@@ -776,21 +776,56 @@ Use the vision and goal tools to capture what they share!`;
               year = now.getFullYear();
             }
             
-            // Get the next goal number
-            const { data: existingTargets } = await supabase
+            // Find an available goal slot (the UI only shows 3 goals per quarter/category: 1-3)
+            const { data: existingTargets, error: existingError } = await supabase
               .from('ninety_day_targets')
-              .select('goal_number')
+              .select('id, goal_number, goal_text')
               .eq('profile_id', user.id)
               .eq('quarter', quarter)
               .eq('year', year)
-              .order('goal_number', { ascending: false })
-              .limit(1);
-            
-            const nextGoalNumber = (existingTargets?.[0]?.goal_number || 0) + 1;
-            
+              .eq('category', functionArgs.category)
+              .in('goal_number', [1, 2, 3]);
+
+            if (existingError) {
+              console.error('Error checking existing targets:', existingError);
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Failed to add goal: ${existingError.message}`
+              });
+              continue;
+            }
+
+            // If the same goal already exists, treat as success (avoids duplicates)
+            const normalizedNewText = String(functionArgs.goal_text || '').trim().toLowerCase();
+            const duplicate = (existingTargets || []).find(t =>
+              String(t.goal_text || '').trim().toLowerCase() === normalizedNewText
+            );
+
+            if (duplicate) {
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `That 90-day goal is already on your tracker for ${quarter} ${year} (${functionArgs.category}).`
+              });
+              continue;
+            }
+
+            const usedNumbers = new Set((existingTargets || []).map(t => t.goal_number));
+            const availableNumber = [1, 2, 3].find(n => !usedNumbers.has(n));
+
+            if (!availableNumber) {
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `You already have 3 goals in the ${functionArgs.category} category for ${quarter} ${year}. Please edit one of those goals in the 90-Day Tracker to replace it.`
+              });
+              continue;
+            }
+
             const quarterEnd = new Date();
             quarterEnd.setDate(quarterEnd.getDate() + 90);
-            
+
             const { error: insertError } = await supabase
               .from('ninety_day_targets')
               .insert({
@@ -801,11 +836,11 @@ Use the vision and goal tools to capture what they share!`;
                 goal_type: functionArgs.goal_type || 'professional',
                 quarter,
                 year,
-                goal_number: nextGoalNumber,
+                goal_number: availableNumber,
                 by_when: functionArgs.by_when || quarterEnd.toISOString().split('T')[0],
                 completed: false
               });
-            
+
             if (insertError) {
               console.error('Error inserting target:', insertError);
               toolResults.push({
