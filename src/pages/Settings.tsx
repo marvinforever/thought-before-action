@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SMSOptInCard } from "@/components/SMSOptInCard";
 
 const PASSWORD_REQUIREMENTS = {
   minLength: 8,
@@ -181,6 +182,9 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* SMS Notifications Card */}
+      <SMSOptInCard />
 
       {/* Change Password Card */}
       <Card>
