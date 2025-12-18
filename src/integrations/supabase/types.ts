@@ -728,6 +728,58 @@ export type Database = {
         }
         Relationships: []
       }
+      company_feature_flags: {
+        Row: {
+          company_id: string
+          created_at: string
+          enabled_at: string | null
+          enabled_by: string | null
+          flag_id: string
+          id: string
+          is_enabled: boolean
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          enabled_at?: string | null
+          enabled_by?: string | null
+          flag_id: string
+          id?: string
+          is_enabled?: boolean
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          enabled_at?: string | null
+          enabled_by?: string | null
+          flag_id?: string
+          id?: string
+          is_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_feature_flags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_feature_flags_enabled_by_fkey"
+            columns: ["enabled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_feature_flags_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "feature_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_recommendations: {
         Row: {
           ai_reasoning: string | null
@@ -1503,6 +1555,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      feature_flags: {
+        Row: {
+          created_at: string
+          description: string | null
+          flag_name: string
+          id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          flag_name: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          flag_name?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       feedback_requests: {
         Row: {
@@ -2429,8 +2508,14 @@ export type Database = {
           is_admin: boolean | null
           is_super_admin: boolean | null
           phone: string | null
+          phone_verified: boolean | null
           role: string | null
+          sms_opted_in: boolean | null
+          sms_opted_in_at: string | null
+          timezone: string | null
           updated_at: string | null
+          voice_opted_in: boolean | null
+          voice_opted_in_at: string | null
         }
         Insert: {
           company_id?: string | null
@@ -2442,8 +2527,14 @@ export type Database = {
           is_admin?: boolean | null
           is_super_admin?: boolean | null
           phone?: string | null
+          phone_verified?: boolean | null
           role?: string | null
+          sms_opted_in?: boolean | null
+          sms_opted_in_at?: string | null
+          timezone?: string | null
           updated_at?: string | null
+          voice_opted_in?: boolean | null
+          voice_opted_in_at?: string | null
         }
         Update: {
           company_id?: string | null
@@ -2455,8 +2546,14 @@ export type Database = {
           is_admin?: boolean | null
           is_super_admin?: boolean | null
           phone?: string | null
+          phone_verified?: boolean | null
           role?: string | null
+          sms_opted_in?: boolean | null
+          sms_opted_in_at?: string | null
+          timezone?: string | null
           updated_at?: string | null
+          voice_opted_in?: boolean | null
+          voice_opted_in_at?: string | null
         }
         Relationships: [
           {
@@ -2807,6 +2904,72 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_messages: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          direction: string
+          error_message: string | null
+          id: string
+          message: string
+          message_type: string | null
+          parsed_data: Json | null
+          parsed_intent: string | null
+          phone_number: string
+          processed_at: string | null
+          profile_id: string | null
+          status: string | null
+          twilio_sid: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          id?: string
+          message: string
+          message_type?: string | null
+          parsed_data?: Json | null
+          parsed_intent?: string | null
+          phone_number: string
+          processed_at?: string | null
+          profile_id?: string | null
+          status?: string | null
+          twilio_sid?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          message?: string
+          message_type?: string | null
+          parsed_data?: Json | null
+          parsed_intent?: string | null
+          phone_number?: string
+          processed_at?: string | null
+          profile_id?: string | null
+          status?: string | null
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategic_learning_notifications: {
         Row: {
           company_id: string
@@ -3089,6 +3252,58 @@ export type Database = {
             foreignKeyName: "user_data_completeness_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_feature_flags: {
+        Row: {
+          created_at: string
+          enabled_at: string | null
+          enabled_by: string | null
+          flag_id: string
+          id: string
+          is_enabled: boolean
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled_at?: string | null
+          enabled_by?: string | null
+          flag_id: string
+          id?: string
+          is_enabled?: boolean
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled_at?: string | null
+          enabled_by?: string | null
+          flag_id?: string
+          id?: string
+          is_enabled?: boolean
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_feature_flags_enabled_by_fkey"
+            columns: ["enabled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_feature_flags_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "feature_flags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_feature_flags_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
