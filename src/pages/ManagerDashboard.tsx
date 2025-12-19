@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, Phone } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
@@ -23,7 +22,6 @@ import { DiagnosticInsights } from "@/components/DiagnosticInsights";
 import { TeamDiagnosticSnapshot } from "@/components/TeamDiagnosticSnapshot";
 import { ReviewsTab } from "@/components/ReviewsTab";
 import { TeamHealthRisks } from "@/components/TeamHealthRisks";
-import { SMSManagementTab } from "@/components/SMSManagementTab";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 
@@ -53,7 +51,6 @@ export default function ManagerDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
-  const { isEnabled: isSmsEnabled } = useFeatureFlag('sms_engagement');
 
   useEffect(() => {
     loadDirectReports();
@@ -249,12 +246,6 @@ export default function ManagerDashboard() {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
-          {isSmsEnabled && (
-            <TabsTrigger value="sms" className="flex items-center gap-1">
-              <Phone className="h-3 w-3" />
-              SMS
-            </TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="team" className="space-y-4">
@@ -405,12 +396,6 @@ export default function ManagerDashboard() {
         <TabsContent value="reviews">
           <ReviewsTab />
         </TabsContent>
-
-        {isSmsEnabled && (
-          <TabsContent value="sms">
-            <SMSManagementTab />
-          </TabsContent>
-        )}
       </Tabs>
 
       {selectedEmployee && (

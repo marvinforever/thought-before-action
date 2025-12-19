@@ -11,13 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield, Pencil, FolderTree, Flag } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield, Pencil, FolderTree, Flag, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { AssignRoleDialog } from "@/components/AssignRoleDialog";
 import { CapabilityTaxonomyManager } from "@/components/CapabilityTaxonomyManager";
 import { FeatureFlagsManager } from "@/components/FeatureFlagsManager";
+import { SMSManagementTab } from "@/components/SMSManagementTab";
 
 interface CompanyStats {
   id: string;
@@ -1733,6 +1734,10 @@ const SuperAdmin = () => {
             <Flag className="h-4 w-4 mr-2" />
             Feature Flags
           </TabsTrigger>
+          <TabsTrigger value="sms">
+            <Phone className="h-4 w-4 mr-2" />
+            SMS
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -2422,6 +2427,10 @@ const SuperAdmin = () => {
 
         <TabsContent value="feature-flags" className="space-y-6">
           <FeatureFlagsManager />
+        </TabsContent>
+
+        <TabsContent value="sms" className="space-y-6">
+          <SMSManagementTab />
         </TabsContent>
       </Tabs>
 
