@@ -7,8 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Users, Phone, ArrowUpRight, ArrowDownLeft, RefreshCw, TrendingUp, CheckCircle, XCircle, BarChart3 } from "lucide-react";
+import { MessageSquare, Send, Users, Phone, ArrowUpRight, ArrowDownLeft, RefreshCw, TrendingUp, CheckCircle, XCircle, BarChart3, Building2 } from "lucide-react";
 import { format } from "date-fns";
+
+interface Company {
+  id: string;
+  name: string;
+}
 
 interface OptedInEmployee {
   id: string;
@@ -41,6 +46,8 @@ interface SMSAnalytics {
 
 export function SMSManagementTab() {
   const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [optedInEmployees, setOptedInEmployees] = useState<OptedInEmployee[]>([]);
   const [messages, setMessages] = useState<SMSMessage[]>([]);
   const [totalEmployees, setTotalEmployees] = useState(0);
@@ -59,8 +66,39 @@ export function SMSManagementTab() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    loadCompanies();
   }, []);
+
+  useEffect(() => {
+    if (selectedCompanyId) {
+      loadData(selectedCompanyId);
+    }
+  }, [selectedCompanyId]);
+
+  const loadCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      setCompanies(data || []);
+      
+      // Auto-select first company if available
+      if (data && data.length > 0) {
+        setSelectedCompanyId(data[0].id);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error loading companies",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const calculateAnalytics = (msgs: SMSMessage[]): SMSAnalytics => {
     const outbound = msgs.filter(m => m.direction === "outbound");
@@ -86,26 +124,14 @@ export function SMSManagementTab() {
     };
   };
 
-  const loadData = async () => {
+  const loadData = async (companyId: string) => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get user's company
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.company_id) return;
-
       // Get total employees in company
       const { count: total } = await supabase
         .from("profiles")
         .select("*", { count: "exact", head: true })
-        .eq("company_id", profile.company_id);
+        .eq("company_id", companyId);
 
       setTotalEmployees(total || 0);
 
@@ -113,7 +139,7 @@ export function SMSManagementTab() {
       const { data: optedIn } = await supabase
         .from("profiles")
         .select("id, full_name, phone, sms_opted_in_at")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .eq("sms_opted_in", true)
         .not("phone", "is", null);
 
@@ -133,7 +159,7 @@ export function SMSManagementTab() {
           profile_id,
           profiles (full_name)
         `)
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(100);
 
@@ -180,7 +206,7 @@ export function SMSManagementTab() {
 
       setMessageText("");
       setSelectedEmployee("");
-      loadData(); // Refresh message list
+      loadData(selectedCompanyId); // Refresh message list
     } catch (error: any) {
       toast({
         title: "Failed to send SMS",
@@ -201,7 +227,7 @@ export function SMSManagementTab() {
     ? Math.round((optedInEmployees.length / totalEmployees) * 100) 
     : 0;
 
-  if (loading) {
+  if (loading && companies.length === 0) {
     return (
       <Card>
         <CardContent className="p-6 text-center text-muted-foreground">
@@ -213,6 +239,30 @@ export function SMSManagementTab() {
 
   return (
     <div className="space-y-6">
+      {/* Company Selector */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Select Company
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+            <SelectTrigger className="w-full max-w-sm">
+              <SelectValue placeholder="Select a company" />
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
       {/* Analytics Cards - Row 1 */}
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card>
@@ -423,7 +473,7 @@ export function SMSManagementTab() {
               </CardTitle>
               <CardDescription>Recent SMS activity</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={loadData}>
+            <Button variant="outline" size="sm" onClick={() => loadData(selectedCompanyId)}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
