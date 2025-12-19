@@ -124,7 +124,13 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.send-sms]
-verify_jwt = true
+verify_jwt = false
 
 [functions.receive-sms]
 verify_jwt = false
+
+[functions.refine-academy-article]
+verify_jwt = true
+
+[functions.delete-company]
+verify_jwt = true
