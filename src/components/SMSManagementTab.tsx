@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Users, Phone, ArrowUpRight, ArrowDownLeft, RefreshCw } from "lucide-react";
+import { MessageSquare, Send, Users, Phone, ArrowUpRight, ArrowDownLeft, RefreshCw, TrendingUp, CheckCircle, XCircle, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 
 interface OptedInEmployee {
@@ -29,6 +29,16 @@ interface SMSMessage {
   profiles?: { full_name: string } | null;
 }
 
+interface SMSAnalytics {
+  outboundCount: number;
+  inboundCount: number;
+  deliveredCount: number;
+  failedCount: number;
+  responseRate: number;
+  deliveryRate: number;
+  intentBreakdown: Record<string, number>;
+}
+
 export function SMSManagementTab() {
   const [loading, setLoading] = useState(true);
   const [optedInEmployees, setOptedInEmployees] = useState<OptedInEmployee[]>([]);
@@ -37,11 +47,44 @@ export function SMSManagementTab() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
+  const [analytics, setAnalytics] = useState<SMSAnalytics>({
+    outboundCount: 0,
+    inboundCount: 0,
+    deliveredCount: 0,
+    failedCount: 0,
+    responseRate: 0,
+    deliveryRate: 0,
+    intentBreakdown: {},
+  });
   const { toast } = useToast();
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const calculateAnalytics = (msgs: SMSMessage[]): SMSAnalytics => {
+    const outbound = msgs.filter(m => m.direction === "outbound");
+    const inbound = msgs.filter(m => m.direction === "inbound");
+    const delivered = outbound.filter(m => m.status === "sent" || m.status === "delivered");
+    const failed = outbound.filter(m => m.status === "failed");
+
+    // Calculate intent breakdown from inbound messages
+    const intentBreakdown: Record<string, number> = {};
+    inbound.forEach(msg => {
+      const intent = msg.parsed_intent || "unknown";
+      intentBreakdown[intent] = (intentBreakdown[intent] || 0) + 1;
+    });
+
+    return {
+      outboundCount: outbound.length,
+      inboundCount: inbound.length,
+      deliveredCount: delivered.length,
+      failedCount: failed.length,
+      responseRate: outbound.length > 0 ? Math.round((inbound.length / outbound.length) * 100) : 0,
+      deliveryRate: outbound.length > 0 ? Math.round((delivered.length / outbound.length) * 100) : 0,
+      intentBreakdown,
+    };
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -92,9 +135,11 @@ export function SMSManagementTab() {
         `)
         .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
 
-      setMessages(smsMessages || []);
+      const msgs = smsMessages || [];
+      setMessages(msgs);
+      setAnalytics(calculateAnalytics(msgs));
     } catch (error: any) {
       toast({
         title: "Error loading SMS data",
@@ -168,19 +213,19 @@ export function SMSManagementTab() {
 
   return (
     <div className="space-y-6">
-      {/* Metrics Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Analytics Cards - Row 1 */}
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Users className="h-4 w-4 text-accent" />
-              SMS Opt-in Rate
+              Opt-in Rate
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{optInRate}%</div>
             <p className="text-xs text-muted-foreground">
-              {optedInEmployees.length} of {totalEmployees} employees
+              {optedInEmployees.length}/{totalEmployees} employees
             </p>
           </CardContent>
         </Card>
@@ -188,31 +233,92 @@ export function SMSManagementTab() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Phone className="h-4 w-4 text-accent" />
-              Active Numbers
+              <ArrowUpRight className="h-4 w-4 text-accent" />
+              Sent
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{optedInEmployees.length}</div>
-            <p className="text-xs text-muted-foreground">Ready to receive SMS</p>
+            <div className="text-2xl font-bold">{analytics.outboundCount}</div>
+            <p className="text-xs text-muted-foreground">Outbound messages</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-accent" />
-              Messages Sent
+              <ArrowDownLeft className="h-4 w-4 text-accent" />
+              Received
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {messages.filter(m => m.direction === "outbound").length}
-            </div>
-            <p className="text-xs text-muted-foreground">Last 50 messages</p>
+            <div className="text-2xl font-bold">{analytics.inboundCount}</div>
+            <p className="text-xs text-muted-foreground">Inbound replies</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-accent" />
+              Response Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.responseRate}%</div>
+            <p className="text-xs text-muted-foreground">Replies/sent</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Delivered
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.deliveryRate}%</div>
+            <p className="text-xs text-muted-foreground">{analytics.deliveredCount} messages</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-destructive" />
+              Failed
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.failedCount}</div>
+            <p className="text-xs text-muted-foreground">Delivery failures</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Intent Breakdown */}
+      {Object.keys(analytics.intentBreakdown).length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Response Intent Breakdown
+            </CardTitle>
+            <CardDescription>How employees are responding</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(analytics.intentBreakdown)
+                .sort(([, a], [, b]) => b - a)
+                .map(([intent, count]) => (
+                  <Badge key={intent} variant="secondary" className="text-sm py-1 px-3">
+                    {intent}: {count}
+                  </Badge>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Send Message Card */}
