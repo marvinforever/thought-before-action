@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ export default function ManagerDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
+  const { isEnabled: isSmsEnabled } = useFeatureFlag('sms_engagement');
 
   useEffect(() => {
     loadDirectReports();
@@ -247,10 +249,12 @@ export default function ManagerDashboard() {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
-          <TabsTrigger value="sms" className="flex items-center gap-1">
-            <Phone className="h-3 w-3" />
-            SMS
-          </TabsTrigger>
+          {isSmsEnabled && (
+            <TabsTrigger value="sms" className="flex items-center gap-1">
+              <Phone className="h-3 w-3" />
+              SMS
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="team" className="space-y-4">
@@ -402,9 +406,11 @@ export default function ManagerDashboard() {
           <ReviewsTab />
         </TabsContent>
 
-        <TabsContent value="sms">
-          <SMSManagementTab />
-        </TabsContent>
+        {isSmsEnabled && (
+          <TabsContent value="sms">
+            <SMSManagementTab />
+          </TabsContent>
+        )}
       </Tabs>
 
       {selectedEmployee && (
