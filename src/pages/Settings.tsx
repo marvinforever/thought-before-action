@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SMSOptInCard } from "@/components/SMSOptInCard";
@@ -57,6 +58,7 @@ const strengthLabels: Record<PasswordStrength, string> = {
 
 export default function Settings() {
   const { toast } = useToast();
+  const { isEnabled: isSmsEnabled } = useFeatureFlag('sms_engagement');
   const [loading, setLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -183,8 +185,8 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* SMS Notifications Card */}
-      <SMSOptInCard />
+      {/* SMS Notifications Card - only shown when feature is enabled */}
+      {isSmsEnabled && <SMSOptInCard />}
 
       {/* Change Password Card */}
       <Card>
