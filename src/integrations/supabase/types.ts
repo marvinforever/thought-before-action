@@ -707,6 +707,133 @@ export type Database = {
           },
         ]
       }
+      coaching_follow_ups: {
+        Row: {
+          channel: string | null
+          completed_at: string | null
+          context: Json
+          conversation_id: string | null
+          created_at: string | null
+          follow_up_type: string
+          id: string
+          priority: string | null
+          profile_id: string
+          scheduled_for: string
+          skip_reason: string | null
+          skipped_at: string | null
+        }
+        Insert: {
+          channel?: string | null
+          completed_at?: string | null
+          context?: Json
+          conversation_id?: string | null
+          created_at?: string | null
+          follow_up_type: string
+          id?: string
+          priority?: string | null
+          profile_id: string
+          scheduled_for: string
+          skip_reason?: string | null
+          skipped_at?: string | null
+        }
+        Update: {
+          channel?: string | null
+          completed_at?: string | null
+          context?: Json
+          conversation_id?: string | null
+          created_at?: string | null
+          follow_up_type?: string
+          id?: string
+          priority?: string | null
+          profile_id?: string
+          scheduled_for?: string
+          skip_reason?: string | null
+          skipped_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_follow_ups_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_follow_ups_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coaching_insights: {
+        Row: {
+          company_id: string | null
+          confidence_level: string | null
+          created_at: string | null
+          first_observed_at: string | null
+          id: string
+          insight_text: string
+          insight_type: string
+          is_active: boolean | null
+          last_reinforced_at: string | null
+          profile_id: string
+          reinforcement_count: number | null
+          source_conversation_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          confidence_level?: string | null
+          created_at?: string | null
+          first_observed_at?: string | null
+          id?: string
+          insight_text: string
+          insight_type: string
+          is_active?: boolean | null
+          last_reinforced_at?: string | null
+          profile_id: string
+          reinforcement_count?: number | null
+          source_conversation_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          confidence_level?: string | null
+          created_at?: string | null
+          first_observed_at?: string | null
+          id?: string
+          insight_text?: string
+          insight_type?: string
+          is_active?: boolean | null
+          last_reinforced_at?: string | null
+          profile_id?: string
+          reinforcement_count?: number | null
+          source_conversation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_insights_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_insights_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_insights_source_conversation_id_fkey"
+            columns: ["source_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string | null
@@ -875,6 +1002,66 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_summaries: {
+        Row: {
+          action_items: Json | null
+          conversation_id: string
+          created_at: string | null
+          emotional_tone: string | null
+          follow_up_completed_at: string | null
+          follow_up_needed: boolean | null
+          follow_up_scheduled_for: string | null
+          follow_up_topic: string | null
+          id: string
+          key_topics: string[] | null
+          profile_id: string
+          summary_text: string
+        }
+        Insert: {
+          action_items?: Json | null
+          conversation_id: string
+          created_at?: string | null
+          emotional_tone?: string | null
+          follow_up_completed_at?: string | null
+          follow_up_needed?: boolean | null
+          follow_up_scheduled_for?: string | null
+          follow_up_topic?: string | null
+          id?: string
+          key_topics?: string[] | null
+          profile_id: string
+          summary_text: string
+        }
+        Update: {
+          action_items?: Json | null
+          conversation_id?: string
+          created_at?: string | null
+          emotional_tone?: string | null
+          follow_up_completed_at?: string | null
+          follow_up_needed?: boolean | null
+          follow_up_scheduled_for?: string | null
+          follow_up_topic?: string | null
+          id?: string
+          key_topics?: string[] | null
+          profile_id?: string
+          summary_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_summaries_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_summaries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
