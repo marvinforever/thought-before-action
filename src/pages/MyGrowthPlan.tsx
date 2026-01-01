@@ -38,7 +38,7 @@ export default function MyGrowthPlan() {
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
-  const { isEnabled: isPodcastEnabled } = useFeatureFlag('daily_podcast');
+  const { isEnabled: isPodcastEnabled, loading: podcastFlagLoading } = useFeatureFlag('daily_podcast');
 
   const handleNewBadge = (badge: { name: string; icon_emoji: string; description: string }) => {
     celebrate(`Badge Earned: ${badge.name}`, "badge", {
@@ -128,7 +128,7 @@ export default function MyGrowthPlan() {
       <OnboardingProgressCard />
 
       {/* Daily Podcast Player - Feature Flagged */}
-      {userProfile && isPodcastEnabled && (
+      {userProfile && !podcastFlagLoading && isPodcastEnabled && (
         <DailyPodcastPlayer 
           profileId={userProfile.id} 
           companyId={userProfile.company_id} 
