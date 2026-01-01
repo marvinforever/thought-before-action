@@ -134,3 +134,9 @@ verify_jwt = true
 
 [functions.delete-company]
 verify_jwt = true
+
+[functions.generate-podcast-script]
+verify_jwt = true
+
+[functions.elevenlabs-tts]
+verify_jwt = true

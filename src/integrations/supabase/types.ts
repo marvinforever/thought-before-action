@@ -2370,6 +2370,69 @@ export type Database = {
           },
         ]
       }
+      podcast_episodes: {
+        Row: {
+          audio_url: string | null
+          company_id: string
+          content_type: string
+          created_at: string
+          duration_seconds: number | null
+          episode_date: string
+          id: string
+          listened_at: string | null
+          profile_id: string
+          script: string
+          title: string
+          topics_covered: Json | null
+          updated_at: string
+        }
+        Insert: {
+          audio_url?: string | null
+          company_id: string
+          content_type?: string
+          created_at?: string
+          duration_seconds?: number | null
+          episode_date: string
+          id?: string
+          listened_at?: string | null
+          profile_id: string
+          script: string
+          title: string
+          topics_covered?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          audio_url?: string | null
+          company_id?: string
+          content_type?: string
+          created_at?: string
+          duration_seconds?: number | null
+          episode_date?: string
+          id?: string
+          listened_at?: string | null
+          profile_id?: string
+          script?: string
+          title?: string
+          topics_covered?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_episodes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podcast_episodes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       point_config: {
         Row: {
           activity_type: string
