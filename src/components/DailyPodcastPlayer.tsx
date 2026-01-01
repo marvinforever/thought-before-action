@@ -52,6 +52,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [audioVersion, setAudioVersion] = useState(0);
   const introRef = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const outroRef = useRef<HTMLAudioElement | null>(null);
@@ -80,6 +81,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
           ...data,
           topics_covered: (data.topics_covered as string[]) || []
         });
+        setAudioVersion(Date.now());
       }
     } catch (error) {
       console.error('Error fetching episode:', error);
@@ -183,6 +185,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         ...insertData,
         topics_covered: (insertData.topics_covered as string[]) || []
       });
+      setAudioVersion(Date.now());
 
       toast({
         title: regenerate ? "Episode regenerated! 🎧" : "Your Growth Brief is ready! 🎧",
@@ -409,14 +412,14 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         {episode.intro_music_url && (
           <audio
             ref={introRef}
-            src={episode.intro_music_url}
+            src={`${episode.intro_music_url}?v=${audioVersion}`}
             onEnded={handleIntroEnded}
           />
         )}
         {episode.audio_url && (
           <audio
             ref={audioRef}
-            src={episode.audio_url}
+            src={`${episode.audio_url}?v=${audioVersion}`}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={handleMainEnded}
@@ -425,7 +428,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         {episode.outro_music_url && (
           <audio
             ref={outroRef}
-            src={episode.outro_music_url}
+            src={`${episode.outro_music_url}?v=${audioVersion}`}
             onEnded={handleOutroEnded}
           />
         )}
