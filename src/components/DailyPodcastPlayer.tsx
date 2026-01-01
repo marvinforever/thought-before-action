@@ -155,21 +155,25 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
       }
 
       // Step 3: Save episode to database with music URLs
+      // Use upsert to avoid unique constraint issues (one episode per user per day)
       const { data: insertData, error: insertError } = await supabase
         .from('podcast_episodes')
-        .insert({
-          profile_id: profileId,
-          company_id: companyId,
-          episode_date: today,
-          title: scriptData.title,
-          script: scriptData.script,
-          audio_url: ttsData.audioUrl,
-          intro_music_url: introUrl || null,
-          outro_music_url: outroUrl || null,
-          duration_seconds: ttsData.durationSeconds,
-          content_type: 'hybrid',
-          topics_covered: scriptData.topicsCovered
-        })
+        .upsert(
+          {
+            profile_id: profileId,
+            company_id: companyId,
+            episode_date: today,
+            title: scriptData.title,
+            script: scriptData.script,
+            audio_url: ttsData.audioUrl,
+            intro_music_url: introUrl || null,
+            outro_music_url: outroUrl || null,
+            duration_seconds: ttsData.durationSeconds,
+            content_type: 'hybrid',
+            topics_covered: scriptData.topicsCovered,
+          },
+          { onConflict: 'profile_id,episode_date' }
+        )
         .select()
         .single();
 
