@@ -86,7 +86,7 @@ export function RequestCapabilityLevelDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Current Level</Label>
-            <div className="text-sm font-medium capitalize">{employeeCapability.current_level}</div>
+            <div className="text-sm font-medium">Level {employeeCapability.current_level === 'foundational' ? '1' : employeeCapability.current_level === 'advancing' ? '2' : employeeCapability.current_level === 'independent' ? '3' : '4'}</div>
           </div>
 
           <div className="space-y-2">
@@ -96,9 +96,9 @@ export function RequestCapabilityLevelDialog({
                 <SelectValue placeholder="Select level" />
               </SelectTrigger>
               <SelectContent>
-                {LEVELS.map((level) => (
-                  <SelectItem key={level} value={level} className="capitalize">
-                    {level}
+                {LEVELS.map((level, index) => (
+                  <SelectItem key={level} value={level}>
+                    Level {index + 1}
                   </SelectItem>
                 ))}
               </SelectContent>

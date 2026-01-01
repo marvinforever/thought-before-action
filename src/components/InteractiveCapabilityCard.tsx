@@ -91,12 +91,12 @@ export default function InteractiveCapabilityCard({
   const getLevelLabel = (level: string) => {
     const l = normalizeLevel(level);
     const labels: Record<string, string> = {
-      foundational: "Foundational",
-      advancing: "Advancing",
-      independent: "Independent",
-      mastery: "Mastery",
+      foundational: "Level 1",
+      advancing: "Level 2",
+      independent: "Level 3",
+      mastery: "Level 4",
     };
-    return labels[l] || (level.charAt(0).toUpperCase() + level.slice(1));
+    return labels[l] || "Level 1";
   };
 
   const getContentIcon = (type: string) => {

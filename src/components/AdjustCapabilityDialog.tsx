@@ -9,10 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp } from "lucide-react";
 
 const LEVELS = [
-  { value: "foundational", label: "Foundational" },
-  { value: "advancing", label: "Advancing" },
-  { value: "independent", label: "Independent" },
-  { value: "mastery", label: "Mastery" },
+  { value: "foundational", label: "Level 1" },
+  { value: "advancing", label: "Level 2" },
+  { value: "independent", label: "Level 3" },
+  { value: "mastery", label: "Level 4" },
 ];
 
 interface AdjustCapabilityDialogProps {

@@ -90,7 +90,12 @@ export function EmployeeCapabilitiesDialog({ open, onOpenChange, employee, onAss
   };
 
   const getLevelLabel = (level: string) => {
-    return level.charAt(0).toUpperCase() + level.slice(1);
+    const l = level.toLowerCase();
+    if (l === "foundational") return "Level 1";
+    if (l === "advancing") return "Level 2";
+    if (l === "independent") return "Level 3";
+    if (l === "mastery") return "Level 4";
+    return "Level 1";
   };
 
   return (

@@ -160,12 +160,11 @@ export default function Resources() {
   const getLevelLabel = (level: string | null) => {
     if (!level) return "General";
     const l = level.toLowerCase();
-    const norm = l === "foundational" ? "beginner"
-      : l === "advancing" ? "intermediate"
-      : l === "independent" ? "advanced"
-      : l === "mastery" ? "expert"
-      : l;
-    return norm.charAt(0).toUpperCase() + norm.slice(1);
+    if (l === "beginner" || l === "foundational") return "Level 1";
+    if (l === "intermediate" || l === "advancing") return "Level 2";
+    if (l === "advanced" || l === "independent") return "Level 3";
+    if (l === "expert" || l === "mastery") return "Level 4";
+    return "General";
   };
 
   const filteredResources = resources.filter(resource => {
@@ -232,10 +231,10 @@ export default function Resources() {
             <Tabs value={selectedLevel} onValueChange={setSelectedLevel} className="w-full">
               <TabsList>
                 <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="beginner">Beginner</TabsTrigger>
-                <TabsTrigger value="intermediate">Intermediate</TabsTrigger>
-                <TabsTrigger value="advanced">Advanced</TabsTrigger>
-                <TabsTrigger value="expert">Expert</TabsTrigger>
+                <TabsTrigger value="beginner">Level 1</TabsTrigger>
+                <TabsTrigger value="intermediate">Level 2</TabsTrigger>
+                <TabsTrigger value="advanced">Level 3</TabsTrigger>
+                <TabsTrigger value="expert">Level 4</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
