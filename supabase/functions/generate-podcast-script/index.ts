@@ -40,10 +40,10 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch user profile
+    // Fetch user profile including podcast duration preference
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, podcast_duration_minutes')
       .eq('id', profileId)
       .single();
 
@@ -55,6 +55,7 @@ serve(async (req) => {
     // Extract first name from full_name
     const fullName = profile.full_name || '';
     const userName = fullName.split(' ')[0] || 'there';
+    const durationMinutes = profile.podcast_duration_minutes || 2;
 
     // Fetch habit data with current streak
     const { data: habits } = await supabase
@@ -140,28 +141,67 @@ serve(async (req) => {
 
     console.log('Podcast context:', JSON.stringify(context, null, 2));
 
+    // Duration-based parameters
+    const durationConfig: Record<number, { words: string; structure: string; maxTokens: number }> = {
+      2: {
+        words: '300-350 words',
+        structure: `Structure (keep to ~300-350 words total for 2-minute audio):
+1. Opening (15 sec, ~30 words): Greet by name, acknowledge the day
+2. Personal Win (30 sec, ~60 words): Celebrate a specific achievement, streak, or progress
+3. Growth Insight (60 sec, ~120 words): One educational nugget related to their priority capability
+4. Daily Challenge (30 sec, ~60 words): Specific, actionable micro-challenge for today
+5. Closing (15 sec, ~30 words): Encouraging sign-off`,
+        maxTokens: 1000
+      },
+      5: {
+        words: '700-800 words',
+        structure: `Structure (keep to ~700-800 words total for 5-minute audio):
+1. Opening (20 sec, ~40 words): Warm greeting by name, acknowledge the day and set the tone
+2. Progress Review (60 sec, ~120 words): Celebrate achievements, streaks, and recent wins in detail
+3. Capability Deep-Dive (90 sec, ~180 words): In-depth educational content on their priority capability with practical examples
+4. Goal Check-In (60 sec, ~120 words): Review their 90-day goal progress and provide strategic guidance
+5. Daily Challenge (45 sec, ~90 words): Specific, actionable challenge with clear steps
+6. Mindset Moment (30 sec, ~60 words): A brief motivational insight or quote
+7. Closing (15 sec, ~30 words): Encouraging sign-off`,
+        maxTokens: 2000
+      },
+      10: {
+        words: '1400-1600 words',
+        structure: `Structure (keep to ~1400-1600 words total for 10-minute audio):
+1. Opening (30 sec, ~60 words): Warm, personal greeting with day acknowledgment and preview
+2. Weekly Wins Recap (90 sec, ~180 words): Comprehensive celebration of achievements and progress
+3. Habit & Streak Analysis (60 sec, ~120 words): Deep dive into habit performance and streak psychology
+4. Capability Masterclass (3 min, ~360 words): Extensive educational content with frameworks, examples, and application tips
+5. Goal Strategy Session (90 sec, ~180 words): Detailed goal review with milestone tracking and adjustments
+6. Skill-Building Exercise (60 sec, ~120 words): Interactive thought exercise or reflection prompt
+7. Daily Challenge (45 sec, ~90 words): Well-defined actionable challenge with success criteria
+8. Mindset & Motivation (60 sec, ~120 words): Deeper motivational content with practical wisdom
+9. Preview & Planning (30 sec, ~60 words): What to focus on for the rest of the week
+10. Closing (30 sec, ~60 words): Inspiring sign-off with personal encouragement`,
+        maxTokens: 4000
+      }
+    };
+
+    const config = durationConfig[durationMinutes] || durationConfig[2];
+
     // Generate script using Lovable AI
-    const systemPrompt = `You are a warm, motivating podcast host creating a personalized 2-minute daily growth brief. Your tone is:
+    const systemPrompt = `You are a warm, motivating podcast host creating a personalized ${durationMinutes}-minute daily growth brief. Your tone is:
 - Conversational and friendly, like a supportive mentor
 - Energetic but not over-the-top
 - Specific and personal, using the user's actual data
 - Action-oriented with a clear daily challenge
 
-Structure (keep to ~300-350 words total for 2-minute audio):
-1. Opening (15 sec, ~30 words): Greet by name, acknowledge the day
-2. Personal Win (30 sec, ~60 words): Celebrate a specific achievement, streak, or progress
-3. Growth Insight (60 sec, ~120 words): One educational nugget related to their priority capability
-4. Daily Challenge (30 sec, ~60 words): Specific, actionable micro-challenge for today
-5. Closing (15 sec, ~30 words): Encouraging sign-off
+${config.structure}
 
 Rules:
 - Write for spoken audio - use contractions, simple sentences, natural pauses
 - Include [pause] markers for dramatic effect or transitions
 - If data is missing, gracefully skip or generalize that section
 - Never say "according to your data" or "based on your profile" - just state things naturally
-- Make the educational insight genuinely useful, not generic`;
+- Make the educational insight genuinely useful, not generic
+- Target approximately ${config.words}`;
 
-    const userPrompt = `Create today's podcast script for this user:
+    const userPrompt = `Create today's ${durationMinutes}-minute podcast script for this user:
 
 User Context:
 - Name: ${context.userName}
@@ -186,7 +226,7 @@ Generate the complete podcast script. Use natural speech patterns and include [p
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 1000,
+        max_tokens: config.maxTokens,
         temperature: 0.8,
       }),
     });

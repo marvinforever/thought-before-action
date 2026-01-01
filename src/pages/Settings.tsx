@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
-import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail, Headphones } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SMSOptInCard } from "@/components/SMSOptInCard";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const PASSWORD_REQUIREMENTS = {
   minLength: 8,
@@ -60,11 +61,12 @@ export default function Settings() {
   const { toast } = useToast();
   const { isEnabled: isSmsEnabled } = useFeatureFlag('sms_engagement');
   const [loading, setLoading] = useState(false);
+  const [savingPodcast, setSavingPodcast] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; email: string; podcast_duration_minutes: number } | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -72,18 +74,51 @@ export default function Settings() {
       if (user) {
         const { data } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("full_name, podcast_duration_minutes")
           .eq("id", user.id)
           .single();
         
         setProfile({
           full_name: data?.full_name || "",
           email: user.email || "",
+          podcast_duration_minutes: data?.podcast_duration_minutes || 2,
         });
       }
     };
     fetchProfile();
   }, []);
+
+  const handlePodcastDurationChange = async (value: string) => {
+    const newDuration = parseInt(value);
+    if (!profile) return;
+    
+    setSavingPodcast(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ podcast_duration_minutes: newDuration })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      setProfile({ ...profile, podcast_duration_minutes: newDuration });
+      toast({
+        title: "Preference saved",
+        description: `Your daily brief will now be ${newDuration} minutes.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save preference.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPodcast(false);
+    }
+  };
 
   const passwordStrength = checkPasswordStrength(newPassword);
   const requirements = getPasswordRequirements(newPassword);
@@ -181,6 +216,50 @@ export default function Settings() {
                 {profile?.email || "Not set"}
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Daily Podcast Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Headphones className="h-5 w-5" />
+            Daily Growth Brief
+          </CardTitle>
+          <CardDescription>Customize your personalized audio briefing</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <Label>Episode Duration</Label>
+            <RadioGroup
+              value={String(profile?.podcast_duration_minutes || 2)}
+              onValueChange={handlePodcastDurationChange}
+              disabled={savingPodcast}
+              className="grid gap-3"
+            >
+              <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="2" id="duration-2" />
+                <Label htmlFor="duration-2" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Quick Brief (2 min)</div>
+                  <div className="text-sm text-muted-foreground">Perfect for busy mornings. Covers wins, one insight, and your daily challenge.</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="5" id="duration-5" />
+                <Label htmlFor="duration-5" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Standard Brief (5 min)</div>
+                  <div className="text-sm text-muted-foreground">Deeper dive with goal check-ins, capability insights, and motivational moments.</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="10" id="duration-10" />
+                <Label htmlFor="duration-10" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Extended Brief (10 min)</div>
+                  <div className="text-sm text-muted-foreground">Comprehensive session with masterclass content, exercises, and weekly planning.</div>
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
         </CardContent>
       </Card>

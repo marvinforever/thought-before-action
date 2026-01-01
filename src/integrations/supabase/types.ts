@@ -2572,6 +2572,7 @@ export type Database = {
           is_super_admin: boolean | null
           phone: string | null
           phone_verified: boolean | null
+          podcast_duration_minutes: number | null
           role: string | null
           sms_opted_in: boolean | null
           sms_opted_in_at: string | null
@@ -2591,6 +2592,7 @@ export type Database = {
           is_super_admin?: boolean | null
           phone?: string | null
           phone_verified?: boolean | null
+          podcast_duration_minutes?: number | null
           role?: string | null
           sms_opted_in?: boolean | null
           sms_opted_in_at?: string | null
@@ -2610,6 +2612,7 @@ export type Database = {
           is_super_admin?: boolean | null
           phone?: string | null
           phone_verified?: boolean | null
+          podcast_duration_minutes?: number | null
           role?: string | null
           sms_opted_in?: boolean | null
           sms_opted_in_at?: string | null
