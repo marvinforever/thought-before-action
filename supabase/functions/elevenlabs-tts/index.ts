@@ -9,6 +9,8 @@ const corsHeaders = {
 
 // ElevenLabs voice IDs - using dynamic, engaging voices
 const VOICES = {
+  // Primary voice
+  jericho: 'TWutjvRaJqAX89preB4e', // Custom selected voice
   // More energetic, engaging voices
   callum: 'N2lVS1w4EtoT3dr4eOWO', // Callum - charismatic, warm, energetic male
   george: 'JBFqnCBsd6RMkjVDRZzb', // George - confident, authoritative British male  
@@ -27,7 +29,7 @@ serve(async (req) => {
   }
 
   try {
-    const { script, profileId, episodeDate, voice = 'callum', storeAudio = true } = await req.json();
+    const { script, profileId, episodeDate, voice = 'jericho', storeAudio = true } = await req.json();
 
     if (!script) {
       throw new Error('script is required');

@@ -143,13 +143,13 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         description: "Now converting to audio...",
       });
 
-      // Step 2: Generate voice audio with more engaging voice
+      // Step 2: Generate voice audio
       const { data: ttsData, error: ttsError } = await supabase.functions.invoke('elevenlabs-tts', {
         body: { 
           script: scriptData.script,
           profileId,
           episodeDate: today,
-          voice: 'callum', // More charismatic, energetic voice
+          voice: 'jericho',
           storeAudio: true
         }
       });
