@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,8 @@ interface JerichoChatProps {
   contextType?: string;
 }
 
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: JerichoChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -27,10 +29,109 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [streamBuffer, setStreamBuffer] = useState(''); // Full content from server
   const [displayedChars, setDisplayedChars] = useState(0); // Characters revealed so far
+  const [hasSummarized, setHasSummarized] = useState(false); // Track if we've summarized this session
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRef = useRef<Date>(new Date());
+
+  // Summarize conversation - call the edge function
+  const summarizeConversation = useCallback(async (convId: string) => {
+    if (hasSummarized || !convId) return;
+    
+    try {
+      console.log('Triggering conversation summarization for:', convId);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/summarize-conversation`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ conversationId: convId }),
+        }
+      );
+
+      if (response.ok) {
+        console.log('Conversation summarized successfully');
+        setHasSummarized(true);
+      } else {
+        console.error('Failed to summarize conversation:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error summarizing conversation:', error);
+    }
+  }, [hasSummarized]);
+
+  // Reset inactivity timer on any user activity
+  const resetInactivityTimer = useCallback(() => {
+    lastActivityRef.current = new Date();
+    
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    
+    // Only set timer if we have a conversation and messages
+    if (conversationId && messages.length >= 2) {
+      inactivityTimerRef.current = setTimeout(() => {
+        console.log('Inactivity timeout reached, summarizing conversation');
+        summarizeConversation(conversationId);
+      }, INACTIVITY_TIMEOUT_MS);
+    }
+  }, [conversationId, messages.length, summarizeConversation]);
+
+  // Handle chat close - summarize if we had a meaningful conversation
+  const handleClose = useCallback(() => {
+    // Summarize if we have at least 2 messages (1 user + 1 assistant)
+    if (conversationId && messages.length >= 2 && !hasSummarized) {
+      summarizeConversation(conversationId);
+    }
+    
+    // Clear inactivity timer
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    
+    onClose();
+  }, [conversationId, messages.length, hasSummarized, summarizeConversation, onClose]);
+
+  // Reset summarization flag when conversation changes
+  useEffect(() => {
+    setHasSummarized(false);
+  }, [conversationId]);
+
+  // Set up inactivity timer when messages change
+  useEffect(() => {
+    if (isOpen && messages.length >= 2) {
+      resetInactivityTimer();
+    }
+    
+    return () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [isOpen, messages.length, resetInactivityTimer]);
+
+  // Cleanup on unmount - summarize if needed
+  useEffect(() => {
+    return () => {
+      if (conversationId && messages.length >= 2 && !hasSummarized) {
+        // Fire and forget - don't wait for response
+        summarizeConversation(conversationId);
+      }
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [conversationId, messages.length, hasSummarized, summarizeConversation]);
 
   // Auto-scroll to bottom when new messages arrive or content updates
   useEffect(() => {
@@ -255,7 +356,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
         <Button
           variant="ghost"
           size="icon"
-          onClick={onClose}
+          onClick={handleClose}
           className="hover:bg-primary-foreground/20 text-primary-foreground"
         >
           <X className="h-4 w-4" />
