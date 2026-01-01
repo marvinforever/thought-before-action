@@ -43,7 +43,7 @@ serve(async (req) => {
     // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('first_name, last_name')
+      .select('full_name')
       .eq('id', profileId)
       .single();
 
@@ -52,7 +52,9 @@ serve(async (req) => {
       throw new Error('Failed to fetch user profile');
     }
 
-    const userName = profile.first_name || 'there';
+    // Extract first name from full_name
+    const fullName = profile.full_name || '';
+    const userName = fullName.split(' ')[0] || 'there';
 
     // Fetch habit data with current streak
     const { data: habits } = await supabase
