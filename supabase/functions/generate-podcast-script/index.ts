@@ -29,7 +29,7 @@ interface PodcastContext {
   loginStreak: number;
   capabilityFocusIndex: number;
   allPriorityCapabilities: { name: string; level: string; target: string }[];
-  // New: Recognition & Manager feedback
+  // Recognition & Manager feedback
   recentRecognitions: {
     title: string;
     description: string | null;
@@ -39,6 +39,14 @@ interface PodcastContext {
   }[];
   managerWins: string[] | null;
   lastOneOnOneDate: string | null;
+  // Coaching follow-ups from conversations
+  pendingFollowUps: {
+    topic: string;
+    type: string;
+    scheduledFor: string;
+    context: any;
+  }[];
+  recentConversationSummary: string | null;
 }
 
 interface DayTheme {
@@ -250,6 +258,38 @@ serve(async (req) => {
 
     console.log(`Found manager wins: ${managerWins ? managerWins.length : 0}`);
 
+    // Fetch pending coaching follow-ups (from conversations with Jericho)
+    const { data: pendingFollowUpsData } = await supabase
+      .from('coaching_follow_ups')
+      .select('follow_up_type, scheduled_for, context')
+      .eq('profile_id', profileId)
+      .is('completed_at', null)
+      .is('skipped_at', null)
+      .lte('scheduled_for', new Date().toISOString())
+      .order('scheduled_for', { ascending: true })
+      .limit(3);
+
+    const pendingFollowUps = (pendingFollowUpsData || []).map(f => ({
+      topic: f.context?.topic || f.follow_up_type,
+      type: f.follow_up_type,
+      scheduledFor: f.scheduled_for,
+      context: f.context
+    }));
+
+    console.log(`Found ${pendingFollowUps.length} pending follow-ups for podcast`);
+
+    // Fetch most recent conversation summary for continuity
+    const { data: recentSummary } = await supabase
+      .from('conversation_summaries')
+      .select('summary_text, key_topics, action_items, emotional_tone')
+      .eq('profile_id', profileId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const recentConversationSummary = recentSummary?.summary_text || null;
+    const recentActionItems = recentSummary?.action_items || [];
+
     // Fetch TOP 5 priority capabilities for rotation
     const { data: capabilities } = await supabase
       .from('employee_capabilities')
@@ -381,6 +421,8 @@ serve(async (req) => {
       recentRecognitions,
       managerWins,
       lastOneOnOneDate,
+      pendingFollowUps,
+      recentConversationSummary,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
@@ -474,6 +516,17 @@ User Context:
 
 Yesterday's Challenge: ${context.yesterdayChallenge || 'None given (first episode or break)'}
 
+${context.pendingFollowUps.length > 0 
+  ? `COACHING FOLLOW-UPS (from recent conversations - naturally check in on these):
+${context.pendingFollowUps.map(f => `- ${f.topic}${f.context?.action_items?.length > 0 ? ` (they committed to: ${f.context.action_items.map((a: any) => a.item || a).join(', ')})` : ''}`).join('\n')}
+These are things they discussed in recent coaching sessions. Weave in a natural, caring check-in about one or more of these.`
+  : ''}
+
+${context.recentConversationSummary 
+  ? `Recent Coaching Session: ${context.recentConversationSummary}
+(Use this for continuity - you can reference what you discussed recently)`
+  : ''}
+
 Habits & Streaks:
 - Top habit: ${context.habitStreak > 0 ? `"${context.habitName}" with a ${context.habitStreak}-day streak` : 'No active habit streak yet - opportunity to encourage starting one'}
 
@@ -513,7 +566,8 @@ Learning Style: ${context.learningPreference || 'Not specified'}
 
 Generate the complete podcast script. Make it feel personal and motivating. Use natural speech patterns and include [pause] markers where appropriate.
 
-IMPORTANT: Near the end, clearly state the daily challenge in a memorable way. Make it specific, achievable, and connected to their growth.`;
+IMPORTANT: Near the end, clearly state the daily challenge in a memorable way. Make it specific, achievable, and connected to their growth.
+${context.pendingFollowUps.length > 0 ? '\nBONUS: If there are coaching follow-ups, naturally weave in a caring check-in about at least one of them. Make it conversational, not robotic.' : ''}`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
