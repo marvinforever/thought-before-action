@@ -199,7 +199,8 @@ Rules:
 - If data is missing, gracefully skip or generalize that section
 - Never say "according to your data" or "based on your profile" - just state things naturally
 - Make the educational insight genuinely useful, not generic
-- Target approximately ${config.words}`;
+- Target approximately ${config.words}
+- IMPORTANT: Do NOT include any stage directions, audio cues, or production notes like "intro music fades in", "music plays", "outro music", etc. Write ONLY the spoken words the host will say.`;
 
     const userPrompt = `Create today's ${durationMinutes}-minute podcast script for this user:
 
