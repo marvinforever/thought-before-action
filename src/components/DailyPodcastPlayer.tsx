@@ -316,7 +316,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
             <div>
               <h3 className="font-semibold">{episode.title}</h3>
               <p className="text-xs text-muted-foreground">
-                {format(new Date(episode.episode_date), 'MMMM d, yyyy')}
+                {format(new Date(episode.episode_date + 'T12:00:00'), 'MMMM d, yyyy')}
                 {episode.duration_seconds && ` • ${Math.round(episode.duration_seconds / 60)} min`}
               </p>
             </div>
