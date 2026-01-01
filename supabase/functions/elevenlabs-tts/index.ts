@@ -9,6 +9,7 @@ const corsHeaders = {
 
 // ElevenLabs voice IDs - using professional voices
 const VOICES = {
+  eric: 'cjVigY5qzO86Huf0OWal', // Eric - smooth friendly male voice
   brian: 'nPczCjzI2devNBz1zQrb', // Brian - warm male voice
   sarah: 'EXAVITQu4vr4xnSDxMaL', // Sarah - professional female voice
   adam: 'pNInz6obpgDQGcFmaJgB', // Adam - deep male voice
@@ -21,7 +22,7 @@ serve(async (req) => {
   }
 
   try {
-    const { script, profileId, episodeDate, voice = 'brian', storeAudio = true } = await req.json();
+    const { script, profileId, episodeDate, voice = 'eric', storeAudio = true } = await req.json();
 
     if (!script) {
       throw new Error('script is required');
