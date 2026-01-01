@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PodcastEpisodeHistory } from "./PodcastEpisodeHistory";
 
 interface PodcastEpisode {
   id: string;
@@ -581,6 +582,9 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
             </div>
           </CollapsibleContent>
         </Collapsible>
+
+        {/* Episode History */}
+        <PodcastEpisodeHistory profileId={profileId} />
       </CardContent>
     </Card>
   );
