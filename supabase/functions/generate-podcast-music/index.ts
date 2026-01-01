@@ -51,15 +51,15 @@ serve(async (req) => {
     }
 
     // Generate music using ElevenLabs Sound Effects API
-    // Energizing, anchor-worthy music that draws listeners in
+    // Warm, inviting music that feels like a trusted friend
     const prompts = {
-      intro: "Punchy energetic podcast intro, driving beat, confident brass hits, rising synth, creates anticipation, modern motivational, makes you lean in, 10 seconds",
-      outro: "Triumphant podcast outro, satisfying resolution, warm brass with uplifting strings, sense of accomplishment, leaves you inspired, 8 seconds"
+      intro: "Warm smooth podcast intro, gentle piano with soft Rhodes keys, subtle acoustic guitar, cozy morning coffee vibes, inviting and calm but focused, builds warmth not intensity, 8 seconds",
+      outro: "Gentle reflective podcast outro, soft piano resolution, warm ambient pads, peaceful and satisfying close, like a good conversation ending, 6 seconds"
     };
 
     const durations = {
-      intro: 10,
-      outro: 8
+      intro: 8,
+      outro: 6
     };
 
     console.log(`Generating new ${type} music with prompt: ${prompts[type]}`);
