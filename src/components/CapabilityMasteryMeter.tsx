@@ -29,10 +29,10 @@ const LEVEL_MAP: Record<string, number> = {
 };
 
 const LEVEL_LABELS: Record<number, string> = {
-  1: "Foundational",
-  2: "Advancing",
-  3: "Independent",
-  4: "Mastery",
+  1: "Level 1",
+  2: "Level 2",
+  3: "Level 3",
+  4: "Level 4",
 };
 
 const LEVEL_COLORS: Record<number, string> = {
@@ -116,20 +116,16 @@ export function CapabilityMasteryMeter({ capabilities }: CapabilityMasteryMeterP
           <Progress value={percentage} className="h-3" />
           <div className="flex justify-between text-xs">
             <div className="flex flex-col items-center gap-1">
-              <span className="font-medium text-blue-600 dark:text-blue-400">L1</span>
-              <span className="text-muted-foreground">Foundational</span>
+              <span className="font-medium text-blue-600 dark:text-blue-400">Level 1</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <span className="font-medium text-green-600 dark:text-green-400">L2</span>
-              <span className="text-muted-foreground">Advancing</span>
+              <span className="font-medium text-green-600 dark:text-green-400">Level 2</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <span className="font-medium text-orange-600 dark:text-orange-400">L3</span>
-              <span className="text-muted-foreground">Independent</span>
+              <span className="font-medium text-orange-600 dark:text-orange-400">Level 3</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <span className="font-medium text-purple-600 dark:text-purple-400">L4</span>
-              <span className="text-muted-foreground">Mastery</span>
+              <span className="font-medium text-purple-600 dark:text-purple-400">Level 4</span>
             </div>
           </div>
         </div>

@@ -38,20 +38,20 @@ const LEVELS = ["foundational", "advancing", "independent", "mastery"];
 
 const getLevelLabel = (level: string) => {
   const labels: Record<string, string> = {
-    foundational: "L1 - Foundational",
-    advancing: "L2 - Advancing",
-    independent: "L3 - Independent",
-    mastery: "L4 - Mastery"
+    foundational: "Level 1",
+    advancing: "Level 2",
+    independent: "Level 3",
+    mastery: "Level 4"
   };
   return labels[level] || level;
 };
 
 const getLevelNumber = (level: string) => {
   const numbers: Record<string, string> = {
-    foundational: "L1",
-    advancing: "L2",
-    independent: "L3",
-    mastery: "L4"
+    foundational: "1",
+    advancing: "2",
+    independent: "3",
+    mastery: "4"
   };
   return numbers[level] || "";
 };

@@ -382,7 +382,12 @@ export default function MyResources() {
 
   const getLevelLabel = (level: string | null) => {
     if (!level) return "General";
-    return level.charAt(0).toUpperCase() + level.slice(1);
+    const l = level.toLowerCase();
+    if (l === "beginner" || l === "foundational") return "Level 1";
+    if (l === "intermediate" || l === "advancing") return "Level 2";
+    if (l === "advanced" || l === "independent") return "Level 3";
+    if (l === "expert" || l === "mastery") return "Level 4";
+    return "General";
   };
 
   const filteredResources = resources.filter((item) => {
