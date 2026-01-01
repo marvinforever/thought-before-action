@@ -187,9 +187,9 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     const isManager = managerAssignments && managerAssignments.length > 0;
     const teamMembers = isManager ? managerAssignments.map(m => m.profiles).filter(Boolean) : [];
 
-    // Fetch user context for Jericho (including onboarding data)
+    // Fetch user context for Jericho (including onboarding data and coaching memory)
     // Fetch ALL historical targets for pattern analysis (no limit)
-    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData] = await Promise.all([
+    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData, coachingInsightsData, recentSummariesData, pendingFollowUpsData] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select('*, capabilities(name, description, category)')
@@ -232,6 +232,31 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .select('*')
         .eq('profile_id', user.id)
         .maybeSingle(),
+      // Coaching memory: Active insights
+      supabase
+        .from('coaching_insights')
+        .select('*')
+        .eq('profile_id', user.id)
+        .eq('is_active', true)
+        .order('last_reinforced_at', { ascending: false })
+        .limit(30),
+      // Recent conversation summaries
+      supabase
+        .from('conversation_summaries')
+        .select('*, conversations(title)')
+        .eq('profile_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      // Pending follow-ups
+      supabase
+        .from('coaching_follow_ups')
+        .select('*')
+        .eq('profile_id', user.id)
+        .is('completed_at', null)
+        .is('skipped_at', null)
+        .lte('scheduled_for', new Date().toISOString())
+        .order('scheduled_for', { ascending: true })
+        .limit(5),
     ]);
 
     // ==================== HISTORICAL GOAL INTELLIGENCE ====================
@@ -457,6 +482,30 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         skill_to_master: diagnosticData.data.skill_to_master,
         growth_barrier: diagnosticData.data.growth_barrier,
       } : null,
+      // Long-term coaching memory
+      coaching_memory: {
+        insights: (coachingInsightsData.data || []).map(i => ({
+          type: i.insight_type,
+          text: i.insight_text,
+          confidence: i.confidence_level,
+          times_reinforced: i.reinforcement_count,
+          first_observed: i.first_observed_at,
+        })),
+        recent_conversations: (recentSummariesData.data || []).map(s => ({
+          title: s.conversations?.title,
+          summary: s.summary_text,
+          topics: s.key_topics,
+          emotional_tone: s.emotional_tone,
+          action_items: s.action_items,
+          date: s.created_at,
+        })),
+        pending_follow_ups: (pendingFollowUpsData.data || []).map(f => ({
+          type: f.follow_up_type,
+          topic: f.context?.topic,
+          scheduled_for: f.scheduled_for,
+          context: f.context,
+        })),
+      },
     };
 
     // Build system prompt
@@ -517,6 +566,7 @@ YOU HAVE ACCESS TO THESE TOOLS - USE THEM:
 - **add_achievement**: Record a win/accomplishment they share
 - **add_habit**: Create a new habit they want to track
 - **update_habit**: Update or deactivate an existing habit
+- **save_coaching_insight**: Save an important insight about them for future reference (use sparingly!)
 
 WHEN TO USE TOOLS:
 - When they say "write that down" or "add that to my plan"
@@ -524,7 +574,33 @@ WHEN TO USE TOOLS:
 - When they share an achievement worth celebrating
 - When they want to start tracking a new habit
 - When they want to update their vision statements
+- When they share something significant about themselves (life events, blockers, preferences) worth remembering
 - **Always confirm what you're adding before or after using the tool**
+
+LONG-TERM MEMORY - YOU REMEMBER PAST CONVERSATIONS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You have access to coaching insights and summaries from past conversations. Use this to:
+- Reference things they've told you before ("Last time we talked about your VP presentation...")
+- Notice patterns across conversations ("I've noticed you often mention feeling overwhelmed...")
+- Follow up on commitments ("How did that conversation with your team go?")
+- Build genuine continuity ("Remember when you said public speaking was tough? How's that going?")
+
+${userContext.coaching_memory?.insights?.length > 0 ? `
+🧠 WHAT I KNOW ABOUT ${userContext.profile.name?.toUpperCase() || 'THIS PERSON'}:
+${userContext.coaching_memory.insights.map((i: any) => `- [${i.type}] ${i.text} (confidence: ${i.confidence})`).join('\n')}
+` : ''}
+
+${userContext.coaching_memory?.recent_conversations?.length > 0 ? `
+📝 RECENT CONVERSATIONS:
+${userContext.coaching_memory.recent_conversations.slice(0, 5).map((c: any) => `- ${c.title || 'Chat'}: ${c.summary} (tone: ${c.emotional_tone})`).join('\n')}
+` : ''}
+
+${userContext.coaching_memory?.pending_follow_ups?.length > 0 ? `
+⏰ FOLLOW-UPS DUE:
+${userContext.coaching_memory.pending_follow_ups.map((f: any) => `- ${f.topic || f.type}`).join('\n')}
+Consider naturally checking in on these topics during the conversation!
+` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 USER'S CURRENT GROWTH PLAN DATA:
 ${JSON.stringify(userContext, null, 2)}
@@ -959,6 +1035,50 @@ Use the vision and goal tools to capture what they share!`;
               "would_stay_elsewhere",
               "org_helping_toward_goal"
             ]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "save_coaching_insight",
+          description: "Save an important insight about the user for long-term memory. Use sparingly - only for significant things worth remembering across conversations. Examples: major life events, persistent blockers, key strengths, important relationships, personal preferences.",
+          parameters: {
+            type: "object",
+            properties: {
+              insight_type: {
+                type: "string",
+                enum: ["personality_trait", "strength", "growth_area", "life_event", "coaching_note", "commitment", "blocker", "preference", "relationship"],
+                description: "The type/category of insight"
+              },
+              insight_text: {
+                type: "string",
+                description: "The insight to remember (be specific and concise)"
+              },
+              confidence: {
+                type: "string",
+                enum: ["low", "medium", "high"],
+                description: "How confident are you in this insight? Use 'high' only for things explicitly stated."
+              }
+            },
+            required: ["insight_type", "insight_text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "complete_follow_up",
+          description: "Mark a pending follow-up as completed after checking in on it.",
+          parameters: {
+            type: "object",
+            properties: {
+              follow_up_topic: {
+                type: "string",
+                description: "The topic of the follow-up that was addressed"
+              }
+            },
+            required: ["follow_up_topic"]
           }
         }
       }
@@ -1542,6 +1662,102 @@ Share these results with empathy and offer 2-3 specific coaching suggestions for
                 tool_call_id: toolCall.id,
                 role: 'tool',
                 content: `Successfully updated the habit. ${functionArgs.is_active === false ? 'Habit deactivated.' : ''}`
+              });
+            }
+          } else if (functionName === 'save_coaching_insight') {
+            // Save a long-term coaching insight
+            const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+            
+            // Check for similar existing insight
+            const { data: existingInsights } = await serviceClient
+              .from('coaching_insights')
+              .select('id, insight_text, reinforcement_count')
+              .eq('profile_id', user.id)
+              .eq('insight_type', functionArgs.insight_type)
+              .eq('is_active', true);
+            
+            const normalizedNew = functionArgs.insight_text.toLowerCase();
+            const similar = (existingInsights || []).find(i => 
+              i.insight_text.toLowerCase().includes(normalizedNew) || 
+              normalizedNew.includes(i.insight_text.toLowerCase())
+            );
+            
+            if (similar) {
+              // Reinforce existing insight
+              await serviceClient
+                .from('coaching_insights')
+                .update({ 
+                  last_reinforced_at: new Date().toISOString(),
+                  reinforcement_count: (similar.reinforcement_count || 1) + 1
+                })
+                .eq('id', similar.id);
+              
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Reinforced existing insight: "${similar.insight_text}" (now observed ${(similar.reinforcement_count || 1) + 1} times)`
+              });
+            } else {
+              // Create new insight
+              const { error: insightError } = await serviceClient
+                .from('coaching_insights')
+                .insert({
+                  profile_id: user.id,
+                  company_id: effectiveCompanyId,
+                  insight_type: functionArgs.insight_type,
+                  insight_text: functionArgs.insight_text,
+                  source_conversation_id: conversation.id,
+                  confidence_level: functionArgs.confidence || 'medium',
+                });
+              
+              if (insightError) {
+                console.error('Error saving insight:', insightError);
+                toolResults.push({
+                  tool_call_id: toolCall.id,
+                  role: 'tool',
+                  content: `Failed to save insight: ${insightError.message}`
+                });
+              } else {
+                toolResults.push({
+                  tool_call_id: toolCall.id,
+                  role: 'tool',
+                  content: `Saved insight for future reference: "${functionArgs.insight_text}" [${functionArgs.insight_type}]`
+                });
+              }
+            }
+          } else if (functionName === 'complete_follow_up') {
+            // Mark a pending follow-up as completed
+            const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+            
+            const { data: followUps } = await serviceClient
+              .from('coaching_follow_ups')
+              .select('id, context')
+              .eq('profile_id', user.id)
+              .is('completed_at', null)
+              .is('skipped_at', null);
+            
+            // Find matching follow-up by topic
+            const matchingFollowUp = (followUps || []).find(f => 
+              f.context?.topic?.toLowerCase().includes(functionArgs.follow_up_topic.toLowerCase()) ||
+              functionArgs.follow_up_topic.toLowerCase().includes(f.context?.topic?.toLowerCase() || '')
+            );
+            
+            if (matchingFollowUp) {
+              await serviceClient
+                .from('coaching_follow_ups')
+                .update({ completed_at: new Date().toISOString() })
+                .eq('id', matchingFollowUp.id);
+              
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Marked follow-up as completed: "${matchingFollowUp.context?.topic}"`
+              });
+            } else {
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `No pending follow-up found matching "${functionArgs.follow_up_topic}"`
               });
             }
           }
