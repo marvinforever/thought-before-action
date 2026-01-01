@@ -140,3 +140,6 @@ verify_jwt = true
 
 [functions.elevenlabs-tts]
 verify_jwt = true
+
+[functions.generate-podcast-music]
+verify_jwt = true

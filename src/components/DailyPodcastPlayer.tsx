@@ -27,6 +27,8 @@ interface PodcastEpisode {
   title: string;
   script: string;
   audio_url: string | null;
+  intro_music_url: string | null;
+  outro_music_url: string | null;
   duration_seconds: number | null;
   listened_at: string | null;
   topics_covered: string[];
@@ -37,17 +39,22 @@ interface DailyPodcastPlayerProps {
   companyId: string;
 }
 
+type PlaybackPhase = 'intro' | 'main' | 'outro' | 'idle';
+
 export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerProps) => {
   const [episode, setEpisode] = useState<PodcastEpisode | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackPhase, setPlaybackPhase] = useState<PlaybackPhase>('idle');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
+  const introRef = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const outroRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -87,30 +94,52 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
       
       const today = format(new Date(), 'yyyy-MM-dd');
 
-      // If regenerating, delete the existing episode first
-      if (regenerate && episode) {
-        await supabase
+      // Delete any existing episode for today (handles both regeneration and stale data)
+      if (regenerate || episode) {
+        const { error: deleteError } = await supabase
           .from('podcast_episodes')
           .delete()
-          .eq('id', episode.id);
+          .eq('profile_id', profileId)
+          .eq('episode_date', today);
+        
+        if (deleteError) {
+          console.error('Error deleting existing episode:', deleteError);
+        }
         setEpisode(null);
       }
       
-      // Step 1: Generate script
-      const { data: scriptData, error: scriptError } = await supabase.functions.invoke('generate-podcast-script', {
-        body: { profileId, companyId }
+      // Step 1: Generate script and music in parallel
+      toast({
+        title: "Generating your brief...",
+        description: "Creating personalized script and music",
       });
 
-      if (scriptError || !scriptData?.success) {
-        throw new Error(scriptData?.error || 'Failed to generate script');
+      const [scriptResult, introResult, outroResult] = await Promise.all([
+        supabase.functions.invoke('generate-podcast-script', {
+          body: { profileId, companyId }
+        }),
+        supabase.functions.invoke('generate-podcast-music', {
+          body: { type: 'intro' }
+        }),
+        supabase.functions.invoke('generate-podcast-music', {
+          body: { type: 'outro' }
+        })
+      ]);
+
+      if (scriptResult.error || !scriptResult.data?.success) {
+        throw new Error(scriptResult.data?.error || 'Failed to generate script');
       }
+
+      const scriptData = scriptResult.data;
+      const introUrl = introResult.data?.audioUrl;
+      const outroUrl = outroResult.data?.audioUrl;
 
       toast({
         title: "Script generated!",
         description: "Now converting to audio...",
       });
 
-      // Step 2: Generate audio
+      // Step 2: Generate voice audio
       const { data: ttsData, error: ttsError } = await supabase.functions.invoke('elevenlabs-tts', {
         body: { 
           script: scriptData.script,
@@ -125,7 +154,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         throw new Error(ttsData?.error || 'Failed to generate audio');
       }
 
-      // Step 3: Save episode to database
+      // Step 3: Save episode to database with music URLs
       const { data: insertData, error: insertError } = await supabase
         .from('podcast_episodes')
         .insert({
@@ -135,6 +164,8 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
           title: scriptData.title,
           script: scriptData.script,
           audio_url: ttsData.audioUrl,
+          intro_music_url: introUrl || null,
+          outro_music_url: outroUrl || null,
           duration_seconds: ttsData.durationSeconds,
           content_type: 'hybrid',
           topics_covered: scriptData.topicsCovered
@@ -151,7 +182,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
 
       toast({
         title: regenerate ? "Episode regenerated! 🎧" : "Your Growth Brief is ready! 🎧",
-        description: "Press play to listen to today's personalized episode.",
+        description: introUrl ? "Press play - includes intro & outro music!" : "Press play to listen.",
       });
 
     } catch (error: unknown) {
@@ -167,19 +198,74 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
     }
   };
 
-  const togglePlayPause = () => {
-    if (!audioRef.current) return;
-    
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
+  const startPlayback = () => {
+    // If we have intro music, start with that
+    if (episode?.intro_music_url && introRef.current) {
+      setPlaybackPhase('intro');
+      introRef.current.volume = isMuted ? 0 : volume;
+      introRef.current.play();
+      setIsPlaying(true);
       // Mark as listened on first play
       if (episode && !episode.listened_at) {
         markAsListened();
       }
+    } else if (audioRef.current) {
+      // No intro, start main audio directly
+      setPlaybackPhase('main');
+      audioRef.current.play();
+      setIsPlaying(true);
+      if (episode && !episode.listened_at) {
+        markAsListened();
+      }
     }
-    setIsPlaying(!isPlaying);
+  };
+
+  const handleIntroEnded = () => {
+    // Intro finished, start main audio
+    setPlaybackPhase('main');
+    if (audioRef.current) {
+      audioRef.current.play();
+    }
+  };
+
+  const handleMainEnded = () => {
+    // Main content finished, play outro if available
+    if (episode?.outro_music_url && outroRef.current) {
+      setPlaybackPhase('outro');
+      outroRef.current.volume = isMuted ? 0 : volume;
+      outroRef.current.play();
+    } else {
+      // No outro, we're done
+      handleEnded();
+    }
+  };
+
+  const handleOutroEnded = () => {
+    handleEnded();
+  };
+
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      // Pause whichever is playing
+      introRef.current?.pause();
+      audioRef.current?.pause();
+      outroRef.current?.pause();
+      setIsPlaying(false);
+    } else {
+      if (playbackPhase === 'idle' || currentTime === 0) {
+        startPlayback();
+      } else {
+        // Resume current phase
+        if (playbackPhase === 'intro' && introRef.current) {
+          introRef.current.play();
+        } else if (playbackPhase === 'main' && audioRef.current) {
+          audioRef.current.play();
+        } else if (playbackPhase === 'outro' && outroRef.current) {
+          outroRef.current.play();
+        }
+        setIsPlaying(true);
+      }
+    }
   };
 
   const markAsListened = async () => {
@@ -215,29 +301,37 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0];
     setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-    }
+    // Apply volume to all audio elements
+    if (introRef.current) introRef.current.volume = newVolume;
+    if (audioRef.current) audioRef.current.volume = newVolume;
+    if (outroRef.current) outroRef.current.volume = newVolume;
     setIsMuted(newVolume === 0);
   };
 
   const toggleMute = () => {
-    if (audioRef.current) {
-      if (isMuted) {
-        audioRef.current.volume = volume || 0.5;
-        setIsMuted(false);
-      } else {
-        audioRef.current.volume = 0;
-        setIsMuted(true);
-      }
-    }
+    const newMuted = !isMuted;
+    const newVolume = newMuted ? 0 : (volume || 0.5);
+    
+    if (introRef.current) introRef.current.volume = newVolume;
+    if (audioRef.current) audioRef.current.volume = newVolume;
+    if (outroRef.current) outroRef.current.volume = newVolume;
+    
+    setIsMuted(newMuted);
   };
 
   const restart = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      setCurrentTime(0);
-    }
+    // Stop everything and reset
+    introRef.current?.pause();
+    audioRef.current?.pause();
+    outroRef.current?.pause();
+    
+    if (introRef.current) introRef.current.currentTime = 0;
+    if (audioRef.current) audioRef.current.currentTime = 0;
+    if (outroRef.current) outroRef.current.currentTime = 0;
+    
+    setCurrentTime(0);
+    setPlaybackPhase('idle');
+    setIsPlaying(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -249,6 +343,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
   const handleEnded = () => {
     setIsPlaying(false);
     setCurrentTime(0);
+    setPlaybackPhase('idle');
   };
 
   if (loading) {
@@ -306,14 +401,28 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 overflow-hidden">
       <CardContent className="p-4">
-        {/* Hidden audio element */}
+        {/* Hidden audio elements */}
+        {episode.intro_music_url && (
+          <audio
+            ref={introRef}
+            src={episode.intro_music_url}
+            onEnded={handleIntroEnded}
+          />
+        )}
         {episode.audio_url && (
           <audio
             ref={audioRef}
             src={episode.audio_url}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
-            onEnded={handleEnded}
+            onEnded={handleMainEnded}
+          />
+        )}
+        {episode.outro_music_url && (
+          <audio
+            ref={outroRef}
+            src={episode.outro_music_url}
+            onEnded={handleOutroEnded}
           />
         )}
 
