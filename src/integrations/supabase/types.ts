@@ -2379,7 +2379,9 @@ export type Database = {
           duration_seconds: number | null
           episode_date: string
           id: string
+          intro_music_url: string | null
           listened_at: string | null
+          outro_music_url: string | null
           profile_id: string
           script: string
           title: string
@@ -2394,7 +2396,9 @@ export type Database = {
           duration_seconds?: number | null
           episode_date: string
           id?: string
+          intro_music_url?: string | null
           listened_at?: string | null
+          outro_music_url?: string | null
           profile_id: string
           script: string
           title: string
@@ -2409,7 +2413,9 @@ export type Database = {
           duration_seconds?: number | null
           episode_date?: string
           id?: string
+          intro_music_url?: string | null
           listened_at?: string | null
+          outro_music_url?: string | null
           profile_id?: string
           script?: string
           title?: string
