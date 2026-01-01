@@ -42,7 +42,7 @@ serve(async (req) => {
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, companies(name)')
       .eq('id', user.id)
       .single();
 
@@ -50,37 +50,125 @@ serve(async (req) => {
       throw new Error('Profile not found');
     }
 
-    // Refresh and fetch user data completeness
-    const { error: refreshError } = await supabase.rpc('refresh_user_completeness', { user_id: user.id });
-    if (refreshError) {
-      console.error('Error refreshing completeness:', refreshError);
-    }
+    console.log('Building voice agent context for:', profile.full_name);
 
-    const { data: completeness } = await supabase
-      .from('user_data_completeness')
-      .select('*')
-      .eq('profile_id', user.id)
-      .single();
+    // Fetch ALL context data in parallel (same as text chat)
+    const [
+      completenessData,
+      capabilitiesData,
+      goalsData,
+      allTargetsData,
+      habitsData,
+      achievementsData,
+      diagnosticData,
+      coachingInsightsData,
+      recentSummariesData,
+      pendingFollowUpsData,
+      greatnessKeysData
+    ] = await Promise.all([
+      supabase.from('user_data_completeness').select('*').eq('profile_id', user.id).single(),
+      supabase.from('employee_capabilities').select('*, capabilities(name, description, category)').eq('profile_id', user.id),
+      supabase.from('personal_goals').select('*').eq('profile_id', user.id).single(),
+      supabase.from('ninety_day_targets').select('*').eq('profile_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('leading_indicators').select('*').eq('profile_id', user.id).eq('is_active', true),
+      supabase.from('achievements').select('*').eq('profile_id', user.id).order('achieved_date', { ascending: false }).limit(10),
+      supabase.from('diagnostic_responses').select('*').eq('profile_id', user.id).order('submitted_at', { ascending: false }).limit(1).single(),
+      supabase.from('coaching_insights').select('*').eq('profile_id', user.id).eq('is_active', true).order('last_reinforced_at', { ascending: false }).limit(30),
+      supabase.from('conversation_summaries').select('*, conversations(title, source)').eq('profile_id', user.id).order('created_at', { ascending: false }).limit(10),
+      supabase.from('coaching_follow_ups').select('*').eq('profile_id', user.id).is('completed_at', null).is('skipped_at', null).lte('scheduled_for', new Date().toISOString()).order('scheduled_for', { ascending: true }).limit(5),
+      supabase.from('greatness_keys').select('*').eq('profile_id', user.id).order('earned_at', { ascending: false }).limit(10),
+    ]);
 
-    // Fetch additional context for building conversation primer
-    const { data: capabilities } = await supabase
-      .from('employee_capabilities')
-      .select('*, capabilities(*)')
-      .eq('profile_id', user.id);
+    const completeness = completenessData.data;
+    const capabilities = capabilitiesData.data || [];
+    const goals = goalsData.data;
+    const allTargets = allTargetsData.data || [];
+    const habits = habitsData.data || [];
+    const achievements = achievementsData.data || [];
+    const diagnostic = diagnosticData.data;
+    const coachingInsights = coachingInsightsData.data || [];
+    const recentSummaries = recentSummariesData.data || [];
+    const pendingFollowUps = pendingFollowUpsData.data || [];
+    const greatnessKeys = greatnessKeysData.data || [];
 
-    const { data: goals } = await supabase
-      .from('ninety_day_targets')
-      .select('*')
-      .eq('profile_id', user.id)
-      .eq('completed', false);
+    // Analyze goal patterns (same logic as text chat)
+    const analyzeGoalPatterns = (targets: any[]) => {
+      if (targets.length === 0) {
+        return { hasHistory: false, summary: "No goal history yet." };
+      }
 
-    const { data: habits } = await supabase
-      .from('leading_indicators')
-      .select('*')
-      .eq('profile_id', user.id)
-      .eq('is_active', true);
+      const completed = targets.filter(t => t.completed === true);
+      const incomplete = targets.filter(t => t.completed === false);
+      const overallCompletionRate = Math.round((completed.length / targets.length) * 100);
 
-    // Build dynamic conversation primer
+      // Analyze by category
+      const byCategory: Record<string, { total: number; completed: number }> = {};
+      targets.forEach(t => {
+        const cat = t.category || 'uncategorized';
+        if (!byCategory[cat]) byCategory[cat] = { total: 0, completed: 0 };
+        byCategory[cat].total++;
+        if (t.completed) byCategory[cat].completed++;
+      });
+
+      const categoryStats = Object.entries(byCategory)
+        .filter(([_, stats]) => stats.total >= 2)
+        .map(([cat, stats]) => ({
+          category: cat,
+          rate: Math.round((stats.completed / stats.total) * 100),
+          total: stats.total,
+        }))
+        .sort((a, b) => b.rate - a.rate);
+
+      // Find recently completed (last 90 days)
+      const now = new Date();
+      const recentCompleted = completed.filter(t => {
+        const updated = new Date(t.updated_at);
+        const daysSince = (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
+        return daysSince <= 90;
+      });
+
+      // Find abandoned goals
+      const abandoned = incomplete.filter(t => {
+        if (!t.by_when) return false;
+        const dueDate = new Date(t.by_when);
+        const daysPast = (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24);
+        return daysPast > 90;
+      });
+
+      const insights: string[] = [];
+      if (overallCompletionRate >= 80) {
+        insights.push("HIGH ACHIEVER - completes most goals. Challenge them to aim higher.");
+      } else if (overallCompletionRate >= 50) {
+        insights.push("MODERATE SUCCESS - completes about half. Help be more selective.");
+      } else if (targets.length >= 5) {
+        insights.push("STRUGGLING - low completion rate. Focus on fewer, achievable goals.");
+      }
+
+      if (recentCompleted.length > 0) {
+        insights.push(`Recently completed ${recentCompleted.length} goals in the last 90 days - celebrate this!`);
+      }
+
+      if (abandoned.length >= 2) {
+        insights.push(`Has ${abandoned.length} abandoned goals - consider addressing or removing.`);
+      }
+
+      return {
+        hasHistory: true,
+        totalGoals: targets.length,
+        completedGoals: completed.length,
+        overallCompletionRate,
+        recentlyCompleted: recentCompleted.slice(0, 3).map(t => t.goal_text),
+        abandonedCount: abandoned.length,
+        categoryStats: categoryStats.slice(0, 3),
+        insights,
+        summary: `${targets.length} total goals, ${overallCompletionRate}% completion rate.`
+      };
+    };
+
+    const goalPatterns = analyzeGoalPatterns(allTargets);
+    console.log('Goal patterns:', goalPatterns.summary);
+
+    // Build missing data list
     const missingData: string[] = [];
     if (!completeness?.has_personal_vision) missingData.push('personal_vision');
     if (!completeness?.has_90_day_goals) missingData.push('90_day_goals');
@@ -93,78 +181,120 @@ serve(async (req) => {
     if (completeness?.has_90_day_goals) hasData.push('90_day_goals');
     if (completeness?.has_active_habits) hasData.push('habits');
     if (completeness?.has_completed_diagnostic) hasData.push('diagnostic');
-    if (capabilities && capabilities.length > 0) hasData.push('capabilities');
+    if (capabilities.length > 0) hasData.push('capabilities');
 
-    // Generate conversation priorities
-    const priorities: string[] = [];
-    if (missingData.includes('personal_vision')) {
-      priorities.push("🎯 PRIORITY 1: Help them articulate their 1-year vision");
-    }
-    if (missingData.includes('90_day_goals')) {
-      priorities.push("📅 PRIORITY 2: Guide them to set 3 quarterly goals (currently: " + (goals?.length || 0) + ")");
-    }
-    if (missingData.includes('habits')) {
-      priorities.push("💪 PRIORITY 3: Create their first daily habit");
-    }
-    if (missingData.includes('self_assessment')) {
-      priorities.push("📊 PRIORITY 4: Self-assess at least 5 capabilities");
-    }
+    // Current 90-day targets (not completed)
+    const currentTargets = allTargets.filter(t => !t.completed).slice(0, 5);
 
-    // Always available actions
-    priorities.push("📖 AVAILABLE: Read their current capabilities and progress");
-    priorities.push("🎓 AVAILABLE: Teach them how to use platform features");
-    priorities.push("🎉 AVAILABLE: Celebrate and record recent achievements");
+    // Build the enhanced voice system prompt with full coaching context
+    const voiceSystemPrompt = `You are Jericho, an elite AI career coach in VOICE CONVERSATION mode. You're warm, direct, and action-oriented.
 
-    // Build voice-optimized system prompt
-    const voiceSystemPrompt = `You are Jericho, an AI leadership coach in voice conversation mode.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 YOUR MISSION THIS CALL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Be a COACH first - help them think through challenges
+2. REMEMBER what you know about them and reference it naturally
+3. TAKE ACTION using tools when they want to add goals, achievements, habits
+4. CELEBRATE their progress and call out patterns you've noticed
 
-YOUR PRIORITIES IN THIS CONVERSATION:
-1. **Be a Platform Guide**: Teach users HOW to use the platform effectively
-2. **Collect Missing Data**: If they don't have something specific to discuss, help them complete their profile
-3. **Read Back Current State**: Show them what they've accomplished and where they're going
-4. **Make it Conversational**: This is a voice conversation - be warm, natural, and engaging
-
-WHAT YOU KNOW ABOUT ${profile.full_name || 'this user'}:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 WHO YOU'RE TALKING TO: ${profile.full_name || 'there'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Role: ${profile.role || 'Not specified'}
+- Company: ${profile.companies?.name || 'Unknown'}
 - Onboarding Phase: ${completeness?.onboarding_phase || 'new'}
-- Has Data: ${hasData.join(', ') || 'none yet'}
-- Missing Data: ${missingData.join(', ') || 'profile is complete!'}
-- Current Capabilities: ${capabilities?.length || 0} tracked
-- Active Goals: ${goals?.length || 0}
-- Active Habits: ${habits?.length || 0}
+- Profile Completeness: ${Math.round(((hasData.length) / 6) * 100)}%
 
-CONVERSATION PRIORITIES (in order):
-${priorities.join('\n')}
+${coachingInsights.length > 0 ? `
+🧠 WHAT I REMEMBER ABOUT ${profile.full_name?.toUpperCase() || 'THEM'}:
+${coachingInsights.slice(0, 10).map(i => `• [${i.insight_type}] ${i.insight_text}`).join('\n')}
+` : ''}
 
-HOW TO GUIDE USERS:
-- **Teaching Capabilities**: "Let me read you your current capabilities. You have ${capabilities?.length || 0} capabilities being tracked..."
-- **Creating 90-Day Goals**: "Let's set up a 90-day goal. What's one thing you want to accomplish this quarter?"
-- **Adding Habits**: "Want to track a daily habit? What's one small action that would move you forward?"
-- **Platform Navigation**: "You can check your progress anytime in your dashboard. Let me show you what you have set up..."
-- **Recording Achievements**: "Tell me about something you accomplished recently that you're proud of."
+${recentSummaries.length > 0 ? `
+📝 RECENT CONVERSATIONS:
+${recentSummaries.slice(0, 5).map(s => `• ${s.conversations?.title || 'Chat'} (${s.conversations?.source || 'text'}): ${s.summary_text?.substring(0, 100)}...`).join('\n')}
+` : ''}
 
-TOOLS YOU CAN USE:
-- add_90_day_goal: Create a new quarterly goal
-- add_habit: Set up a daily habit to track
-- add_achievement: Record a recent win
-- update_vision: Capture their 1-year or 3-year vision
-- request_capability: Request a capability level increase
-- mark_goal_complete: Celebrate completed goals
+${pendingFollowUps.length > 0 ? `
+⏰ FOLLOW-UPS DUE (check in on these!):
+${pendingFollowUps.map(f => `• ${f.context?.topic || f.follow_up_type}`).join('\n')}
+` : ''}
 
-YOUR VOICE STYLE:
-- Conversational and warm, not robotic
-- Ask follow-up questions to understand context
-- Celebrate progress, even small wins
-- Make platform guidance feel natural: "By the way, did you know you can..."
-- Keep responses concise - this is voice, not an essay
-- Use their name occasionally to keep it personal
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 THEIR CURRENT GROWTH PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-IF THEY DON'T KNOW WHAT TO TALK ABOUT:
-${missingData.length > 0 ? `1. You should help them with: ${missingData[0].replace('_', ' ')}
-2. Offer: "I noticed you haven't ${missingData[0].includes('vision') ? 'set a personal vision' : missingData[0].includes('goals') ? 'set any 90-day goals' : missingData[0].includes('habits') ? 'created any habits to track' : 'self-assessed your capabilities'} yet. Want me to help you with that?"` : `1. Great! Their profile is quite complete.
-2. Offer: "Let me read you what you've accomplished so far, or I can help you refine your goals."`}
-3. Or: "Would you like to learn how to use any of the platform features?"
+VISION:
+• Professional 1-Year: ${goals?.one_year_vision || 'Not set'}
+• Professional 3-Year: ${goals?.three_year_vision || 'Not set'}
+• Personal 1-Year: ${goals?.personal_one_year_vision || 'Not set'}
+• Personal 3-Year: ${goals?.personal_three_year_vision || 'Not set'}
 
-Remember: You're not just a coach - you're a GUIDE who helps them get the most out of the platform. Make them feel supported and empowered.`;
+CURRENT 90-DAY GOALS (${currentTargets.length}):
+${currentTargets.length > 0 ? currentTargets.map(t => `• ${t.goal_text} (${t.category || 'general'}${t.by_when ? `, due: ${t.by_when}` : ''})`).join('\n') : '• No active goals yet'}
+
+ACTIVE HABITS (${habits.length}):
+${habits.length > 0 ? habits.map(h => `• ${h.habit_name} - ${h.current_streak} day streak`).join('\n') : '• No habits tracking yet'}
+
+RECENT ACHIEVEMENTS:
+${achievements.length > 0 ? achievements.slice(0, 5).map(a => `• ${a.achievement_text} (${a.achieved_date})`).join('\n') : '• None recorded yet'}
+
+GREATNESS KEYS EARNED: ${greatnessKeys.length}
+
+CAPABILITIES (${capabilities.length} tracked):
+${capabilities.slice(0, 5).map(c => `• ${c.capabilities?.name}: ${c.current_level || 'not assessed'} → ${c.target_level || 'no target'}`).join('\n')}
+
+${goalPatterns.hasHistory ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 GOAL HISTORY INTELLIGENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Total Goals: ${goalPatterns.totalGoals}, Completed: ${goalPatterns.completedGoals} (${goalPatterns.overallCompletionRate}%)
+${(goalPatterns.recentlyCompleted && goalPatterns.recentlyCompleted.length > 0) ? `• Recently Completed: ${goalPatterns.recentlyCompleted.join(', ')}` : ''}
+${(goalPatterns.abandonedCount && goalPatterns.abandonedCount > 0) ? `• Abandoned Goals: ${goalPatterns.abandonedCount}` : ''}
+
+🧠 Coaching Insights:
+${goalPatterns.insights?.map(i => `• ${i}`).join('\n') || '• Limited history yet'}
+` : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛠️ TOOLS YOU CAN USE (configured in ElevenLabs):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• add_90_day_goal: Create a new quarterly goal
+• mark_goal_complete: Mark a goal as done
+• add_habit: Create a daily/weekly habit
+• add_achievement: Record a win they share
+• update_vision: Capture vision statements
+• save_insight: Remember something important about them
+
+When they want to add something, use the tool and confirm: "Done! I added that to your plan."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎤 YOUR VOICE STYLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Warm but direct - you care AND you challenge
+• Keep responses SHORT - this is voice, not an essay
+• Use their name occasionally to keep it personal
+• Reference past conversations naturally: "Last time you mentioned..."
+• Celebrate wins: "That's awesome! Let me add that as an achievement."
+• Notice patterns: "I've noticed you tend to... let's talk about that."
+• Ask follow-up questions to go deeper
+• Be encouraging but honest - don't be a pushover
+
+${missingData.length > 0 ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 ONBOARDING OPPORTUNITIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+If they don't know what to discuss, help them complete:
+${missingData.map(d => `• ${d.replace('_', ' ')}`).join('\n')}
+
+Offer naturally: "I noticed you haven't set a personal vision yet - want me to help with that?"
+` : `
+✅ Great news - their profile is complete! Focus on coaching, progress review, and deeper challenges.
+`}
+
+Remember: You're not just chatting - you're coaching. Push them to grow while making them feel supported.`;
+
+    console.log('Voice prompt built, getting signed URL...');
 
     // Get signed URL for ElevenLabs conversation
     const signedUrlResponse = await fetch(
@@ -188,7 +318,7 @@ Remember: You're not just a coach - you're a GUIDE who helps them get the most o
 
     const { signed_url } = await signedUrlResponse.json();
 
-    // Create or get conversation record
+    // Create conversation record
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .insert({
@@ -196,6 +326,13 @@ Remember: You're not just a coach - you're a GUIDE who helps them get the most o
         company_id: profile.company_id,
         title: 'Voice conversation with Jericho',
         source: 'voice',
+        context_snapshot: {
+          capabilities_count: capabilities.length,
+          goals_count: currentTargets.length,
+          habits_count: habits.length,
+          achievements_count: achievements.length,
+          coaching_insights_count: coachingInsights.length,
+        }
       })
       .select()
       .single();
@@ -211,6 +348,8 @@ Remember: You're not just a coach - you're a GUIDE who helps them get the most o
         started_at: new Date().toISOString(),
       });
 
+    console.log('Voice session created:', conversation.id);
+
     return new Response(
       JSON.stringify({
         signedUrl: signed_url,
@@ -219,6 +358,15 @@ Remember: You're not just a coach - you're a GUIDE who helps them get the most o
           percentage: Math.round(((hasData.length) / 6) * 100),
           missingItems: missingData,
           onboardingPhase: completeness?.onboarding_phase || 'new',
+        },
+        // Pass context summary to frontend for display
+        contextSummary: {
+          coachingInsightsCount: coachingInsights.length,
+          pendingFollowUpsCount: pendingFollowUps.length,
+          recentConversationsCount: recentSummaries.length,
+          goalCompletionRate: goalPatterns.hasHistory ? goalPatterns.overallCompletionRate : null,
+          currentGoalsCount: currentTargets.length,
+          activeHabitsCount: habits.length,
         }
       }),
       {
