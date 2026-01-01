@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Target, CheckCircle2, Clock, Calendar } from "lucide-react";
+import { Target, CheckCircle2, Clock, Calendar, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface PodcastEpisodeCardProps {
@@ -13,6 +13,7 @@ interface PodcastEpisodeCardProps {
     topics_covered: string[];
     daily_challenge: string | null;
     capability_name?: string | null;
+    challenge_completed_at?: string | null;
   };
 }
 
@@ -59,11 +60,38 @@ export const PodcastEpisodeCard = ({ episode }: PodcastEpisodeCardProps) => {
 
         {/* Daily Challenge - prominently displayed */}
         {episode.daily_challenge && (
-          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+          <div className={`rounded-lg p-3 ${
+            episode.challenge_completed_at && episode.challenge_completed_at !== 'skipped'
+              ? 'bg-green-500/10 border border-green-500/20'
+              : episode.challenge_completed_at === 'skipped'
+              ? 'bg-muted/50 border border-border'
+              : 'bg-primary/5 border border-primary/20'
+          }`}>
             <div className="flex items-start gap-2">
-              <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+              {episode.challenge_completed_at && episode.challenge_completed_at !== 'skipped' ? (
+                <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              ) : episode.challenge_completed_at === 'skipped' ? (
+                <XCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              ) : (
+                <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+              )}
               <div>
-                <p className="text-xs font-medium text-primary mb-1">Daily Challenge</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className={`text-xs font-medium ${
+                    episode.challenge_completed_at && episode.challenge_completed_at !== 'skipped'
+                      ? 'text-green-600'
+                      : episode.challenge_completed_at === 'skipped'
+                      ? 'text-muted-foreground'
+                      : 'text-primary'
+                  }`}>
+                    Daily Challenge
+                  </p>
+                  {episode.challenge_completed_at && episode.challenge_completed_at !== 'skipped' && (
+                    <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
+                      Completed
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-sm text-foreground">{episode.daily_challenge}</p>
               </div>
             </div>

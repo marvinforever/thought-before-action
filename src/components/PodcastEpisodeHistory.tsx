@@ -16,6 +16,7 @@ interface Episode {
   topics_covered: string[];
   daily_challenge: string | null;
   capability_name: string | null;
+  challenge_completed_at: string | null;
 }
 
 interface PodcastEpisodeHistoryProps {
@@ -47,6 +48,7 @@ export const PodcastEpisodeHistory = ({ profileId }: PodcastEpisodeHistoryProps)
           listened_at,
           topics_covered,
           daily_challenge,
+          challenge_completed_at,
           capability_id,
           capabilities(name)
         `)
@@ -66,6 +68,7 @@ export const PodcastEpisodeHistory = ({ profileId }: PodcastEpisodeHistoryProps)
         topics_covered: (ep.topics_covered as string[]) || [],
         daily_challenge: ep.daily_challenge,
         capability_name: (ep.capabilities as { name: string } | null)?.name || null,
+        challenge_completed_at: ep.challenge_completed_at,
       }));
 
       setEpisodes(formattedEpisodes);

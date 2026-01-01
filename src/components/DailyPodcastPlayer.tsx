@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PodcastEpisodeHistory } from "./PodcastEpisodeHistory";
+import { YesterdayChallengeCheckIn } from "./YesterdayChallengeCheckIn";
 
 interface PodcastEpisode {
   id: string;
@@ -411,7 +412,11 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
 
   // Episode exists - show player
   return (
-    <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 overflow-hidden">
+    <div>
+      {/* Yesterday's Challenge Check-in */}
+      <YesterdayChallengeCheckIn profileId={profileId} />
+      
+      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 overflow-hidden">
       <CardContent className="p-4">
         {/* Hidden audio elements */}
         {episode.intro_music_url && (
@@ -587,5 +592,6 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         <PodcastEpisodeHistory profileId={profileId} />
       </CardContent>
     </Card>
+    </div>
   );
 };
