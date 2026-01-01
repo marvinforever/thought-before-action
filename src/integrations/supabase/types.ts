@@ -2375,6 +2375,7 @@ export type Database = {
           audio_url: string | null
           capability_focus_index: number | null
           capability_id: string | null
+          challenge_completed_at: string | null
           company_id: string
           content_type: string
           created_at: string
@@ -2396,6 +2397,7 @@ export type Database = {
           audio_url?: string | null
           capability_focus_index?: number | null
           capability_id?: string | null
+          challenge_completed_at?: string | null
           company_id: string
           content_type?: string
           created_at?: string
@@ -2417,6 +2419,7 @@ export type Database = {
           audio_url?: string | null
           capability_focus_index?: number | null
           capability_id?: string | null
+          challenge_completed_at?: string | null
           company_id?: string
           content_type?: string
           created_at?: string
