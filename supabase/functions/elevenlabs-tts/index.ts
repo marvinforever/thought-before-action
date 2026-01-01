@@ -45,7 +45,7 @@ serve(async (req) => {
       .replace(/\n\n/g, '\n')         // Reduce double line breaks
       .trim();
 
-    const voiceId = VOICES[voice as keyof typeof VOICES] || VOICES.brian;
+    const voiceId = VOICES[voice as keyof typeof VOICES] || VOICES.eric;
 
     // Call ElevenLabs TTS API
     const ttsResponse = await fetch(
