@@ -2373,9 +2373,12 @@ export type Database = {
       podcast_episodes: {
         Row: {
           audio_url: string | null
+          capability_focus_index: number | null
+          capability_id: string | null
           company_id: string
           content_type: string
           created_at: string
+          daily_challenge: string | null
           duration_seconds: number | null
           episode_date: string
           id: string
@@ -2387,12 +2390,16 @@ export type Database = {
           title: string
           topics_covered: Json | null
           updated_at: string
+          yesterday_summary: string | null
         }
         Insert: {
           audio_url?: string | null
+          capability_focus_index?: number | null
+          capability_id?: string | null
           company_id: string
           content_type?: string
           created_at?: string
+          daily_challenge?: string | null
           duration_seconds?: number | null
           episode_date: string
           id?: string
@@ -2404,12 +2411,16 @@ export type Database = {
           title: string
           topics_covered?: Json | null
           updated_at?: string
+          yesterday_summary?: string | null
         }
         Update: {
           audio_url?: string | null
+          capability_focus_index?: number | null
+          capability_id?: string | null
           company_id?: string
           content_type?: string
           created_at?: string
+          daily_challenge?: string | null
           duration_seconds?: number | null
           episode_date?: string
           id?: string
@@ -2421,8 +2432,16 @@ export type Database = {
           title?: string
           topics_covered?: Json | null
           updated_at?: string
+          yesterday_summary?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "podcast_episodes_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "podcast_episodes_company_id_fkey"
             columns: ["company_id"]

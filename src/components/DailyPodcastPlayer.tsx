@@ -156,7 +156,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         throw new Error(ttsData?.error || 'Failed to generate audio');
       }
 
-      // Step 3: Save episode to database with music URLs
+      // Step 3: Save episode to database with music URLs and new tracking fields
       // Use upsert to avoid unique constraint issues (one episode per user per day)
       const { data: insertData, error: insertError } = await supabase
         .from('podcast_episodes')
@@ -173,6 +173,10 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
             duration_seconds: ttsData.durationSeconds,
             content_type: 'hybrid',
             topics_covered: scriptData.topicsCovered,
+            // New fields for enhanced tracking
+            capability_id: scriptData.capabilityId || null,
+            capability_focus_index: scriptData.capabilityFocusIndex ?? 0,
+            daily_challenge: scriptData.dailyChallenge || null,
           },
           { onConflict: 'profile_id,episode_date' }
         )
