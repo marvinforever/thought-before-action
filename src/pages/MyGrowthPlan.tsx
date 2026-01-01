@@ -17,6 +17,7 @@ import { StreakBadge } from "@/components/StreakBadge";
 import { BadgeShowcase } from "@/components/BadgeShowcase";
 import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
 import { CompanyLeaderboard } from "@/components/CompanyLeaderboard";
+import { DailyPodcastPlayer } from "@/components/DailyPodcastPlayer";
 
 type JobDescription = {
   id: string;
@@ -32,6 +33,7 @@ export default function MyGrowthPlan() {
   const [loading, setLoading] = useState(true);
   const [viewJdDialogOpen, setViewJdDialogOpen] = useState(false);
   const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
+  const [userProfile, setUserProfile] = useState<{ id: string; company_id: string } | null>(null);
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
@@ -51,6 +53,17 @@ export default function MyGrowthPlan() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Fetch user profile for podcast player
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .eq("id", user.id)
+        .single();
+      
+      if (profile) {
+        setUserProfile(profile);
+      }
 
       let targetUserId = user.id;
       
@@ -111,6 +124,14 @@ export default function MyGrowthPlan() {
 
       {/* Onboarding Progress */}
       <OnboardingProgressCard />
+
+      {/* Daily Podcast Player */}
+      {userProfile && (
+        <DailyPodcastPlayer 
+          profileId={userProfile.id} 
+          companyId={userProfile.company_id} 
+        />
+      )}
 
       {/* Personal Vision and Greatness/Badges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
