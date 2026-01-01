@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText } from "lucide-react";
@@ -37,6 +38,7 @@ export default function MyGrowthPlan() {
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
+  const { isEnabled: isPodcastEnabled } = useFeatureFlag('daily_podcast');
 
   const handleNewBadge = (badge: { name: string; icon_emoji: string; description: string }) => {
     celebrate(`Badge Earned: ${badge.name}`, "badge", {
@@ -125,8 +127,8 @@ export default function MyGrowthPlan() {
       {/* Onboarding Progress */}
       <OnboardingProgressCard />
 
-      {/* Daily Podcast Player */}
-      {userProfile && (
+      {/* Daily Podcast Player - Feature Flagged */}
+      {userProfile && isPodcastEnabled && (
         <DailyPodcastPlayer 
           profileId={userProfile.id} 
           companyId={userProfile.company_id} 
