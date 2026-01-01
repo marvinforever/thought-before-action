@@ -13,7 +13,8 @@ import {
   ChevronUp,
   Headphones,
   Sparkles,
-  Loader2
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -80,9 +81,20 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
     }
   };
 
-  const generateEpisode = async () => {
+  const generateEpisode = async (regenerate = false) => {
     try {
       setGenerating(true);
+      
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      // If regenerating, delete the existing episode first
+      if (regenerate && episode) {
+        await supabase
+          .from('podcast_episodes')
+          .delete()
+          .eq('id', episode.id);
+        setEpisode(null);
+      }
       
       // Step 1: Generate script
       const { data: scriptData, error: scriptError } = await supabase.functions.invoke('generate-podcast-script', {
@@ -98,15 +110,13 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
         description: "Now converting to audio...",
       });
 
-      const today = format(new Date(), 'yyyy-MM-dd');
-
       // Step 2: Generate audio
       const { data: ttsData, error: ttsError } = await supabase.functions.invoke('elevenlabs-tts', {
         body: { 
           script: scriptData.script,
           profileId,
           episodeDate: today,
-          voice: 'brian',
+          voice: 'eric',
           storeAudio: true
         }
       });
@@ -140,7 +150,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
       });
 
       toast({
-        title: "Your Growth Brief is ready! 🎧",
+        title: regenerate ? "Episode regenerated! 🎧" : "Your Growth Brief is ready! 🎧",
         description: "Press play to listen to today's personalized episode.",
       });
 
@@ -270,7 +280,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
               </p>
             </div>
             <Button 
-              onClick={generateEpisode} 
+              onClick={() => generateEpisode(false)} 
               disabled={generating}
               className="gap-2"
             >
@@ -321,11 +331,27 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
               </p>
             </div>
           </div>
-          {episode.listened_at && (
-            <Badge variant="secondary" className="text-xs">
-              Played
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {episode.listened_at && (
+              <Badge variant="secondary" className="text-xs">
+                Played
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => generateEpisode(true)}
+              disabled={generating}
+              className="h-8 w-8"
+              title="Regenerate episode"
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Topics */}
