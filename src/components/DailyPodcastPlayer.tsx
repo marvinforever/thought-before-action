@@ -233,10 +233,58 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
     }
   };
 
+  // Crossfade: Start fading intro and begin main audio slightly before intro ends
+  useEffect(() => {
+    if (playbackPhase !== 'intro' || !introRef.current || !audioRef.current) return;
+    
+    const intro = introRef.current;
+    const main = audioRef.current;
+    let fadeInterval: number | null = null;
+    
+    const handleIntroTimeUpdate = () => {
+      const timeRemaining = intro.duration - intro.currentTime;
+      
+      // Start crossfade 1.5 seconds before intro ends
+      if (timeRemaining <= 1.5 && timeRemaining > 0) {
+        // Start main audio if not already playing
+        if (main.paused && main.currentTime === 0) {
+          main.volume = 0;
+          main.play();
+          
+          // Fade intro down and main up over 1.5 seconds
+          const fadeSteps = 30; // 30 steps over 1.5 seconds = 50ms per step
+          let step = 0;
+          const introStartVol = intro.volume;
+          const targetMainVol = isMuted ? 0 : volume;
+          
+          fadeInterval = window.setInterval(() => {
+            step++;
+            const progress = step / fadeSteps;
+            intro.volume = Math.max(0, introStartVol * (1 - progress));
+            main.volume = targetMainVol * progress;
+            
+            if (step >= fadeSteps && fadeInterval) {
+              clearInterval(fadeInterval);
+            }
+          }, 50);
+        }
+      }
+    };
+    
+    intro.addEventListener('timeupdate', handleIntroTimeUpdate);
+    
+    return () => {
+      intro.removeEventListener('timeupdate', handleIntroTimeUpdate);
+      if (fadeInterval) clearInterval(fadeInterval);
+    };
+  }, [playbackPhase, volume, isMuted]);
+
   const handleIntroEnded = () => {
-    // Intro finished, start main audio
+    // Intro finished - main audio should already be playing from crossfade
     setPlaybackPhase('main');
-    if (audioRef.current) {
+    if (audioRef.current && audioRef.current.paused) {
+      // Fallback in case crossfade didn't trigger
+      audioRef.current.volume = isMuted ? 0 : volume;
       audioRef.current.play();
     }
   };

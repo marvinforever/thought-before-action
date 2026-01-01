@@ -462,6 +462,7 @@ Rules:
 - Target approximately ${config.words}
 - IMPORTANT: Do NOT include any stage directions, audio cues, or production notes like "intro music fades in", "music plays", etc. Write ONLY the spoken words.
 - CRITICAL: Do NOT use asterisks, markdown formatting, or any text emphasis markers. Write plain text only. Instead of *word* or **word**, just write the word naturally - use sentence structure and word choice for emphasis, not formatting.
+- CRITICAL: Do NOT use time-of-day greetings like "Good morning", "Good afternoon", or "Good evening". Users listen at various times. Use timeless greetings like "Hey [name]", "Welcome back [name]", or just dive into the content.
 - Extract and clearly state the daily challenge in a way that it could be pulled out and stored separately`;
 
     const userPrompt = `Create today's ${durationMinutes}-minute podcast script for this user:
