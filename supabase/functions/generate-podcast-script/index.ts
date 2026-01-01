@@ -10,7 +10,7 @@ interface PodcastContext {
   userName: string;
   habitStreak: number;
   habitName: string | null;
-  recentAchievement: string | null;
+  recentAchievements: { text: string; category: string }[];
   priorityCapability: string | null;
   capabilityLevel: string | null;
   targetLevel: string | null;
@@ -29,6 +29,16 @@ interface PodcastContext {
   loginStreak: number;
   capabilityFocusIndex: number;
   allPriorityCapabilities: { name: string; level: string; target: string }[];
+  // New: Recognition & Manager feedback
+  recentRecognitions: {
+    title: string;
+    description: string | null;
+    category: string | null;
+    givenByName: string;
+    recognitionDate: string;
+  }[];
+  managerWins: string[] | null;
+  lastOneOnOneDate: string | null;
 }
 
 interface DayTheme {
@@ -172,7 +182,7 @@ serve(async (req) => {
 
     const topHabit = habits?.[0];
 
-    // Fetch recent achievement (last 7 days)
+    // Fetch recent achievements (last 7 days, up to 3)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
@@ -182,9 +192,63 @@ serve(async (req) => {
       .eq('profile_id', profileId)
       .gte('achieved_date', sevenDaysAgo.toISOString().split('T')[0])
       .order('achieved_date', { ascending: false })
+      .limit(3);
+
+    const recentAchievements = (achievements || []).map(a => ({
+      text: a.achievement_text,
+      category: a.category || 'general'
+    }));
+
+    // Fetch recent recognition notes (last 14 days)
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    
+    const { data: recognitions } = await supabase
+      .from('recognition_notes')
+      .select(`
+        title,
+        description,
+        category,
+        recognition_date,
+        given_by,
+        profiles!recognition_notes_given_by_fkey (full_name)
+      `)
+      .eq('given_to', profileId)
+      .gte('recognition_date', fourteenDaysAgo.toISOString().split('T')[0])
+      .order('recognition_date', { ascending: false })
+      .limit(3);
+
+    const recentRecognitions = (recognitions || []).map(r => ({
+      title: r.title,
+      description: r.description,
+      category: r.category,
+      givenByName: (r.profiles as any)?.full_name?.split(' ')[0] || 'A colleague',
+      recognitionDate: r.recognition_date
+    }));
+
+    console.log(`Found ${recentRecognitions.length} recent recognitions`);
+
+    // Fetch recent 1:1 notes with wins (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const { data: oneOnOneNotes } = await supabase
+      .from('one_on_one_notes')
+      .select('wins, meeting_date')
+      .eq('employee_id', profileId)
+      .not('wins', 'is', null)
+      .gte('meeting_date', thirtyDaysAgo.toISOString().split('T')[0])
+      .order('meeting_date', { ascending: false })
       .limit(1);
 
-    const recentAchievement = achievements?.[0]?.achievement_text;
+    const managerWins = oneOnOneNotes?.[0]?.wins 
+      ? (Array.isArray(oneOnOneNotes[0].wins) 
+          ? oneOnOneNotes[0].wins 
+          : [oneOnOneNotes[0].wins])
+      : null;
+    const lastOneOnOneDate = oneOnOneNotes?.[0]?.meeting_date || null;
+
+    console.log(`Found manager wins: ${managerWins ? managerWins.length : 0}`);
 
     // Fetch TOP 5 priority capabilities for rotation
     const { data: capabilities } = await supabase
@@ -291,7 +355,7 @@ serve(async (req) => {
       userName,
       habitStreak: topHabit?.current_streak || 0,
       habitName: topHabit?.habit_name || null,
-      recentAchievement: recentAchievement || null,
+      recentAchievements,
       priorityCapability: todayCapability?.name || null,
       capabilityLevel: todayCapability?.level || null,
       targetLevel: todayCapability?.target || null,
@@ -306,7 +370,7 @@ serve(async (req) => {
       diagnosticStrength,
       diagnosticGrowthArea,
       yesterdayChallenge,
-      yesterdayTopics: null, // Could be expanded
+      yesterdayTopics: null,
       loginStreak,
       capabilityFocusIndex,
       allPriorityCapabilities: allPriorityCapabilities.map(c => ({
@@ -314,6 +378,9 @@ serve(async (req) => {
         level: c.level,
         target: c.target
       })),
+      recentRecognitions,
+      managerWins,
+      lastOneOnOneDate,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
@@ -408,8 +475,20 @@ Yesterday's Challenge: ${context.yesterdayChallenge || 'None given (first episod
 Habits & Streaks:
 - Top habit: ${context.habitStreak > 0 ? `"${context.habitName}" with a ${context.habitStreak}-day streak` : 'No active habit streak yet - opportunity to encourage starting one'}
 
-Recent Wins:
-- Achievement: ${context.recentAchievement || 'None recorded in last week'}
+Recent Achievements (last 7 days):
+${context.recentAchievements.length > 0 
+  ? context.recentAchievements.map(a => `- ${a.category}: "${a.text}"`).join('\n')
+  : '- None recorded in last week'}
+
+Manager & Peer Recognition (last 14 days):
+${context.recentRecognitions.length > 0 
+  ? context.recentRecognitions.map(r => `- "${r.title}" from ${r.givenByName}${r.category ? ` (${r.category})` : ''}${r.description ? `: "${r.description}"` : ''}`).join('\n')
+  : '- No recent recognitions (opportunity to celebrate self-driven wins)'}
+
+Wins from Recent 1:1 with Manager:
+${context.managerWins && context.managerWins.length > 0
+  ? `- Your manager noted: ${context.managerWins.join('; ')}\n- Last 1:1 was on: ${context.lastOneOnOneDate}`
+  : '- No recent 1:1 wins recorded'}
 
 Today's Capability Focus (rotating through priorities):
 - Capability: ${context.priorityCapability || 'Not set'}
@@ -479,7 +558,9 @@ IMPORTANT: Near the end, clearly state the daily challenge in a memorable way. M
     // Determine topics covered
     const topicsCovered = [];
     if (context.habitStreak > 0) topicsCovered.push('habits');
-    if (context.recentAchievement) topicsCovered.push('achievements');
+    if (context.recentAchievements.length > 0) topicsCovered.push('achievements');
+    if (context.recentRecognitions.length > 0) topicsCovered.push('recognition');
+    if (context.managerWins && context.managerWins.length > 0) topicsCovered.push('manager-feedback');
     if (context.priorityCapability) topicsCovered.push(context.priorityCapability);
     if (context.activeGoal) topicsCovered.push('goals');
     if (context.yesterdayChallenge) topicsCovered.push('accountability');
