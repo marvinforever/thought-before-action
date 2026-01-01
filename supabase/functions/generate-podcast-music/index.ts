@@ -51,14 +51,14 @@ serve(async (req) => {
     }
 
     // Generate music using ElevenLabs Sound Effects API
-    // Warm, inviting music that feels like a trusted friend
+    // 80s action synth vibes - MacGyver inspired
     const prompts = {
-      intro: "Warm smooth podcast intro, gentle piano with soft Rhodes keys, subtle acoustic guitar, cozy morning coffee vibes, inviting and calm but focused, builds warmth not intensity, 8 seconds",
-      outro: "Gentle reflective podcast outro, soft piano resolution, warm ambient pads, peaceful and satisfying close, like a good conversation ending, 6 seconds"
+      intro: "80s action TV show theme, punchy synth melody, driving electronic drums, heroic brass stabs, MacGyver style, confident and adventurous, builds anticipation, 10 seconds",
+      outro: "80s synth outro, satisfying resolution, warm analog synthesizers, heroic triumphant ending, retro TV show credits vibe, 6 seconds"
     };
 
     const durations = {
-      intro: 8,
+      intro: 10,
       outro: 6
     };
 
