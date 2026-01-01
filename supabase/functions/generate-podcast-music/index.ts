@@ -51,14 +51,15 @@ serve(async (req) => {
     }
 
     // Generate music using ElevenLabs Sound Effects API
+    // Energizing, anchor-worthy music that draws listeners in
     const prompts = {
-      intro: "Uplifting motivational corporate podcast intro music, inspiring, positive energy, professional, 8 seconds",
-      outro: "Warm uplifting podcast outro music, satisfying conclusion, hopeful, professional, 6 seconds"
+      intro: "Punchy energetic podcast intro, driving beat, confident brass hits, rising synth, creates anticipation, modern motivational, makes you lean in, 10 seconds",
+      outro: "Triumphant podcast outro, satisfying resolution, warm brass with uplifting strings, sense of accomplishment, leaves you inspired, 8 seconds"
     };
 
     const durations = {
-      intro: 8,
-      outro: 6
+      intro: 10,
+      outro: 8
     };
 
     console.log(`Generating new ${type} music with prompt: ${prompts[type]}`);

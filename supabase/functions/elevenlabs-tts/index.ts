@@ -7,13 +7,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ElevenLabs voice IDs - using professional voices
+// ElevenLabs voice IDs - using dynamic, engaging voices
 const VOICES = {
+  // More energetic, engaging voices
+  callum: 'N2lVS1w4EtoT3dr4eOWO', // Callum - charismatic, warm, energetic male
+  george: 'JBFqnCBsd6RMkjVDRZzb', // George - confident, authoritative British male  
+  charlie: 'IKne3meq5aSn9XLyUdCD', // Charlie - friendly, approachable Australian male
+  matilda: 'XrExE9yKIg1WjnnlVkGX', // Matilda - warm, expressive female
+  jessica: 'cgSgspJ2msm6clMCkdW9', // Jessica - energetic, professional female
+  // Legacy voices (kept for backward compatibility)
   eric: '3svOJAOhuPHXwQC2H5eq', // Custom Eric voice
   brian: 'nPczCjzI2devNBz1zQrb', // Brian - warm male voice
   sarah: 'EXAVITQu4vr4xnSDxMaL', // Sarah - professional female voice
-  adam: 'pNInz6obpgDQGcFmaJgB', // Adam - deep male voice
-  rachel: '21m00Tcm4TlvDq8ikWAM', // Rachel - clear female voice
 };
 
 serve(async (req) => {
@@ -22,7 +27,7 @@ serve(async (req) => {
   }
 
   try {
-    const { script, profileId, episodeDate, voice = 'eric', storeAudio = true } = await req.json();
+    const { script, profileId, episodeDate, voice = 'callum', storeAudio = true } = await req.json();
 
     if (!script) {
       throw new Error('script is required');

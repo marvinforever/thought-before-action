@@ -480,15 +480,13 @@ ${context.recentAchievements.length > 0
   ? context.recentAchievements.map(a => `- ${a.category}: "${a.text}"`).join('\n')
   : '- None recorded in last week'}
 
-Manager & Peer Recognition (last 14 days):
 ${context.recentRecognitions.length > 0 
-  ? context.recentRecognitions.map(r => `- "${r.title}" from ${r.givenByName}${r.category ? ` (${r.category})` : ''}${r.description ? `: "${r.description}"` : ''}`).join('\n')
-  : '- No recent recognitions (opportunity to celebrate self-driven wins)'}
+  ? `Manager & Peer Recognition (last 14 days):\n${context.recentRecognitions.map(r => `- "${r.title}" from ${r.givenByName}${r.category ? ` (${r.category})` : ''}${r.description ? `: "${r.description}"` : ''}`).join('\n')}`
+  : ''}
 
-Wins from Recent 1:1 with Manager:
 ${context.managerWins && context.managerWins.length > 0
-  ? `- Your manager noted: ${context.managerWins.join('; ')}\n- Last 1:1 was on: ${context.lastOneOnOneDate}`
-  : '- No recent 1:1 wins recorded'}
+  ? `Wins from Recent 1:1 with Manager:\n- Your manager noted: ${context.managerWins.join('; ')}\n- Last 1:1 was on: ${context.lastOneOnOneDate}`
+  : ''}
 
 Today's Capability Focus (rotating through priorities):
 - Capability: ${context.priorityCapability || 'Not set'}
