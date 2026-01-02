@@ -279,8 +279,14 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
 
   const conversation = useConversation({
     clientTools,
-    onConnect: () => {
+    onConnect: async () => {
       console.log("Connected to Jericho voice");
+      try {
+        // Ensure output volume isn't muted
+        await conversation.setVolume({ volume: 1 });
+      } catch (e) {
+        console.warn("Unable to set voice volume:", e);
+      }
       toast.success("Connected to Jericho");
     },
     onDisconnect: () => {
@@ -291,10 +297,10 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
     },
     onMessage: (message) => {
       console.log("Voice message received:", message);
-      
+
       const role = message.source === 'user' ? 'user' : 'assistant';
       const content = message.message || '';
-      
+
       if (content) {
         // Add to display transcript
         setTranscript(prev => [...prev, {
@@ -386,6 +392,7 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
       // Start ElevenLabs conversation with signed URL and overrides
       const sessionResult = await conversation.startSession({
         signedUrl: signedUrl,
+        connectionType: "websocket",
         overrides: {
           agent: {
             firstMessage: firstMessage,
