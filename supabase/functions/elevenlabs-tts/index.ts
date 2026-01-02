@@ -67,10 +67,11 @@ serve(async (req) => {
           text: cleanedScript,
           model_id: 'eleven_turbo_v2_5', // Fast, high-quality model
           voice_settings: {
-            stability: 0.5,        // Balance between consistent and expressive
+            stability: 0.35,       // Lower for more expressive/natural delivery
             similarity_boost: 0.75, // High similarity to voice profile
-            style: 0.3,            // Some expressiveness
+            style: 0.45,           // More personality and expressiveness
             use_speaker_boost: true,
+            speed: 0.95,           // Slightly slower for more natural pacing
           },
         }),
       }
