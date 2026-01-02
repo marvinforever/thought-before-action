@@ -39,11 +39,12 @@ interface PodcastEpisode {
 interface DailyPodcastPlayerProps {
   profileId: string;
   companyId: string;
+  autoPlay?: boolean;
 }
 
 type PlaybackPhase = 'intro' | 'main' | 'outro' | 'idle';
 
-export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerProps) => {
+export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: DailyPodcastPlayerProps) => {
   const [episode, setEpisode] = useState<PodcastEpisode | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -56,6 +57,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
   const [showTranscript, setShowTranscript] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [audioVersion, setAudioVersion] = useState(0);
+  const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
   const introRef = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const outroRef = useRef<HTMLAudioElement | null>(null);
@@ -234,7 +236,17 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
     }
   };
 
-  // Crossfade: Start fading intro and begin main audio slightly before intro ends
+  // Auto-play effect when component mounts with autoPlay flag
+  useEffect(() => {
+    if (autoPlay && !hasAutoPlayed && episode?.audio_url && !loading) {
+      setHasAutoPlayed(true);
+      // Small delay to ensure audio elements are ready
+      setTimeout(() => {
+        startPlayback();
+      }, 500);
+    }
+  }, [autoPlay, episode, loading, hasAutoPlayed]);
+
   useEffect(() => {
     if (playbackPhase !== 'intro' || !introRef.current || !audioRef.current) return;
     
@@ -472,7 +484,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
 
   // Episode exists - show player
   return (
-    <div>
+    <div data-podcast-player>
       {/* Yesterday's Challenge Check-in */}
       <YesterdayChallengeCheckIn profileId={profileId} />
       
