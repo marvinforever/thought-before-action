@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +39,8 @@ export default function MyGrowthPlan() {
   const [userProfile, setUserProfile] = useState<{ id: string; company_id: string } | null>(null);
   const [jerichoOpen, setJerichoOpen] = useState(false);
   const [podcastRefreshKey, setPodcastRefreshKey] = useState(0);
-  const { toast } = useToast();
+  const [onboardingProgressKey, setOnboardingProgressKey] = useState(0);
+  const [onboardingWizardForceKey, setOnboardingWizardForceKey] = useState(0);
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
   const { isEnabled: isPodcastEnabled, loading: podcastFlagLoading } = useFeatureFlag('daily_podcast');
@@ -137,7 +137,11 @@ export default function MyGrowthPlan() {
       <WelcomeModal onStartChat={handleOpenJericho} />
 
       {/* Onboarding Progress */}
-      <OnboardingProgressCard onOpenJericho={handleOpenJericho} />
+      <OnboardingProgressCard
+        key={onboardingProgressKey}
+        onOpenJericho={handleOpenJericho}
+        onStartFirstDailyBrief={() => setOnboardingWizardForceKey((v) => v + 1)}
+      />
 
       {/* Daily Podcast Player - Feature Flagged */}
       {userProfile && !podcastFlagLoading && isPodcastEnabled && (
@@ -272,13 +276,16 @@ export default function MyGrowthPlan() {
 
       {/* Onboarding Wizard for new users */}
       <OnboardingWizard 
+        forceOpenKey={onboardingWizardForceKey}
         onComplete={() => {
           // Trigger podcast player refresh and auto-play
           setPodcastRefreshKey(prev => prev + 1);
+          setOnboardingProgressKey((v) => v + 1);
         }}
         onOpenPlayer={() => {
           // Trigger refresh then scroll to podcast player
           setPodcastRefreshKey(prev => prev + 1);
+          setOnboardingProgressKey((v) => v + 1);
           setTimeout(() => {
             document.querySelector('[data-podcast-player]')?.scrollIntoView({ behavior: 'smooth' });
           }, 100);

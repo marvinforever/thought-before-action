@@ -1,17 +1,19 @@
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck } from "lucide-react";
+import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 interface OnboardingProgressCardProps {
   onOpenJericho?: () => void;
+  onStartFirstDailyBrief?: () => void;
   className?: string;
 }
 
 const milestoneIcons: Record<string, React.ReactNode> = {
+  first_daily_brief: <Play className="h-4 w-4" />,
   jericho_chat: <MessageCircle className="h-4 w-4" />,
   diagnostic: <ClipboardCheck className="h-4 w-4" />,
   vision: <Target className="h-4 w-4" />,
@@ -22,8 +24,8 @@ const milestoneIcons: Record<string, React.ReactNode> = {
   resource: <BookOpen className="h-4 w-4" />,
 };
 
-export function OnboardingProgressCard({ onOpenJericho, className }: OnboardingProgressCardProps) {
-  const { score, phase, milestones, loading } = useOnboardingProgress();
+export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, className }: OnboardingProgressCardProps) {
+  const { score, milestones, loading } = useOnboardingProgress();
   const [expanded, setExpanded] = useState(true);
 
   if (loading) {
@@ -111,47 +113,68 @@ export function OnboardingProgressCard({ onOpenJericho, className }: OnboardingP
         {/* Milestones List */}
         {expanded && (
           <div className="space-y-2 pt-2 border-t">
-            {milestones.map((milestone) => (
-              <div
-                key={milestone.id}
-                className={cn(
-                  "flex items-center gap-3 p-2 rounded-lg transition-colors",
-                  milestone.completed 
-                    ? "bg-primary/10" 
-                    : "bg-muted/50 hover:bg-muted"
-                )}
-              >
-                <div className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-full",
-                  milestone.completed 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-muted-foreground/20 text-muted-foreground"
-                )}>
-                  {milestone.completed ? (
-                    <Check className="h-4 w-4" />
+            {milestones.map((milestone) => {
+              const isFirstBrief = milestone.id === 'first_daily_brief';
+              const isActionable = isFirstBrief && !milestone.completed && Boolean(onStartFirstDailyBrief);
+
+              return (
+                <div
+                  key={milestone.id}
+                  className={cn(
+                    "flex items-center gap-3 p-2 rounded-lg transition-colors",
+                    milestone.completed
+                      ? "bg-primary/10"
+                      : isActionable
+                        ? "bg-muted/50 hover:bg-muted cursor-pointer"
+                        : "bg-muted/50"
+                  )}
+                  role={isActionable ? "button" : undefined}
+                  tabIndex={isActionable ? 0 : undefined}
+                  onClick={isActionable ? onStartFirstDailyBrief : undefined}
+                  onKeyDown={(e) => {
+                    if (!isActionable) return;
+                    if (e.key === 'Enter' || e.key === ' ') onStartFirstDailyBrief?.();
+                  }}
+                >
+                  <div className={cn(
+                    "flex items-center justify-center w-8 h-8 rounded-full",
+                    milestone.completed
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted-foreground/20 text-muted-foreground"
+                  )}>
+                    {milestone.completed ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      milestoneIcons[milestone.id] || <Circle className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "text-sm font-medium",
+                      milestone.completed && "line-through text-muted-foreground"
+                    )}>
+                      {milestone.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {milestone.description}
+                    </p>
+                  </div>
+
+                  {isActionable ? (
+                    <Button size="sm" variant="secondary" onClick={onStartFirstDailyBrief}>
+                      Start
+                    </Button>
                   ) : (
-                    milestoneIcons[milestone.id] || <Circle className="h-4 w-4" />
+                    <span className={cn(
+                      "text-xs font-medium",
+                      milestone.completed ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      +{milestone.points}%
+                    </span>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    "text-sm font-medium",
-                    milestone.completed && "line-through text-muted-foreground"
-                  )}>
-                    {milestone.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {milestone.description}
-                  </p>
-                </div>
-                <span className={cn(
-                  "text-xs font-medium",
-                  milestone.completed ? "text-primary" : "text-muted-foreground"
-                )}>
-                  +{milestone.points}%
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
