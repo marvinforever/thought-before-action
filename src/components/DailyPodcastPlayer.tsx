@@ -54,6 +54,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [audioVersion, setAudioVersion] = useState(0);
   const introRef = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -380,6 +381,17 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
     setIsMuted(newMuted);
   };
 
+  const cyclePlaybackSpeed = () => {
+    const speeds = [1, 1.25, 1.5, 1.75, 2];
+    const currentIndex = speeds.indexOf(playbackSpeed);
+    const nextSpeed = speeds[(currentIndex + 1) % speeds.length];
+    setPlaybackSpeed(nextSpeed);
+    
+    if (introRef.current) introRef.current.playbackRate = nextSpeed;
+    if (audioRef.current) audioRef.current.playbackRate = nextSpeed;
+    if (outroRef.current) outroRef.current.playbackRate = nextSpeed;
+  };
+
   const restart = () => {
     // Stop everything and reset
     introRef.current?.pause();
@@ -584,8 +596,17 @@ export const DailyPodcastPlayer = ({ profileId, companyId }: DailyPodcastPlayerP
                 </Button>
               </div>
 
-              {/* Volume */}
+              {/* Speed & Volume */}
               <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={cyclePlaybackSpeed}
+                  className="h-8 px-2 text-xs font-medium min-w-[3rem]"
+                  title="Playback speed"
+                >
+                  {playbackSpeed}x
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
