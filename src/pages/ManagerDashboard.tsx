@@ -435,7 +435,8 @@ export default function ManagerDashboard() {
                 employee={{
                   id: selectedEmployee.id,
                   full_name: selectedEmployee.full_name,
-                  company_id: selectedEmployee.company_id
+                  company_id: selectedEmployee.company_id,
+                  email: selectedEmployee.email,
                 }}
               />
               <RecognitionDialog
