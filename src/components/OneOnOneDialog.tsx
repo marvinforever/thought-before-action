@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,12 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, X, Mic, Square } from "lucide-react";
+import { Loader2, Plus, X, Mic, Square, ChevronDown, ChevronUp, History, Mail } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface OneOnOneDialogProps {
   open: boolean;
@@ -20,7 +21,17 @@ interface OneOnOneDialogProps {
     id: string;
     full_name: string;
     company_id: string;
+    email?: string;
   };
+}
+
+interface PreviousNote {
+  id: string;
+  meeting_date: string;
+  notes: string | null;
+  wins: string | null;
+  concerns: string | null;
+  action_items: string[] | null | unknown;
 }
 
 export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogProps) {
@@ -33,9 +44,80 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
   const [submitting, setSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [previousNotes, setPreviousNotes] = useState<PreviousNote[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open && employee?.id) {
+      loadPreviousNotes();
+    }
+  }, [open, employee?.id]);
+
+  const loadPreviousNotes = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from("one_on_one_notes")
+        .select("id, meeting_date, notes, wins, concerns, action_items")
+        .eq("employee_id", employee.id)
+        .order("meeting_date", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setPreviousNotes(data || []);
+    } catch (error: any) {
+      console.error("Error loading previous notes:", error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleSendFollowUp = async (note: PreviousNote) => {
+    if (!employee.email) {
+      toast({
+        title: "No email address",
+        description: "This employee doesn't have an email address on file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingEmail(note.id);
+    try {
+      const { error } = await supabase.functions.invoke('send-one-on-one-followup', {
+        body: {
+          employeeEmail: employee.email,
+          employeeName: employee.full_name,
+          meetingDate: note.meeting_date,
+          notes: note.notes,
+          wins: note.wins,
+          concerns: note.concerns,
+          actionItems: note.action_items,
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Follow-up sent",
+        description: `Email sent to ${employee.email}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error sending email",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingEmail(null);
+    }
+  };
 
   const handleAddActionItem = () => {
     setActionItems([...actionItems, ""]);
@@ -203,6 +285,92 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
             Document your conversation, wins, concerns, and action items
           </DialogDescription>
         </DialogHeader>
+
+        {/* Previous 1:1s Section */}
+        {previousNotes.length > 0 && (
+          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="border rounded-lg">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between p-4 h-auto">
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Previous 1:1s</span>
+                  <span className="text-muted-foreground text-sm">({previousNotes.length})</span>
+                </div>
+                {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-4">
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {previousNotes.map((note) => (
+                  <Collapsible 
+                    key={note.id} 
+                    open={expandedNoteId === note.id}
+                    onOpenChange={(isOpen) => setExpandedNoteId(isOpen ? note.id : null)}
+                  >
+                    <div className="border rounded-md">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-between p-3 h-auto text-left">
+                          <span className="font-medium text-sm">
+                            {format(new Date(note.meeting_date), "MMMM d, yyyy")}
+                          </span>
+                          {expandedNoteId === note.id ? (
+                            <ChevronUp className="h-3 w-3" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="px-3 pb-3 space-y-2">
+                        {note.notes && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">Notes</p>
+                            <p className="text-sm">{note.notes}</p>
+                          </div>
+                        )}
+                        {note.wins && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">Wins</p>
+                            <p className="text-sm">{note.wins}</p>
+                          </div>
+                        )}
+                        {note.concerns && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">Concerns</p>
+                            <p className="text-sm">{note.concerns}</p>
+                          </div>
+                        )}
+                        {Array.isArray(note.action_items) && note.action_items.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">Action Items</p>
+                            <ul className="list-disc list-inside text-sm">
+                              {note.action_items.map((item, idx) => (
+                                <li key={idx}>{String(item)}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={() => handleSendFollowUp(note)}
+                          disabled={sendingEmail === note.id}
+                        >
+                          {sendingEmail === note.id ? (
+                            <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                          ) : (
+                            <Mail className="h-3 w-3 mr-2" />
+                          )}
+                          Send as Follow-up Email
+                        </Button>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         <div className="space-y-4">
           <Alert>
