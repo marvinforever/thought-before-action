@@ -51,15 +51,16 @@ serve(async (req) => {
     }
 
     // Generate music using ElevenLabs Sound Effects API
-    // 80s action synth vibes - MacGyver inspired (shorter intro for crossfade)
+    // Intro: 80s action synth vibes - MacGyver inspired (shorter intro for crossfade)
+    // Outro: Soft, warm, inspiring fade-out
     const prompts = {
       intro: "80s action TV show theme, punchy synth melody, driving electronic drums, heroic brass stabs, MacGyver style, confident and adventurous, 6 seconds",
-      outro: "80s synth outro, satisfying resolution, warm analog synthesizers, heroic triumphant ending, retro TV show credits vibe, 6 seconds"
+      outro: "Gentle piano and soft strings, warm inspiring ending, calm and uplifting, soft fade out, meditation app style, peaceful resolution, 5 seconds"
     };
 
     const durations = {
       intro: 6,
-      outro: 6
+      outro: 5
     };
 
     console.log(`Generating new ${type} music with prompt: ${prompts[type]}`);
