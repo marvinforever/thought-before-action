@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import SuperAdmin from "./pages/SuperAdmin";
 import SuperAdminDemo from "./pages/SuperAdminDemo";
+import SuperAdminLayout from "./components/SuperAdminLayout";
 import Capabilities from "./pages/Capabilities";
 import Resources from "./pages/Resources";
 import AdminResourceImport from "./pages/AdminResourceImport";
@@ -45,8 +46,10 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/super-admin" element={<SuperAdmin />} />
-            <Route path="/super-admin/demo" element={<SuperAdminDemo />} />
+            <Route path="/super-admin" element={<SuperAdminLayout />}>
+              <Route index element={<SuperAdmin />} />
+              <Route path="demo" element={<SuperAdminDemo />} />
+            </Route>
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route
                 index
