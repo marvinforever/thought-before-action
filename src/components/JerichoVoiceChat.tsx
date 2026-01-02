@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useConversation } from "@11labs/react";
+import { useConversation } from "@elevenlabs/react";
 import { Mic, MicOff, MessageSquare, X, Phone, Brain, Target, Trophy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -295,29 +295,37 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
       // Save any remaining messages
       saveMessagesToDatabase();
     },
-    onMessage: (message) => {
+    onMessage: (message: any) => {
       console.log("Voice message received:", message);
 
-      const role = message.source === 'user' ? 'user' : 'assistant';
-      const content = message.message || '';
-
-      if (content) {
-        // Add to display transcript
-        setTranscript(prev => [...prev, {
-          role,
-          content,
-          timestamp: new Date(),
-        }]);
-
-        // Buffer for database save
-        messageBufferRef.current.push({ role, content });
-
-        // Schedule batch save
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
+      // New SDK event shapes (recommended)
+      if (message?.type === "user_transcript") {
+        const content = message.user_transcription_event?.user_transcript || "";
+        if (content) {
+          setTranscript((prev) => [...prev, { role: "user", content, timestamp: new Date() }]);
+          messageBufferRef.current.push({ role: "user", content });
         }
-        saveTimeoutRef.current = setTimeout(saveMessagesToDatabase, 3000);
+      } else if (message?.type === "agent_response") {
+        const content = message.agent_response_event?.agent_response || "";
+        if (content) {
+          setTranscript((prev) => [...prev, { role: "assistant", content, timestamp: new Date() }]);
+          messageBufferRef.current.push({ role: "assistant", content });
+        }
+      } else {
+        // Back-compat for older event shapes
+        const role = message?.source === "user" ? "user" : "assistant";
+        const content = message?.message || "";
+        if (content) {
+          setTranscript((prev) => [...prev, { role, content, timestamp: new Date() }]);
+          messageBufferRef.current.push({ role, content });
+        }
       }
+
+      // Schedule batch save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(saveMessagesToDatabase, 3000);
     },
     onError: (error) => {
       console.error("Voice error:", error);
