@@ -42,8 +42,9 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
   }, []);
 
   useEffect(() => {
-    if (typeof forceOpenKey !== 'number') return;
-    console.log('OnboardingWizard: forceOpenKey changed -> opening wizard');
+    // Only trigger when forceOpenKey > 0 (after user clicks "Start")
+    if (!forceOpenKey || forceOpenKey <= 0) return;
+    console.log('OnboardingWizard: forceOpenKey changed to', forceOpenKey, '-> opening wizard');
     // Allow re-opening even if dismissed in this session
     sessionStorage.removeItem(dismissKey);
     openWizardManually();
