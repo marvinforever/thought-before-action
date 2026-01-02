@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ export default function MyGrowthPlan() {
   const [podcastRefreshKey, setPodcastRefreshKey] = useState(0);
   const [onboardingProgressKey, setOnboardingProgressKey] = useState(0);
   const [onboardingWizardForceKey, setOnboardingWizardForceKey] = useState(0);
+  const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
   const { isEnabled: isPodcastEnabled, loading: podcastFlagLoading } = useFeatureFlag('daily_podcast');
@@ -141,7 +143,7 @@ export default function MyGrowthPlan() {
         key={onboardingProgressKey}
         onOpenJericho={handleOpenJericho}
         onStartFirstDailyBrief={() => {
-          console.log('MyGrowthPlan: Start First Daily Brief clicked');
+          toast({ title: "Opening onboarding…", description: "Let’s create your first Daily Brief." });
           setOnboardingWizardForceKey((v) => v + 1);
         }}
       />

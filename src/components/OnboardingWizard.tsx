@@ -44,7 +44,7 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
   useEffect(() => {
     // Only trigger when forceOpenKey > 0 (after user clicks "Start")
     if (!forceOpenKey || forceOpenKey <= 0) return;
-    console.log('OnboardingWizard: forceOpenKey changed to', forceOpenKey, '-> opening wizard');
+    toast({ title: "Starting onboarding…" });
     // Allow re-opening even if dismissed in this session
     sessionStorage.removeItem(dismissKey);
     openWizardManually();
@@ -54,7 +54,14 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
   const openWizardManually = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        toast({
+          title: "Please sign in",
+          description: "You need to be logged in to start onboarding.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -62,7 +69,14 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!profile) return;
+      if (!profile) {
+        toast({
+          title: "Profile not ready yet",
+          description: "Try again in a moment.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       console.log('OnboardingWizard: opening manually for', profile.id);
 
@@ -78,6 +92,11 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
       setOpen(true);
     } catch (error) {
       console.error('Error opening onboarding wizard manually:', error);
+      toast({
+        title: "Couldn’t open onboarding",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     }
   };
 
