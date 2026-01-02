@@ -10,7 +10,7 @@ const corsHeaders = {
 // ElevenLabs voice IDs - using dynamic, engaging voices
 const VOICES = {
   // Primary voice
-  jericho: '1fz2mW1imKTf5Ryjk5su', // Custom selected voice
+  jericho: 'FuTV0OBHmKN2S3ej42IO', // Custom selected voice
   // More energetic, engaging voices
   callum: 'N2lVS1w4EtoT3dr4eOWO', // Callum - charismatic, warm, energetic male
   george: 'JBFqnCBsd6RMkjVDRZzb', // George - confident, authoritative British male  
