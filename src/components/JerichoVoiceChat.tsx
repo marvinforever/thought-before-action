@@ -338,8 +338,19 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
   const startVoiceConversation = async () => {
     setIsInitializing(true);
     try {
-      // Request microphone access
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request microphone access with optimized settings
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } 
+      });
+      
+      // Stop the stream - ElevenLabs SDK will create its own
+      stream.getTracks().forEach(track => track.stop());
+      
+      console.log("Microphone access granted");
 
       // Get session token
       const { data: { session } } = await supabase.auth.getSession();
@@ -361,11 +372,15 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
       setConversationId(convId);
       setCompleteness(userCompleteness);
       setContextSummary(ctxSummary);
+      
+      console.log("Starting ElevenLabs session with signedUrl");
 
-      // Start ElevenLabs conversation with signed URL
+      // Start ElevenLabs conversation with signed URL (WebSocket mode)
       await conversation.startSession({
-        signedUrl: signedUrl
+        signedUrl: signedUrl,
       });
+      
+      console.log("ElevenLabs session started, status:", conversation.status);
       
     } catch (error: any) {
       console.error("Failed to start voice conversation:", error);
