@@ -117,8 +117,12 @@ export const PodcastEpisodeHistory = ({ profileId }: PodcastEpisodeHistoryProps)
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-2">
         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-          {displayedEpisodes.map((episode) => (
-            <PodcastEpisodeCard key={episode.id} episode={episode} />
+          {displayedEpisodes.map((episode, index) => (
+            <PodcastEpisodeCard 
+              key={episode.id} 
+              episode={episode} 
+              episodeNumber={episodes.length - (showAll ? index : index)}
+            />
           ))}
         </div>
         {episodes.length > 5 && (
