@@ -19,6 +19,8 @@ import { BadgeShowcase } from "@/components/BadgeShowcase";
 import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
 import { CompanyLeaderboard } from "@/components/CompanyLeaderboard";
 import { DailyPodcastPlayer } from "@/components/DailyPodcastPlayer";
+import { WelcomeModal } from "@/components/WelcomeModal";
+import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 
 type JobDescription = {
   id: string;
@@ -35,10 +37,15 @@ export default function MyGrowthPlan() {
   const [viewJdDialogOpen, setViewJdDialogOpen] = useState(false);
   const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
   const [userProfile, setUserProfile] = useState<{ id: string; company_id: string } | null>(null);
+  const [jerichoOpen, setJerichoOpen] = useState(false);
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
   const { isEnabled: isPodcastEnabled, loading: podcastFlagLoading } = useFeatureFlag('daily_podcast');
+
+  const handleOpenJericho = () => {
+    setJerichoOpen(true);
+  };
 
   const handleNewBadge = (badge: { name: string; icon_emoji: string; description: string }) => {
     celebrate(`Badge Earned: ${badge.name}`, "badge", {
@@ -124,8 +131,11 @@ export default function MyGrowthPlan() {
         </div>
       </div>
 
+      {/* Welcome Modal for incomplete onboarding */}
+      <WelcomeModal onStartChat={handleOpenJericho} />
+
       {/* Onboarding Progress */}
-      <OnboardingProgressCard />
+      <OnboardingProgressCard onOpenJericho={handleOpenJericho} />
 
       {/* Daily Podcast Player - Feature Flagged */}
       {userProfile && !podcastFlagLoading && isPodcastEnabled && (
@@ -254,6 +264,12 @@ export default function MyGrowthPlan() {
         badgeEmoji={celebration.badgeEmoji}
         subtitle={celebration.subtitle}
         onComplete={onComplete}
+      />
+
+      {/* Floating Jericho Button */}
+      <FloatingJerichoButton 
+        isOpen={jerichoOpen}
+        onOpenChange={setJerichoOpen}
       />
     </div>
   );

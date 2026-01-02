@@ -8,12 +8,27 @@ import { supabase } from "@/integrations/supabase/client";
 
 const MOMENTUM_COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 
-export function FloatingJerichoButton() {
-  const [isTextOpen, setIsTextOpen] = useState(false);
+interface FloatingJerichoButtonProps {
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function FloatingJerichoButton({ isOpen: controlledIsOpen, onOpenChange }: FloatingJerichoButtonProps = {}) {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showVoiceButton, setShowVoiceButton] = useState(false);
   const [contextType, setContextType] = useState<string | undefined>();
   const location = useLocation();
+
+  // Support controlled mode for external triggering
+  const isTextOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+  const setIsTextOpen = (open: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(open);
+    } else {
+      setInternalIsOpen(open);
+    }
+  };
 
   useEffect(() => {
     const checkUserCompany = async (userId: string) => {
