@@ -15,9 +15,10 @@ interface PodcastEpisodeCardProps {
     capability_name?: string | null;
     challenge_completed_at?: string | null;
   };
+  episodeNumber: number;
 }
 
-export const PodcastEpisodeCard = ({ episode }: PodcastEpisodeCardProps) => {
+export const PodcastEpisodeCard = ({ episode, episodeNumber }: PodcastEpisodeCardProps) => {
   const formatDuration = (seconds: number) => {
     const mins = Math.round(seconds / 60);
     return `${mins} min`;
@@ -33,10 +34,8 @@ export const PodcastEpisodeCard = ({ episode }: PodcastEpisodeCardProps) => {
     return format(episodeDate, 'MMM d');
   };
 
-  const getEpisodeNumber = () => {
-    // Create a pseudo-episode number based on the date
-    const baseDate = new Date('2024-01-01');
-    return Math.max(1, differenceInDays(episodeDate, baseDate) + 1);
+  const formatEpisodeNumber = (num: number) => {
+    return `#${String(num).padStart(3, '0')}`;
   };
 
   return (
@@ -46,7 +45,7 @@ export const PodcastEpisodeCard = ({ episode }: PodcastEpisodeCardProps) => {
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-semibold text-sm group-hover:bg-primary/20 transition-colors">
-              #{getEpisodeNumber()}
+              {formatEpisodeNumber(episodeNumber)}
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
