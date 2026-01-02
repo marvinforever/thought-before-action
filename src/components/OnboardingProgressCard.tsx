@@ -1,10 +1,11 @@
-import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
+import { useOnboardingProgress, OnboardingMilestone } from "@/hooks/useOnboardingProgress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck, Play } from "lucide-react";
+import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck, Play, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { TutorialVideoDialog } from "./TutorialVideoDialog";
 
 interface OnboardingProgressCardProps {
   onOpenJericho?: () => void;
@@ -27,6 +28,23 @@ const milestoneIcons: Record<string, React.ReactNode> = {
 export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, className }: OnboardingProgressCardProps) {
   const { score, milestones, loading } = useOnboardingProgress();
   const [expanded, setExpanded] = useState(true);
+  const [videoDialog, setVideoDialog] = useState<{
+    open: boolean;
+    milestone: OnboardingMilestone | null;
+  }>({ open: false, milestone: null });
+
+  const handleMilestoneClick = (milestone: OnboardingMilestone) => {
+    // For first daily brief, use the special action if not completed
+    if (milestone.id === 'first_daily_brief' && !milestone.completed && onStartFirstDailyBrief) {
+      onStartFirstDailyBrief();
+      return;
+    }
+    
+    // For incomplete items, show tutorial video
+    if (!milestone.completed) {
+      setVideoDialog({ open: true, milestone });
+    }
+  };
 
   if (loading) {
     return (
@@ -115,7 +133,7 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
           <div className="space-y-2 pt-2 border-t">
             {milestones.map((milestone) => {
               const isFirstBrief = milestone.id === 'first_daily_brief';
-              const isActionable = isFirstBrief && !milestone.completed && Boolean(onStartFirstDailyBrief);
+              const isActionable = !milestone.completed;
 
               return (
                 <div
@@ -124,16 +142,14 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
                     "flex items-center gap-3 p-2 rounded-lg transition-colors",
                     milestone.completed
                       ? "bg-primary/10"
-                      : isActionable
-                        ? "bg-muted/50 hover:bg-muted cursor-pointer"
-                        : "bg-muted/50"
+                      : "bg-muted/50 hover:bg-muted cursor-pointer"
                   )}
                   role={isActionable ? "button" : undefined}
                   tabIndex={isActionable ? 0 : undefined}
-                  onClick={isActionable ? onStartFirstDailyBrief : undefined}
+                  onClick={isActionable ? () => handleMilestoneClick(milestone) : undefined}
                   onKeyDown={(e) => {
                     if (!isActionable) return;
-                    if (e.key === 'Enter' || e.key === ' ') onStartFirstDailyBrief?.();
+                    if (e.key === 'Enter' || e.key === ' ') handleMilestoneClick(milestone);
                   }}
                 >
                   <div className={cn(
@@ -160,15 +176,17 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
                     </p>
                   </div>
 
-                  {isActionable ? (
-                    <Button size="sm" variant="secondary" onClick={onStartFirstDailyBrief}>
+                  {isFirstBrief && !milestone.completed && onStartFirstDailyBrief ? (
+                    <Button size="sm" variant="secondary" onClick={(e) => {
+                      e.stopPropagation();
+                      onStartFirstDailyBrief();
+                    }}>
                       Start
                     </Button>
+                  ) : !milestone.completed ? (
+                    <Video className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <span className={cn(
-                      "text-xs font-medium",
-                      milestone.completed ? "text-primary" : "text-muted-foreground"
-                    )}>
+                    <span className="text-xs font-medium text-primary">
                       +{milestone.points}%
                     </span>
                   )}
@@ -177,6 +195,15 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
             })}
           </div>
         )}
+
+        {/* Tutorial Video Dialog */}
+        <TutorialVideoDialog
+          open={videoDialog.open}
+          onOpenChange={(open) => setVideoDialog({ open, milestone: videoDialog.milestone })}
+          title={videoDialog.milestone?.label || ""}
+          description={videoDialog.milestone?.description || ""}
+          videoUrl={videoDialog.milestone?.videoUrl}
+        />
 
         {/* Quick Win Button */}
         {nextMilestone && nextMilestone.id === "jericho_chat" && onOpenJericho && (

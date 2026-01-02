@@ -7,6 +7,7 @@ export interface OnboardingMilestone {
   description: string;
   points: number;
   completed: boolean;
+  videoUrl?: string;
   action?: () => void;
 }
 
@@ -117,6 +118,20 @@ export function useOnboardingProgress(): OnboardingProgress {
     refresh();
   }, [refresh]);
 
+  // Video URLs - replace with your actual tutorial video URLs
+  // Supports: YouTube, Vimeo, or direct video file URLs
+  const tutorialVideos: Record<string, string | undefined> = {
+    first_daily_brief: undefined, // Add your YouTube/Vimeo URL here
+    jericho_chat: undefined,
+    diagnostic: undefined,
+    vision: undefined,
+    habit: undefined,
+    goal: undefined,
+    achievement: undefined,
+    capability: undefined,
+    resource: undefined,
+  };
+
   const milestones: OnboardingMilestone[] = [
     {
       id: "first_daily_brief",
@@ -124,6 +139,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Generate your personalized welcome episode",
       points: 20,
       completed: completeness.has_first_daily_brief,
+      videoUrl: tutorialVideos.first_daily_brief,
     },
     {
       id: "jericho_chat",
@@ -131,6 +147,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Say hello to your AI career coach",
       points: 10,
       completed: completeness.has_chatted_with_jericho,
+      videoUrl: tutorialVideos.jericho_chat,
     },
     {
       id: "diagnostic",
@@ -138,6 +155,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Tell Jericho: 'I want to do my check-in'",
       points: 16,
       completed: completeness.has_completed_diagnostic,
+      videoUrl: tutorialVideos.diagnostic,
     },
     {
       id: "vision",
@@ -145,6 +163,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Define your 1-year and 3-year goals",
       points: 12,
       completed: completeness.has_personal_vision,
+      videoUrl: tutorialVideos.vision,
     },
     {
       id: "habit",
@@ -152,6 +171,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Add your first daily or weekly habit",
       points: 12,
       completed: completeness.has_active_habits,
+      videoUrl: tutorialVideos.habit,
     },
     {
       id: "goal",
@@ -159,6 +179,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Create your first quarterly target",
       points: 15,
       completed: completeness.has_90_day_goals,
+      videoUrl: tutorialVideos.goal,
     },
     {
       id: "achievement",
@@ -166,6 +187,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Celebrate something you're proud of",
       points: 10,
       completed: completeness.has_recent_achievements,
+      videoUrl: tutorialVideos.achievement,
     },
     {
       id: "capability",
@@ -173,6 +195,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Rate your skills across all assigned capabilities",
       points: 15,
       completed: completeness.has_self_assessed_capabilities,
+      videoUrl: tutorialVideos.capability,
     },
     {
       id: "resource",
@@ -180,6 +203,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       description: "Receive a personalized learning recommendation",
       points: 10,
       completed: completeness.has_received_resource,
+      videoUrl: tutorialVideos.resource,
     },
   ];
 
