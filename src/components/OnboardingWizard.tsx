@@ -132,7 +132,13 @@ export function OnboardingWizard({ onComplete, onOpenPlayer }: OnboardingWizardP
         }
       });
 
-      if (scriptError || !scriptResult?.success) {
+      if (scriptError) {
+        console.error('generate-welcome-podcast invoke error:', scriptError);
+        throw scriptError;
+      }
+
+      if (!scriptResult?.success) {
+        console.error('generate-welcome-podcast returned failure:', scriptResult);
         throw new Error(scriptResult?.error || 'Failed to generate welcome podcast');
       }
 
@@ -155,7 +161,13 @@ export function OnboardingWizard({ onComplete, onOpenPlayer }: OnboardingWizardP
         })
       ]);
 
-      if (ttsResult.error || !ttsResult.data?.success) {
+      if (ttsResult.error) {
+        console.error('elevenlabs-tts invoke error:', ttsResult.error);
+        throw ttsResult.error;
+      }
+
+      if (!ttsResult.data?.success) {
+        console.error('elevenlabs-tts returned failure:', ttsResult.data);
         throw new Error(ttsResult.data?.error || 'Failed to generate audio');
       }
 
