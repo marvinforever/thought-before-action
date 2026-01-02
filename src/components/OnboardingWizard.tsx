@@ -59,12 +59,20 @@ export function OnboardingWizard({ onComplete, onOpenPlayer }: OnboardingWizardP
       // If no profile exists yet (new signup flow), don't show wizard yet
       if (!profile) return;
 
-      // Call refresh_user_completeness to get score
-      const { data: completenessData } = await supabase.rpc('refresh_user_completeness', {
+      // Call refresh_user_completeness to update scores
+      await supabase.rpc('refresh_user_completeness', {
         user_id: user.id
       });
 
-      const onboardingScore = (completenessData as { onboarding_score?: number } | null)?.onboarding_score || 0;
+      // Fetch the updated completeness data
+      const { data: completenessData } = await supabase
+        .from('user_data_completeness')
+        .select('onboarding_score')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+
+      const onboardingScore = completenessData?.onboarding_score || 0;
+      console.log('OnboardingWizard: score =', onboardingScore, 'for user', user.id);
 
       // Only show for new users (low onboarding score)
       if (onboardingScore >= 50) return;
