@@ -140,7 +140,10 @@ export default function MyGrowthPlan() {
       <OnboardingProgressCard
         key={onboardingProgressKey}
         onOpenJericho={handleOpenJericho}
-        onStartFirstDailyBrief={() => setOnboardingWizardForceKey((v) => v + 1)}
+        onStartFirstDailyBrief={() => {
+          console.log('MyGrowthPlan: Start First Daily Brief clicked');
+          setOnboardingWizardForceKey((v) => v + 1);
+        }}
       />
 
       {/* Daily Podcast Player - Feature Flagged */}

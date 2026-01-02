@@ -43,6 +43,7 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
 
   useEffect(() => {
     if (typeof forceOpenKey !== 'number') return;
+    console.log('OnboardingWizard: forceOpenKey changed -> opening wizard');
     // Allow re-opening even if dismissed in this session
     sessionStorage.removeItem(dismissKey);
     openWizardManually();
@@ -61,6 +62,8 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
         .maybeSingle();
 
       if (!profile) return;
+
+      console.log('OnboardingWizard: opening manually for', profile.id);
 
       const firstName = profile.full_name?.split(' ')[0] || '';
       setUserName(firstName);
