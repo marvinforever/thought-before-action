@@ -31,6 +31,7 @@ export function useOnboardingProgress(): OnboardingProgress {
     has_received_resource: boolean;
     has_recent_achievements: boolean;
     has_completed_diagnostic: boolean;
+    has_first_daily_brief: boolean;
   }>({
     has_personal_vision: false,
     has_90_day_goals: false,
@@ -40,6 +41,7 @@ export function useOnboardingProgress(): OnboardingProgress {
     has_received_resource: false,
     has_recent_achievements: false,
     has_completed_diagnostic: false,
+    has_first_daily_brief: false,
   });
 
   const refresh = useCallback(async () => {
@@ -70,6 +72,19 @@ export function useOnboardingProgress(): OnboardingProgress {
 
       if (error) throw error;
 
+      // Track whether they've generated their first daily brief / welcome episode
+      const { data: podcastEpisode, error: podcastError } = await supabase
+        .from('podcast_episodes')
+        .select('id')
+        .eq('profile_id', user.id)
+        .limit(1);
+
+      if (podcastError) {
+        console.error('useOnboardingProgress: podcast lookup error', podcastError);
+      }
+
+      const hasFirstDailyBrief = Boolean(podcastEpisode && podcastEpisode.length > 0);
+
       if (data) {
         setScore(data.onboarding_score || 0);
         setPhase((data.onboarding_phase as "new" | "in_progress" | "complete") || "new");
@@ -82,12 +97,14 @@ export function useOnboardingProgress(): OnboardingProgress {
           has_received_resource: data.has_received_resource || false,
           has_recent_achievements: data.has_recent_achievements || false,
           has_completed_diagnostic: data.has_completed_diagnostic || false,
+          has_first_daily_brief: hasFirstDailyBrief,
         });
       } else {
         console.log("useOnboardingProgress: No data found, showing new user state");
         // No data means new user - show onboarding
         setScore(0);
         setPhase("new");
+        setCompleteness((prev) => ({ ...prev, has_first_daily_brief: hasFirstDailyBrief }));
       }
     } catch (error) {
       console.error("Error loading onboarding progress:", error);
@@ -101,6 +118,13 @@ export function useOnboardingProgress(): OnboardingProgress {
   }, [refresh]);
 
   const milestones: OnboardingMilestone[] = [
+    {
+      id: "first_daily_brief",
+      label: "Make Your First Daily Brief",
+      description: "Generate your personalized welcome episode",
+      points: 20,
+      completed: completeness.has_first_daily_brief,
+    },
     {
       id: "jericho_chat",
       label: "Chat with Jericho",

@@ -22,9 +22,10 @@ type WizardStep = 'welcome' | 'capabilities' | 'goal' | 'generating' | 'ready';
 interface OnboardingWizardProps {
   onComplete: () => void;
   onOpenPlayer?: () => void;
+  forceOpenKey?: number;
 }
 
-export function OnboardingWizard({ onComplete, onOpenPlayer }: OnboardingWizardProps) {
+export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: OnboardingWizardProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>('welcome');
   const [userName, setUserName] = useState('');
@@ -39,6 +40,42 @@ export function OnboardingWizard({ onComplete, onOpenPlayer }: OnboardingWizardP
   useEffect(() => {
     checkIfShouldShow();
   }, []);
+
+  useEffect(() => {
+    if (typeof forceOpenKey !== 'number') return;
+    // Allow re-opening even if dismissed in this session
+    sessionStorage.removeItem(dismissKey);
+    openWizardManually();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceOpenKey]);
+
+  const openWizardManually = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, full_name, company_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile) return;
+
+      const firstName = profile.full_name?.split(' ')[0] || '';
+      setUserName(firstName);
+      setProfileId(profile.id);
+      setCompanyId(profile.company_id);
+
+      // Reset wizard state for a clean run
+      setSelectedCapabilities([]);
+      setGoal('');
+      setStep('welcome');
+      setOpen(true);
+    } catch (error) {
+      console.error('Error opening onboarding wizard manually:', error);
+    }
+  };
 
   const checkIfShouldShow = async () => {
     try {
