@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Target, CheckCircle2, Clock, Calendar, XCircle } from "lucide-react";
-import { format } from "date-fns";
+import { Target, CheckCircle2, Clock, Calendar, XCircle, Headphones } from "lucide-react";
+import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 
 interface PodcastEpisodeCardProps {
   episode: {
@@ -23,44 +23,73 @@ export const PodcastEpisodeCard = ({ episode }: PodcastEpisodeCardProps) => {
     return `${mins} min`;
   };
 
+  const episodeDate = new Date(episode.episode_date + 'T12:00:00');
+  const daysAgo = differenceInDays(new Date(), episodeDate);
+
+  const getRelativeDate = () => {
+    if (isToday(episodeDate)) return "Today";
+    if (isYesterday(episodeDate)) return "Yesterday";
+    if (daysAgo <= 7) return `${daysAgo} days ago`;
+    return format(episodeDate, 'MMM d');
+  };
+
+  const getEpisodeNumber = () => {
+    // Create a pseudo-episode number based on the date
+    const baseDate = new Date('2024-01-01');
+    return Math.max(1, differenceInDays(episodeDate, baseDate) + 1);
+  };
+
   return (
-    <Card className="bg-card/50 border-border/50">
+    <Card className="bg-gradient-to-br from-card/80 to-card border-border/50 hover:border-primary/30 transition-all duration-300 group">
       <CardContent className="p-4 space-y-3">
-        {/* Header with date and listened status */}
+        {/* Header with episode number and date */}
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>{format(new Date(episode.episode_date + 'T12:00:00'), 'EEEE, MMMM d')}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-semibold text-sm group-hover:bg-primary/20 transition-colors">
+              #{getEpisodeNumber()}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                {getRelativeDate()}
+              </p>
+              <p className="text-sm font-medium text-foreground/80">
+                {format(episodeDate, 'EEEE, MMMM d')}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {episode.duration_seconds && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
                 <Clock className="h-3 w-3" />
                 {formatDuration(episode.duration_seconds)}
               </div>
             )}
             {episode.listened_at && (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <CheckCircle2 className="h-3 w-3" />
+              <Badge variant="secondary" className="text-xs gap-1 bg-green-500/10 text-green-600 border-green-500/20">
+                <Headphones className="h-3 w-3" />
                 Played
               </Badge>
             )}
           </div>
         </div>
 
-        {/* Title */}
-        <h4 className="font-medium text-sm">{episode.title}</h4>
-
-        {/* Capability focus badge */}
-        {episode.capability_name && (
-          <Badge variant="outline" className="text-xs">
-            {episode.capability_name}
-          </Badge>
-        )}
+        {/* Title - make it feel special */}
+        <div className="pl-[52px]">
+          <h4 className="font-semibold text-base leading-tight text-foreground group-hover:text-primary transition-colors">
+            {episode.title}
+          </h4>
+          
+          {/* Capability focus badge */}
+          {episode.capability_name && (
+            <Badge variant="outline" className="text-xs mt-2 bg-primary/5">
+              Focus: {episode.capability_name}
+            </Badge>
+          )}
+        </div>
 
         {/* Daily Challenge - prominently displayed */}
         {episode.daily_challenge && (
-          <div className={`rounded-lg p-3 ${
+          <div className={`rounded-lg p-3 ml-[52px] ${
             episode.challenge_completed_at && episode.challenge_completed_at !== 'skipped'
               ? 'bg-green-500/10 border border-green-500/20'
               : episode.challenge_completed_at === 'skipped'
@@ -100,9 +129,9 @@ export const PodcastEpisodeCard = ({ episode }: PodcastEpisodeCardProps) => {
 
         {/* Topics */}
         {episode.topics_covered && episode.topics_covered.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 pl-[52px]">
             {episode.topics_covered.map((topic, i) => (
-              <Badge key={i} variant="secondary" className="text-xs capitalize">
+              <Badge key={i} variant="secondary" className="text-xs capitalize bg-muted/50">
                 {topic}
               </Badge>
             ))}
