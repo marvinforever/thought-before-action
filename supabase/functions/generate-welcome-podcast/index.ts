@@ -71,10 +71,13 @@ EPISODE STRUCTURE (follow this order):
    - How it works: "Every day, I'll create personalized content just for you... podcasts, resources, and insights tailored to YOUR goals and YOUR journey"
    - The difference: "This isn't generic training. This is YOUR growth plan, built around what matters to YOU"
 
-3. SPEAK TO WHO THEY'RE BECOMING (30 seconds)
-   - Based on their focus areas (${capabilitiesText}), paint a picture of who they're growing into
-   - Be aspirational: "You're not just learning ${capabilitiesText}... you're becoming the kind of person who..."
-   - Make it feel personal and exciting
+3. SPEAK TO WHO THEY'RE BECOMING - THIS IS THE HEART OF THE EPISODE (60 seconds)
+   - This section must be DEEPLY PERSONALIZED to their specific capabilities: ${capabilitiesText}
+   - For EACH capability they selected, paint a vivid picture of who they become when they master it
+   - Use specific, concrete examples: "When you master [capability], you'll be the person who [specific scenario]..."
+   - Make it aspirational but believable - speak to the transformation, not just the skill
+   - Connect the capabilities together into a unified vision of their future self
+   - This should feel like you REALLY SEE them and their potential
 
 4. ACKNOWLEDGE THEIR GOAL (30 seconds)
    - ${goalText}
