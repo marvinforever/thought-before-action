@@ -143,3 +143,6 @@ verify_jwt = true
 
 [functions.generate-podcast-music]
 verify_jwt = true
+
+[functions.generate-welcome-podcast]
+verify_jwt = true
