@@ -320,34 +320,37 @@ export default function ManagerDashboard() {
                                       <Compass className="h-3 w-3 mr-1" />
                                       View Growth Plan
                                     </Button>
-                                    <div className="flex gap-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="flex-1"
-                                          onClick={() => handleOneOnOne(report)}
-                                        >
-                                          <MessageSquare className="h-3 w-3 mr-1" />
-                                          1-on-1
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleOneOnOneHistory(report)}
-                                          title="View 1:1 History"
-                                        >
-                                          <History className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="flex-1"
-                                          onClick={() => handleRecognition(report)}
-                                        >
-                                          <Award className="h-3 w-3 mr-1" />
-                                          Recognize
-                                        </Button>
-                                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handleOneOnOne(report)}
+                          >
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            1-on-1
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => handleOneOnOneHistory(report)}
+                            title="View 1:1 History"
+                          >
+                            <History className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleRecognition(report)}
+                        >
+                          <Award className="h-3 w-3 mr-1" />
+                          Recognize
+                        </Button>
+                      </div>
                                       <div className="flex gap-2">
                                         <Button
                                           variant="outline"
