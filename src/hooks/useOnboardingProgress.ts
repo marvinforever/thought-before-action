@@ -121,15 +121,15 @@ export function useOnboardingProgress(): OnboardingProgress {
   // Video URLs - replace with your actual tutorial video URLs
   // Supports: YouTube, Vimeo, or direct video file URLs
   const tutorialVideos: Record<string, string | undefined> = {
-    first_daily_brief: undefined, // Add your YouTube/Vimeo URL here
-    jericho_chat: undefined,
-    diagnostic: undefined,
-    vision: undefined,
-    habit: undefined,
-    goal: undefined,
-    achievement: undefined,
-    capability: undefined,
-    resource: undefined,
+    first_daily_brief: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Placeholder - replace with real URL
+    jericho_chat: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    diagnostic: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    vision: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    habit: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    goal: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    achievement: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    capability: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    resource: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   };
 
   const milestones: OnboardingMilestone[] = [
