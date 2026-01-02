@@ -62,10 +62,14 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
   const loadPreviousNotes = async () => {
     setLoadingHistory(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from("one_on_one_notes")
         .select("id, meeting_date, notes, wins, concerns, action_items")
         .eq("employee_id", employee.id)
+        .eq("manager_id", user.id)
         .order("meeting_date", { ascending: false })
         .limit(10);
 
@@ -73,6 +77,11 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
       setPreviousNotes(data || []);
     } catch (error: any) {
       console.error("Error loading previous notes:", error);
+      toast({
+        title: "Couldn't load previous 1:1s",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoadingHistory(false);
     }
@@ -287,19 +296,27 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
         </DialogHeader>
 
         {/* Previous 1:1s Section */}
-        {previousNotes.length > 0 && (
-          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="border rounded-lg">
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-4 h-auto">
-                <div className="flex items-center gap-2">
-                  <History className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Previous 1:1s</span>
-                  <span className="text-muted-foreground text-sm">({previousNotes.length})</span>
-                </div>
-                {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="px-4 pb-4">
+        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="border rounded-lg">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between p-4 h-auto"
+              disabled={loadingHistory}
+            >
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Previous 1:1s</span>
+                <span className="text-muted-foreground text-sm">({previousNotes.length})</span>
+              </div>
+              {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="px-4 pb-4">
+            {loadingHistory ? (
+              <div className="py-3 text-sm text-muted-foreground">Loading previous 1:1s…</div>
+            ) : previousNotes.length === 0 ? (
+              <div className="py-3 text-sm text-muted-foreground">No previous 1:1s yet.</div>
+            ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {previousNotes.map((note) => (
                   <Collapsible 
@@ -368,9 +385,9 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
                   </Collapsible>
                 ))}
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+            )}
+          </CollapsibleContent>
+        </Collapsible>
 
         <div className="space-y-4">
           <Alert>
