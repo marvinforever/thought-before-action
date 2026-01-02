@@ -11,6 +11,8 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 
 const Auth = () => {
   const navigate = useNavigate();
+  // Track if we're in the middle of a signup flow to prevent premature redirect
+  const [isSigningUp, setIsSigningUp] = useState(false);
   
   // Check if user is already logged in and redirect to dashboard
   // But redirect to reset-password if this is a password recovery flow
@@ -38,15 +40,16 @@ const Auth = () => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Don't redirect on password recovery events
+      // Don't redirect on password recovery events or during signup flow
       if (event === "PASSWORD_RECOVERY") return;
+      if (isSigningUp) return; // Don't redirect while signup is in progress
       if (session) {
         navigate("/dashboard/my-growth-plan", { replace: true });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, isSigningUp]);
   const { clearViewAsCompany } = useViewAs();
   const [isLogin, setIsLogin] = useState(true);
   const [isResetPassword, setIsResetPassword] = useState(false);
@@ -74,6 +77,9 @@ const Auth = () => {
         toast({ title: "Welcome back!", description: "Successfully logged in." });
         navigate("/dashboard");
       } else {
+        // Set flag to prevent onAuthStateChange from redirecting prematurely
+        setIsSigningUp(true);
+        
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
@@ -81,33 +87,44 @@ const Auth = () => {
             emailRedirectTo: `${window.location.origin}/dashboard`,
           },
         });
-        if (authError) throw authError;
+        if (authError) {
+          setIsSigningUp(false);
+          throw authError;
+        }
 
         if (authData.user) {
-          // Create company
-          const { data: company, error: companyError } = await supabase
-            .from("companies")
-            .insert({ name: companyName })
-            .select()
-            .single();
-          
-          if (companyError) throw companyError;
+          try {
+            // Create company
+            const { data: company, error: companyError } = await supabase
+              .from("companies")
+              .insert({ name: companyName })
+              .select()
+              .single();
+            
+            if (companyError) throw companyError;
 
-          // Create profile
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .insert({
-              id: authData.user.id,
-              company_id: company.id,
-              full_name: fullName,
-              email,
-              is_admin: true,
-            });
-          
-          if (profileError) throw profileError;
+            // Create profile
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .insert({
+                id: authData.user.id,
+                company_id: company.id,
+                full_name: fullName,
+                email,
+                is_admin: true,
+              });
+            
+            if (profileError) throw profileError;
 
-          toast({ title: "Account created!", description: "Welcome to Jericho." });
-          navigate("/dashboard");
+            toast({ title: "Account created!", description: "Welcome to Jericho." });
+            setIsSigningUp(false);
+            navigate("/dashboard/my-growth-plan");
+          } catch (error) {
+            setIsSigningUp(false);
+            throw error;
+          }
+        } else {
+          setIsSigningUp(false);
         }
       }
     } catch (error: any) {
