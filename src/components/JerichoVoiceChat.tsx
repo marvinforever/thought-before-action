@@ -381,25 +381,32 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
 
       if (error) throw error;
 
-      const { signedUrl, conversationId: convId, completeness: userCompleteness, contextSummary: ctxSummary, firstMessage } = data;
+      const {
+        conversationToken,
+        conversationId: convId,
+        completeness: userCompleteness,
+        contextSummary: ctxSummary,
+        firstMessage,
+      } = data;
+
       setConversationId(convId);
       setCompleteness(userCompleteness);
       setContextSummary(ctxSummary);
-      
-      console.log("Starting ElevenLabs session with signedUrl:", signedUrl?.substring(0, 80) + "...");
+
+      console.log("Starting ElevenLabs session with WebRTC token");
       console.log("First message override:", firstMessage);
 
-      // Start ElevenLabs conversation with signed URL and overrides
+      // Start ElevenLabs conversation with WebRTC (best audio reliability)
       const sessionResult = await conversation.startSession({
-        signedUrl: signedUrl,
-        connectionType: "websocket",
+        conversationToken,
+        connectionType: "webrtc",
         overrides: {
           agent: {
             firstMessage: firstMessage,
-          }
-        }
+          },
+        },
       });
-      
+
       console.log("ElevenLabs session result:", sessionResult);
       console.log("Conversation status after start:", conversation.status);
       console.log("Is speaking:", conversation.isSpeaking);

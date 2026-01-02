@@ -325,11 +325,11 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
     }
 
     console.log('Generated first message:', firstMessage);
-    console.log('Voice prompt built, getting signed URL...');
+    console.log('Voice prompt built, getting conversation token...');
 
-    // Get signed URL for ElevenLabs conversation
-    const signedUrlResponse = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsAgentId}`,
+    // Get WebRTC conversation token for ElevenLabs (better audio + stability)
+    const tokenResponse = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${elevenLabsAgentId}`,
       {
         method: 'GET',
         headers: {
@@ -338,16 +338,19 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
       }
     );
 
-    if (!signedUrlResponse.ok) {
-      const errorText = await signedUrlResponse.text();
-      console.error('ElevenLabs error:', signedUrlResponse.status, errorText);
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('ElevenLabs error:', tokenResponse.status, errorText);
       return new Response(
         JSON.stringify({ error: 'Failed to initialize voice agent' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { signed_url } = await signedUrlResponse.json();
+    const { token } = await tokenResponse.json();
+    if (!token) {
+      throw new Error('No conversation token returned from ElevenLabs');
+    }
 
     // Create conversation record
     const { data: conversation, error: convError } = await supabase
@@ -383,7 +386,7 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
 
     return new Response(
       JSON.stringify({
-        signedUrl: signed_url,
+        conversationToken: token,
         conversationId: conversation.id,
         firstMessage: firstMessage,
         completeness: {
