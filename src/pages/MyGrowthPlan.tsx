@@ -20,6 +20,7 @@ import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOver
 import { CompanyLeaderboard } from "@/components/CompanyLeaderboard";
 import { DailyPodcastPlayer } from "@/components/DailyPodcastPlayer";
 import { WelcomeModal } from "@/components/WelcomeModal";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 
 type JobDescription = {
@@ -264,6 +265,15 @@ export default function MyGrowthPlan() {
         badgeEmoji={celebration.badgeEmoji}
         subtitle={celebration.subtitle}
         onComplete={onComplete}
+      />
+
+      {/* Onboarding Wizard for new users */}
+      <OnboardingWizard 
+        onComplete={() => {}}
+        onOpenPlayer={() => {
+          // Scroll to podcast player
+          document.querySelector('[data-podcast-player]')?.scrollIntoView({ behavior: 'smooth' });
+        }}
       />
 
       {/* Floating Jericho Button */}

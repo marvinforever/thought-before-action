@@ -60,7 +60,7 @@ export function OnboardingWizard({ onComplete, onOpenPlayer }: OnboardingWizardP
 
       // Call refresh_user_completeness to get score
       const { data: completenessData } = await supabase.rpc('refresh_user_completeness', {
-        p_profile_id: user.id
+        user_id: user.id
       });
 
       const onboardingScore = (completenessData as { onboarding_score?: number } | null)?.onboarding_score || 0;
