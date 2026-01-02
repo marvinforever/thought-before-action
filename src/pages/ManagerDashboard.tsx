@@ -332,13 +332,13 @@ export default function ManagerDashboard() {
                             1-on-1
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0"
+                            variant="outline"
+                            size="sm"
+                            className="px-2 shrink-0"
                             onClick={() => handleOneOnOneHistory(report)}
                             title="View 1:1 History"
                           >
-                            <History className="h-3 w-3" />
+                            <History className="h-4 w-4" />
                           </Button>
                         </div>
                         <Button
