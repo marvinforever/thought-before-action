@@ -54,8 +54,9 @@ export function OnboardingWizard({ onComplete, onOpenPlayer }: OnboardingWizardP
         .from('profiles')
         .select('id, full_name, company_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
+      // If no profile exists yet (new signup flow), don't show wizard yet
       if (!profile) return;
 
       // Call refresh_user_completeness to get score
