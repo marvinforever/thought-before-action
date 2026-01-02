@@ -306,6 +306,25 @@ Offer naturally: "I noticed you haven't set a personal vision yet - want me to h
 
 Remember: You're not just chatting - you're coaching. Push them to grow while making them feel supported.`;
 
+    // Generate dynamic first message based on context
+    const firstName = profile.full_name?.split(' ')[0] || 'there';
+    let firstMessage = `Hey ${firstName}! What's on your mind today?`;
+    
+    // Personalize based on context
+    if (pendingFollowUps.length > 0) {
+      const followUpTopic = pendingFollowUps[0]?.context?.topic || 'what we discussed';
+      firstMessage = `Hey ${firstName}! I wanted to check in on ${followUpTopic} from last time - how's that going?`;
+    } else if (goalPatterns.recentlyCompleted && goalPatterns.recentlyCompleted.length > 0) {
+      firstMessage = `Hey ${firstName}! Congrats on completing some goals recently! What are we working on today?`;
+    } else if (currentTargets.length > 0) {
+      firstMessage = `Hey ${firstName}! Ready to make some progress on your goals? What's on your mind?`;
+    } else if (habits.some((h: any) => h.current_streak >= 7)) {
+      firstMessage = `Hey ${firstName}! I'm loving those streaks you've got going. What can I help you with today?`;
+    } else if (missingData.length > 0 && missingData.includes('personal_vision')) {
+      firstMessage = `Hey ${firstName}! Good to hear from you. I noticed you haven't set up your vision yet - want to work on that, or is there something else on your mind?`;
+    }
+
+    console.log('Generated first message:', firstMessage);
     console.log('Voice prompt built, getting signed URL...');
 
     // Get signed URL for ElevenLabs conversation
@@ -366,6 +385,7 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
       JSON.stringify({
         signedUrl: signed_url,
         conversationId: conversation.id,
+        firstMessage: firstMessage,
         completeness: {
           percentage: Math.round(((hasData.length) / 6) * 100),
           missingItems: missingData,

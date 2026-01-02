@@ -375,16 +375,22 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
 
       if (error) throw error;
 
-      const { signedUrl, conversationId: convId, completeness: userCompleteness, contextSummary: ctxSummary } = data;
+      const { signedUrl, conversationId: convId, completeness: userCompleteness, contextSummary: ctxSummary, firstMessage } = data;
       setConversationId(convId);
       setCompleteness(userCompleteness);
       setContextSummary(ctxSummary);
       
       console.log("Starting ElevenLabs session with signedUrl:", signedUrl?.substring(0, 80) + "...");
+      console.log("First message override:", firstMessage);
 
-      // Start ElevenLabs conversation with signed URL (WebSocket mode)
+      // Start ElevenLabs conversation with signed URL and overrides
       const sessionResult = await conversation.startSession({
         signedUrl: signedUrl,
+        overrides: {
+          agent: {
+            firstMessage: firstMessage,
+          }
+        }
       });
       
       console.log("ElevenLabs session result:", sessionResult);
