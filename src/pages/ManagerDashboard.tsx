@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, History } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
 import { OneOnOneDialog } from "@/components/OneOnOneDialog";
+import { OneOnOneHistoryDialog } from "@/components/OneOnOneHistoryDialog";
 import { RecognitionDialog } from "@/components/RecognitionDialog";
 import { ScheduleReviewDialog } from "@/components/ScheduleReviewDialog";
 import { ManageMyTeamDialog } from "@/components/ManageMyTeamDialog";
@@ -40,10 +41,11 @@ type DirectReport = {
 export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [directReports, setDirectReports] = useState<DirectReport[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; full_name: string; company_id?: string } | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; full_name: string; company_id?: string; email?: string } | null>(null);
   const [capabilitiesDialogOpen, setCapabilitiesDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [oneOnOneDialogOpen, setOneOnOneDialogOpen] = useState(false);
+  const [oneOnOneHistoryDialogOpen, setOneOnOneHistoryDialogOpen] = useState(false);
   const [recognitionDialogOpen, setRecognitionDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
@@ -178,8 +180,13 @@ export default function ManagerDashboard() {
   };
 
   const handleOneOnOne = (employee: DirectReport) => {
-    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id, email: employee.email });
     setOneOnOneDialogOpen(true);
+  };
+
+  const handleOneOnOneHistory = (employee: DirectReport) => {
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id, email: employee.email });
+    setOneOnOneHistoryDialogOpen(true);
   };
 
   const handleRecognition = (employee: DirectReport) => {
@@ -324,6 +331,14 @@ export default function ManagerDashboard() {
                                           1-on-1
                                         </Button>
                                         <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleOneOnOneHistory(report)}
+                                          title="View 1:1 History"
+                                        >
+                                          <History className="h-3 w-3" />
+                                        </Button>
+                                        <Button
                                           variant="outline"
                                           size="sm"
                                           className="flex-1"
@@ -433,6 +448,16 @@ export default function ManagerDashboard() {
                   id: selectedEmployee.id,
                   full_name: selectedEmployee.full_name,
                   company_id: selectedEmployee.company_id
+                }}
+              />
+              <OneOnOneHistoryDialog
+                open={oneOnOneHistoryDialogOpen}
+                onOpenChange={setOneOnOneHistoryDialogOpen}
+                employee={{
+                  id: selectedEmployee.id,
+                  full_name: selectedEmployee.full_name,
+                  email: selectedEmployee.email,
+                  company_id: selectedEmployee.company_id || ''
                 }}
               />
               <RecognitionDialog
