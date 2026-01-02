@@ -39,6 +39,7 @@ export default function MyGrowthPlan() {
   const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
   const [userProfile, setUserProfile] = useState<{ id: string; company_id: string } | null>(null);
   const [jerichoOpen, setJerichoOpen] = useState(false);
+  const [podcastRefreshKey, setPodcastRefreshKey] = useState(0);
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
@@ -141,8 +142,10 @@ export default function MyGrowthPlan() {
       {/* Daily Podcast Player - Feature Flagged */}
       {userProfile && !podcastFlagLoading && isPodcastEnabled && (
         <DailyPodcastPlayer 
+          key={podcastRefreshKey}
           profileId={userProfile.id} 
-          companyId={userProfile.company_id} 
+          companyId={userProfile.company_id}
+          autoPlay={podcastRefreshKey > 0}
         />
       )}
 
@@ -269,10 +272,16 @@ export default function MyGrowthPlan() {
 
       {/* Onboarding Wizard for new users */}
       <OnboardingWizard 
-        onComplete={() => {}}
+        onComplete={() => {
+          // Trigger podcast player refresh and auto-play
+          setPodcastRefreshKey(prev => prev + 1);
+        }}
         onOpenPlayer={() => {
-          // Scroll to podcast player
-          document.querySelector('[data-podcast-player]')?.scrollIntoView({ behavior: 'smooth' });
+          // Trigger refresh then scroll to podcast player
+          setPodcastRefreshKey(prev => prev + 1);
+          setTimeout(() => {
+            document.querySelector('[data-podcast-player]')?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
         }}
       />
 
