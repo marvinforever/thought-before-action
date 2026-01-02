@@ -52,6 +52,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
   const [playbackPhase, setPlaybackPhase] = useState<PlaybackPhase>('idle');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -354,7 +355,8 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
+    // Don't update state while user is actively seeking
+    if (audioRef.current && !isSeeking) {
       setCurrentTime(audioRef.current.currentTime);
     }
   };
@@ -365,11 +367,18 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
     }
   };
 
-  const handleSeek = (value: number[]) => {
+  // Update visual position while dragging (doesn't affect audio)
+  const handleSeekChange = (value: number[]) => {
+    setIsSeeking(true);
+    setCurrentTime(value[0]);
+  };
+
+  // Actually seek the audio when user releases the slider
+  const handleSeekCommit = (value: number[]) => {
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
-      setCurrentTime(value[0]);
     }
+    setIsSeeking(false);
   };
 
   const handleVolumeChange = (value: number[]) => {
@@ -574,8 +583,9 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
               <Slider
                 value={[currentTime]}
                 max={duration || 100}
-                step={1}
-                onValueChange={handleSeek}
+                step={0.1}
+                onValueChange={handleSeekChange}
+                onValueCommit={handleSeekCommit}
                 className="flex-1"
               />
               <span className="text-xs text-muted-foreground w-10 text-right">
