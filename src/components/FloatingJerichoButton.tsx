@@ -16,20 +16,31 @@ export function FloatingJerichoButton() {
   const location = useLocation();
 
   useEffect(() => {
-    const checkUserCompany = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      
+    const checkUserCompany = async (userId: string) => {
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .eq("id", user.id)
+        .eq("id", userId)
         .single();
       
       setShowVoiceButton(profile?.company_id === MOMENTUM_COMPANY_ID);
     };
+
+    // Check on mount and subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        checkUserCompany(session.user.id);
+      } else {
+        setShowVoiceButton(false);
+      }
+    });
+
+    // Initial check
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) checkUserCompany(user.id);
+    });
     
-    checkUserCompany();
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
