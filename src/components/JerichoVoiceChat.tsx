@@ -338,6 +338,13 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
   const startVoiceConversation = async () => {
     setIsInitializing(true);
     try {
+      // Create and resume AudioContext to satisfy browser autoplay policy
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      console.log("AudioContext state:", audioContext.state);
+      
       // Request microphone access with optimized settings
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -373,14 +380,16 @@ export function JerichoVoiceChat({ isOpen, onClose }: JerichoVoiceChatProps) {
       setCompleteness(userCompleteness);
       setContextSummary(ctxSummary);
       
-      console.log("Starting ElevenLabs session with signedUrl");
+      console.log("Starting ElevenLabs session with signedUrl:", signedUrl?.substring(0, 80) + "...");
 
       // Start ElevenLabs conversation with signed URL (WebSocket mode)
-      await conversation.startSession({
+      const sessionResult = await conversation.startSession({
         signedUrl: signedUrl,
       });
       
-      console.log("ElevenLabs session started, status:", conversation.status);
+      console.log("ElevenLabs session result:", sessionResult);
+      console.log("Conversation status after start:", conversation.status);
+      console.log("Is speaking:", conversation.isSpeaking);
       
     } catch (error: any) {
       console.error("Failed to start voice conversation:", error);
