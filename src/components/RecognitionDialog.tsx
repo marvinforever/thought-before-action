@@ -418,19 +418,19 @@ export function RecognitionDialog({ open, onOpenChange, employee, isPeerRecognit
             <Target className="h-3 w-3" />
             Link to Capability (optional)
           </Label>
-          <Select value={linkedCapabilityId} onValueChange={setLinkedCapabilityId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a capability" />
-            </SelectTrigger>
-            <SelectContent className="bg-background z-50">
-              <SelectItem value="">None</SelectItem>
-              {capabilities.map((cap) => (
-                <SelectItem key={cap.id} value={cap.id}>
-                  {cap.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                <Select value={linkedCapabilityId || "none"} onValueChange={(val) => setLinkedCapabilityId(val === "none" ? "" : val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a capability" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="none">None</SelectItem>
+                    {capabilities.map((cap) => (
+                      <SelectItem key={cap.id} value={cap.id}>
+                        {cap.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
         </div>
       )}
 
@@ -441,19 +441,19 @@ export function RecognitionDialog({ open, onOpenChange, employee, isPeerRecognit
             <Star className="h-3 w-3" />
             Link to Goal (optional)
           </Label>
-          <Select value={linkedGoalId} onValueChange={setLinkedGoalId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a goal" />
-            </SelectTrigger>
-            <SelectContent className="bg-background z-50">
-              <SelectItem value="">None</SelectItem>
-              {goals.filter(g => g.goal_text).map((goal) => (
-                <SelectItem key={goal.id} value={goal.id}>
-                  {goal.goal_text!.length > 50 ? goal.goal_text!.substring(0, 50) + "..." : goal.goal_text}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                <Select value={linkedGoalId || "none"} onValueChange={(val) => setLinkedGoalId(val === "none" ? "" : val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a goal" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="none">None</SelectItem>
+                    {goals.filter(g => g.goal_text).map((goal) => (
+                      <SelectItem key={goal.id} value={goal.id}>
+                        {goal.goal_text!.length > 50 ? goal.goal_text!.substring(0, 50) + "..." : goal.goal_text}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
         </div>
       )}
 
