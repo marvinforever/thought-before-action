@@ -11,7 +11,6 @@ import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDia
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
 import { OneOnOneDialog } from "@/components/OneOnOneDialog";
-
 import { RecognitionDialog } from "@/components/RecognitionDialog";
 import { ScheduleReviewDialog } from "@/components/ScheduleReviewDialog";
 import { ManageMyTeamDialog } from "@/components/ManageMyTeamDialog";
@@ -25,6 +24,8 @@ import { ReviewsTab } from "@/components/ReviewsTab";
 import { TeamHealthRisks } from "@/components/TeamHealthRisks";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
+import { ManagerOnboardingWizard } from "@/components/manager-onboarding/ManagerOnboardingWizard";
+import { ManagerPriorityActions } from "@/components/ManagerPriorityActions";
 
 type DirectReport = {
   id: string;
@@ -50,6 +51,7 @@ export default function ManagerDashboard() {
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const [growthPlanDialogOpen, setGrowthPlanDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("team");
   const { toast } = useToast();
   const navigate = useNavigate();
   const { viewAsCompanyId } = useViewAs();
@@ -200,8 +202,46 @@ export default function ManagerDashboard() {
     setGrowthPlanDialogOpen(true);
   };
 
+  // Helper function for priority actions callbacks
+  const handlePriorityOneOnOne = (employee: { id: string; full_name: string; company_id: string }) => {
+    const report = directReports.find(r => r.id === employee.id);
+    setSelectedEmployee({ 
+      id: employee.id, 
+      full_name: employee.full_name, 
+      company_id: employee.company_id,
+      email: report?.email 
+    });
+    setOneOnOneDialogOpen(true);
+  };
+
+  const handlePriorityRecognition = (employee: { id: string; full_name: string; company_id: string }) => {
+    setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
+    setRecognitionDialogOpen(true);
+  };
+
+  const handleViewCapabilityRequests = () => {
+    setActiveTab("requests");
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Manager Onboarding Wizard */}
+      <ManagerOnboardingWizard
+        onStartOneOnOne={(employee) => {
+          setSelectedEmployee({ 
+            id: employee.id, 
+            full_name: employee.full_name, 
+            company_id: employee.company_id,
+            email: employee.email 
+          });
+          setOneOnOneDialogOpen(true);
+        }}
+        onViewCapabilities={(employee) => {
+          setSelectedEmployee({ id: employee.id, full_name: employee.full_name, company_id: employee.company_id });
+          setCapabilitiesDialogOpen(true);
+        }}
+      />
+
       <ViewAsCompanyBanner />
       
       {/* Hero Section */}
@@ -240,7 +280,14 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="team" className="space-y-4">
+      {/* Priority Actions - New Quick Action Panel */}
+      <ManagerPriorityActions
+        onStartOneOnOne={handlePriorityOneOnOne}
+        onViewCapabilityRequests={handleViewCapabilityRequests}
+        onGiveRecognition={handlePriorityRecognition}
+      />
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="team">Team Overview</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>

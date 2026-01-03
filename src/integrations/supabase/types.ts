@@ -2825,6 +2825,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           full_name: string | null
+          has_seen_manager_onboarding: boolean | null
           id: string
           is_active: boolean | null
           is_admin: boolean | null
@@ -2845,6 +2846,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           full_name?: string | null
+          has_seen_manager_onboarding?: boolean | null
           id: string
           is_active?: boolean | null
           is_admin?: boolean | null
@@ -2865,6 +2867,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           full_name?: string | null
+          has_seen_manager_onboarding?: boolean | null
           id?: string
           is_active?: boolean | null
           is_admin?: boolean | null
