@@ -227,12 +227,13 @@ export default function ManagerDashboard() {
     <div className="container mx-auto p-6 space-y-6">
       {/* Manager Onboarding Wizard */}
       <ManagerOnboardingWizard
+        onManageTeam={() => setManageTeamDialogOpen(true)}
         onStartOneOnOne={(employee) => {
-          setSelectedEmployee({ 
-            id: employee.id, 
-            full_name: employee.full_name, 
+          setSelectedEmployee({
+            id: employee.id,
+            full_name: employee.full_name,
             company_id: employee.company_id,
-            email: employee.email 
+            email: employee.email,
           });
           setOneOnOneDialogOpen(true);
         }}
