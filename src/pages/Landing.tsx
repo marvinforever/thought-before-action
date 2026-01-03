@@ -1,19 +1,36 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { motion } from "framer-motion";
 import { 
-  Target, 
-  Bot, 
-  TrendingUp, 
-  Users, 
-  BookOpen, 
-  Trophy,
   ArrowRight,
   CheckCircle2,
   Sparkles,
+  XCircle,
+  TrendingUp,
+  MessageCircle,
+  Target,
+  Users,
+  Clock,
+  AlertTriangle,
+  Zap,
   BarChart3,
-  Zap
+  Heart,
+  RefreshCw
 } from "lucide-react";
+
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
 
 const Landing = () => {
   return (
@@ -30,280 +47,521 @@ const Landing = () => {
               <span className="hidden sm:inline text-xs text-muted-foreground ml-1">by The Momentum Company</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-sm text-muted-foreground hover:text-accent transition-colors">Features</a>
-              <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-accent transition-colors">How It Works</a>
-              
+              <a href="#problem" className="text-sm text-muted-foreground hover:text-accent transition-colors">The Problem</a>
+              <a href="#solution" className="text-sm text-muted-foreground hover:text-accent transition-colors">Our Solution</a>
+              <a href="#results" className="text-sm text-muted-foreground hover:text-accent transition-colors">Results</a>
             </div>
             <div className="flex items-center gap-4">
-              <span className="hidden sm:inline text-sm font-medium text-foreground">Text <span className="text-accent font-bold">"Jericho"</span> to <span className="font-bold">402.881.9986</span></span>
               <Link to="/auth">
                 <Button variant="outline" size="sm">Log In</Button>
+              </Link>
+              <Link to="/auth" className="hidden sm:block">
+                <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">Get Started</Button>
               </Link>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero Section - Bold Problem Statement */}
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
-        <div className="absolute top-20 right-10 w-72 h-72 bg-accent/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 left-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
-        <div className="max-w-7xl mx-auto relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+        <div className="absolute top-20 right-10 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        
+        <motion.div 
+          className="max-w-7xl mx-auto relative"
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+        >
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 text-accent-foreground text-sm font-medium mb-6 border border-accent/30">
-              <Zap className="w-4 h-4 text-accent" />
-              AI-Powered Performance Management
-            </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-              Hyper-Personalized Growth for{" "}
-              <span className="text-accent">Every Employee</span>
-            </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Transform capability gaps into career momentum with AI-driven assessments, 
-              tailored roadmaps, and your personal AI career coach.
-            </p>
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-lg font-medium text-foreground">
-                Text <span className="text-accent font-bold">"Jericho"</span> to
-              </p>
-              <a href="sms:4028819986?body=Jericho" className="text-3xl font-bold text-accent hover:underline">
-                402.881.9986
-              </a>
-            </div>
-          </div>
-          
-          {/* Hero Visual */}
-          <div className="mt-16 relative">
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10" />
-            <div className="bg-gradient-to-br from-primary/20 to-accent/30 rounded-2xl p-8 backdrop-blur-sm border border-accent/30">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {["Leadership", "Communication", "Strategic Thinking"].map((cap, i) => (
-                  <div key={i} className="bg-background/80 rounded-xl p-4 border border-border/50">
-                    <div className="text-sm font-medium text-foreground mb-2 truncate">{cap}</div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-accent rounded-full transition-all duration-1000"
-                        style={{ width: `${60 + i * 15}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">Level {2 + i} → {3 + i}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Problem/Solution Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              The Future of Employee Development
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Traditional training fails because it's generic. Jericho succeeds because it's personal.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card className="bg-destructive/5 border-destructive/20">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-semibold text-destructive mb-4">The Old Way</h3>
-                <ul className="space-y-3">
-                  {[
-                    "One-size-fits-all training programs",
-                    "Annual reviews that feel disconnected",
-                    "Employees feel stuck without clear growth paths",
-                    "Managers lack visibility into team development"
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3 text-muted-foreground">
-                      <span className="text-destructive mt-1">✕</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+            <motion.div 
+              variants={fadeIn}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 text-destructive text-sm font-medium mb-6 border border-destructive/20"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Performance management is broken
+            </motion.div>
             
-            <Card className="bg-accent/10 border-accent/30">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-semibold text-accent mb-4">The Jericho Way</h3>
-                <ul className="space-y-3">
-                  {[
-                    "AI-driven capability assessments for each role",
-                    "Continuous coaching from your personal AI mentor",
-                    "Clear 90-day, 1-year, and 3-year growth roadmaps",
-                    "Real-time team analytics and development insights"
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3 text-foreground">
-                      <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+            <motion.h1 
+              variants={fadeIn}
+              className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight"
+            >
+              <span className="text-destructive">66%</span> of employees hate their reviews.{" "}
+              <span className="text-accent">We fixed that.</span>
+            </motion.h1>
+            
+            <motion.p 
+              variants={fadeIn}
+              className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
+            >
+              Stop wasting millions on annual reviews that hurt performance. 
+              Jericho replaces outdated paperwork with continuous AI coaching that actually develops your people.
+            </motion.p>
+            
+            <motion.div variants={fadeIn} className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link to="/auth">
+                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2 text-lg px-8">
+                  See It In Action
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+              <a href="#problem">
+                <Button variant="outline" size="lg" className="gap-2 text-lg px-8">
+                  Learn Why Reviews Fail
+                </Button>
+              </a>
+            </motion.div>
           </div>
+          
+          {/* Hero Stats */}
+          <motion.div 
+            variants={fadeIn}
+            className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4"
+          >
+            {[
+              { stat: "66%", label: "of employees dissatisfied with reviews", negative: true },
+              { stat: "95%", label: "of managers hate the process", negative: true },
+              { stat: "4.2x", label: "more likely to outperform competitors", negative: false },
+              { stat: "30%", label: "higher revenue growth", negative: false },
+            ].map((item, i) => (
+              <div 
+                key={i} 
+                className={`rounded-xl p-6 text-center border ${
+                  item.negative 
+                    ? 'bg-destructive/5 border-destructive/20' 
+                    : 'bg-accent/10 border-accent/30'
+                }`}
+              >
+                <div className={`text-3xl sm:text-4xl font-bold mb-2 ${
+                  item.negative ? 'text-destructive' : 'text-accent'
+                }`}>
+                  {item.stat}
+                </div>
+                <div className="text-sm text-muted-foreground">{item.label}</div>
+              </div>
+            ))}
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* The Problem Section */}
+      <section id="problem" className="py-20 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground">
+        <div className="max-w-7xl mx-auto">
+          <motion.div 
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Annual Reviews Don't Just Fail—They Make Things Worse
+            </h2>
+            <p className="text-xl text-primary-foreground/80 max-w-3xl mx-auto">
+              In a third of cases, traditional reviews actually <span className="font-bold text-destructive">hurt performance</span> instead of improving it. 
+              Companies burn $2.4–$35 million per 10,000 employees on a process that doesn't work.
+            </p>
+          </motion.div>
+          
+          <motion.div 
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            {[
+              {
+                icon: AlertTriangle,
+                title: "Surprise Attacks",
+                stat: "14%",
+                statLabel: "feel inspired to improve",
+                description: "Waiting 12 months to give feedback erodes trust. Only 14% say reviews actually inspire them."
+              },
+              {
+                icon: Users,
+                title: "Talent Exodus",
+                stat: "63%",
+                statLabel: "quit due to no advancement",
+                description: "Your best people leave because they don't see a path forward. No coaching, no growth, no loyalty."
+              },
+              {
+                icon: Clock,
+                title: "Too Late to Matter",
+                stat: "~50%",
+                statLabel: "get feedback yearly or less",
+                description: "By the time you rehash issues, the moment has passed. Nobody can course-correct in real time."
+              },
+              {
+                icon: XCircle,
+                title: "Manager Burnout",
+                stat: "95%",
+                statLabel: "of managers hate the process",
+                description: "Piecing together foggy memories, filling clunky forms, sitting through uncomfortable conversations."
+              }
+            ].map((item, i) => (
+              <motion.div 
+                key={i} 
+                variants={fadeIn}
+                className="bg-primary-foreground/10 rounded-xl p-6 border border-primary-foreground/20"
+              >
+                <div className="w-12 h-12 rounded-xl bg-destructive/20 flex items-center justify-center mb-4">
+                  <item.icon className="w-6 h-6 text-destructive" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
+                <div className="text-2xl font-bold text-destructive mb-1">{item.stat}</div>
+                <div className="text-xs text-primary-foreground/60 mb-3">{item.statLabel}</div>
+                <p className="text-sm text-primary-foreground/80">{item.description}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+          
+          <motion.div 
+            className="mt-12 text-center"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-destructive/20 text-destructive-foreground">
+              <span className="text-lg font-medium">
+                73% of Gen Z will leave if they don't get frequent feedback
+              </span>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* The Solution Section */}
+      <section id="solution" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 text-accent-foreground text-sm font-medium mb-6 border border-accent/30">
+              <Sparkles className="w-4 h-4 text-accent" />
+              The Better Way
+            </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Everything You Need to <span className="text-accent">Grow</span>
+              Continuous Coaching That Actually Works
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Comprehensive tools for employees, managers, and organizations to drive meaningful development.
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Instead of one high-stakes conversation per year, Jericho delivers ongoing AI coaching 
+              in the flow of work. Feedback becomes timely, relevant, and focused on growth.
             </p>
-          </div>
+          </motion.div>
           
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Before/After Comparison */}
+          <motion.div 
+            className="grid md:grid-cols-2 gap-8 mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <motion.div variants={fadeIn}>
+              <Card className="h-full bg-destructive/5 border-destructive/20">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                      <XCircle className="w-5 h-5 text-destructive" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-destructive">Annual Reviews</h3>
+                  </div>
+                  <ul className="space-y-4">
+                    {[
+                      "One stressful conversation per year",
+                      "Recency bias dominates evaluations",
+                      "Managers scramble to remember details",
+                      "Employees blindsided by feedback",
+                      "Paperwork nightmare for everyone",
+                      "No real-time course correction",
+                      "Goals set once, forgotten quickly"
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-start gap-3 text-muted-foreground">
+                        <XCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            <motion.div variants={fadeIn}>
+              <Card className="h-full bg-accent/10 border-accent/30">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 text-accent" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-accent">Jericho's Continuous Model</h3>
+                  </div>
+                  <ul className="space-y-4">
+                    {[
+                      "Ongoing coaching conversations",
+                      "AI tracks performance all year long",
+                      "Evidence-based, bias-free feedback",
+                      "Employees always know where they stand",
+                      "Managers coach, not judge",
+                      "Real-time development adjustments",
+                      "Goals adapt quarter by quarter"
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-start gap-3 text-foreground">
+                        <CheckCircle2 className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+          
+          {/* Key Features */}
+          <motion.div 
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
             {[
+              {
+                icon: MessageCircle,
+                title: "AI Coaching 24/7",
+                description: "Meet Jericho, your personal AI career coach. Get guidance anytime—not just during scheduled reviews."
+              },
               {
                 icon: Target,
                 title: "Capability Mapping",
-                description: "AI analyzes job descriptions to identify required skills and create personalized development paths."
-              },
-              {
-                icon: Bot,
-                title: "Meet Jericho",
-                description: "Your personal AI career coach, available 24/7 to guide your professional growth journey."
+                description: "AI analyzes roles and creates personalized development paths. Everyone knows exactly what to work on."
               },
               {
                 icon: TrendingUp,
                 title: "Growth Roadmaps",
-                description: "Clear 90-day sprints, 1-year milestones, and 3-year visions tailored to your goals."
+                description: "Clear 90-day sprints, 1-year milestones, and 3-year visions. Progress you can see and measure."
               },
               {
-                icon: Users,
+                icon: BarChart3,
                 title: "Manager Insights",
-                description: "Team analytics, capability gaps, and actionable recommendations for leaders."
+                description: "Real-time team analytics, capability gaps, and actionable recommendations. Lead with data, not guesswork."
               },
               {
-                icon: BookOpen,
-                title: "Curated Resources",
-                description: "Books, videos, podcasts, and courses matched precisely to your capability gaps."
+                icon: RefreshCw,
+                title: "Continuous Feedback",
+                description: "Weekly check-ins, not annual surprises. Employees with weekly 1:1s are 61% more engaged."
               },
               {
-                icon: Trophy,
-                title: "Recognition & Goals",
-                description: "Track achievements, celebrate progress, and maintain momentum in your growth."
+                icon: Heart,
+                title: "Recognition Built In",
+                description: "Celebrate wins as they happen. Engaged employees don't just perform—they stay and build."
               }
             ].map((feature, i) => (
-              <Card key={i} className="group hover:shadow-lg transition-all duration-300 hover:border-accent/50 hover:shadow-accent/10">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4 group-hover:bg-accent/30 transition-colors">
-                    <feature.icon className="w-6 h-6 text-accent" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </CardContent>
-              </Card>
+              <motion.div key={i} variants={fadeIn}>
+                <Card className="h-full group hover:shadow-lg transition-all duration-300 hover:border-accent/50 hover:shadow-accent/10">
+                  <CardContent className="p-6">
+                    <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4 group-hover:bg-accent/30 transition-colors">
+                      <feature.icon className="w-6 h-6 text-accent" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
+                    <p className="text-muted-foreground">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Results Section */}
+      <section id="results" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+        <div className="max-w-7xl mx-auto">
+          <motion.div 
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              The Results Speak for Themselves
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Companies that prioritize continuous development don't just improve morale—they outperform competitors.
+            </p>
+          </motion.div>
+          
+          <motion.div 
+            className="grid md:grid-cols-3 gap-8 mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            {[
+              {
+                stat: "4.2x",
+                label: "More likely to outperform",
+                description: "Companies prioritizing people performance crush their competition.",
+                source: "McKinsey"
+              },
+              {
+                stat: "40%",
+                label: "Higher engagement",
+                description: "Organizations that shifted to continuous feedback saw engagement soar.",
+                source: "Gallup"
+              },
+              {
+                stat: "30%",
+                label: "Reduction in turnover",
+                description: "Adobe saw dramatic retention improvements after moving to check-ins.",
+                source: "Adobe Case Study"
+              }
+            ].map((item, i) => (
+              <motion.div 
+                key={i} 
+                variants={fadeIn}
+                className="bg-background rounded-2xl p-8 border border-accent/30 shadow-lg text-center"
+              >
+                <div className="text-5xl font-bold text-accent mb-2">{item.stat}</div>
+                <div className="text-lg font-semibold text-foreground mb-2">{item.label}</div>
+                <p className="text-muted-foreground mb-4">{item.description}</p>
+                <div className="text-xs text-muted-foreground/60">Source: {item.source}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+          
+          {/* Engagement Insight */}
+          <motion.div 
+            className="bg-gradient-to-r from-primary to-primary/90 rounded-2xl p-8 md:p-12 text-primary-foreground"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div>
+                <h3 className="text-2xl sm:text-3xl font-bold mb-4">
+                  80% of employees who get meaningful feedback weekly are fully engaged
+                </h3>
+                <p className="text-primary-foreground/80 mb-6">
+                  That's not a coincidence. Feedback is fuel. When your people know how they're doing 
+                  and see a path to grow, they lean in. They stay. They multiply your impact.
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-accent">3.6x</div>
+                    <div className="text-sm text-primary-foreground/60">more motivated</div>
+                  </div>
+                  <div className="h-12 w-px bg-primary-foreground/20" />
+                  <div className="text-sm text-primary-foreground/80">
+                    Employees who receive daily feedback vs. annual reviews
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: "Current US Engagement", value: "31%", negative: true },
+                  { label: "With Weekly Feedback", value: "80%", negative: false },
+                  { label: "Without 1:1s Engaged", value: "15%", negative: true },
+                  { label: "With Weekly 1:1s", value: "61%", negative: false },
+                ].map((item, i) => (
+                  <div 
+                    key={i} 
+                    className={`rounded-xl p-4 text-center ${
+                      item.negative 
+                        ? 'bg-destructive/20' 
+                        : 'bg-accent/20'
+                    }`}
+                  >
+                    <div className={`text-2xl font-bold ${
+                      item.negative ? 'text-destructive' : 'text-accent'
+                    }`}>
+                      {item.value}
+                    </div>
+                    <div className="text-xs text-primary-foreground/60">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              How It Works
+              Getting Started Is Simple
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Get started in minutes and begin your personalized growth journey today.
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Transform your performance culture in weeks, not years.
             </p>
-          </div>
+          </motion.div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <motion.div 
+            className="grid md:grid-cols-3 gap-8"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
             {[
               {
                 step: "01",
-                title: "Assess",
-                description: "Complete your capability self-assessment with Jericho's conversational guidance. Understand where you are and where you want to go."
+                title: "Map Your Capabilities",
+                description: "AI analyzes your roles and creates personalized capability frameworks. Every employee gets clear expectations and a development path."
               },
               {
                 step: "02",
-                title: "Plan",
-                description: "Receive your personalized growth roadmap based on your role, goals, and aspirations. Clear milestones from 90 days to 3 years."
+                title: "Enable Continuous Coaching",
+                description: "Replace annual reviews with ongoing AI-powered conversations. Jericho coaches your people in the flow of work—24/7, no scheduling needed."
               },
               {
                 step: "03",
-                title: "Grow",
-                description: "Get daily micro-training, curated resources, and AI coaching to build momentum and accelerate your development."
+                title: "Track & Iterate",
+                description: "Real-time dashboards show engagement, capability growth, and retention risk. Adjust goals quarterly to stay aligned with business needs."
               }
             ].map((item, i) => (
-              <div key={i} className="relative">
-                <div className="text-6xl font-bold text-accent/30 mb-4">{item.step}</div>
+              <motion.div key={i} variants={fadeIn} className="relative">
+                <div className="text-7xl font-bold text-accent/20 mb-4">{item.step}</div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">{item.title}</h3>
                 <p className="text-muted-foreground">{item.description}</p>
                 {i < 2 && (
-                  <ArrowRight className="hidden md:block absolute top-8 -right-4 w-8 h-8 text-accent/50" />
+                  <ArrowRight className="hidden md:block absolute top-10 -right-4 w-8 h-8 text-accent/50" />
                 )}
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* For Organizations */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* Social Proof */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-                For Forward-Thinking <span className="text-accent">Organizations</span>
-              </h2>
-              <p className="text-lg text-muted-foreground mb-6">
-                See your entire organization's capability landscape at a glance. 
-                Make data-driven decisions about talent development and strategic learning investments.
-              </p>
-              <ul className="space-y-4">
-                {[
-                  "Strategic Learning Design reports",
-                  "Team capability analytics and gap analysis",
-                  "ROI tracking on development initiatives",
-                  "Customizable capability frameworks"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
-                      <BarChart3 className="w-4 h-4 text-accent" />
-                    </div>
-                    <span className="text-foreground">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-gradient-to-br from-primary/10 to-accent/20 rounded-2xl p-8 border border-accent/30">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">Organization Capability Score</span>
-                  <span className="text-2xl font-bold text-accent">78%</span>
-                </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-accent rounded-full w-[78%]" />
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-6">
-                  {[
-                    { label: "Employees", value: "247" },
-                    { label: "Capabilities Tracked", value: "42" },
-                    { label: "Avg Growth Rate", value: "+12%" },
-                    { label: "Goals Completed", value: "89%" }
-                  ].map((stat, i) => (
-                    <div key={i} className="bg-background/50 rounded-lg p-3 border border-accent/10">
-                      <div className="text-xs text-muted-foreground">{stat.label}</div>
-                      <div className="text-lg font-semibold text-foreground">{stat.value}</div>
-                    </div>
-                  ))}
-                </div>
+          <div className="text-center text-sm text-muted-foreground mb-8">
+            Companies that made the shift to continuous performance management
+          </div>
+          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-60">
+            {["Adobe", "Microsoft", "Accenture", "GE", "Deloitte"].map((company) => (
+              <div key={company} className="text-xl font-semibold text-foreground">
+                {company}
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -311,20 +569,34 @@ const Landing = () => {
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-accent">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-accent-foreground mb-4">
-            Ready to Accelerate Your Growth?
-          </h2>
-          <p className="text-xl text-accent-foreground/80 mb-8">
-            Join forward-thinking organizations using Jericho to transform employee development.
-          </p>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-lg font-medium text-accent-foreground">
-              Text <span className="font-bold">"Jericho"</span> to
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold text-accent-foreground mb-4">
+              Stop Burning Money on Broken Reviews
+            </h2>
+            <p className="text-xl text-accent-foreground/80 mb-8">
+              Join the companies that turned performance management from paperwork into progress.
+              Your people—and your bottom line—will thank you.
             </p>
-            <a href="sms:4028819986?body=Jericho" className="text-3xl font-bold text-accent-foreground hover:underline">
-              402.881.9986
-            </a>
-          </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link to="/auth">
+                <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
+                  Get Started Free
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+              <div className="text-accent-foreground/80">
+                or text <span className="font-bold">"Jericho"</span> to{" "}
+                <a href="sms:4028819986?body=Jericho" className="font-bold hover:underline">
+                  402.881.9986
+                </a>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -347,6 +619,9 @@ const Landing = () => {
             <div className="text-sm text-muted-foreground">
               © {new Date().getFullYear()} The Momentum Company
             </div>
+          </div>
+          <div className="mt-8 pt-8 border-t border-border text-center text-xs text-muted-foreground/60">
+            Sources: Gallup, McKinsey, Pew Research, Fortune, Lattice, ThriveSparrow
           </div>
         </div>
       </footer>
