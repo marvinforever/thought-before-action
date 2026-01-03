@@ -195,8 +195,8 @@ export function RecognitionDialog({ open, onOpenChange, employee, isPeerRecognit
           category: category || null,
           visibility,
           impact_level: impactLevel,
-          capability_id: linkedCapabilityId || null,
-          goal_id: linkedGoalId || null,
+          capability_id: linkedCapabilityId && linkedCapabilityId !== "none" ? linkedCapabilityId : null,
+          goal_id: linkedGoalId && linkedGoalId !== "none" ? linkedGoalId : null,
           template_id: selectedTemplate?.id || null,
           is_quick_kudos: isQuick,
         })
