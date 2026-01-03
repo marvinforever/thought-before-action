@@ -44,7 +44,15 @@ export function ManagerWelcomeStep({ userName, teamSize, onContinue, onSkip }: M
           Welcome, {userName || 'Manager'}! 🎯
         </h1>
         <p className="text-lg text-muted-foreground">
-          You have <span className="font-semibold text-primary">{teamSize} team member{teamSize !== 1 ? 's' : ''}</span> ready to grow with your guidance.
+          {teamSize > 0 ? (
+            <>
+              You have <span className="font-semibold text-primary">{teamSize} team member{teamSize !== 1 ? 's' : ''}</span> ready to grow with your guidance.
+            </>
+          ) : (
+            <>
+              Let's get your team set up so you can start coaching in real time.
+            </>
+          )}
         </p>
       </motion.div>
 

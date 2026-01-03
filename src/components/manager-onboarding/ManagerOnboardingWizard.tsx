@@ -19,11 +19,13 @@ interface DirectReport {
 interface ManagerOnboardingWizardProps {
   onStartOneOnOne?: (employee: DirectReport) => void;
   onViewCapabilities?: (employee: DirectReport) => void;
+  onManageTeam?: () => void;
 }
 
-export function ManagerOnboardingWizard({ 
+export function ManagerOnboardingWizard({
   onStartOneOnOne,
-  onViewCapabilities 
+  onViewCapabilities,
+  onManageTeam,
 }: ManagerOnboardingWizardProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>("welcome");
@@ -39,6 +41,15 @@ export function ManagerOnboardingWizard({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Check if user is a manager
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .in("role", ["manager", "admin", "super_admin"]);
+
+      if (rolesError || !roles || roles.length === 0) return;
+
       // Check if user has seen manager onboarding
       const { data: profile } = await supabase
         .from("profiles")
@@ -50,7 +61,7 @@ export function ManagerOnboardingWizard({
       const profileData = profile as any;
       if (profileData?.has_seen_manager_onboarding) return;
 
-      // Check if user is a manager (has direct reports)
+      // Load direct reports if any (new managers may have none yet)
       const { data: assignments } = await supabase
         .from("manager_assignments")
         .select(`
@@ -64,15 +75,13 @@ export function ManagerOnboardingWizard({
         `)
         .eq("manager_id", user.id);
 
-      if (!assignments || assignments.length === 0) return;
-
-      // User is a manager and hasn't seen onboarding
       setUserName(profileData?.full_name?.split(" ")[0] || "");
       setDirectReports(
-        assignments
+        (assignments || [])
           .map((a: any) => a.employee)
           .filter(Boolean) as DirectReport[]
       );
+
       setOpen(true);
     } catch (error) {
       console.error("Error checking manager onboarding:", error);
@@ -139,6 +148,10 @@ export function ManagerOnboardingWizard({
                 directReports={directReports}
                 onStartOneOnOne={handleStartOneOnOne}
                 onReviewCapabilities={handleViewCapabilities}
+                onManageTeam={() => {
+                  handleClose();
+                  onManageTeam?.();
+                }}
                 onComplete={handleClose}
                 onBack={() => setStep("key-actions")}
               />

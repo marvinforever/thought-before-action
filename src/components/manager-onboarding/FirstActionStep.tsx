@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MessageSquare, Target, CheckCircle2, ArrowLeft } from "lucide-react";
+import { MessageSquare, Target, CheckCircle2, ArrowLeft, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -13,18 +13,21 @@ interface FirstActionStepProps {
   directReports: DirectReport[];
   onStartOneOnOne: (employee: DirectReport) => void;
   onReviewCapabilities: (employee: DirectReport) => void;
+  onManageTeam: () => void;
   onComplete: () => void;
   onBack: () => void;
 }
 
-export function FirstActionStep({ 
-  directReports, 
-  onStartOneOnOne, 
+export function FirstActionStep({
+  directReports,
+  onStartOneOnOne,
   onReviewCapabilities,
+  onManageTeam,
   onComplete,
-  onBack 
+  onBack,
 }: FirstActionStepProps) {
   const firstReport = directReports[0];
+  const hasReports = directReports.length > 0;
 
   return (
     <div className="space-y-6">
@@ -42,70 +45,92 @@ export function FirstActionStep({
 
       {/* Action Options */}
       <div className="space-y-3">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card 
-            className="p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
-            onClick={() => firstReport && onStartOneOnOne(firstReport)}
+        {!hasReports ? (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
           >
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
-                <MessageSquare className="h-6 w-6 text-blue-500" />
+            <Card
+              className="p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
+              onClick={onManageTeam}
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">Add your first team member</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Assign direct reports so you can start 1:1s, reviews, and capability coaching.
+                  </p>
+                </div>
+                <div className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">→</div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg">Start a 1:1</h3>
-                <p className="text-sm text-muted-foreground">
-                  {firstReport 
-                    ? `Begin a conversation with ${firstReport.full_name}`
-                    : "Connect with your first team member"
-                  }
-                </p>
-              </div>
-              <div className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                →
-              </div>
-            </div>
-          </Card>
-        </motion.div>
+            </Card>
+          </motion.div>
+        ) : (
+          <>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card
+                className="p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
+                onClick={() => firstReport && onStartOneOnOne(firstReport)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                    <MessageSquare className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">Start a 1:1</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Begin a conversation with {firstReport.full_name}
+                    </p>
+                  </div>
+                  <div className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    →
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card
+                className="p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
+                onClick={() => firstReport && onReviewCapabilities(firstReport)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                    <Target className="h-6 w-6 text-emerald-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">Review Capabilities</h3>
+                    <p className="text-sm text-muted-foreground">
+                      See {firstReport.full_name}'s skill levels and growth areas
+                    </p>
+                  </div>
+                  <div className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    →
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </>
+        )}
 
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: hasReports ? 0.3 : 0.2 }}
         >
-          <Card 
-            className="p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
-            onClick={() => firstReport && onReviewCapabilities(firstReport)}
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
-                <Target className="h-6 w-6 text-emerald-500" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg">Review Capabilities</h3>
-                <p className="text-sm text-muted-foreground">
-                  {firstReport 
-                    ? `See ${firstReport.full_name}'s skill levels and growth areas`
-                    : "Review your team's capabilities"
-                  }
-                </p>
-              </div>
-              <div className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                →
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card 
+          <Card
             className="p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
             onClick={onComplete}
           >
