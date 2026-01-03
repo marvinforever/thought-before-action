@@ -26,6 +26,9 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 import { ManagerOnboardingWizard } from "@/components/manager-onboarding/ManagerOnboardingWizard";
 import { ManagerPriorityActions } from "@/components/ManagerPriorityActions";
+import { RecognitionFeed } from "@/components/RecognitionFeed";
+import { RecognitionAnalytics } from "@/components/RecognitionAnalytics";
+import { RecognitionNudge } from "@/components/RecognitionNudge";
 
 type DirectReport = {
   id: string;
@@ -281,6 +284,9 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
+      {/* Recognition Nudge */}
+      <RecognitionNudge onRecognize={handlePriorityRecognition} />
+
       {/* Priority Actions - New Quick Action Panel */}
       <ManagerPriorityActions
         onStartOneOnOne={handlePriorityOneOnOne}
@@ -289,8 +295,9 @@ export default function ManagerDashboard() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="team">Team Overview</TabsTrigger>
+          <TabsTrigger value="recognition">Recognition</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
           <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
@@ -409,6 +416,13 @@ export default function ManagerDashboard() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="recognition" className="space-y-4">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RecognitionFeed />
+            <RecognitionAnalytics />
+          </div>
         </TabsContent>
 
         <TabsContent value="requests" className="space-y-4">

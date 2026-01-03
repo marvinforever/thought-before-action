@@ -36,13 +36,21 @@ serve(async (req) => {
       .order("meeting_date", { ascending: false })
       .limit(10);
 
-    // Get recognition received
+    // Get recognition received with enhanced data
     const { data: recognition } = await supabase
       .from("recognition_notes")
-      .select("title, description, category, recognition_date")
+      .select(`
+        title, 
+        description, 
+        category, 
+        recognition_date, 
+        impact_level,
+        is_quick_kudos,
+        capability:capabilities(name)
+      `)
       .eq("given_to", employeeId)
       .order("recognition_date", { ascending: false })
-      .limit(20);
+      .limit(30);
 
     // Get capability progress
     const { data: capabilities } = await supabase
@@ -133,9 +141,12 @@ Concerns: ${note.concerns || 'None recorded'}
 Notes: ${note.notes || 'No notes'}
 `).join('\n')}
 
-RECOGNITION RECEIVED:
-${context.recognition.map(rec => `
-- ${rec.title} (${rec.category || 'General'})
+RECOGNITION RECEIVED (${context.recognition.length} total):
+${context.recognition.map((rec: any) => `
+- ${rec.title} ${rec.impact_level === 'exceptional' ? '🏆' : rec.impact_level === 'significant' ? '⭐' : ''}
+  Category: ${rec.category || 'General'}
+  Impact: ${rec.impact_level || 'standard'}
+  ${rec.capability?.name ? `Linked to capability: ${rec.capability.name}` : ''}
   ${rec.description}
 `).join('\n')}
 

@@ -142,14 +142,14 @@ export function ManagerPriorityActions({
         });
       }
 
-      // Suggest recognition if no recent recognition given
+      // Suggest recognition if no recent recognition given (check recognition_notes, not achievements)
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
       const { data: recentRecognitions } = await supabase
-        .from("achievements")
+        .from("recognition_notes")
         .select("id")
-        .eq("category", "recognition")
+        .eq("given_by", user.id)
         .gte("created_at", oneWeekAgo.toISOString())
         .limit(1);
 

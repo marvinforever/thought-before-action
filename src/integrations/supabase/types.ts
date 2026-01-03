@@ -2893,44 +2893,138 @@ export type Database = {
           },
         ]
       }
+      recognition_analytics: {
+        Row: {
+          capability_id: string | null
+          category: string | null
+          company_id: string
+          created_at: string
+          giver_id: string
+          id: string
+          impact_level: string | null
+          receiver_id: string
+          recognition_id: string
+        }
+        Insert: {
+          capability_id?: string | null
+          category?: string | null
+          company_id: string
+          created_at?: string
+          giver_id: string
+          id?: string
+          impact_level?: string | null
+          receiver_id: string
+          recognition_id: string
+        }
+        Update: {
+          capability_id?: string | null
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          giver_id?: string
+          id?: string
+          impact_level?: string | null
+          receiver_id?: string
+          recognition_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recognition_analytics_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_analytics_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_analytics_giver_id_fkey"
+            columns: ["giver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_analytics_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_analytics_recognition_id_fkey"
+            columns: ["recognition_id"]
+            isOneToOne: false
+            referencedRelation: "recognition_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recognition_notes: {
         Row: {
+          capability_id: string | null
           category: string | null
           company_id: string
           created_at: string
           description: string
           given_by: string
           given_to: string
+          goal_id: string | null
           id: string
+          impact_level: string | null
+          is_quick_kudos: boolean | null
           recognition_date: string
+          template_id: string | null
           title: string
           visibility: string
         }
         Insert: {
+          capability_id?: string | null
           category?: string | null
           company_id: string
           created_at?: string
           description: string
           given_by: string
           given_to: string
+          goal_id?: string | null
           id?: string
+          impact_level?: string | null
+          is_quick_kudos?: boolean | null
           recognition_date?: string
+          template_id?: string | null
           title: string
           visibility?: string
         }
         Update: {
+          capability_id?: string | null
           category?: string | null
           company_id?: string
           created_at?: string
           description?: string
           given_by?: string
           given_to?: string
+          goal_id?: string | null
           id?: string
+          impact_level?: string | null
+          is_quick_kudos?: boolean | null
           recognition_date?: string
+          template_id?: string | null
           title?: string
           visibility?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "recognition_notes_capability_id_fkey"
+            columns: ["capability_id"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recognition_notes_company_id_fkey"
             columns: ["company_id"]
@@ -2950,6 +3044,54 @@ export type Database = {
             columns: ["given_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_notes_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "personal_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recognition_templates: {
+        Row: {
+          category: string | null
+          company_id: string | null
+          created_at: string
+          description_prompt: string | null
+          display_order: number | null
+          id: string
+          is_system_template: boolean | null
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          company_id?: string | null
+          created_at?: string
+          description_prompt?: string | null
+          display_order?: number | null
+          id?: string
+          is_system_template?: boolean | null
+          title: string
+        }
+        Update: {
+          category?: string | null
+          company_id?: string | null
+          created_at?: string
+          description_prompt?: string | null
+          display_order?: number | null
+          id?: string
+          is_system_template?: boolean | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recognition_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
