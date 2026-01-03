@@ -6,13 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, X, Mic, Square, ChevronDown, ChevronUp, History, Mail } from "lucide-react";
+import { Loader2, Plus, X, Mic, Square, ChevronDown, ChevronUp, History, Mail, Award, Sparkles } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 
 interface OneOnOneDialogProps {
   open: boolean;
@@ -34,6 +35,14 @@ interface PreviousNote {
   action_items: string[] | null | unknown;
 }
 
+interface RecentRecognition {
+  id: string;
+  title: string;
+  description: string;
+  category: string | null;
+  created_at: string;
+}
+
 export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogProps) {
   const [meetingDate, setMeetingDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
@@ -49,6 +58,8 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [recentRecognitions, setRecentRecognitions] = useState<RecentRecognition[]>([]);
+  const [recognitionOpen, setRecognitionOpen] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
@@ -56,8 +67,29 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
   useEffect(() => {
     if (open && employee?.id) {
       loadPreviousNotes();
+      loadRecentRecognitions();
     }
   }, [open, employee?.id]);
+
+  const loadRecentRecognitions = async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data, error } = await supabase
+        .from("recognition_notes")
+        .select("id, title, description, category, created_at")
+        .eq("given_to", employee.id)
+        .gte("created_at", thirtyDaysAgo.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentRecognitions(data || []);
+    } catch (error) {
+      console.error("Error loading recognitions:", error);
+    }
+  };
 
   const loadPreviousNotes = async () => {
     setLoadingHistory(true);
@@ -388,6 +420,56 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
             )}
           </CollapsibleContent>
         </Collapsible>
+
+        {/* Recent Recognition Section */}
+        {recentRecognitions.length > 0 && (
+          <Collapsible open={recognitionOpen} onOpenChange={setRecognitionOpen} className="border rounded-lg border-amber-500/20 bg-amber-500/5">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-4 h-auto"
+              >
+                <div className="flex items-center gap-2">
+                  <Award className="h-4 w-4 text-amber-500" />
+                  <span className="font-medium">Recent Wins to Discuss</span>
+                  <Badge variant="secondary" className="text-xs">{recentRecognitions.length}</Badge>
+                </div>
+                {recognitionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-4">
+              <p className="text-xs text-muted-foreground mb-3">
+                Recognition from the last 30 days — great talking points!
+              </p>
+              <div className="space-y-2">
+                {recentRecognitions.map((recognition) => (
+                  <div
+                    key={recognition.id}
+                    className="p-3 rounded-md border bg-background"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{recognition.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                          {recognition.description}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {recognition.category && (
+                            <Badge variant="outline" className="text-xs">{recognition.category}</Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(recognition.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         <div className="space-y-4">
           <Alert>
