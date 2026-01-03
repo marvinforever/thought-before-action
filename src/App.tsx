@@ -27,6 +27,7 @@ import TrainingROI from "./pages/TrainingROI";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import MomentumAcademy from "./pages/MomentumAcademy";
 import AcademyBlog from "./pages/AcademyBlog";
+import Sales from "./pages/Sales";
 import DashboardLayout from "./components/DashboardLayout";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -44,6 +45,7 @@ const App = () => (
           <FloatingJerichoButton />
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/sales" element={<Sales />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/super-admin" element={<SuperAdminLayout />}>
