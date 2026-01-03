@@ -13,7 +13,6 @@ import {
   MessageCircle,
   Target,
   Users,
-  Play,
   Calendar,
   Zap,
   BarChart3,
@@ -21,13 +20,17 @@ import {
   Shield,
   Star,
   Quote,
-  ChevronRight,
   Brain,
   Rocket,
   Award,
   Clock,
-  DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  Headphones,
+  LineChart,
+  UserCheck,
+  FileText,
+  Eye,
+  RefreshCw
 } from "lucide-react";
 
 const fadeIn = {
@@ -44,7 +47,7 @@ const staggerContainer = {
 };
 
 const scaleIn = {
-  hidden: { opacity: 0, scale: 0.9 },
+  hidden: { opacity: 0, scale: 0.95 },
   visible: { opacity: 1, scale: 1, transition: { duration: 0.5 } }
 };
 
@@ -52,13 +55,11 @@ const Sales = () => {
   const [email, setEmail] = useState("");
 
   const handleDemoRequest = () => {
-    // In production, this would integrate with a scheduling tool like Calendly
     window.open("https://calendly.com/jericho-demo", "_blank");
   };
 
   const handleTrialRequest = () => {
     if (email) {
-      // In production, this would trigger a signup flow
       window.location.href = `/auth?email=${encodeURIComponent(email)}&trial=true`;
     }
   };
@@ -79,9 +80,9 @@ const Sales = () => {
               </div>
             </Link>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#why" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Why Jericho</a>
-              <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
-              <a href="#proof" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Results</a>
+              <a href="#problem" className="text-sm text-muted-foreground hover:text-foreground transition-colors">The Problem</a>
+              <a href="#solution" className="text-sm text-muted-foreground hover:text-foreground transition-colors">The Solution</a>
+              <a href="#who" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Who It's For</a>
               <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
             </div>
             <div className="flex items-center gap-3">
@@ -100,48 +101,70 @@ const Sales = () => {
         </div>
       </nav>
 
-      {/* HERO SECTION - Maximum Impact */}
+      {/* HERO SECTION */}
       <section className="pt-28 pb-20 px-4 sm:px-6 lg:px-8 relative">
-        {/* Background Effects */}
-        <div className="absolute inset-0 bg-gradient-to-b from-accent/5 via-transparent to-transparent" />
-        <div className="absolute top-32 -right-32 w-[500px] h-[500px] bg-accent/20 rounded-full blur-[120px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-destructive/5 via-transparent to-transparent" />
+        <div className="absolute top-32 -right-32 w-[500px] h-[500px] bg-accent/15 rounded-full blur-[120px]" />
         <div className="absolute top-64 -left-32 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px]" />
         
         <motion.div 
-          className="max-w-6xl mx-auto relative"
+          className="max-w-5xl mx-auto relative"
           initial="hidden"
           animate="visible"
           variants={staggerContainer}
         >
           <div className="text-center">
-            {/* Urgency Badge */}
             <motion.div 
               variants={fadeIn}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 text-destructive text-sm font-semibold mb-8 border border-destructive/20"
             >
               <AlertTriangle className="w-4 h-4" />
-              Your top performers are 3x more likely to leave without career development
+              Let's be honest.
             </motion.div>
             
-            {/* Main Headline */}
             <motion.h1 
               variants={fadeIn}
-              className="text-5xl sm:text-6xl lg:text-7xl font-black text-foreground mb-6 leading-[1.1] tracking-tight"
+              className="text-5xl sm:text-6xl lg:text-7xl font-black text-foreground mb-8 leading-[1.1] tracking-tight"
             >
-              Stop Losing Talent.<br />
-              <span className="bg-gradient-to-r from-accent via-accent to-accent/80 bg-clip-text text-transparent">
-                Start Growing Them.
-              </span>
+              Performance Reviews<br />
+              <span className="text-destructive">Are Broken.</span>
             </motion.h1>
             
-            {/* Subheadline */}
-            <motion.p 
+            <motion.div 
               variants={fadeIn}
-              className="text-xl sm:text-2xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed"
+              className="max-w-3xl mx-auto mb-10"
             >
-              Jericho is the AI-powered growth platform that turns annual review nightmares 
-              into continuous development wins. <span className="text-foreground font-semibold">See results in 30 days.</span>
-            </motion.p>
+              <p className="text-xl sm:text-2xl text-muted-foreground leading-relaxed mb-6">
+                Your performance reviews don't manage performance.<br />
+                <span className="text-foreground font-medium">They document it… badly… long after it mattered.</span>
+              </p>
+              <p className="text-lg text-muted-foreground">
+                Once a year, managers scramble to remember what actually happened.
+                Employees brace for surprises.
+                HR chases forms, deadlines, and compliance.
+              </p>
+            </motion.div>
+            
+            <motion.div 
+              variants={fadeIn}
+              className="bg-card border border-border rounded-2xl p-8 max-w-2xl mx-auto mb-10"
+            >
+              <p className="text-lg text-muted-foreground mb-4">And when it's finally over?</p>
+              <p className="text-3xl font-bold text-foreground mb-4">Nothing changes.</p>
+              <p className="text-muted-foreground">Until next year.</p>
+            </motion.div>
+            
+            <motion.div 
+              variants={fadeIn}
+              className="bg-primary/5 border border-primary/20 rounded-2xl p-6 max-w-xl mx-auto mb-12"
+            >
+              <p className="text-lg text-foreground italic">
+                "Am I growing here… or just aging in place?"
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                — What your best people quietly wonder before they leave
+              </p>
+            </motion.div>
             
             {/* CTA Section */}
             <motion.div 
@@ -175,7 +198,6 @@ const Sales = () => {
               </div>
             </motion.div>
             
-            {/* Trust Signals */}
             <motion.div 
               variants={fadeIn}
               className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground"
@@ -194,40 +216,14 @@ const Sales = () => {
               </span>
             </motion.div>
           </div>
-          
-          {/* Hero Stats */}
-          <motion.div 
-            variants={fadeIn}
-            className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4"
-          >
-            {[
-              { stat: "30%", label: "Higher Revenue Growth", icon: TrendingUp },
-              { stat: "4.2x", label: "More Likely to Outperform", icon: Rocket },
-              { stat: "61%", label: "More Engaged Employees", icon: Heart },
-              { stat: "50%", label: "Less Turnover", icon: Users },
-            ].map((item, i) => (
-              <div 
-                key={i} 
-                className="group bg-card rounded-2xl p-6 text-center border border-border hover:border-accent/50 hover:shadow-xl hover:shadow-accent/10 transition-all duration-300"
-              >
-                <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:bg-accent/20 transition-colors">
-                  <item.icon className="w-6 h-6 text-accent" />
-                </div>
-                <div className="text-3xl sm:text-4xl font-black text-foreground mb-1">
-                  {item.stat}
-                </div>
-                <div className="text-sm text-muted-foreground">{item.label}</div>
-              </div>
-            ))}
-          </motion.div>
         </motion.div>
       </section>
 
-      {/* PROBLEM AGITATION SECTION */}
-      <section id="why" className="py-24 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
+      {/* THE REAL COST SECTION */}
+      <section id="problem" className="py-24 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-destructive/20 via-transparent to-transparent" />
         
-        <div className="max-w-6xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <motion.div 
             className="text-center mb-16"
             initial="hidden"
@@ -235,87 +231,75 @@ const Sales = () => {
             viewport={{ once: true, margin: "-100px" }}
             variants={fadeIn}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/20 text-destructive-foreground text-sm font-semibold mb-6 border border-destructive/30">
-              <XCircle className="w-4 h-4" />
-              The Brutal Truth
-            </div>
             <h2 className="text-4xl sm:text-5xl font-black mb-6">
-              Annual Reviews Are <span className="text-destructive">Killing</span> Your Business
+              The Real Cost of <span className="text-destructive">Broken</span> Performance Management
             </h2>
             <p className="text-xl text-primary-foreground/80 max-w-3xl mx-auto">
-              You're spending $2.4M per 10,000 employees on a process that actually 
-              <span className="font-bold"> hurts performance</span> in 1/3 of cases.
+              This isn't about process. <span className="font-bold">It's about drift.</span>
             </p>
           </motion.div>
           
           <motion.div 
-            className="grid md:grid-cols-3 gap-6"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-          >
-            {[
-              {
-                icon: DollarSign,
-                stat: "$35M",
-                title: "Wasted Per Year",
-                description: "Large enterprises burn up to $35 million on reviews that don't improve performance.",
-                substat: "per 10,000 employees"
-              },
-              {
-                icon: Users,
-                stat: "63%",
-                title: "Leave for Growth",
-                description: "Your best people quit because they don't see a path forward. No coaching = no loyalty.",
-                substat: "cite lack of advancement"
-              },
-              {
-                icon: Clock,
-                stat: "95%",
-                title: "Managers Hate It",
-                description: "The process is so broken that nearly all managers dread doing reviews.",
-                substat: "dissatisfied with process"
-              }
-            ].map((item, i) => (
-              <motion.div 
-                key={i} 
-                variants={fadeIn}
-                className="bg-primary-foreground/5 rounded-2xl p-8 border border-primary-foreground/10 backdrop-blur-sm"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-destructive/20 flex items-center justify-center mb-6">
-                  <item.icon className="w-7 h-7 text-destructive" />
-                </div>
-                <div className="text-4xl font-black text-destructive mb-1">{item.stat}</div>
-                <div className="text-xs text-primary-foreground/60 mb-4">{item.substat}</div>
-                <h3 className="text-xl font-bold mb-3">{item.title}</h3>
-                <p className="text-primary-foreground/70">{item.description}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-          
-          <motion.div 
-            className="mt-12 text-center"
+            className="mb-16"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeIn}
           >
-            <div className="inline-block bg-accent/20 rounded-2xl px-8 py-6 border border-accent/30">
-              <p className="text-2xl font-bold text-accent mb-2">
-                "73% of Gen Z will leave if they don't get frequent feedback"
+            <h3 className="text-2xl font-bold text-center mb-8 text-primary-foreground/90">When feedback is rare:</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { icon: AlertTriangle, text: "Performance issues fester instead of getting fixed" },
+                { icon: Clock, text: "Growth conversations get postponed… indefinitely" },
+                { icon: Eye, text: "High performers feel unseen" },
+                { icon: XCircle, text: "Managers default to avoidance" },
+                { icon: TrendingUp, text: "Engagement erodes quietly" },
+                { icon: Users, text: "Turnover shows up later and feels \"unexpected\"" }
+              ].map((item, i) => (
+                <div 
+                  key={i}
+                  className="flex items-start gap-3 bg-primary-foreground/5 rounded-xl p-5 border border-primary-foreground/10"
+                >
+                  <item.icon className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                  <span className="text-primary-foreground/90">{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+          
+          <motion.div 
+            className="text-center space-y-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <div className="bg-primary-foreground/10 rounded-2xl p-8 max-w-3xl mx-auto">
+              <p className="text-2xl font-bold mb-4">
+                Annual reviews don't fail loudly.
               </p>
-              <p className="text-primary-foreground/60">— Gallup Workplace Report</p>
+              <p className="text-xl text-primary-foreground/80">
+                They fail slowly… and <span className="text-destructive font-bold">expensively.</span>
+              </p>
+            </div>
+            
+            <div className="bg-accent/20 rounded-2xl p-8 max-w-3xl mx-auto border border-accent/30">
+              <p className="text-xl text-primary-foreground">
+                Most companies don't lose talent because of <span className="line-through opacity-60">pay</span>.
+              </p>
+              <p className="text-2xl font-bold text-accent mt-2">
+                They lose talent because people don't see a future.
+              </p>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* SOLUTION SECTION */}
-      <section id="features" className="py-24 px-4 sm:px-6 lg:px-8 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background" />
+      {/* THE SOLUTION SECTION */}
+      <section id="solution" className="py-24 px-4 sm:px-6 lg:px-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-accent/5 to-background" />
         
-        <div className="max-w-6xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <motion.div 
             className="text-center mb-16"
             initial="hidden"
@@ -325,83 +309,99 @@ const Sales = () => {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 text-accent-foreground text-sm font-semibold mb-6 border border-accent/30">
               <Sparkles className="w-4 h-4 text-accent" />
-              The Jericho Way
+              What if performance management actually managed performance?
             </div>
             <h2 className="text-4xl sm:text-5xl font-black text-foreground mb-6">
-              AI Coaching That <span className="text-accent">Actually Works</span>
+              Jericho Fixes What<br />
+              <span className="text-accent">Everyone Else Avoids</span>
             </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Replace outdated annual reviews with continuous AI-powered development 
-              that employees love and managers can actually use.
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
+              Jericho replaces the annual review theater with something radically more effective:
+            </p>
+            <p className="text-2xl font-bold text-foreground">
+              Continuous, personalized, AI-powered coaching—embedded into daily work.
             </p>
           </motion.div>
           
-          {/* Feature Grid */}
+          {/* Three Pillars */}
           <motion.div 
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16"
+            className="grid md:grid-cols-3 gap-6 mb-16"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
           >
             {[
-              {
-                icon: Brain,
-                title: "AI Career Coach",
-                description: "Every employee gets 24/7 access to Jericho, their personal AI coach. Guidance when they need it, not once a year.",
-                highlight: "Always available"
-              },
-              {
-                icon: Target,
-                title: "Smart Capability Mapping",
-                description: "AI analyzes roles and automatically creates personalized development paths. No more guessing what skills matter.",
-                highlight: "Auto-generated plans"
-              },
-              {
-                icon: TrendingUp,
-                title: "Growth Roadmaps",
-                description: "90-day sprints, 1-year goals, 3-year visions. Clear progress tracking that employees can actually see.",
-                highlight: "Measurable progress"
-              },
-              {
-                icon: BarChart3,
-                title: "Manager Intelligence",
-                description: "Real-time team analytics, capability gaps, and actionable insights. Lead with data, not gut feelings.",
-                highlight: "Data-driven decisions"
-              },
-              {
-                icon: MessageCircle,
-                title: "Continuous 1:1s",
-                description: "AI-assisted check-ins that matter. Employees with weekly 1:1s are 61% more engaged.",
-                highlight: "Weekly touchpoints"
-              },
-              {
-                icon: Award,
-                title: "Built-in Recognition",
-                description: "Celebrate wins as they happen. Engaged employees don't just perform—they stay and build.",
-                highlight: "Real-time kudos"
-              }
-            ].map((feature, i) => (
-              <motion.div key={i} variants={fadeIn}>
-                <Card className="h-full group hover:shadow-2xl hover:shadow-accent/10 hover:border-accent/50 transition-all duration-500 bg-card/50 backdrop-blur-sm">
-                  <CardContent className="p-8">
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 group-hover:scale-110 transition-all duration-300">
-                        <feature.icon className="w-7 h-7 text-accent" />
-                      </div>
-                      <span className="text-xs font-semibold text-accent bg-accent/10 px-3 py-1 rounded-full">
-                        {feature.highlight}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-                  </CardContent>
-                </Card>
+              { word: "No forms.", icon: FileText },
+              { word: "No memory games.", icon: Brain },
+              { word: "No awkward once-a-year conversations.", icon: MessageCircle }
+            ].map((item, i) => (
+              <motion.div 
+                key={i} 
+                variants={fadeIn}
+                className="bg-card border border-border rounded-2xl p-8 text-center hover:shadow-xl hover:border-accent/50 transition-all duration-300"
+              >
+                <div className="w-16 h-16 bg-destructive/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <item.icon className="w-8 h-8 text-destructive" />
+                </div>
+                <p className="text-xl font-bold text-foreground">{item.word}</p>
               </motion.div>
             ))}
           </motion.div>
           
-          {/* Before/After */}
+          <motion.div 
+            className="text-center mb-20"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <div className="inline-flex items-center gap-4 bg-accent/10 border border-accent/30 rounded-2xl px-8 py-6">
+              <span className="text-2xl font-bold text-foreground">Just clarity.</span>
+              <span className="text-2xl font-bold text-accent">Momentum.</span>
+              <span className="text-2xl font-bold text-foreground">Progress.</span>
+            </div>
+          </motion.div>
+          
+          {/* What Jericho Does */}
+          <motion.div 
+            className="mb-20"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <div className="text-center mb-12">
+              <h3 className="text-3xl font-bold text-foreground mb-4">
+                What Jericho Does <span className="text-muted-foreground">(In Plain English)</span>
+              </h3>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Jericho acts like a quiet, always-on coach inside your organization.
+              </p>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              {[
+                { text: "Not replacing managers.", icon: UserCheck },
+                { text: "Not spying on employees.", icon: Eye },
+                { text: "Not adding more work.", icon: Clock }
+              ].map((item, i) => (
+                <div 
+                  key={i}
+                  className="flex items-center gap-3 bg-muted/30 rounded-xl p-4"
+                >
+                  <item.icon className="w-5 h-5 text-accent shrink-0" />
+                  <span className="text-foreground">{item.text}</span>
+                </div>
+              ))}
+            </div>
+            
+            <p className="text-center text-xl font-medium text-foreground">
+              It does the heavy lifting everyone keeps avoiding.
+            </p>
+          </motion.div>
+          
+          {/* Feature Cards */}
           <motion.div 
             className="grid md:grid-cols-2 gap-8"
             initial="hidden"
@@ -409,57 +409,25 @@ const Sales = () => {
             viewport={{ once: true }}
             variants={staggerContainer}
           >
+            {/* No More Surprise Feedback */}
             <motion.div variants={fadeIn}>
-              <Card className="h-full bg-destructive/5 border-destructive/20">
+              <Card className="h-full bg-card hover:shadow-xl transition-all duration-300 group">
                 <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-destructive/20 flex items-center justify-center">
-                      <XCircle className="w-6 h-6 text-destructive" />
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                      <MessageCircle className="w-7 h-7 text-accent" />
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-destructive">Before Jericho</h3>
-                      <p className="text-sm text-muted-foreground">The old way of doing things</p>
-                    </div>
+                    <h4 className="text-xl font-bold text-foreground">No More Surprise Feedback</h4>
                   </div>
-                  <ul className="space-y-4">
+                  <p className="text-muted-foreground mb-6">
+                    Employees don't wait months to find out how they're doing.
+                  </p>
+                  <p className="text-sm font-semibold text-accent mb-4">Jericho delivers:</p>
+                  <ul className="space-y-3">
                     {[
-                      "One awkward conversation per year",
-                      "Managers scramble to remember details",
-                      "Employees blindsided by feedback",
-                      "No real-time course correction",
-                      "Goals set once, forgotten quickly",
-                      "Best talent leaves for growth elsewhere"
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-start gap-3 text-muted-foreground">
-                        <XCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </motion.div>
-            
-            <motion.div variants={fadeIn}>
-              <Card className="h-full bg-accent/5 border-accent/30 shadow-xl shadow-accent/10">
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-                      <CheckCircle2 className="w-6 h-6 text-accent" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-accent">After Jericho</h3>
-                      <p className="text-sm text-muted-foreground">The continuous growth model</p>
-                    </div>
-                  </div>
-                  <ul className="space-y-4">
-                    {[
-                      "Ongoing AI coaching conversations",
-                      "Evidence-based, bias-free feedback",
-                      "Employees always know where they stand",
-                      "Real-time development adjustments",
-                      "Goals adapt quarter by quarter",
-                      "Top performers stay and grow"
+                      "Daily micro-coaching through personalized audio and chat",
+                      "Real-time nudges tied to the skills each person is building",
+                      "Ongoing clarity about expectations and progress"
                     ].map((item, i) => (
                       <li key={i} className="flex items-start gap-3 text-foreground">
                         <CheckCircle2 className="w-5 h-5 text-accent shrink-0 mt-0.5" />
@@ -467,6 +435,87 @@ const Sales = () => {
                       </li>
                     ))}
                   </ul>
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <p className="text-foreground font-medium">Feedback becomes <span className="text-accent">normal</span>.</p>
+                    <p className="text-muted-foreground">Not emotional. Not scary.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            {/* No More Forgotten Wins */}
+            <motion.div variants={fadeIn}>
+              <Card className="h-full bg-card hover:shadow-xl transition-all duration-300 group">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                      <Award className="w-7 h-7 text-accent" />
+                    </div>
+                    <h4 className="text-xl font-bold text-foreground">No More Forgotten Wins</h4>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    Jericho remembers everything humans forget.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mb-6">
+                    {["Goals", "1:1 conversations", "Coaching moments", "Recognition", "Progress over time"].map((item, i) => (
+                      <div key={i} className="bg-muted/30 rounded-lg px-3 py-2 text-sm text-foreground">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-foreground mb-4">
+                    When review time does come, <span className="font-medium">the story is already written—accurately.</span>
+                  </p>
+                  <div className="space-y-1 text-muted-foreground">
+                    <p>No rewriting history.</p>
+                    <p>No recency bias.</p>
+                    <p>No "I swear I did more than that."</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            {/* No More Vague Development Plans */}
+            <motion.div variants={fadeIn} className="md:col-span-2">
+              <Card className="bg-accent/5 border-accent/30 hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-8">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div>
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center">
+                          <Target className="w-7 h-7 text-accent" />
+                        </div>
+                        <h4 className="text-xl font-bold text-foreground">No More Vague Development Plans</h4>
+                      </div>
+                      <p className="text-lg text-foreground mb-4">
+                        <span className="line-through text-muted-foreground">"Work on leadership"</span> is not a plan.
+                      </p>
+                      <p className="text-muted-foreground">
+                        Jericho identifies actual capability gaps, where each employee is stuck, 
+                        and what skill unlocks the next level.
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-accent mb-4">Then it automatically matches:</p>
+                      <ul className="space-y-3 mb-6">
+                        {[
+                          "Learning resources",
+                          "Coaching prompts",
+                          "Stretch opportunities"
+                        ].map((item, i) => (
+                          <li key={i} className="flex items-center gap-3 text-foreground">
+                            <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="bg-accent/10 rounded-xl p-4">
+                        <p className="text-lg font-bold text-foreground">
+                          Growth stops being theoretical.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -474,8 +523,8 @@ const Sales = () => {
         </div>
       </section>
 
-      {/* SOCIAL PROOF SECTION */}
-      <section id="proof" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30">
+      {/* WHO IT'S FOR SECTION */}
+      <section id="who" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -484,95 +533,243 @@ const Sales = () => {
             viewport={{ once: true }}
             variants={fadeIn}
           >
-            <h2 className="text-4xl sm:text-5xl font-black text-foreground mb-6">
-              Leaders Trust <span className="text-accent">Jericho</span>
+            <h2 className="text-4xl sm:text-5xl font-black text-foreground mb-4">
+              Built for <span className="text-accent">Everyone</span> Who's Tired of the Status Quo
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Join forward-thinking companies that prioritize continuous growth over outdated processes.
-            </p>
           </motion.div>
           
-          {/* Testimonials */}
           <motion.div 
-            className="grid md:grid-cols-3 gap-8 mb-16"
+            className="grid lg:grid-cols-3 gap-8"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
           >
-            {[
-              {
-                quote: "We saw employee engagement jump 40% in the first quarter. Jericho transformed how our managers develop their teams.",
-                author: "Sarah Chen",
-                role: "VP of People, TechCorp",
-                rating: 5
-              },
-              {
-                quote: "Finally, a development platform that employees actually want to use. Our retention rates have never been better.",
-                author: "Michael Torres",
-                role: "CHRO, Growth Dynamics",
-                rating: 5
-              },
-              {
-                quote: "The AI coaching is incredible. It's like giving every employee access to an executive coach 24/7.",
-                author: "Jennifer Walsh",
-                role: "L&D Director, Innovate Inc",
-                rating: 5
-              }
-            ].map((testimonial, i) => (
-              <motion.div key={i} variants={fadeIn}>
-                <Card className="h-full bg-card hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-8">
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(testimonial.rating)].map((_, j) => (
-                        <Star key={j} className="w-5 h-5 fill-accent text-accent" />
-                      ))}
-                    </div>
-                    <Quote className="w-10 h-10 text-accent/20 mb-4" />
-                    <p className="text-foreground mb-6 leading-relaxed italic">
-                      "{testimonial.quote}"
-                    </p>
+            {/* For Managers */}
+            <motion.div variants={fadeIn}>
+              <Card className="h-full bg-card hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-8">
+                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
+                    <UserCheck className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground mb-4">For Managers</h3>
+                  <p className="text-xl font-medium text-accent mb-6">Relief You Can Feel</p>
+                  <p className="text-muted-foreground mb-6">
+                    Managers are drowning—not because they don't care, but because they're overloaded.
+                  </p>
+                  
+                  <div className="space-y-6">
                     <div>
-                      <p className="font-bold text-foreground">{testimonial.author}</p>
-                      <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                      <p className="text-sm font-semibold text-destructive mb-3">Old Way:</p>
+                      <ul className="space-y-2">
+                        {[
+                          "Writing reviews from memory",
+                          "Avoiding tough conversations",
+                          "Feeling guilty for \"not developing people\"",
+                          "Performance management as admin work"
+                        ].map((item, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-          
-          {/* Results Stats */}
-          <motion.div 
-            className="bg-primary rounded-3xl p-12 text-primary-foreground"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={scaleIn}
-          >
-            <div className="text-center mb-10">
-              <h3 className="text-3xl font-bold mb-2">Real Results. Real Companies.</h3>
-              <p className="text-primary-foreground/70">Average outcomes from Jericho customers</p>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {[
-                { stat: "40%", label: "Increase in Engagement" },
-                { stat: "35%", label: "Reduction in Turnover" },
-                { stat: "3x", label: "Faster Skill Development" },
-                { stat: "90%", label: "Manager Satisfaction" }
-              ].map((result, i) => (
-                <div key={i} className="text-center">
-                  <div className="text-5xl font-black text-accent mb-2">{result.stat}</div>
-                  <div className="text-primary-foreground/80">{result.label}</div>
-                </div>
-              ))}
-            </div>
+                    
+                    <div>
+                      <p className="text-sm font-semibold text-accent mb-3">Jericho Way:</p>
+                      <ul className="space-y-2">
+                        {[
+                          "Auto-generated review drafts grounded in real data",
+                          "Coaching handled continuously—not all at once",
+                          "Clear talking points for real conversations",
+                          "An AI coach working 24/7 alongside you"
+                        ].map((item, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                            <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <p className="text-foreground italic">
+                      You don't become a better manager by trying harder.
+                      <span className="font-medium text-accent"> You become better when the system finally helps you.</span>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            {/* For Employees */}
+            <motion.div variants={fadeIn}>
+              <Card className="h-full bg-card hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-8">
+                  <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center mb-6">
+                    <Rocket className="w-7 h-7 text-accent" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground mb-4">For Employees</h3>
+                  <p className="text-xl font-medium text-accent mb-6">Growth That's Obvious</p>
+                  <p className="text-muted-foreground mb-6">
+                    With Jericho, employees don't guess where they stand.
+                  </p>
+                  
+                  <p className="text-sm font-semibold text-accent mb-3">They:</p>
+                  <ul className="space-y-3 mb-6">
+                    {[
+                      "Wake up to short, personalized podcast episodes on the skill they're building",
+                      "Chat anytime about goals, blockers, or next steps",
+                      "See exactly what progress looks like—and what's next"
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-foreground">
+                        <CheckCircle2 className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <div className="bg-muted/50 rounded-xl p-4 mb-6">
+                    <p className="text-sm text-muted-foreground mb-2">No more wondering:</p>
+                    <ul className="space-y-1 text-sm text-foreground italic">
+                      <li>"Am I doing well here?"</li>
+                      <li>"Am I falling behind?"</li>
+                      <li>"Does anyone even notice?"</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-accent/10 rounded-xl p-4">
+                    <p className="text-lg font-bold text-foreground">
+                      Clarity replaces anxiety.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            {/* For HR */}
+            <motion.div variants={fadeIn}>
+              <Card className="h-full bg-card hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-8">
+                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
+                    <LineChart className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground mb-4">For HR</h3>
+                  <p className="text-xl font-medium text-accent mb-6">Data That Actually Means Something</p>
+                  <p className="text-muted-foreground mb-6">
+                    Jericho turns performance management from paperwork into insight.
+                  </p>
+                  
+                  <p className="text-sm font-semibold text-accent mb-3">You get:</p>
+                  <ul className="space-y-3 mb-6">
+                    {[
+                      "Real-time capability heatmaps across the organization",
+                      "Early signals on burnout and flight risk",
+                      "Proof of ROI on development spend",
+                      "Trends you can act on—not lagging indicators"
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-foreground">
+                        <CheckCircle2 className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <div className="bg-accent/10 rounded-xl p-4">
+                    <p className="text-lg font-bold text-foreground">
+                      Finally, HR moves from chasing compliance to shaping outcomes.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </motion.div>
         </div>
       </section>
 
+      {/* NOT ANOTHER TOOL SECTION */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
+        
+        <motion.div 
+          className="max-w-4xl mx-auto text-center relative"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeIn}
+        >
+          <h2 className="text-4xl sm:text-5xl font-black mb-8">
+            This Isn't Another <span className="text-accent">HR Tool</span>
+          </h2>
+          <p className="text-xl text-primary-foreground/90 mb-8">
+            Jericho isn't software you "roll out."
+            <br /><span className="font-bold text-accent">It's infrastructure you build on.</span>
+          </p>
+          <p className="text-lg text-primary-foreground/80 mb-12 max-w-3xl mx-auto">
+            It meets people where they already are—in their day, in their work, in their reality.
+          </p>
+          
+          <div className="grid sm:grid-cols-3 gap-6 mb-12">
+            {[
+              "No dashboards nobody opens.",
+              "No quarterly initiatives that fade.",
+              "No motivational posters pretending things are fine."
+            ].map((item, i) => (
+              <div key={i} className="bg-primary-foreground/10 rounded-xl p-6 border border-primary-foreground/20">
+                <XCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
+                <p className="text-primary-foreground">{item}</p>
+              </div>
+            ))}
+          </div>
+          
+          <div className="bg-accent/20 rounded-2xl p-8 border border-accent/30">
+            <p className="text-2xl font-bold text-accent">
+              Just steady, compounding progress.
+            </p>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ONE LAST TRUTH SECTION */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8">
+        <motion.div 
+          className="max-w-4xl mx-auto text-center"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeIn}
+        >
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-8">
+            One Last Truth
+          </h2>
+          <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-8 mb-8">
+            <p className="text-xl text-foreground mb-4">
+              If your people only get feedback once a year…
+            </p>
+            <p className="text-2xl font-bold text-destructive">
+              You're not managing performance.
+            </p>
+            <p className="text-lg text-muted-foreground mt-4">
+              You're managing risk—and hoping for the best.
+            </p>
+          </div>
+          
+          <p className="text-xl text-foreground mb-8">
+            Jericho exists for leaders who are <span className="font-bold">done hoping.</span>
+          </p>
+          
+          <div className="flex items-center justify-center gap-6 text-lg text-muted-foreground mb-8">
+            <span>Not louder.</span>
+            <span>Not flashier.</span>
+            <span className="text-foreground font-bold">Just fundamentally better.</span>
+          </div>
+        </motion.div>
+      </section>
+
       {/* PRICING SECTION */}
-      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8">
+      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-5xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -585,7 +782,7 @@ const Sales = () => {
               Simple, Transparent <span className="text-accent">Pricing</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Start free. Scale as you grow. No hidden fees, no surprises.
+              Start free. Scale as you grow. No hidden fees.
             </p>
           </motion.div>
           
@@ -611,6 +808,7 @@ const Sales = () => {
                   <ul className="space-y-4 mb-8">
                     {[
                       "AI Career Coach (Jericho)",
+                      "Personalized daily podcasts",
                       "Capability mapping & development paths",
                       "90-day goal tracking",
                       "1:1 meeting support",
@@ -623,21 +821,16 @@ const Sales = () => {
                       </li>
                     ))}
                   </ul>
-                  <Button 
-                    className="w-full h-12 text-lg" 
-                    variant="outline"
-                    onClick={() => {
-                      setEmail("");
-                      document.querySelector<HTMLInputElement>('input[type="email"]')?.focus();
-                    }}
-                  >
-                    Start Free Trial
-                  </Button>
+                  <Link to="/auth">
+                    <Button className="w-full h-12 text-lg" variant="outline">
+                      Start Free Trial
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             </motion.div>
             
-            {/* Pro Plan */}
+            {/* Enterprise Plan */}
             <motion.div variants={fadeIn}>
               <Card className="h-full border-2 border-accent bg-accent/5 shadow-xl shadow-accent/20 relative overflow-hidden">
                 <div className="absolute top-4 right-4 bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full">
@@ -654,13 +847,13 @@ const Sales = () => {
                   <ul className="space-y-4 mb-8">
                     {[
                       "Everything in Starter, plus:",
-                      "Advanced team analytics & insights",
+                      "Real-time capability heatmaps",
+                      "Burnout & flight risk signals",
                       "Strategic learning design",
                       "Custom capability frameworks",
                       "SSO & advanced security",
                       "Dedicated success manager",
-                      "API access & integrations",
-                      "Onboarding & training"
+                      "API access & integrations"
                     ].map((feature, i) => (
                       <li key={i} className="flex items-center gap-3 text-foreground">
                         <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
@@ -693,13 +886,16 @@ const Sales = () => {
           viewport={{ once: true }}
           variants={fadeIn}
         >
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black mb-6">
-            Ready to Transform Your<br />
-            <span className="text-accent">People Development?</span>
+          <div className="w-20 h-20 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-accent/30">
+            <Sparkles className="w-10 h-10 text-accent-foreground" />
+          </div>
+          
+          <h2 className="text-3xl sm:text-4xl font-black mb-4">
+            Jericho
           </h2>
-          <p className="text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
-            Join the companies that have already made the switch from outdated reviews 
-            to continuous AI-powered growth. Your team is waiting.
+          <p className="text-xl text-primary-foreground/80 mb-10">
+            Performance management that feels less like paperwork…<br />
+            <span className="text-accent font-bold">and more like progress.</span>
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
