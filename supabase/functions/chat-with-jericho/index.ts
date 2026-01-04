@@ -191,7 +191,8 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
 
     // Fetch user context for Jericho (including onboarding data and coaching memory)
     // Fetch ALL historical targets for pattern analysis (no limit)
-    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData, coachingInsightsData, recentSummariesData, pendingFollowUpsData] = await Promise.all([
+    // Also fetch company knowledge base for HR/policy questions
+    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData, coachingInsightsData, recentSummariesData, pendingFollowUpsData, companyKnowledgeData] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select('*, capabilities(name, description, category)')
@@ -259,6 +260,13 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .lte('scheduled_for', new Date().toISOString())
         .order('scheduled_for', { ascending: true })
         .limit(5),
+      // Company knowledge base for HR/policy questions
+      supabase
+        .from('company_knowledge')
+        .select('id, title, content, document_type, category')
+        .eq('company_id', effectiveCompanyId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false }),
     ]);
 
     // ==================== HISTORICAL GOAL INTELLIGENCE ====================
@@ -616,6 +624,27 @@ Consider naturally checking in on these topics during the conversation!
 
 USER'S CURRENT GROWTH PLAN DATA:
 ${JSON.stringify(userContext, null, 2)}
+
+${companyKnowledgeData.data && companyKnowledgeData.data.length > 0 ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📚 COMPANY KNOWLEDGE BASE (Use ONLY for this company's employees):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This company has uploaded the following policies, procedures, and FAQs.
+When users ask about company policies (PTO, benefits, expenses, HR procedures, etc.), 
+SEARCH THIS KNOWLEDGE BASE and answer using their specific company information.
+
+IMPORTANT: 
+- Only use this information for questions about company policies/procedures
+- If the knowledge base doesn't have the answer, say "I don't have that specific policy on file - you might want to check with HR or your manager."
+- NEVER make up policy information - only use what's documented here
+
+AVAILABLE DOCUMENTS:
+${companyKnowledgeData.data.slice(0, 20).map((doc: any) => `
+📄 ${doc.title} [${doc.document_type}${doc.category ? ` - ${doc.category}` : ''}]
+${doc.content ? doc.content.substring(0, 2000) + (doc.content.length > 2000 ? '...(truncated)' : '') : '(No content extracted)'}
+`).join('\n---\n')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+` : ''}
 
 ${goalPatterns.hasHistory ? `
 HISTORICAL GOAL INTELLIGENCE (Use this to coach smarter):
