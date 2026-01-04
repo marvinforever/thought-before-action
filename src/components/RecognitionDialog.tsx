@@ -184,13 +184,31 @@ export function RecognitionDialog({ open, onOpenChange, employee, isPeerRecognit
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Get giver's name
+      const { data: giverProfile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .single();
+
+      // Get recipient's email
+      const { data: recipientProfile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", employee.id)
+        .single();
+
+      const finalTitle = isQuick ? "Quick Kudos 👏" : title.trim();
+      const selectedCapability = capabilities.find(c => c.id === linkedCapabilityId);
+      const selectedGoal = goals.find(g => g.id === linkedGoalId);
+
       const { data: recognitionData, error } = await supabase
         .from("recognition_notes")
         .insert({
           given_by: user.id,
           given_to: employee.id,
           company_id: employee.company_id,
-          title: isQuick ? "Quick Kudos 👏" : title.trim(),
+          title: finalTitle,
           description: description.trim(),
           category: category || null,
           visibility,
@@ -216,9 +234,33 @@ export function RecognitionDialog({ open, onOpenChange, employee, isPeerRecognit
         impact_level: impactLevel,
       });
 
+      // Send email notification to recipient
+      if (recipientProfile?.email) {
+        try {
+          await supabase.functions.invoke("send-recognition-notification", {
+            body: {
+              recipientEmail: recipientProfile.email,
+              recipientName: employee.full_name,
+              giverName: giverProfile?.full_name || "A colleague",
+              title: finalTitle,
+              description: description.trim(),
+              impactLevel,
+              category: category || undefined,
+              capabilityName: selectedCapability?.name || undefined,
+              goalText: selectedGoal?.goal_text || undefined,
+              isQuickKudos: isQuick,
+            },
+          });
+          console.log("Recognition notification email sent");
+        } catch (emailError) {
+          console.error("Failed to send recognition email:", emailError);
+          // Don't fail the whole operation if email fails
+        }
+      }
+
       toast({
         title: isQuick ? "Kudos sent! 🎉" : "Recognition sent!",
-        description: `${employee.full_name} will be notified`,
+        description: `${employee.full_name} has been notified via email`,
       });
 
       onOpenChange(false);
