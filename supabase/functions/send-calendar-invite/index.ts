@@ -75,7 +75,7 @@ async function sendEmailWithResend(params: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Jericho <jericho@askjericho.com>",
+      from: "Jericho <jericho@sender.askjericho.com>",
       to: [params.to],
       subject: params.subject,
       html: params.html,

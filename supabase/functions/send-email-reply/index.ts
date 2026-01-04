@@ -28,7 +28,7 @@ P.S. You can reply to this email anytime to continue our conversation.`;
 
     // Prepare email headers for threading
     const headers: Record<string, string> = {
-      "Reply-To": "jericho@askjericho.com",
+      "Reply-To": "jericho@sender.askjericho.com",
     };
 
     if (inReplyTo) {
@@ -45,7 +45,7 @@ P.S. You can reply to this email anytime to continue our conversation.`;
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "Jericho <jericho@askjericho.com>",
+        from: "Jericho <jericho@sender.askjericho.com>",
         to: [toEmail],
         subject: subject || "Message from Jericho",
         text: formattedMessage,
