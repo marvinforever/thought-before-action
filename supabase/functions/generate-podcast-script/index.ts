@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AI_CONFIG, mapCapabilityLevel, COACHING_STYLE, MISSING_PLAN_GUIDANCE, VARIETY_RULES } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -372,14 +373,8 @@ serve(async (req) => {
       const level = cap.current_level || 'unassessed';
       const target = cap.target_level || 'growth';
 
-      const levelToLabel = (l: string) => {
-        const v = String(l).toLowerCase();
-        if (v === 'foundational' || v === 'beginner') return 'Level 1';
-        if (v === 'advancing' || v === 'intermediate') return 'Level 2';
-        if (v === 'independent' || v === 'advanced' || v === 'established') return 'Level 3';
-        if (v === 'mastery' || v === 'expert') return 'Level 4';
-        return l;
-      };
+      // Use shared level mapping from jericho-config
+      const levelToLabel = (l: string) => mapCapabilityLevel(l);
 
       return {
         id: (cap.capabilities as any)?.id,

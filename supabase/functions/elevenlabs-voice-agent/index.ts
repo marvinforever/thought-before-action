@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { mapCapabilityLevel, COACHING_STYLE, MISSING_PLAN_GUIDANCE } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -254,7 +255,7 @@ ${achievements.length > 0 ? achievements.slice(0, 5).map(a => `• ${a.achieveme
 GREATNESS KEYS EARNED: ${greatnessKeys.length}
 
 CAPABILITIES (${capabilities.length} tracked):
-${capabilities.slice(0, 5).map(c => `• ${c.capabilities?.name}: ${c.current_level || 'not assessed'} → ${c.target_level || 'no target'}`).join('\n')}
+${capabilities.slice(0, 5).map(c => `• ${c.capabilities?.name}: ${mapCapabilityLevel(c.current_level)} → ${mapCapabilityLevel(c.target_level)}`).join('\n')}
 
 ${goalPatterns.hasHistory ? `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -291,6 +292,10 @@ When they want to add something, use the tool and confirm: "Done! I added that t
 • Notice patterns: "I've noticed you tend to... let's talk about that."
 • Ask follow-up questions to go deeper
 • Be encouraging but honest - don't be a pushover
+• NEVER placate or let them off the hook with "that's okay for today"
+• ALWAYS refer to capability levels as Level 1, 2, 3, 4 (NEVER Foundational, Advancing, etc.)
+
+${MISSING_PLAN_GUIDANCE}
 
 ${missingData.length > 0 ? `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
