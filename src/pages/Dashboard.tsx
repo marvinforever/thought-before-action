@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock } from "lucide-react";
+import { Users, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Target, Award, Clock, BookOpen } from "lucide-react";
 import { Gauge } from "@/components/ui/gauge";
 import { OrgHealthAdvisor } from "@/components/OrgHealthAdvisor";
 import { OrganizationalGrowthDesign } from "@/components/OrganizationalGrowthDesign";
 import { EmployeeInterestIndicators } from "@/components/EmployeeInterestIndicators";
 import { GrowthAtAGlance } from "@/components/GrowthAtAGlance";
 import StrategicLearningDesignReport from "@/components/StrategicLearningDesignReport";
+import CompanyKnowledgeTab from "@/components/CompanyKnowledgeTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ViewAsCompanyBanner } from "@/components/ViewAsCompanyBanner";
 import { useViewAs } from "@/contexts/ViewAsContext";
@@ -49,8 +50,25 @@ const Dashboard = () => {
   const [drilldownOpen, setDrilldownOpen] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<DomainScore | null>(null);
   const [employeeDetails, setEmployeeDetails] = useState<any[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("is_admin, is_super_admin")
+          .eq("id", user.id)
+          .single();
+        setIsAdmin(data?.is_admin || data?.is_super_admin || false);
+      }
+    };
+    checkAdmin();
+  }, []);
 
 
   const handleBatchNormalize = async () => {
@@ -488,6 +506,12 @@ const Dashboard = () => {
         <TabsList>
           <TabsTrigger value="health">Organizational Health</TabsTrigger>
           <TabsTrigger value="learning">Strategic Learning Design</TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="knowledge" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Knowledge Base
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="health" className="space-y-6">
@@ -728,6 +752,12 @@ const Dashboard = () => {
         <TabsContent value="learning">
           <StrategicLearningDesignReport />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="knowledge">
+            <CompanyKnowledgeTab />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Domain Drilldown Dialog */}
