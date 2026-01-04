@@ -387,9 +387,15 @@ serve(async (req) => {
     const diagnosticGrowthArea = diagnostic?.[0]?.skill_to_master || null;
 
     // Get day of week for personalized greeting and themes
+    // Use America/Chicago (Central Time) as default timezone to better align with US business hours
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayOfWeek = days[new Date().getDay()];
+    const now = new Date();
+    // Convert to Central Time - this shifts the date appropriately for US users
+    const centralTimeOffset = -6; // CST is UTC-6 (adjust to -5 for CDT if needed)
+    const centralTime = new Date(now.getTime() + (centralTimeOffset * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+    const dayOfWeek = days[centralTime.getDay()];
     const dayTheme = DAY_THEMES[dayOfWeek];
+    console.log(`Day calculation: UTC=${now.toISOString()}, Central Time day=${dayOfWeek}`);
 
     const context: PodcastContext = {
       userName,
