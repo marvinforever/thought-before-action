@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { 
   ArrowRight, 
+  ArrowDown,
   Target, 
   TrendingUp, 
   Users, 
@@ -14,7 +15,9 @@ import {
   Brain,
   MessageSquare,
   Sparkles,
-  Shield
+  Shield,
+  ChevronDown,
+  MoveDown
 } from "lucide-react";
 
 // Client logos
@@ -37,6 +40,43 @@ const staggerContainer = {
     transition: { staggerChildren: 0.1 }
   }
 };
+
+// Animated arrow component for section transitions
+const FlowArrow = ({ className = "" }: { className?: string }) => (
+  <div className={`flex justify-center py-4 ${className}`}>
+    <motion.div
+      animate={{ y: [0, 8, 0] }}
+      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+      className="flex flex-col items-center gap-1"
+    >
+      <ChevronDown className="h-6 w-6 text-accent" />
+      <ChevronDown className="h-6 w-6 text-accent/60 -mt-4" />
+    </motion.div>
+  </div>
+);
+
+// Side flowing arrows for visual movement
+const SideFlowArrows = ({ direction = "right", className = "" }: { direction?: "left" | "right", className?: string }) => (
+  <div className={`absolute top-1/2 -translate-y-1/2 ${direction === "right" ? "right-4 md:right-8" : "left-4 md:left-8"} hidden lg:flex flex-col gap-2 ${className}`}>
+    {[0, 1, 2].map((i) => (
+      <motion.div
+        key={i}
+        animate={{ 
+          x: direction === "right" ? [0, 10, 0] : [0, -10, 0],
+          opacity: [0.3, 0.7, 0.3]
+        }}
+        transition={{ 
+          duration: 2, 
+          repeat: Infinity, 
+          delay: i * 0.3,
+          ease: "easeInOut"
+        }}
+      >
+        <ArrowRight className={`h-5 w-5 text-accent/40 ${direction === "left" ? "rotate-180" : ""}`} />
+      </motion.div>
+    ))}
+  </div>
+);
 
 const Sales = () => {
   const [email, setEmail] = useState("");
@@ -175,6 +215,8 @@ const Sales = () => {
         </div>
       </section>
 
+      <FlowArrow />
+
       {/* PROBLEM - The Real Frustration */}
       <section className="py-12 px-6 bg-background relative">
         <div className="max-w-5xl mx-auto">
@@ -217,6 +259,8 @@ const Sales = () => {
           </motion.div>
         </div>
       </section>
+
+      <FlowArrow />
 
       {/* PROMISE - The Transformation */}
       <section className="py-12 px-6 bg-primary text-primary-foreground relative overflow-hidden">
@@ -279,8 +323,11 @@ const Sales = () => {
         </div>
       </section>
 
+      <FlowArrow />
+
       {/* PROCESS - How Jericho Works */}
-      <section className="py-14 px-6 bg-gradient-to-b from-background to-muted/30">
+      <section className="py-14 px-6 bg-gradient-to-b from-background to-muted/30 relative">
+        <SideFlowArrows direction="right" />
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial="hidden"
@@ -340,8 +387,11 @@ const Sales = () => {
         </div>
       </section>
 
+      <FlowArrow />
+
       {/* What This Changes for Leaders */}
-      <section className="py-12 px-6 bg-highlight-gold">
+      <section className="py-12 px-6 bg-highlight-gold relative">
+        <SideFlowArrows direction="left" />
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial="hidden"
@@ -388,6 +438,8 @@ const Sales = () => {
           </motion.div>
         </div>
       </section>
+
+      <FlowArrow />
 
       {/* PROOF - Why This Works + Logos */}
       <section className="py-14 px-6 bg-background">
@@ -439,6 +491,8 @@ const Sales = () => {
           </motion.div>
         </div>
       </section>
+
+      <FlowArrow />
 
       {/* PRODUCT - What Jericho Is */}
       <section className="py-12 px-6 bg-primary text-primary-foreground relative overflow-hidden">
