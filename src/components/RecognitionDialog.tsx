@@ -119,16 +119,9 @@ export function RecognitionDialog({ open, onOpenChange, employee, isPeerRecognit
       const caps = capData?.map((c: any) => c.capability).filter(Boolean) || [];
       setCapabilities(caps);
 
-      // Load goals for this employee from ninety_day_targets
-      const { data: goalData } = await supabase
-        .from("ninety_day_targets")
-        .select("id, goal_text")
-        .eq("profile_id", employee.id)
-        .eq("completed", false)
-        .not("goal_text", "is", null)
-        .limit(10);
-
-      setGoals((goalData as Goal[]) || []);
+      // Note: goal linking is disabled as the FK constraint points to personal_goals 
+      // which doesn't have individual goals - only visions
+      setGoals([]);
     } catch (error) {
       console.error("Error loading employee data:", error);
     }
