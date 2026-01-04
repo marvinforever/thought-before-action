@@ -802,8 +802,10 @@ const Sales = () => {
                     <p className="text-muted-foreground">Perfect for growing teams</p>
                   </div>
                   <div className="mb-8">
-                    <span className="text-5xl font-black text-foreground">$75</span>
-                    <span className="text-muted-foreground">/user/month</span>
+                    <span className="text-2xl text-muted-foreground line-through mr-2">$75</span>
+                    <span className="text-5xl font-black text-foreground">$50</span>
+                    <span className="text-muted-foreground">/person/month</span>
+                    <div className="text-sm text-accent font-semibold mt-2">Limited Time Offer</div>
                   </div>
                   <ul className="space-y-4 mb-8">
                     {[
