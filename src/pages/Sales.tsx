@@ -157,16 +157,6 @@ const Sales = () => {
               </Button>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="flex flex-wrap items-center justify-center gap-6 text-sm text-primary-foreground/70">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-accent" />
-                30-day free trial
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-accent" />
-                No credit card required
-              </span>
-            </motion.div>
           </motion.div>
         </div>
         
@@ -578,11 +568,6 @@ const Sales = () => {
               </ul>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="flex items-center justify-center gap-5 pt-4 text-xs text-primary-foreground/60">
-              <span>No credit card required</span>
-              <span>•</span>
-              <span>30-day free trial</span>
-            </motion.div>
           </motion.div>
         </div>
       </section>
