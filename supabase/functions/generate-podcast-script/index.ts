@@ -155,6 +155,14 @@ const DAY_THEMES: Record<string, DayTheme> = {
   }
 };
 
+function getCentralTime(now: Date = new Date()) {
+  // Simple Central Time approximation (UTC-6). We use it only for day themes + rotation.
+  // This avoids server-local timezone differences (edge runtime is UTC).
+  const centralTimeOffsetHours = -6;
+  const centralTime = new Date(now.getTime() + centralTimeOffsetHours * 60 * 60 * 1000);
+  return { now, centralTime };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -303,28 +311,40 @@ serve(async (req) => {
       .is('skipped_at', null)
       .lte('scheduled_for', new Date().toISOString())
       .order('scheduled_for', { ascending: true })
-      .limit(3);
+      .limit(5);
 
-    const pendingFollowUps = (pendingFollowUpsData || []).map(f => ({
-      topic: f.context?.topic || f.follow_up_type,
-      type: f.follow_up_type,
-      scheduledFor: f.scheduled_for,
-      context: f.context
-    }));
+    // Filter out administrative follow-ups (e.g., "send recognition to X") that are easy to misattribute in spoken audio.
+    const pendingFollowUps = (pendingFollowUpsData || [])
+      .map(f => ({
+        topic: f.context?.topic || f.follow_up_type,
+        type: f.follow_up_type,
+        scheduledFor: f.scheduled_for,
+        context: f.context
+      }))
+      .filter(f => {
+        const t = (f.topic || '').toLowerCase();
+        return !t.includes('recognition') && !t.includes('send recognition');
+      })
+      .slice(0, 3);
 
-    console.log(`Found ${pendingFollowUps.length} pending follow-ups for podcast`);
+    console.log(`Found ${pendingFollowUps.length} pending follow-ups for podcast (filtered)`);
 
-    // Fetch most recent conversation summary for continuity
-    const { data: recentSummary } = await supabase
+    // Fetch most recent conversation summary for continuity (skip "recognition"-type summaries to avoid wrong attribution)
+    const { data: recentSummaries } = await supabase
       .from('conversation_summaries')
-      .select('summary_text, key_topics, action_items, emotional_tone')
+      .select('summary_text, key_topics, action_items, emotional_tone, created_at')
       .eq('profile_id', profileId)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(5);
 
-    const recentConversationSummary = recentSummary?.summary_text || null;
-    const recentActionItems = recentSummary?.action_items || [];
+    const safeSummary = (recentSummaries || []).find(s => {
+      const topics = (s.key_topics || []).map((k: string) => String(k).toLowerCase());
+      const text = (s.summary_text || '').toLowerCase();
+      return !topics.includes('recognition') && !text.includes('send recognition');
+    }) || null;
+
+    const recentConversationSummary = safeSummary?.summary_text || null;
+    const recentActionItems = safeSummary?.action_items || [];
 
     // Fetch TOP 5 priority capabilities for rotation
     const { data: capabilities } = await supabase
@@ -360,59 +380,81 @@ serve(async (req) => {
     
     const todayCapability = allPriorityCapabilities[capabilityFocusIndex] || null;
 
-    // Fetch active 90-day goal with benchmarks
+    // Helper: normalize benchmarks/sprints stored as jsonb (array, object, or string)
+    const normalizeChecklist = (value: any): { text: string; completed: boolean }[] => {
+      if (!value) return [];
+
+      const toItemsFromText = (t: string) => {
+        const lines = t
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(Boolean)
+          .map(l => l.replace(/^[-•\u2022]\s*/, ''))
+          .filter(Boolean);
+
+        return lines.length > 1 ? lines : [t.trim()].filter(Boolean);
+      };
+
+      if (Array.isArray(value)) {
+        return value.map((v: any) => ({
+          text: typeof v === 'string' ? v : (v?.text || v?.description || String(v)),
+          completed: typeof v === 'object' && v?.completed === true,
+        })).filter(i => i.text);
+      }
+
+      if (typeof value === 'object') {
+        // Most common shape in our DB right now: { text: "..." }
+        if (typeof value.text === 'string') {
+          return toItemsFromText(value.text).map(text => ({ text, completed: false }));
+        }
+        return [{ text: String(value), completed: false }];
+      }
+
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          return normalizeChecklist(parsed);
+        } catch {
+          return toItemsFromText(value).map(text => ({ text, completed: false }));
+        }
+      }
+
+      return [];
+    };
+
+    // Day theme + rotation clock (Central Time)
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const { now, centralTime } = getCentralTime();
+    const dayOfWeek = days[centralTime.getDay()];
+    const dayTheme = DAY_THEMES[dayOfWeek];
+    const dayKey = Math.floor(centralTime.getTime() / 86400000); // stable day index
+
+    console.log(`Day calculation: UTC=${now.toISOString()}, Central Time=${centralTime.toISOString()}, day=${dayOfWeek}`);
+
+    // Fetch 90-day goals (prefer professional) and rotate which one we focus on
     const { data: goals } = await supabase
       .from('ninety_day_targets')
-      .select('goal_text, completed, benchmarks, sprints')
+      .select('goal_text, completed, benchmarks, sprints, goal_type, category, created_at')
       .eq('profile_id', profileId)
       .eq('completed', false)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(10);
 
-    const activeGoal = goals?.[0];
-    
-    // Parse benchmarks and calculate progress
-    let goalBenchmarks: { text: string; completed: boolean }[] = [];
-    let goalSprints: { text: string; completed: boolean }[] = [];
-    let completedBenchmarks = 0;
-    let totalBenchmarks = 0;
-    
-    if (activeGoal?.benchmarks) {
-      try {
-        const benchmarkData = typeof activeGoal.benchmarks === 'string' 
-          ? JSON.parse(activeGoal.benchmarks) 
-          : activeGoal.benchmarks;
-        
-        if (Array.isArray(benchmarkData)) {
-          goalBenchmarks = benchmarkData.map((b: any) => ({
-            text: typeof b === 'string' ? b : b.text || b.description || String(b),
-            completed: typeof b === 'object' && b.completed === true
-          }));
-          totalBenchmarks = goalBenchmarks.length;
-          completedBenchmarks = goalBenchmarks.filter(b => b.completed).length;
-        }
-      } catch (e) {
-        console.log('Could not parse benchmarks:', e);
-      }
-    }
+    const allActiveGoals = goals || [];
+    const professionalGoals = allActiveGoals.filter(g => (g.goal_type || '').toLowerCase() === 'professional');
+    const goalPool = professionalGoals.length > 0 ? professionalGoals : allActiveGoals;
 
-    // Parse sprints
-    if (activeGoal?.sprints) {
-      try {
-        const sprintData = typeof activeGoal.sprints === 'string' 
-          ? JSON.parse(activeGoal.sprints) 
-          : activeGoal.sprints;
-        
-        if (Array.isArray(sprintData)) {
-          goalSprints = sprintData.map((s: any) => ({
-            text: typeof s === 'string' ? s : s.text || s.description || String(s),
-            completed: typeof s === 'object' && s.completed === true
-          }));
-        }
-      } catch (e) {
-        console.log('Could not parse sprints:', e);
-      }
-    }
+    const goalFocusIndex = goalPool.length > 0 ? (dayKey % goalPool.length) : 0;
+    const activeGoal = goalPool[goalFocusIndex] || null;
+
+    // Rotate the *type* of goal reference so we don't repeat the 90-day outcome.
+    // Outcome should appear no more than once every 4 days.
+    const canMentionOutcomeToday = dayKey % 4 === 0;
+
+    const goalBenchmarks = normalizeChecklist(activeGoal?.benchmarks);
+    const goalSprints = normalizeChecklist(activeGoal?.sprints);
+    const totalBenchmarks = goalBenchmarks.length;
+    const completedBenchmarks = goalBenchmarks.filter(b => b.completed).length;
 
     // Fetch personal vision
     const { data: personalGoals } = await supabase
@@ -423,8 +465,8 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    const personalVision = personalGoals?.[0]?.one_year_vision || 
-                          personalGoals?.[0]?.three_year_vision || null;
+    const personalVision = personalGoals?.[0]?.one_year_vision ||
+      personalGoals?.[0]?.three_year_vision || null;
 
     // Fetch diagnostic insights (strengths and growth areas)
     const { data: diagnostic } = await supabase
@@ -437,19 +479,6 @@ serve(async (req) => {
     const learningPref = diagnostic?.[0]?.learning_preference;
     const diagnosticStrength = diagnostic?.[0]?.natural_strength || null;
     const diagnosticGrowthArea = diagnostic?.[0]?.skill_to_master || null;
-
-    // Get day of week for personalized greeting and themes
-    // Use America/Chicago (Central Time) as default timezone to better align with US business hours
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const now = new Date();
-    // Convert to Central Time - CST is UTC-6, CDT is UTC-5
-    // In January, Central Standard Time (CST) applies, so offset is -6
-    const centralTimeOffset = -6; // CST is UTC-6
-    // Simply subtract 6 hours from UTC to get Central Time
-    const centralTime = new Date(now.getTime() + (centralTimeOffset * 60 * 60 * 1000));
-    const dayOfWeek = days[centralTime.getDay()];
-    const dayTheme = DAY_THEMES[dayOfWeek];
-    console.log(`Day calculation: UTC=${now.toISOString()}, Central Time=${centralTime.toISOString()}, day=${dayOfWeek}`);
 
     // Pick a random inspirational quote for today
     const todayQuote = INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)];
@@ -617,17 +646,20 @@ Today's Capability Focus (rotating through priorities):
 ${context.allPriorityCapabilities.length > 1 ? `- Other priorities they're working on: ${context.allPriorityCapabilities.filter((_, i) => i !== context.capabilityFocusIndex).map(c => c.name).join(', ')}` : ''}
 
 90-Day Goal & Execution Plan:
-- Goal: ${context.activeGoal || 'Not set'}
+- Current focus goal (rotating; prefers professional goals): ${context.activeGoal || 'Not set'}
 ${context.goalBenchmarks.length > 0 
   ? `- 30-Day Benchmarks (${context.completedBenchmarks} of ${context.totalBenchmarks} complete):
-  ${context.goalBenchmarks.map(b => `  ${b.completed ? '✓' : '○'} ${b.text}`).join('\n  ')}
-  FOCUS: Instead of repeating the 90-day goal, discuss the NEXT incomplete benchmark as their current focus.`
+  ${context.goalBenchmarks.map(b => `  ${b.completed ? '✓' : '○'} ${b.text}`).join('\n  ')}`
   : '- No 30-day benchmarks set'}
 ${context.goalSprints.length > 0 
-  ? `- 7-Day Sprints (current week's focus):
-  ${context.goalSprints.map(s => `  ${s.completed ? '✓' : '○'} ${s.text}`).join('\n  ')}
-  IMPORTANT: These are the immediate action items. Reference these for what they should be doing THIS WEEK.`
+  ? `- 7-Day Sprints (this week):
+  ${context.goalSprints.map(s => `  ${s.completed ? '✓' : '○'} ${s.text}`).join('\n  ')}`
   : '- No 7-day sprints set'}
+
+ROTATION RULES (CRITICAL):
+- Do NOT repeat the 90-day outcome every day.
+- Only mention the 90-day outcome explicitly if: ${canMentionOutcomeToday ? 'YES (allowed today)' : 'NO (not allowed today)'}
+- If outcome mention is not allowed, focus ONLY on the next incomplete sprint or benchmark and what to do today/this week.
 
 Personal Vision:
 - Vision: ${context.personalVision || 'Not yet articulated'}
