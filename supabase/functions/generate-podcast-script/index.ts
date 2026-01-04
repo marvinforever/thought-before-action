@@ -442,12 +442,14 @@ serve(async (req) => {
     // Use America/Chicago (Central Time) as default timezone to better align with US business hours
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const now = new Date();
-    // Convert to Central Time - this shifts the date appropriately for US users
-    const centralTimeOffset = -6; // CST is UTC-6 (adjust to -5 for CDT if needed)
-    const centralTime = new Date(now.getTime() + (centralTimeOffset * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+    // Convert to Central Time - CST is UTC-6, CDT is UTC-5
+    // In January, Central Standard Time (CST) applies, so offset is -6
+    const centralTimeOffset = -6; // CST is UTC-6
+    // Simply subtract 6 hours from UTC to get Central Time
+    const centralTime = new Date(now.getTime() + (centralTimeOffset * 60 * 60 * 1000));
     const dayOfWeek = days[centralTime.getDay()];
     const dayTheme = DAY_THEMES[dayOfWeek];
-    console.log(`Day calculation: UTC=${now.toISOString()}, Central Time day=${dayOfWeek}`);
+    console.log(`Day calculation: UTC=${now.toISOString()}, Central Time=${centralTime.toISOString()}, day=${dayOfWeek}`);
 
     // Pick a random inspirational quote for today
     const todayQuote = INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)];
