@@ -451,7 +451,7 @@ serve(async (req) => {
 
     console.log(`Day calculation: UTC=${now.toISOString()}, Central Time=${centralTime.toISOString()}, day=${dayOfWeek}`);
 
-    // Fetch 90-day goals (prefer professional) and rotate which one we focus on
+    // Fetch 90-day goals (rotate through ALL goals, not just professional)
     const { data: goals } = await supabase
       .from('ninety_day_targets')
       .select('goal_text, completed, benchmarks, sprints, goal_type, category, created_at')
@@ -461,11 +461,10 @@ serve(async (req) => {
       .limit(10);
 
     const allActiveGoals = goals || [];
-    const professionalGoals = allActiveGoals.filter(g => (g.goal_type || '').toLowerCase() === 'professional');
-    const goalPool = professionalGoals.length > 0 ? professionalGoals : allActiveGoals;
 
-    const goalFocusIndex = goalPool.length > 0 ? (dayKey % goalPool.length) : 0;
-    const activeGoal = goalPool[goalFocusIndex] || null;
+    // Rotate among all active goals daily
+    const goalFocusIndex = allActiveGoals.length > 0 ? (dayKey % allActiveGoals.length) : 0;
+    const activeGoal = allActiveGoals[goalFocusIndex] || null;
 
     // Rotate the *type* of goal reference so we don't repeat the 90-day outcome.
     // Outcome should appear no more than once every 4 days.
@@ -666,15 +665,20 @@ Today's Capability Focus (rotating through priorities):
 ${context.allPriorityCapabilities.length > 1 ? `- Other priorities they're working on: ${context.allPriorityCapabilities.filter((_, i) => i !== context.capabilityFocusIndex).map(c => c.name).join(', ')}` : ''}
 
 90-Day Goal & Execution Plan:
-- Current focus goal (rotating; prefers professional goals): ${context.activeGoal || 'Not set'}
+- Current focus goal (rotating): ${context.activeGoal || 'Not set'}
 ${context.goalBenchmarks.length > 0 
   ? `- 30-Day Benchmarks (${context.completedBenchmarks} of ${context.totalBenchmarks} complete):
   ${context.goalBenchmarks.map(b => `  ${b.completed ? '✓' : '○'} ${b.text}`).join('\n  ')}`
-  : '- No 30-day benchmarks set'}
+  : '⚠️ NO 30-DAY BENCHMARKS SET.'}
 ${context.goalSprints.length > 0 
   ? `- 7-Day Sprints (this week):
   ${context.goalSprints.map(s => `  ${s.completed ? '✓' : '○'} ${s.text}`).join('\n  ')}`
-  : '- No 7-day sprints set'}
+  : '⚠️ NO 7-DAY SPRINTS SET.'}
+
+MISSING PLAN GUIDANCE:
+If benchmarks or sprints are missing, DO NOT just say "that's okay for today." Instead, be direct but encouraging:
+  "Hey ${context.userName}, I see we're missing your 30-day benchmarks or 7-day sprints. No worries - open up My Growth Plan and let's get those in. Click on any 90-day goal to add benchmarks and sprints. Not sure how? Click the chat bubble and I'll walk you through it. Let's set this week's focus today."
+Encourage them to take action now - you're a coach, not a cheerleader.
 
 ROTATION RULES (CRITICAL):
 - Do NOT repeat the 90-day outcome every day.
