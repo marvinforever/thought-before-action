@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, Trash2, Plus, Search, BookOpen, FileQuestion, ScrollText, HelpCircle, Pencil } from "lucide-react";
+import { Upload, FileText, Trash2, Plus, Search, BookOpen, FileQuestion, ScrollText, HelpCircle, Pencil, Globe } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface KnowledgeDoc {
   id: string;
@@ -19,7 +20,9 @@ interface KnowledgeDoc {
   file_url: string | null;
   file_name: string | null;
   is_active: boolean;
+  is_global: boolean;
   created_at: string;
+  company_id: string;
 }
 
 const DOCUMENT_TYPES = [
@@ -50,6 +53,8 @@ export default function CompanyKnowledgeTab() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<KnowledgeDoc | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [userCompanyId, setUserCompanyId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Form state
@@ -58,24 +63,56 @@ export default function CompanyKnowledgeTab() {
     content: "",
     document_type: "policy",
     category: "HR",
+    is_global: false,
   });
   const [editDoc, setEditDoc] = useState({
     title: "",
     content: "",
     document_type: "policy",
     category: "HR",
+    is_global: false,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     loadDocuments();
+    checkSuperAdmin();
   }, []);
+
+  const checkSuperAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_super_admin, company_id")
+      .eq("id", user.id)
+      .single();
+    
+    setIsSuperAdmin(profile?.is_super_admin || false);
+    setUserCompanyId(profile?.company_id || null);
+  };
 
   const loadDocuments = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id, is_super_admin")
+        .eq("id", user.id)
+        .single();
+      
+      // Super admins see all docs (global + their company)
+      // Regular admins see only their company's docs + global docs
       const { data, error } = await supabase
         .from("company_knowledge")
         .select("*")
+        .or(profile?.is_super_admin 
+          ? `is_global.eq.true,company_id.eq.${profile.company_id}`
+          : `company_id.eq.${profile?.company_id},is_global.eq.true`)
+        .order("is_global", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -173,6 +210,7 @@ export default function CompanyKnowledgeTab() {
           file_name: fileName,
           file_type: fileType,
           uploaded_by: user.id,
+          is_global: newDoc.is_global,
         });
 
       if (insertError) throw insertError;
@@ -183,7 +221,7 @@ export default function CompanyKnowledgeTab() {
       });
 
       setIsAddOpen(false);
-      setNewDoc({ title: "", content: "", document_type: "policy", category: "HR" });
+      setNewDoc({ title: "", content: "", document_type: "policy", category: "HR", is_global: false });
       setSelectedFile(null);
       loadDocuments();
     } catch (error) {
@@ -236,6 +274,7 @@ export default function CompanyKnowledgeTab() {
       content: doc.content || "",
       document_type: doc.document_type,
       category: doc.category || "HR",
+      is_global: doc.is_global || false,
     });
     setIsEditOpen(true);
   };
@@ -259,6 +298,7 @@ export default function CompanyKnowledgeTab() {
           content: editDoc.content.trim() || null,
           document_type: editDoc.document_type,
           category: editDoc.category,
+          is_global: editDoc.is_global,
           updated_at: new Date().toISOString(),
         })
         .eq("id", editingDoc.id);
@@ -402,6 +442,25 @@ export default function CompanyKnowledgeTab() {
                 )}
               </div>
 
+              {/* Global toggle - super admins only */}
+              {isSuperAdmin && (
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-medium">Make Universal</p>
+                      <p className="text-xs text-muted-foreground">
+                        All clients will see this in their coaching sessions
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={newDoc.is_global}
+                    onCheckedChange={(checked) => setNewDoc(prev => ({ ...prev, is_global: checked }))}
+                  />
+                </div>
+              )}
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                   Cancel
@@ -463,7 +522,13 @@ export default function CompanyKnowledgeTab() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium truncate">{doc.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {doc.is_global && (
+                          <Badge className="text-xs bg-amber-500 hover:bg-amber-600">
+                            <Globe className="h-3 w-3 mr-1" />
+                            Universal
+                          </Badge>
+                        )}
                         <Badge variant="secondary" className="text-xs">
                           {DOCUMENT_TYPES.find(t => t.value === doc.document_type)?.label || doc.document_type}
                         </Badge>
@@ -485,23 +550,26 @@ export default function CompanyKnowledgeTab() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditOpen(doc)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(doc)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {/* Only show edit/delete for own company docs or super admins */}
+                  {(isSuperAdmin || doc.company_id === userCompanyId) && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditOpen(doc)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(doc)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -575,6 +643,25 @@ export default function CompanyKnowledgeTab() {
               </p>
             </div>
 
+            {/* Global toggle - super admins only */}
+            {isSuperAdmin && (
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-amber-600" />
+                  <div>
+                    <p className="text-sm font-medium">Make Universal</p>
+                    <p className="text-xs text-muted-foreground">
+                      All clients will see this in their coaching sessions
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={editDoc.is_global}
+                  onCheckedChange={(checked) => setEditDoc(prev => ({ ...prev, is_global: checked }))}
+                />
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setIsEditOpen(false)}>
                 Cancel
@@ -597,13 +684,18 @@ export default function CompanyKnowledgeTab() {
               <p className="text-sm text-muted-foreground">
                 When employees ask Jericho questions like "What's our PTO policy?" or 
                 "How do I submit an expense report?", Jericho will search your knowledge 
-                base and answer using your company's specific policies. Only employees 
-                from your company can access this information.
+                base and answer using your company's specific policies.
               </p>
               <p className="text-sm text-muted-foreground mt-2">
                 <strong>Tip:</strong> When policies change, just edit or replace the document here. 
                 Jericho will automatically use the updated information in all future conversations.
               </p>
+              {isSuperAdmin && (
+                <p className="text-sm text-amber-600 mt-2">
+                  <strong>🌐 Universal Documents:</strong> As a super admin, you can mark documents as 
+                  "Universal" to make them available to all clients during their coaching sessions.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>

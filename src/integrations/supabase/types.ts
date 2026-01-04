@@ -919,6 +919,7 @@ export type Database = {
           file_url: string | null
           id: string
           is_active: boolean
+          is_global: boolean | null
           title: string
           updated_at: string
           uploaded_by: string | null
@@ -934,6 +935,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           is_active?: boolean
+          is_global?: boolean | null
           title: string
           updated_at?: string
           uploaded_by?: string | null
@@ -949,6 +951,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           is_active?: boolean
+          is_global?: boolean | null
           title?: string
           updated_at?: string
           uploaded_by?: string | null
