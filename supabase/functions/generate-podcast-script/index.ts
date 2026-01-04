@@ -6,6 +6,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Curated inspirational quotes for growth mindset
+const INSPIRATIONAL_QUOTES = [
+  { quote: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+  { quote: "Growth is never by mere chance; it is the result of forces working together.", author: "James Cash Penney" },
+  { quote: "What lies behind us and what lies before us are tiny matters compared to what lies within us.", author: "Ralph Waldo Emerson" },
+  { quote: "The greatest glory in living lies not in never falling, but in rising every time we fall.", author: "Nelson Mandela" },
+  { quote: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+  { quote: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+  { quote: "It is not the mountain we conquer, but ourselves.", author: "Edmund Hillary" },
+  { quote: "Excellence is not a destination but a continuous journey that never ends.", author: "Brian Tracy" },
+  { quote: "The mind is everything. What you think you become.", author: "Buddha" },
+  { quote: "Be the change that you wish to see in the world.", author: "Mahatma Gandhi" },
+  { quote: "Your limitation—it's only your imagination.", author: "Unknown" },
+  { quote: "Push yourself, because no one else is going to do it for you.", author: "Unknown" },
+  { quote: "Great things never come from comfort zones.", author: "Unknown" },
+  { quote: "Dream it. Wish it. Do it.", author: "Unknown" },
+  { quote: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown" },
+  { quote: "Don't stop when you're tired. Stop when you're done.", author: "Unknown" },
+  { quote: "Wake up with determination. Go to bed with satisfaction.", author: "Unknown" },
+  { quote: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
+  { quote: "Little things make big days.", author: "Unknown" },
+  { quote: "It's going to be hard, but hard does not mean impossible.", author: "Unknown" },
+  { quote: "Don't wait for opportunity. Create it.", author: "Unknown" },
+  { quote: "Sometimes we're tested not to show our weaknesses, but to discover our strengths.", author: "Unknown" },
+  { quote: "The key to success is to focus on goals, not obstacles.", author: "Unknown" },
+  { quote: "Dream bigger. Do bigger.", author: "Unknown" },
+  { quote: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+  { quote: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+  { quote: "Quality is not an act, it is a habit.", author: "Aristotle" },
+  { quote: "The only limit to our realization of tomorrow will be our doubts of today.", author: "Franklin D. Roosevelt" },
+  { quote: "Act as if what you do makes a difference. It does.", author: "William James" },
+  { quote: "What you do today can improve all your tomorrows.", author: "Ralph Marston" },
+];
+
 interface PodcastContext {
   userName: string;
   habitStreak: number;
@@ -16,7 +50,8 @@ interface PodcastContext {
   targetLevel: string | null;
   capabilityDescription: string | null;
   activeGoal: string | null;
-  goalBenchmarks: string[] | null;
+  goalBenchmarks: { text: string; completed: boolean }[];
+  goalSprints: { text: string; completed: boolean }[];
   completedBenchmarks: number;
   totalBenchmarks: number;
   learningPreference: string | null;
@@ -47,6 +82,7 @@ interface PodcastContext {
     context: any;
   }[];
   recentConversationSummary: string | null;
+  inspirationalQuote: { quote: string; author: string };
 }
 
 interface DayTheme {
@@ -336,7 +372,8 @@ serve(async (req) => {
     const activeGoal = goals?.[0];
     
     // Parse benchmarks and calculate progress
-    let goalBenchmarks: string[] = [];
+    let goalBenchmarks: { text: string; completed: boolean }[] = [];
+    let goalSprints: { text: string; completed: boolean }[] = [];
     let completedBenchmarks = 0;
     let totalBenchmarks = 0;
     
@@ -347,18 +384,33 @@ serve(async (req) => {
           : activeGoal.benchmarks;
         
         if (Array.isArray(benchmarkData)) {
-          goalBenchmarks = benchmarkData.map((b: any) => 
-            typeof b === 'string' ? b : b.text || b.description || String(b)
-          );
+          goalBenchmarks = benchmarkData.map((b: any) => ({
+            text: typeof b === 'string' ? b : b.text || b.description || String(b),
+            completed: typeof b === 'object' && b.completed === true
+          }));
           totalBenchmarks = goalBenchmarks.length;
-          // Assume first N benchmarks are completed based on some logic
-          // For now, we'll use a simple heuristic
-          completedBenchmarks = benchmarkData.filter((b: any) => 
-            typeof b === 'object' && b.completed
-          ).length;
+          completedBenchmarks = goalBenchmarks.filter(b => b.completed).length;
         }
       } catch (e) {
         console.log('Could not parse benchmarks:', e);
+      }
+    }
+
+    // Parse sprints
+    if (activeGoal?.sprints) {
+      try {
+        const sprintData = typeof activeGoal.sprints === 'string' 
+          ? JSON.parse(activeGoal.sprints) 
+          : activeGoal.sprints;
+        
+        if (Array.isArray(sprintData)) {
+          goalSprints = sprintData.map((s: any) => ({
+            text: typeof s === 'string' ? s : s.text || s.description || String(s),
+            completed: typeof s === 'object' && s.completed === true
+          }));
+        }
+      } catch (e) {
+        console.log('Could not parse sprints:', e);
       }
     }
 
@@ -397,6 +449,9 @@ serve(async (req) => {
     const dayTheme = DAY_THEMES[dayOfWeek];
     console.log(`Day calculation: UTC=${now.toISOString()}, Central Time day=${dayOfWeek}`);
 
+    // Pick a random inspirational quote for today
+    const todayQuote = INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)];
+
     const context: PodcastContext = {
       userName,
       habitStreak: topHabit?.current_streak || 0,
@@ -408,6 +463,7 @@ serve(async (req) => {
       capabilityDescription: todayCapability?.description || null,
       activeGoal: activeGoal?.goal_text || null,
       goalBenchmarks,
+      goalSprints,
       completedBenchmarks,
       totalBenchmarks,
       learningPreference: learningPref || null,
@@ -429,6 +485,7 @@ serve(async (req) => {
       lastOneOnOneDate,
       pendingFollowUps,
       recentConversationSummary,
+      inspirationalQuote: todayQuote,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
@@ -529,8 +586,9 @@ These are things they discussed in recent coaching sessions. Weave in a natural,
   : ''}
 
 ${context.recentConversationSummary 
-  ? `Recent Coaching Session: ${context.recentConversationSummary}
-(Use this for continuity - you can reference what you discussed recently)`
+  ? `Recent Coaching Session Summary (this is about ${context.userName}'s own conversations - things THEY discussed with you):
+${context.recentConversationSummary}
+IMPORTANT: This summary is about ${context.userName}'s own actions and discussions. If it mentions other people (like sending recognition TO someone), ${context.userName} was the one doing the action, not receiving it.`
   : ''}
 
 Habits & Streaks:
@@ -556,10 +614,18 @@ Today's Capability Focus (rotating through priorities):
 - Description: ${context.capabilityDescription || 'A key skill for their role'}
 ${context.allPriorityCapabilities.length > 1 ? `- Other priorities they're working on: ${context.allPriorityCapabilities.filter((_, i) => i !== context.capabilityFocusIndex).map(c => c.name).join(', ')}` : ''}
 
-90-Day Goal:
+90-Day Goal & Execution Plan:
 - Goal: ${context.activeGoal || 'Not set'}
-- Benchmark progress: ${context.totalBenchmarks > 0 ? `${context.completedBenchmarks} of ${context.totalBenchmarks} milestones complete` : 'No benchmarks set'}
-${(context.goalBenchmarks && context.goalBenchmarks.length > 0) ? `- Upcoming benchmarks: ${context.goalBenchmarks.slice(context.completedBenchmarks, context.completedBenchmarks + 2).join('; ')}` : ''}
+${context.goalBenchmarks.length > 0 
+  ? `- 30-Day Benchmarks (${context.completedBenchmarks} of ${context.totalBenchmarks} complete):
+  ${context.goalBenchmarks.map(b => `  ${b.completed ? '✓' : '○'} ${b.text}`).join('\n  ')}
+  FOCUS: Instead of repeating the 90-day goal, discuss the NEXT incomplete benchmark as their current focus.`
+  : '- No 30-day benchmarks set'}
+${context.goalSprints.length > 0 
+  ? `- 7-Day Sprints (current week's focus):
+  ${context.goalSprints.map(s => `  ${s.completed ? '✓' : '○'} ${s.text}`).join('\n  ')}
+  IMPORTANT: These are the immediate action items. Reference these for what they should be doing THIS WEEK.`
+  : '- No 7-day sprints set'}
 
 Personal Vision:
 - Vision: ${context.personalVision || 'Not yet articulated'}
@@ -570,9 +636,14 @@ Diagnostic Insights:
 
 Learning Style: ${context.learningPreference || 'Not specified'}
 
+Inspirational Quote to weave in:
+"${context.inspirationalQuote.quote}" — ${context.inspirationalQuote.author}
+(Naturally include this quote somewhere in the episode - it can be in the opening, middle, or closing. Make it feel organic, not forced.)
+
 Generate the complete podcast script. Make it feel personal and motivating. Use natural speech patterns and include [pause] markers where appropriate.
 
 IMPORTANT: Near the end, clearly state the daily challenge in a memorable way. Make it specific, achievable, and connected to their growth.
+IMPORTANT: If they have benchmarks or sprints, focus on those SPECIFIC next steps rather than just repeating their 90-day outcome over and over.
 ${context.pendingFollowUps.length > 0 ? '\nBONUS: If there are coaching follow-ups, naturally weave in a caring check-in about at least one of them. Make it conversational, not robotic.' : ''}`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
