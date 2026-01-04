@@ -477,55 +477,6 @@ const Sales = () => {
         </div>
       </section>
 
-      {/* PRICE + PLACE */}
-      <section className="py-12 px-6 bg-gradient-to-b from-background to-muted/20">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-          >
-            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-5">
-              {/* Price */}
-              <div className="p-6 bg-gradient-to-br from-highlight-gold to-highlight-gold/80 rounded-xl border border-accent/20 space-y-4">
-                <div className="space-y-1">
-                  <p className="text-accent-foreground font-semibold text-xs uppercase tracking-wide">Investment</p>
-                  <h3 className="text-xl font-bold text-primary">Simple, Transparent Pricing</h3>
-                </div>
-                <div className="space-y-3">
-                  <p className="text-3xl font-bold text-primary">~$500<span className="text-base text-muted-foreground font-normal">/employee/year</span></p>
-                  <p className="text-muted-foreground text-sm">Exact pricing depends on team size, rollout scope, and support level.</p>
-                  <p className="text-xs text-accent-foreground font-medium">We'll walk through this on your clarity call.</p>
-                </div>
-              </div>
-
-              {/* Place */}
-              <div className="p-6 bg-card rounded-xl border border-border space-y-4">
-                <div className="space-y-1">
-                  <p className="text-accent font-semibold text-xs uppercase tracking-wide">Delivery</p>
-                  <h3 className="text-xl font-bold text-primary">How It's Delivered</h3>
-                </div>
-                <ul className="space-y-2">
-                  {[
-                    "Fully virtual platform",
-                    "Works across departments and roles",
-                    "Designed for real-world execution",
-                    "Supports leaders and employees simultaneously",
-                    "No long implementation cycles",
-                    "No heavy lift for your team"
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
 
       {/* PUSH - Final CTA */}
       <section className="py-16 px-6 bg-primary relative overflow-hidden">
