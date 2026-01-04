@@ -260,12 +260,13 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .lte('scheduled_for', new Date().toISOString())
         .order('scheduled_for', { ascending: true })
         .limit(5),
-      // Company knowledge base for HR/policy questions
+      // Company knowledge base + global knowledge for HR/policy questions
       supabase
         .from('company_knowledge')
-        .select('id, title, content, document_type, category')
-        .eq('company_id', effectiveCompanyId)
+        .select('id, title, content, document_type, category, is_global')
+        .or(`company_id.eq.${effectiveCompanyId},is_global.eq.true`)
         .eq('is_active', true)
+        .order('is_global', { ascending: false }) // Global docs first
         .order('created_at', { ascending: false }),
     ]);
 
