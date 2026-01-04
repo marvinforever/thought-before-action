@@ -82,7 +82,7 @@ Best regards`;
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "Jericho <jericho@askjericho.com>",
+        from: "Jericho <jericho@sender.askjericho.com>",
         to: [toEmail],
         subject: `1:1 Follow-up - ${formattedDate}`,
         html: htmlBody,

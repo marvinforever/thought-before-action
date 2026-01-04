@@ -240,7 +240,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "Jericho <jericho@askjericho.com>",
+        from: "Jericho <jericho@sender.askjericho.com>",
         to: [recipientEmail],
         subject: subjectLine,
         html: htmlEmail,
