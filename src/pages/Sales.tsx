@@ -128,7 +128,7 @@ const Sales = () => {
           >
             <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/30">
               <Users className="w-4 h-4 text-accent" />
-              <span className="text-accent font-medium text-sm">For growth-minded leaders ready to scale</span>
+              <span className="text-accent font-medium text-sm">For growth minded leaders</span>
             </motion.div>
             
             <motion.h1 
@@ -191,7 +191,7 @@ const Sales = () => {
 
             <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-4">
               {[
-                "Running a growing organization and ready to scale",
+                "Running a growing organization, but need to drive up accountability",
                 "Values-driven, growth-minded, and serious about execution",
                 "Tired of being the bottleneck for clarity, accountability, and development",
                 "Carrying too much in their head because systems haven't caught up to scale"
