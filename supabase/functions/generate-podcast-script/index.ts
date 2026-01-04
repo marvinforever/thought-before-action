@@ -246,10 +246,14 @@ serve(async (req) => {
       .order('achieved_date', { ascending: false })
       .limit(3);
 
-    const recentAchievements = (achievements || []).map(a => ({
-      text: a.achievement_text,
-      category: a.category || 'general'
-    }));
+    const recentAchievements = (achievements || [])
+      .map(a => ({
+        text: a.achievement_text,
+        category: a.category || 'general'
+      }))
+      // Filter likely third-person achievements (often created when the user is praising someone else)
+      // This prevents mis-attributing actions like "he painted his office" to the user.
+      .filter(a => !/\b(his|her|their)\b/i.test(a.text));
 
     // Fetch recent recognition notes (last 14 days)
     const fourteenDaysAgo = new Date();
@@ -364,13 +368,29 @@ serve(async (req) => {
       .limit(5);
 
     // Build capability rotation
-    const allPriorityCapabilities = (capabilities || []).map(cap => ({
-      id: (cap.capabilities as any)?.id,
-      name: (cap.capabilities as any)?.name || 'Unknown',
-      level: cap.current_level || 'unassessed',
-      target: cap.target_level || 'growth',
-      description: (cap.capabilities as any)?.description || ''
-    }));
+    const allPriorityCapabilities = (capabilities || []).map(cap => {
+      const level = cap.current_level || 'unassessed';
+      const target = cap.target_level || 'growth';
+
+      const levelToLabel = (l: string) => {
+        const v = String(l).toLowerCase();
+        if (v === 'foundational' || v === 'beginner') return 'Level 1';
+        if (v === 'advancing' || v === 'intermediate') return 'Level 2';
+        if (v === 'independent' || v === 'advanced' || v === 'established') return 'Level 3';
+        if (v === 'mastery' || v === 'expert') return 'Level 4';
+        return l;
+      };
+
+      return {
+        id: (cap.capabilities as any)?.id,
+        name: (cap.capabilities as any)?.name || 'Unknown',
+        level,
+        target,
+        levelLabel: levelToLabel(level),
+        targetLabel: levelToLabel(target),
+        description: (cap.capabilities as any)?.description || ''
+      };
+    });
 
     // Calculate which capability to focus on today (rotate through top capabilities)
     const capabilityCount = allPriorityCapabilities.length;
@@ -489,8 +509,8 @@ serve(async (req) => {
       habitName: topHabit?.habit_name || null,
       recentAchievements,
       priorityCapability: todayCapability?.name || null,
-      capabilityLevel: todayCapability?.level || null,
-      targetLevel: todayCapability?.target || null,
+      capabilityLevel: (todayCapability as any)?.levelLabel || todayCapability?.level || null,
+      targetLevel: (todayCapability as any)?.targetLabel || todayCapability?.target || null,
       capabilityDescription: todayCapability?.description || null,
       activeGoal: activeGoal?.goal_text || null,
       goalBenchmarks,
@@ -508,8 +528,8 @@ serve(async (req) => {
       capabilityFocusIndex,
       allPriorityCapabilities: allPriorityCapabilities.map(c => ({
         name: c.name,
-        level: c.level,
-        target: c.target
+        level: (c as any).levelLabel || c.level,
+        target: (c as any).targetLabel || c.target,
       })),
       recentRecognitions,
       managerWins,
@@ -575,8 +595,8 @@ serve(async (req) => {
 
 Your tone is:
 - Conversational and authentic - like a trusted friend who happens to be a great coach
+- Direct and challenging (never placating) - you celebrate wins, but you also push for real action
 - Energetic but grounded - enthusiastic without being over-the-top
-- Lovingly direct - willing to gently call out when progress isn't happening, always with compassion
 - Specific and personal - using the user's actual data and calling things by name
 - Action-oriented - every episode ends with a clear, doable challenge
 - Vision-connected - helping them see how today's small steps lead to their bigger aspirations
@@ -589,16 +609,16 @@ ${config.structure}
 Rules:
 - Write for spoken audio - use contractions, simple sentences, natural pauses
 - Include [pause] markers for dramatic effect or transitions (use sparingly, 2-4 per episode max)
-- If data is missing, gracefully skip that section - never call attention to missing data
+- If data is missing, do NOT fill it in. Skip that section gracefully.
 - Never say "according to your data" or "based on your profile" - just state things naturally as if you know them
-- Make educational insights genuinely useful with specific, actionable takeaways
-- When referencing their capability journey, acknowledge both where they are AND where they're headed
-- If they have a personal vision, occasionally weave it in naturally
-- If yesterday's challenge is provided, START with a warm accountability check
+- Avoid repeating the same phrasing across days (no templated lines). Use varied sentence openings.
+- CRITICAL: Capability levels must be referred to ONLY as Level 1 / Level 2 / Level 3 / Level 4 (never "foundational/advancing/independent/mastery").
+- If a target level appears lower than the current level, do NOT pretend that's a growth target; instead, tell them to double-check and update it in My Growth Plan.
+- If 30-day benchmarks or 7-day sprints are missing, be direct: tell them to open My Growth Plan and add them, and if they need help, click the chat bubble to do it with you.
 - Target approximately ${config.words}
 - IMPORTANT: Do NOT include any stage directions, audio cues, or production notes like "intro music fades in", "music plays", etc. Write ONLY the spoken words.
-- CRITICAL: Do NOT use asterisks, markdown formatting, or any text emphasis markers. Write plain text only. Instead of *word* or **word**, just write the word naturally - use sentence structure and word choice for emphasis, not formatting.
-- CRITICAL: Do NOT use time-of-day greetings like "Good morning", "Good afternoon", or "Good evening". Users listen at various times. Use timeless greetings like "Hey [name]", "Welcome back [name]", or just dive into the content.
+- CRITICAL: Do NOT use asterisks, markdown formatting, or any text emphasis markers. Write plain text only.
+- CRITICAL: Do NOT use time-of-day greetings like "Good morning", "Good afternoon", or "Good evening". Use timeless greetings like "Hey [name]".
 - Extract and clearly state the daily challenge in a way that it could be pulled out and stored separately`;
 
     const userPrompt = `Create today's ${durationMinutes}-minute podcast script for this user:
@@ -693,7 +713,7 @@ ${context.pendingFollowUps.length > 0 ? '\nBONUS: If there are coaching follow-u
           { role: 'user', content: userPrompt },
         ],
         max_tokens: config.maxTokens,
-        temperature: 0.8,
+        temperature: 0.95,
       }),
     });
 
