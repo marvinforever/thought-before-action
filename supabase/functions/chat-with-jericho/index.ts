@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AI_CONFIG, mapCapabilityLevel } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -429,22 +430,12 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         company: profile.companies?.name,
       },
       capabilities: capabilitiesData.data?.map(ec => {
-        // Map old level names to Level 1-4
-        const mapLevel = (level: string | null): string => {
-          if (!level) return 'Not assessed';
-          const levelMap: Record<string, string> = {
-            'foundational': 'Level 1',
-            'advancing': 'Level 2',
-            'independent': 'Level 3',
-            'mastery': 'Level 4',
-          };
-          return levelMap[level.toLowerCase()] || level;
-        };
+        // Use shared level mapping from jericho-config
         return {
           name: ec.capabilities?.name,
           category: ec.capabilities?.category,
-          current_level: mapLevel(ec.current_level),
-          target_level: mapLevel(ec.target_level),
+          current_level: mapCapabilityLevel(ec.current_level),
+          target_level: mapCapabilityLevel(ec.target_level),
         };
       }) || [],
       goals: {

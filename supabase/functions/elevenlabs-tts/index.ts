@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { TTS_VOICE_SETTINGS } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,14 +67,7 @@ serve(async (req) => {
         body: JSON.stringify({
           text: cleanedScript,
           model_id: 'eleven_turbo_v2_5', // Fast, high-quality model
-          voice_settings: {
-            // Lower stability + higher style generally sounds less "robotic".
-            stability: 0.25,
-            similarity_boost: 0.8,
-            style: 0.65,
-            use_speaker_boost: true,
-            speed: 1.0,
-          },
+          voice_settings: TTS_VOICE_SETTINGS,
         }),
       }
     );
