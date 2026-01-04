@@ -2395,6 +2395,7 @@ export type Database = {
       one_on_one_notes: {
         Row: {
           action_items: Json | null
+          calendar_invite_sent: boolean | null
           company_id: string
           concerns: string | null
           created_at: string
@@ -2404,11 +2405,13 @@ export type Database = {
           meeting_date: string
           next_meeting_date: string | null
           notes: string | null
+          scheduled_time: string | null
           updated_at: string
           wins: string | null
         }
         Insert: {
           action_items?: Json | null
+          calendar_invite_sent?: boolean | null
           company_id: string
           concerns?: string | null
           created_at?: string
@@ -2418,11 +2421,13 @@ export type Database = {
           meeting_date: string
           next_meeting_date?: string | null
           notes?: string | null
+          scheduled_time?: string | null
           updated_at?: string
           wins?: string | null
         }
         Update: {
           action_items?: Json | null
+          calendar_invite_sent?: boolean | null
           company_id?: string
           concerns?: string | null
           created_at?: string
@@ -2432,6 +2437,7 @@ export type Database = {
           meeting_date?: string
           next_meeting_date?: string | null
           notes?: string | null
+          scheduled_time?: string | null
           updated_at?: string
           wins?: string | null
         }
@@ -2464,6 +2470,7 @@ export type Database = {
           ai_draft: string | null
           ai_summary: string | null
           areas_for_improvement: string | null
+          calendar_invite_sent: boolean | null
           company_id: string
           created_at: string
           employee_acknowledged_at: string | null
@@ -2478,6 +2485,7 @@ export type Database = {
           review_date: string
           review_type: string
           scheduled_by: string
+          scheduled_time: string | null
           status: string
           strengths: string | null
           updated_at: string
@@ -2486,6 +2494,7 @@ export type Database = {
           ai_draft?: string | null
           ai_summary?: string | null
           areas_for_improvement?: string | null
+          calendar_invite_sent?: boolean | null
           company_id: string
           created_at?: string
           employee_acknowledged_at?: string | null
@@ -2500,6 +2509,7 @@ export type Database = {
           review_date: string
           review_type?: string
           scheduled_by: string
+          scheduled_time?: string | null
           status?: string
           strengths?: string | null
           updated_at?: string
@@ -2508,6 +2518,7 @@ export type Database = {
           ai_draft?: string | null
           ai_summary?: string | null
           areas_for_improvement?: string | null
+          calendar_invite_sent?: boolean | null
           company_id?: string
           created_at?: string
           employee_acknowledged_at?: string | null
@@ -2522,6 +2533,7 @@ export type Database = {
           review_date?: string
           review_type?: string
           scheduled_by?: string
+          scheduled_time?: string | null
           status?: string
           strengths?: string | null
           updated_at?: string

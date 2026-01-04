@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
@@ -29,6 +29,7 @@ import { ManagerPriorityActions } from "@/components/ManagerPriorityActions";
 import { RecognitionFeed } from "@/components/RecognitionFeed";
 import { RecognitionAnalytics } from "@/components/RecognitionAnalytics";
 import { RecognitionNudge } from "@/components/RecognitionNudge";
+import { ManagerToDoTab } from "@/components/ManagerToDoTab";
 
 type DirectReport = {
   id: string;
@@ -292,11 +293,16 @@ export default function ManagerDashboard() {
         onStartOneOnOne={handlePriorityOneOnOne}
         onViewCapabilityRequests={handleViewCapabilityRequests}
         onGiveRecognition={handlePriorityRecognition}
+        onViewToDoTab={() => setActiveTab("todo")}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex-wrap">
           <TabsTrigger value="team">Team Overview</TabsTrigger>
+          <TabsTrigger value="todo" className="flex items-center gap-1">
+            <ListTodo className="h-3 w-3" />
+            To-Do
+          </TabsTrigger>
           <TabsTrigger value="recognition">Recognition</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
@@ -416,6 +422,29 @@ export default function ManagerDashboard() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="todo" className="space-y-4">
+          <ManagerToDoTab
+            onStartOneOnOne={(employee) => {
+              setSelectedEmployee({
+                id: employee.id,
+                full_name: employee.full_name,
+                company_id: employee.company_id,
+                email: employee.email
+              });
+              setOneOnOneDialogOpen(true);
+            }}
+            onScheduleReview={(employee) => {
+              setSelectedEmployee({
+                id: employee.id,
+                full_name: employee.full_name,
+                company_id: employee.company_id
+              });
+              setReviewDialogOpen(true);
+            }}
+            onViewRequest={() => setActiveTab("requests")}
+          />
         </TabsContent>
 
         <TabsContent value="recognition" className="space-y-4">

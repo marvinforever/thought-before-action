@@ -29,12 +29,14 @@ interface ManagerPriorityActionsProps {
   onStartOneOnOne: (employee: { id: string; full_name: string; company_id: string }) => void;
   onViewCapabilityRequests: () => void;
   onGiveRecognition: (employee: { id: string; full_name: string; company_id: string }) => void;
+  onViewToDoTab?: () => void;
 }
 
 export function ManagerPriorityActions({
   onStartOneOnOne,
   onViewCapabilityRequests,
   onGiveRecognition,
+  onViewToDoTab,
 }: ManagerPriorityActionsProps) {
   const [actions, setActions] = useState<PriorityAction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,18 +108,30 @@ export function ManagerPriorityActions({
       );
 
       if (overdueEmployees.length > 0) {
-        const firstOverdue = overdueEmployees[0];
-        priorityActions.push({
-          id: `one-on-one-${firstOverdue.id}`,
-          type: "one_on_one",
-          title: overdueEmployees.length > 1 
-            ? `${overdueEmployees.length} team members need a check-in`
-            : `Schedule a 1:1 with ${firstOverdue.full_name}`,
-          subtitle: "No 1:1 in the last 2 weeks",
-          urgency: overdueEmployees.length > 2 ? "high" : "medium",
-          employeeId: firstOverdue.id,
-          employeeName: firstOverdue.full_name,
-        });
+        // If there are multiple overdue employees, show a summary action that links to To-Do tab
+        if (overdueEmployees.length > 1 && onViewToDoTab) {
+          priorityActions.push({
+            id: `overdue-check-ins`,
+            type: "one_on_one",
+            title: `${overdueEmployees.length} team members need a check-in`,
+            subtitle: "View all in your To-Do list",
+            urgency: overdueEmployees.length > 2 ? "high" : "medium",
+            employeeId: "", // Empty - will route to To-Do tab
+            employeeName: "",
+          });
+        } else {
+          // Single overdue employee - show direct 1:1 action
+          const firstOverdue = overdueEmployees[0];
+          priorityActions.push({
+            id: `one-on-one-${firstOverdue.id}`,
+            type: "one_on_one",
+            title: `Schedule a 1:1 with ${firstOverdue.full_name}`,
+            subtitle: "No 1:1 in the last 2 weeks",
+            urgency: "medium",
+            employeeId: firstOverdue.id,
+            employeeName: firstOverdue.full_name,
+          });
+        }
       }
 
       // Check for risk flags
@@ -205,6 +219,12 @@ export function ManagerPriorityActions({
   const handleActionClick = async (action: PriorityAction) => {
     if (action.type === "capability_request") {
       onViewCapabilityRequests();
+      return;
+    }
+
+    // If action has no employeeId and we have onViewToDoTab, route there
+    if (!action.employeeId && onViewToDoTab) {
+      onViewToDoTab();
       return;
     }
 
