@@ -427,12 +427,25 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         role: profile.role,
         company: profile.companies?.name,
       },
-      capabilities: capabilitiesData.data?.map(ec => ({
-        name: ec.capabilities?.name,
-        category: ec.capabilities?.category,
-        current_level: ec.current_level,
-        target_level: ec.target_level,
-      })) || [],
+      capabilities: capabilitiesData.data?.map(ec => {
+        // Map old level names to Level 1-4
+        const mapLevel = (level: string | null): string => {
+          if (!level) return 'Not assessed';
+          const levelMap: Record<string, string> = {
+            'foundational': 'Level 1',
+            'advancing': 'Level 2',
+            'independent': 'Level 3',
+            'mastery': 'Level 4',
+          };
+          return levelMap[level.toLowerCase()] || level;
+        };
+        return {
+          name: ec.capabilities?.name,
+          category: ec.capabilities?.category,
+          current_level: mapLevel(ec.current_level),
+          target_level: mapLevel(ec.target_level),
+        };
+      }) || [],
       goals: {
         professional: {
           one_year: goalsData.data?.one_year_vision,
