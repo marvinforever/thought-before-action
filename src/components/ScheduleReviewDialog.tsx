@@ -6,9 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, CalendarPlus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -19,16 +20,20 @@ interface ScheduleReviewDialogProps {
     id: string;
     full_name: string;
     company_id: string;
+    email?: string;
   };
 }
 
 export function ScheduleReviewDialog({ open, onOpenChange, employee }: ScheduleReviewDialogProps) {
   const [reviewDate, setReviewDate] = useState<Date | undefined>();
+  const [reviewTime, setReviewTime] = useState<string>("10:00");
   const [reviewType, setReviewType] = useState<string>("quarterly");
   const [managerNotes, setManagerNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [aiDraft, setAiDraft] = useState("");
+  const [sendCalendarInvite, setSendCalendarInvite] = useState(false);
+  const [sendingInvite, setSendingInvite] = useState(false);
   const { toast } = useToast();
 
   const handleGenerateReview = async () => {
@@ -94,9 +99,54 @@ export function ScheduleReviewDialog({ open, onOpenChange, employee }: ScheduleR
           manager_notes: managerNotes || null,
           ai_draft: aiDraft || null,
           status: "scheduled",
-        });
+          scheduled_time: reviewTime + ":00",
+          calendar_invite_sent: sendCalendarInvite,
+        } as any);
 
       if (error) throw error;
+
+      // Send calendar invite if requested
+      if (sendCalendarInvite && employee.email) {
+        setSendingInvite(true);
+        try {
+          const { data: manager } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", user.id)
+            .single();
+
+          if (manager?.email) {
+            await supabase.functions.invoke("send-calendar-invite", {
+              body: {
+                managerEmail: manager.email,
+                managerName: manager.full_name || "Manager",
+                employeeEmail: employee.email,
+                employeeName: employee.full_name,
+                meetingType: "review",
+                meetingTitle: `${reviewType.charAt(0).toUpperCase() + reviewType.slice(1)} Review: ${employee.full_name}`,
+                meetingDate: format(reviewDate, "yyyy-MM-dd"),
+                meetingTime: reviewTime,
+                durationMinutes: 60,
+                description: `${reviewType.charAt(0).toUpperCase() + reviewType.slice(1)} performance review scheduled via Jericho`,
+              },
+            });
+
+            toast({
+              title: "Calendar invites sent!",
+              description: `Invites sent to ${manager.email} and ${employee.email}`,
+            });
+          }
+        } catch (inviteError: any) {
+          console.error("Failed to send calendar invite:", inviteError);
+          toast({
+            title: "Review scheduled, but invite failed",
+            description: inviteError.message,
+            variant: "destructive",
+          });
+        } finally {
+          setSendingInvite(false);
+        }
+      }
 
       toast({
         title: "Review scheduled",
@@ -105,9 +155,11 @@ export function ScheduleReviewDialog({ open, onOpenChange, employee }: ScheduleR
 
       // Reset form
       setReviewDate(undefined);
+      setReviewTime("10:00");
       setReviewType("quarterly");
       setManagerNotes("");
       setAiDraft("");
+      setSendCalendarInvite(false);
       onOpenChange(false);
     } catch (error: any) {
       toast({
@@ -150,25 +202,61 @@ export function ScheduleReviewDialog({ open, onOpenChange, employee }: ScheduleR
             </div>
 
             <div className="space-y-2">
-              <Label>Review Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !reviewDate && "text-muted-foreground")}
-                  >
-                    {reviewDate ? format(reviewDate, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={reviewDate}
-                    onSelect={setReviewDate}
-                    initialFocus
+              <Label>Review Date & Time</Label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("flex-1 justify-start text-left font-normal", !reviewDate && "text-muted-foreground")}
+                    >
+                      {reviewDate ? format(reviewDate, "PPP") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={reviewDate}
+                      onSelect={setReviewDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Select value={reviewTime} onValueChange={setReviewTime}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Time" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {Array.from({ length: 19 }, (_, i) => {
+                      const hour = Math.floor(i / 2) + 8;
+                      const min = i % 2 === 0 ? "00" : "30";
+                      const time = `${hour.toString().padStart(2, "0")}:${min}`;
+                      const displayTime = `${hour > 12 ? hour - 12 : hour}:${min} ${hour >= 12 ? "PM" : "AM"}`;
+                      return (
+                        <SelectItem key={time} value={time}>
+                          {displayTime}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              {reviewDate && employee.email && (
+                <div className="flex items-center space-x-2 pt-2">
+                  <Checkbox 
+                    id="send-review-invite" 
+                    checked={sendCalendarInvite}
+                    onCheckedChange={(checked) => setSendCalendarInvite(checked === true)}
                   />
-                </PopoverContent>
-              </Popover>
+                  <label
+                    htmlFor="send-review-invite"
+                    className="text-sm flex items-center gap-1 cursor-pointer"
+                  >
+                    <CalendarPlus className="h-4 w-4 text-muted-foreground" />
+                    Send calendar invite to both of us
+                  </label>
+                </div>
+              )}
             </div>
           </div>
 
@@ -215,8 +303,15 @@ export function ScheduleReviewDialog({ open, onOpenChange, employee }: ScheduleR
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSchedule} disabled={submitting || !reviewDate}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Schedule Review"}
+          <Button onClick={handleSchedule} disabled={submitting || sendingInvite || !reviewDate}>
+            {submitting || sendingInvite ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                {sendingInvite ? "Sending invite..." : "Scheduling..."}
+              </>
+            ) : (
+              "Schedule Review"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

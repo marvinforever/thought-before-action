@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, X, Mic, Square, ChevronDown, ChevronUp, History, Mail, Award, Sparkles } from "lucide-react";
+import { Loader2, Plus, X, Mic, Square, ChevronDown, ChevronUp, History, Mail, Award, Sparkles, CalendarPlus } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, formatDistanceToNow } from "date-fns";
@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface OneOnOneDialogProps {
   open: boolean;
@@ -50,6 +52,9 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
   const [concerns, setConcerns] = useState("");
   const [actionItems, setActionItems] = useState<string[]>([""]);
   const [nextMeetingDate, setNextMeetingDate] = useState<Date | undefined>();
+  const [nextMeetingTime, setNextMeetingTime] = useState<string>("10:00");
+  const [sendCalendarInvite, setSendCalendarInvite] = useState(false);
+  const [sendingInvite, setSendingInvite] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -290,9 +295,54 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
           concerns: concerns || null,
           action_items: validActionItems,
           next_meeting_date: nextMeetingDate ? format(nextMeetingDate, "yyyy-MM-dd") : null,
-        });
+          scheduled_time: nextMeetingDate && nextMeetingTime ? nextMeetingTime + ":00" : null,
+          calendar_invite_sent: sendCalendarInvite && !!nextMeetingDate,
+        } as any);
 
       if (error) throw error;
+
+      // Send calendar invite if requested
+      if (sendCalendarInvite && nextMeetingDate && employee.email) {
+        setSendingInvite(true);
+        try {
+          const { data: manager } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", user.id)
+            .single();
+
+          if (manager?.email) {
+            await supabase.functions.invoke("send-calendar-invite", {
+              body: {
+                managerEmail: manager.email,
+                managerName: manager.full_name || "Manager",
+                employeeEmail: employee.email,
+                employeeName: employee.full_name,
+                meetingType: "one_on_one",
+                meetingTitle: `1:1 Meeting: ${manager.full_name || "Manager"} & ${employee.full_name}`,
+                meetingDate: format(nextMeetingDate, "yyyy-MM-dd"),
+                meetingTime: nextMeetingTime,
+                durationMinutes: 30,
+                description: "Scheduled 1:1 meeting via Jericho",
+              },
+            });
+
+            toast({
+              title: "Calendar invites sent!",
+              description: `Invites sent to ${manager.email} and ${employee.email}`,
+            });
+          }
+        } catch (inviteError: any) {
+          console.error("Failed to send calendar invite:", inviteError);
+          toast({
+            title: "Notes saved, but invite failed",
+            description: inviteError.message,
+            variant: "destructive",
+          });
+        } finally {
+          setSendingInvite(false);
+        }
+      }
 
       toast({
         title: "1-on-1 notes saved",
@@ -305,6 +355,8 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
       setConcerns("");
       setActionItems([""]);
       setNextMeetingDate(undefined);
+      setNextMeetingTime("10:00");
+      setSendCalendarInvite(false);
       onOpenChange(false);
     } catch (error: any) {
       toast({
@@ -590,24 +642,62 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
 
           <div className="space-y-2">
             <Label>Next Meeting Date (Optional)</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn("w-full justify-start text-left font-normal", !nextMeetingDate && "text-muted-foreground")}
-                >
-                  {nextMeetingDate ? format(nextMeetingDate, "PPP") : "Select next meeting date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
-                <Calendar
-                  mode="single"
-                  selected={nextMeetingDate}
-                  onSelect={setNextMeetingDate}
-                  initialFocus
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("flex-1 justify-start text-left font-normal", !nextMeetingDate && "text-muted-foreground")}
+                  >
+                    {nextMeetingDate ? format(nextMeetingDate, "PPP") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={nextMeetingDate}
+                    onSelect={setNextMeetingDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              {nextMeetingDate && (
+                <Select value={nextMeetingTime} onValueChange={setNextMeetingTime}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Time" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {Array.from({ length: 19 }, (_, i) => {
+                      const hour = Math.floor(i / 2) + 8;
+                      const min = i % 2 === 0 ? "00" : "30";
+                      const time = `${hour.toString().padStart(2, "0")}:${min}`;
+                      const displayTime = `${hour > 12 ? hour - 12 : hour}:${min} ${hour >= 12 ? "PM" : "AM"}`;
+                      return (
+                        <SelectItem key={time} value={time}>
+                          {displayTime}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            {nextMeetingDate && employee.email && (
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox 
+                  id="send-invite" 
+                  checked={sendCalendarInvite}
+                  onCheckedChange={(checked) => setSendCalendarInvite(checked === true)}
                 />
-              </PopoverContent>
-            </Popover>
+                <label
+                  htmlFor="send-invite"
+                  className="text-sm flex items-center gap-1 cursor-pointer"
+                >
+                  <CalendarPlus className="h-4 w-4 text-muted-foreground" />
+                  Send calendar invite to both of us
+                </label>
+              </div>
+            )}
           </div>
         </div>
 
@@ -615,8 +705,15 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Notes"}
+          <Button onClick={handleSubmit} disabled={submitting || sendingInvite}>
+            {submitting || sendingInvite ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                {sendingInvite ? "Sending invite..." : "Saving..."}
+              </>
+            ) : (
+              "Save Notes"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
