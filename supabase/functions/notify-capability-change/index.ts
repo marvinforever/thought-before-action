@@ -124,7 +124,7 @@ serve(async (req) => {
 
     try {
       const emailResult = await resend.emails.send({
-        from: "Growth Team <onboarding@resend.dev>",
+        from: "Jericho <jericho@askjericho.com>",
         to: [profile.email],
         subject: emailSubject,
         html: emailHtml,

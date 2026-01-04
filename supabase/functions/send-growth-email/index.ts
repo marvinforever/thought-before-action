@@ -482,12 +482,12 @@ ${voiceConversationSummary ? '\n\nNOTE: They had voice conversations with you th
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Jericho <onboarding@resend.dev>",
+        from: "Jericho <jericho@askjericho.com>",
         to: [recipientEmail],
         subject: emailContent.subject,
         html: html,
         headers: {
-          "Reply-To": "jericho@yourdomain.com",
+          "Reply-To": "jericho@askjericho.com",
           "Message-ID": messageId,
         },
       }),
