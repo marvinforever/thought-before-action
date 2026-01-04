@@ -30,6 +30,8 @@ import { RecognitionFeed } from "@/components/RecognitionFeed";
 import { RecognitionAnalytics } from "@/components/RecognitionAnalytics";
 import { RecognitionNudge } from "@/components/RecognitionNudge";
 import { ManagerToDoTab } from "@/components/ManagerToDoTab";
+import { MeetingRequestsSection } from "@/components/MeetingRequestsSection";
+import { PrepareConversationButton } from "@/components/PrepareConversationButton";
 
 type DirectReport = {
   id: string;
@@ -271,6 +273,11 @@ export default function ManagerDashboard() {
                   </div>
                 </div>
               </div>
+              <PrepareConversationButton 
+                variant="default"
+                size="lg"
+                className="bg-white/10 hover:bg-white/20 border-white/20 text-primary-foreground"
+              />
               <Button 
                 onClick={() => setManageTeamDialogOpen(true)}
                 variant="accent"
@@ -287,6 +294,17 @@ export default function ManagerDashboard() {
 
       {/* Recognition Nudge */}
       <RecognitionNudge onRecognize={handlePriorityRecognition} />
+
+      {/* Meeting Requests from Team Members */}
+      <MeetingRequestsSection 
+        onScheduleMeeting={(employeeId, employeeName) => {
+          const dr = directReports.find(r => r.id === employeeId);
+          if (dr) {
+            setSelectedEmployee({ id: employeeId, full_name: employeeName, company_id: dr.company_id, email: dr.email });
+            setOneOnOneDialogOpen(true);
+          }
+        }}
+      />
 
       {/* Priority Actions - New Quick Action Panel */}
       <ManagerPriorityActions

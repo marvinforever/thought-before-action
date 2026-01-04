@@ -4,7 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, FileText, MessageSquare } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PersonalVisionCard from "@/components/PersonalVisionCard";
@@ -22,6 +23,7 @@ import { DailyPodcastPlayer } from "@/components/DailyPodcastPlayer";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
+import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
 
 type JobDescription = {
   id: string;
@@ -42,6 +44,7 @@ export default function MyGrowthPlan() {
   const [podcastRefreshKey, setPodcastRefreshKey] = useState(0);
   const [onboardingProgressKey, setOnboardingProgressKey] = useState(0);
   const [onboardingWizardForceKey, setOnboardingWizardForceKey] = useState(0);
+  const [requestMeetingOpen, setRequestMeetingOpen] = useState(false);
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
@@ -131,7 +134,18 @@ export default function MyGrowthPlan() {
               Your personalized development journey and goals
             </p>
           </div>
-          <StreakBadge className="bg-white/10 border-white/20" />
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={() => setRequestMeetingOpen(true)}
+              className="bg-white/10 hover:bg-white/20 border-white/20"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Request Meeting
+            </Button>
+            <StreakBadge className="bg-white/10 border-white/20" />
+          </div>
         </div>
       </div>
 
@@ -301,6 +315,12 @@ export default function MyGrowthPlan() {
       <FloatingJerichoButton 
         isOpen={jerichoOpen}
         onOpenChange={setJerichoOpen}
+      />
+
+      {/* Request Meeting Dialog */}
+      <RequestMeetingDialog
+        open={requestMeetingOpen}
+        onOpenChange={setRequestMeetingOpen}
       />
     </div>
   );

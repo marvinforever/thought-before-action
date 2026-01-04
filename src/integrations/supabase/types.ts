@@ -2320,6 +2320,73 @@ export type Database = {
           },
         ]
       }
+      meeting_requests: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          manager_notes: string | null
+          preferred_date: string | null
+          requested_manager_id: string
+          requester_id: string
+          scheduled_date: string | null
+          status: string | null
+          topic: string | null
+          updated_at: string | null
+          urgency: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          manager_notes?: string | null
+          preferred_date?: string | null
+          requested_manager_id: string
+          requester_id: string
+          scheduled_date?: string | null
+          status?: string | null
+          topic?: string | null
+          updated_at?: string | null
+          urgency?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          manager_notes?: string | null
+          preferred_date?: string | null
+          requested_manager_id?: string
+          requester_id?: string
+          scheduled_date?: string | null
+          status?: string | null
+          topic?: string | null
+          updated_at?: string | null
+          urgency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_requests_requested_manager_id_fkey"
+            columns: ["requested_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ninety_day_targets: {
         Row: {
           benchmarks: Json | null
