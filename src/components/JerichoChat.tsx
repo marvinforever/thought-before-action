@@ -423,8 +423,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            disabled={isLoading}
+            placeholder={isLoading ? "Jericho is typing..." : "Type your message..."}
             className="flex-1"
           />
           <Button
