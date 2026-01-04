@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, Trash2, Plus, Search, BookOpen, FileQuestion, ScrollText, HelpCircle } from "lucide-react";
+import { Upload, FileText, Trash2, Plus, Search, BookOpen, FileQuestion, ScrollText, HelpCircle, Pencil } from "lucide-react";
 
 interface KnowledgeDoc {
   id: string;
@@ -47,11 +47,19 @@ export default function CompanyKnowledgeTab() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<KnowledgeDoc | null>(null);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
   // Form state
   const [newDoc, setNewDoc] = useState({
+    title: "",
+    content: "",
+    document_type: "policy",
+    category: "HR",
+  });
+  const [editDoc, setEditDoc] = useState({
     title: "",
     content: "",
     document_type: "policy",
@@ -209,7 +217,7 @@ export default function CompanyKnowledgeTab() {
 
       if (error) throw error;
 
-      toast({ title: "Document deleted" });
+      toast({ title: "Document deleted", description: "Jericho will no longer reference this document." });
       loadDocuments();
     } catch (error) {
       console.error("Error deleting:", error);
@@ -218,6 +226,62 @@ export default function CompanyKnowledgeTab() {
         description: "Failed to delete document",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleEditOpen = (doc: KnowledgeDoc) => {
+    setEditingDoc(doc);
+    setEditDoc({
+      title: doc.title,
+      content: doc.content || "",
+      document_type: doc.document_type,
+      category: doc.category || "HR",
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateDocument = async () => {
+    if (!editingDoc || !editDoc.title.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a document title",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { error } = await supabase
+        .from("company_knowledge")
+        .update({
+          title: editDoc.title.trim(),
+          content: editDoc.content.trim() || null,
+          document_type: editDoc.document_type,
+          category: editDoc.category,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingDoc.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Document updated",
+        description: "Jericho will now use the updated information when answering questions.",
+      });
+
+      setIsEditOpen(false);
+      setEditingDoc(null);
+      loadDocuments();
+    } catch (error) {
+      console.error("Error updating document:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update document",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -421,20 +485,107 @@ export default function CompanyKnowledgeTab() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(doc)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditOpen(doc)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(doc)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Document</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <label className="text-sm font-medium">Title *</label>
+              <Input
+                value={editDoc.title}
+                onChange={(e) => setEditDoc(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="e.g., PTO Policy 2024"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Type</label>
+                <Select
+                  value={editDoc.document_type}
+                  onValueChange={(v) => setEditDoc(prev => ({ ...prev, document_type: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DOCUMENT_TYPES.map(type => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Category</label>
+                <Select
+                  value={editDoc.category}
+                  onValueChange={(v) => setEditDoc(prev => ({ ...prev, category: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Content</label>
+              <Textarea
+                value={editDoc.content}
+                onChange={(e) => setEditDoc(prev => ({ ...prev, content: e.target.value }))}
+                placeholder="Paste policy text here..."
+                rows={8}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Update this text to change what Jericho knows. Changes take effect immediately.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateDocument} disabled={uploading}>
+                {uploading ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Info box */}
       <Card className="bg-muted/50 border-dashed">
@@ -448,6 +599,10 @@ export default function CompanyKnowledgeTab() {
                 "How do I submit an expense report?", Jericho will search your knowledge 
                 base and answer using your company's specific policies. Only employees 
                 from your company can access this information.
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong>Tip:</strong> When policies change, just edit or replace the document here. 
+                Jericho will automatically use the updated information in all future conversations.
               </p>
             </div>
           </div>
