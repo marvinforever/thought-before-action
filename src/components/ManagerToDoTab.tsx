@@ -20,7 +20,7 @@ import { format, differenceInDays, isPast, isToday } from "date-fns";
 
 interface ToDoItem {
   id: string;
-  type: "overdue_checkin" | "scheduled_1on1" | "upcoming_review" | "pending_request";
+  type: "overdue_checkin" | "scheduled_1on1" | "upcoming_review" | "pending_request" | "meeting_request";
   title: string;
   subtitle: string;
   date?: string;
@@ -37,9 +37,10 @@ interface ManagerToDoTabProps {
   onStartOneOnOne: (employee: { id: string; full_name: string; company_id: string; email?: string }) => void;
   onScheduleReview: (employee: { id: string; full_name: string; company_id: string }) => void;
   onViewRequest: (requestId: string) => void;
+  onHandleMeetingRequest?: (employeeId: string, employeeName: string) => void;
 }
 
-export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewRequest }: ManagerToDoTabProps) {
+export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewRequest, onHandleMeetingRequest }: ManagerToDoTabProps) {
   const [items, setItems] = useState<ToDoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -214,6 +215,48 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
         });
       });
 
+      // 5. Pending meeting requests
+      let meetingRequestsQuery = supabase
+        .from("meeting_requests")
+        .select(`
+          id,
+          requester_id,
+          topic,
+          urgency,
+          preferred_date,
+          created_at,
+          profiles!meeting_requests_requester_id_fkey(full_name, email)
+        `)
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+
+      if (viewAsCompanyId) {
+        meetingRequestsQuery = meetingRequestsQuery.eq("company_id", viewAsCompanyId);
+      } else {
+        meetingRequestsQuery = meetingRequestsQuery.eq("requested_manager_id", user.id);
+      }
+
+      const { data: meetingRequests } = await meetingRequestsQuery;
+
+      meetingRequests?.forEach((request: any) => {
+        const daysSinceRequest = differenceInDays(new Date(), new Date(request.created_at));
+        const dr = directReports.find((d: any) => d.id === request.requester_id);
+        
+        todoItems.push({
+          id: `meeting-${request.id}`,
+          type: "meeting_request",
+          title: `${request.profiles?.full_name} requested a meeting`,
+          subtitle: request.topic || "No topic specified",
+          date: request.preferred_date,
+          urgency: request.urgency === "high" ? "high" : daysSinceRequest > 3 ? "medium" : "low",
+          employeeId: request.requester_id,
+          employeeName: request.profiles?.full_name || "Employee",
+          companyId: dr?.company_id || "",
+          email: request.profiles?.email,
+          meta: { meetingRequestId: request.id }
+        });
+      });
+
       // Sort by urgency
       const urgencyOrder = { high: 0, medium: 1, low: 2 };
       todoItems.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
@@ -232,6 +275,7 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
       case "scheduled_1on1": return MessageSquare;
       case "upcoming_review": return ClipboardCheck;
       case "pending_request": return Target;
+      case "meeting_request": return User;
     }
   };
 
@@ -241,6 +285,7 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
       case "scheduled_1on1": return "text-blue-500 bg-blue-500/10";
       case "upcoming_review": return "text-purple-500 bg-purple-500/10";
       case "pending_request": return "text-emerald-500 bg-emerald-500/10";
+      case "meeting_request": return "text-pink-500 bg-pink-500/10";
     }
   };
 
@@ -273,6 +318,19 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
       case "pending_request":
         if (item.meta?.requestId) {
           onViewRequest(item.meta.requestId);
+        }
+        break;
+      case "meeting_request":
+        if (onHandleMeetingRequest) {
+          onHandleMeetingRequest(item.employeeId, item.employeeName);
+        } else {
+          // Fallback to starting a 1:1
+          onStartOneOnOne({
+            id: item.employeeId,
+            full_name: item.employeeName,
+            company_id: item.companyId,
+            email: item.email
+          });
         }
         break;
     }
@@ -327,6 +385,7 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
     scheduled: activeItems.filter(i => i.type === "scheduled_1on1"),
     reviews: activeItems.filter(i => i.type === "upcoming_review"),
     requests: activeItems.filter(i => i.type === "pending_request"),
+    meetingRequests: activeItems.filter(i => i.type === "meeting_request"),
   };
 
   return (
@@ -373,10 +432,23 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
             </div>
             <div>
               <p className="text-2xl font-bold">{groupedItems.requests.length}</p>
-              <p className="text-xs text-muted-foreground">Pending Requests</p>
+              <p className="text-xs text-muted-foreground">Capability Requests</p>
             </div>
           </CardContent>
         </Card>
+        {groupedItems.meetingRequests.length > 0 && (
+          <Card className="border-pink-500/50 bg-pink-500/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-pink-500/10">
+                <User className="h-5 w-5 text-pink-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{groupedItems.meetingRequests.length}</p>
+                <p className="text-xs text-muted-foreground">Meeting Requests</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* To-Do List */}
@@ -432,7 +504,7 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
                   size="sm"
                   onClick={() => handleItemClick(item)}
                 >
-                  {item.type === "pending_request" ? "Review" : "Start"}
+                  {item.type === "pending_request" ? "Review" : item.type === "meeting_request" ? "Schedule" : "Start"}
                 </Button>
               </motion.div>
             );
