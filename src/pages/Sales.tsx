@@ -128,7 +128,7 @@ const Sales = () => {
           >
             <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/30">
               <Users className="w-4 h-4 text-accent" />
-              <span className="text-accent font-medium text-sm">For growth minded leaders</span>
+              <span className="text-accent font-medium text-sm">For Growth minded leaders looking to...</span>
             </motion.div>
             
             <motion.h1 
