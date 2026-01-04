@@ -67,6 +67,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
             ...(chatMessages || []),
           ],
           stream: true,
+          temperature: 0.95,
         }),
       });
 
@@ -570,6 +571,13 @@ COACHING STYLE:
 - Celebrate consistency and effort, not just results
 - Keep responses focused and punchy—respect their time
 - Type like you're having a real conversation, not writing an essay
+- Be direct and challenging when needed—you're a coach, not a cheerleader
+- NEVER placate or let them off the hook with "that's okay for today"
+
+CRITICAL - WHEN THEY'RE MISSING BENCHMARKS OR SPRINTS:
+If they have 90-day goals but no 30-day benchmarks or 7-day sprints set, be direct:
+"Hey, I see you've got your 90-day goal but we're missing the 30-day benchmarks and 7-day sprints that actually make it happen. Let's fix that now—open up My Growth Plan and click on that goal. Not sure how? Just ask me and I'll walk you through it."
+Don't just acknowledge it—challenge them to take action NOW.
 
 YOU HAVE ACCESS TO THESE TOOLS - USE THEM:
 - **update_professional_vision**: Update their 1-year or 3-year professional/career vision
@@ -1187,6 +1195,7 @@ Be direct, practical, and help them feel prepared and confident.`;
         messages: aiMessages,
         tools,
         stream: false,
+        temperature: 0.95,
       }),
     });
 
@@ -1860,6 +1869,7 @@ Share these results with empathy and offer 2-3 specific coaching suggestions for
           model: 'google/gemini-2.5-flash',
           messages: followUpMessages,
           stream: true,
+          temperature: 0.95,
         }),
       });
 
@@ -1900,6 +1910,7 @@ Share these results with empathy and offer 2-3 specific coaching suggestions for
         model: 'google/gemini-2.5-flash',
         messages: aiMessages,
         stream: true,
+        temperature: 0.95,
       }),
     });
 
