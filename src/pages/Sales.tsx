@@ -42,7 +42,7 @@ const Sales = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md border-b border-primary">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -67,7 +67,7 @@ const Sales = () => {
       </nav>
 
       {/* Hero - Navy background with gold accents */}
-      <section className="pt-32 pb-24 px-6 bg-primary relative overflow-hidden">
+      <section className="pt-28 pb-16 px-6 bg-primary relative overflow-hidden">
         <div className="absolute top-20 -right-32 w-[500px] h-[500px] bg-accent/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 -left-32 w-[400px] h-[400px] bg-accent/10 rounded-full blur-[100px]" />
         
@@ -76,7 +76,7 @@ const Sales = () => {
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
-            className="space-y-8"
+            className="space-y-6"
           >
             <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/30">
               <Users className="w-4 h-4 text-accent" />
@@ -99,7 +99,7 @@ const Sales = () => {
               Jericho is an AI-powered performance management system that teaches people how to define success, execute with clarity, and grow into mastery — <span className="text-primary-foreground font-medium">without leaders having to carry everything.</span>
             </motion.p>
 
-            <motion.div variants={fadeIn} className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <motion.div variants={fadeIn} className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
               <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-8 py-6 shadow-xl shadow-accent/30" onClick={handleDemoRequest}>
                 Book a Clarity Call
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -109,7 +109,7 @@ const Sales = () => {
               </Button>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="flex flex-wrap items-center justify-center gap-6 pt-4 text-sm text-primary-foreground/70">
+            <motion.div variants={fadeIn} className="flex flex-wrap items-center justify-center gap-6 text-sm text-primary-foreground/70">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-accent" />
                 30-day free trial
@@ -125,64 +125,67 @@ const Sales = () => {
             </motion.div>
           </motion.div>
         </div>
+        
+        {/* Angled divider */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-highlight-gold" style={{ clipPath: 'polygon(0 100%, 100% 100%, 100% 0)' }} />
       </section>
 
       {/* PERSON - Who This Is For */}
-      <section className="py-20 px-6 bg-highlight-gold">
+      <section className="pt-8 pb-12 px-6 bg-highlight-gold relative">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-12"
+            className="space-y-8"
           >
-            <motion.div variants={fadeIn} className="text-center space-y-4">
-              <p className="text-accent-foreground font-semibold uppercase tracking-wide">Who This Is For</p>
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <p className="text-accent-foreground font-semibold uppercase tracking-wide text-sm">Who This Is For</p>
               <h2 className="text-3xl md:text-4xl font-bold text-primary">This Is For Leaders Who Are...</h2>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-6">
+            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-4">
               {[
                 "Running a 25–300 person organization",
                 "Values-driven, growth-minded, and serious about execution",
                 "Tired of being the bottleneck for clarity, accountability, and development",
                 "Carrying too much in their head because systems haven't caught up to scale"
               ].map((item, i) => (
-                <div key={i} className="flex items-start gap-4 p-6 bg-background rounded-xl border-2 border-primary/10 shadow-lg">
-                  <CheckCircle2 className="h-6 w-6 text-accent flex-shrink-0 mt-0.5" />
-                  <p className="text-lg text-primary">{item}</p>
+                <div key={i} className="flex items-start gap-3 p-5 bg-background/80 backdrop-blur-sm rounded-xl border border-primary/10 shadow-sm hover:shadow-md hover:bg-background transition-all duration-300">
+                  <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+                  <p className="text-primary font-medium">{item}</p>
                 </div>
               ))}
             </motion.div>
 
-            <motion.div variants={fadeIn} className="bg-primary rounded-2xl p-8 text-center">
-              <p className="text-xl text-primary-foreground/80 mb-2">You're not struggling because you're a bad leader.</p>
-              <p className="text-xl text-primary-foreground font-semibold">You're struggling because your people don't yet have a system that teaches them how to lead themselves.</p>
+            <motion.div variants={fadeIn} className="bg-gradient-to-r from-primary to-primary/90 rounded-2xl p-6 text-center shadow-lg">
+              <p className="text-primary-foreground/80 mb-1">You're not struggling because you're a bad leader.</p>
+              <p className="text-lg text-primary-foreground font-semibold">You're struggling because your people don't yet have a system that teaches them how to lead themselves.</p>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* PROBLEM - The Real Frustration */}
-      <section className="py-20 px-6 bg-background">
+      <section className="py-12 px-6 bg-background relative">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-12"
+            className="space-y-8"
           >
-            <motion.div variants={fadeIn} className="text-center space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/20">
-                <span className="text-destructive font-semibold uppercase tracking-wide text-sm">The Real Problem</span>
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20">
+                <span className="text-destructive font-semibold uppercase tracking-wide text-xs">The Real Problem</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-bold">On Paper, You Have Talent.</h2>
-              <p className="text-xl text-muted-foreground">In reality, you're still...</p>
+              <p className="text-lg text-muted-foreground">In reality, you're still...</p>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <motion.div variants={fadeIn} className="flex flex-wrap justify-center gap-3">
               {[
                 "Re-explaining expectations",
                 "Re-selling the vision",
@@ -190,59 +193,68 @@ const Sales = () => {
                 "Managing emotional 1:1s instead of developmental ones",
                 "Watching capable people plateau instead of grow"
               ].map((item, i) => (
-                <div key={i} className="p-5 bg-destructive/5 border-2 border-destructive/20 rounded-xl">
-                  <p className="text-foreground font-medium">{item}</p>
+                <div key={i} className="px-4 py-2.5 bg-destructive/5 border border-destructive/15 rounded-full hover:bg-destructive/10 transition-colors">
+                  <p className="text-foreground font-medium text-sm">{item}</p>
                 </div>
               ))}
             </motion.div>
 
-            <motion.div variants={fadeIn} className="bg-primary rounded-2xl p-8 md:p-12 text-center space-y-4">
-              <p className="text-xl text-primary-foreground/80">Your biggest frustration isn't effort. It's this:</p>
-              <p className="text-2xl md:text-3xl font-bold max-w-3xl mx-auto text-primary-foreground">
+            <motion.div variants={fadeIn} className="bg-gradient-to-br from-primary via-primary to-primary/95 rounded-2xl p-8 text-center space-y-3 shadow-xl">
+              <p className="text-primary-foreground/80">Your biggest frustration isn't effort. It's this:</p>
+              <p className="text-xl md:text-2xl font-bold max-w-3xl mx-auto text-primary-foreground leading-snug">
                 Your team wants to do great work — but they don't clearly know what "great" looks like in their role, or how to move themselves forward consistently.
               </p>
-              <p className="text-xl text-accent font-semibold">And without that clarity, everything falls back on you.</p>
+              <p className="text-lg text-accent font-semibold pt-1">And without that clarity, everything falls back on you.</p>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* PROMISE - The Transformation */}
-      <section className="py-20 px-6 bg-primary text-primary-foreground">
-        <div className="max-w-5xl mx-auto">
+      <section className="py-12 px-6 bg-primary text-primary-foreground relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/90" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-accent/10 rounded-full blur-[100px]" />
+        
+        <div className="max-w-5xl mx-auto relative">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-12"
+            className="space-y-8"
           >
-            <motion.div variants={fadeIn} className="text-center space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/30">
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/20 border border-accent/30">
                 <Sparkles className="w-4 h-4 text-accent" />
-                <span className="text-accent font-semibold uppercase tracking-wide text-sm">The Transformation</span>
+                <span className="text-accent font-semibold uppercase tracking-wide text-xs">The Transformation</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-bold">From Carrying Everything → To Scaling Leadership</h2>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-8">
-              <div className="bg-primary-foreground/5 rounded-2xl p-8 border border-primary-foreground/10">
-                <h3 className="text-xl font-semibold text-destructive mb-6">From:</h3>
-                <ul className="space-y-4">
+            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-6">
+              <div className="bg-primary-foreground/5 backdrop-blur-sm rounded-xl p-6 border border-primary-foreground/10">
+                <h3 className="text-lg font-semibold text-destructive/90 mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-destructive rounded-full" />
+                  From:
+                </h3>
+                <ul className="space-y-3">
                   {["Ambiguity", "Leader-dependence", "Reactive execution", "Subjective performance conversations"].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-primary-foreground/70">
-                      <span className="w-2 h-2 bg-destructive rounded-full" />
+                    <li key={i} className="flex items-center gap-3 text-primary-foreground/70 text-sm">
+                      <span className="w-1.5 h-1.5 bg-primary-foreground/40 rounded-full" />
                       {item}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-accent/10 rounded-2xl p-8 border border-accent/30">
-                <h3 className="text-xl font-semibold text-accent mb-6">To:</h3>
-                <ul className="space-y-4">
+              <div className="bg-gradient-to-br from-accent/20 to-accent/10 backdrop-blur-sm rounded-xl p-6 border border-accent/30">
+                <h3 className="text-lg font-semibold text-accent mb-4 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  To:
+                </h3>
+                <ul className="space-y-3">
                   {["Clear role ownership", "Focused execution", "Objective growth paths", "People who think, plan, and progress independently"].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-primary-foreground font-medium">
-                      <CheckCircle2 className="h-5 w-5 text-accent" />
+                    <li key={i} className="flex items-center gap-3 text-primary-foreground font-medium text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
                       {item}
                     </li>
                   ))}
@@ -251,7 +263,7 @@ const Sales = () => {
             </motion.div>
 
             <motion.div variants={fadeIn} className="text-center">
-              <p className="text-2xl font-medium max-w-3xl mx-auto">
+              <p className="text-xl font-medium max-w-3xl mx-auto">
                 Jericho gives your people clarity — and gives you your <span className="text-accent">leadership capacity back.</span>
               </p>
             </motion.div>
@@ -260,36 +272,36 @@ const Sales = () => {
       </section>
 
       {/* PROCESS - How Jericho Works */}
-      <section className="py-20 px-6 bg-background">
+      <section className="py-14 px-6 bg-gradient-to-b from-background to-muted/30">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-16"
+            className="space-y-10"
           >
-            <motion.div variants={fadeIn} className="text-center space-y-4">
-              <p className="text-accent font-semibold uppercase tracking-wide">How It Works</p>
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <p className="text-accent font-semibold uppercase tracking-wide text-sm">How It Works</p>
               <h2 className="text-3xl md:text-4xl font-bold">A Simple, Repeatable System for Clarity & Momentum</h2>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <motion.div variants={fadeIn} className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {[
                 {
                   icon: Target,
                   title: "1. Define Success Clearly",
-                  description: "Each employee knows what they own, what 'great' looks like, and how success is measured. No vague expectations. No guessing."
+                  description: "Each employee knows what they own, what 'great' looks like, and how success is measured."
                 },
                 {
                   icon: TrendingUp,
                   title: "2. Build Vision at the Right Altitude",
-                  description: "Employees create 1–3 year role visions and quarterly targets. They learn how to choose the right priorities, not just more goals."
+                  description: "Employees create 1–3 year role visions and quarterly targets. They learn how to choose the right priorities."
                 },
                 {
                   icon: Calendar,
                   title: "3. Execute with Rhythm",
-                  description: "Quarterly targets → 30-day benchmarks → 7-day sprints. Always the next right move. No overwhelm."
+                  description: "Quarterly targets → 30-day benchmarks → 7-day sprints. Always the next right move."
                 },
                 {
                   icon: BarChart3,
@@ -299,20 +311,20 @@ const Sales = () => {
                 {
                   icon: Sparkles,
                   title: "5. Grow Into Mastery",
-                  description: "Clear capability levels show where someone is, what 'better' looks like, and what to work on next. Growth becomes visible and motivating."
+                  description: "Clear capability levels show where someone is, what 'better' looks like, and what to work on next."
                 },
                 {
                   icon: MessageSquare,
                   title: "6. Transform 1:1s",
-                  description: "Data-backed performance agendas replace emotional check-ins. Conversations become focused, developmental, and forward-moving."
+                  description: "Data-backed performance agendas replace emotional check-ins. Conversations become focused and developmental."
                 }
               ].map((step, i) => (
-                <div key={i} className="p-6 bg-card rounded-xl border-2 border-border hover:border-accent transition-colors group shadow-lg">
-                  <div className="w-14 h-14 bg-accent/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
-                    <step.icon className="h-7 w-7 text-accent" />
+                <div key={i} className="group p-5 bg-card rounded-xl border border-border hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300">
+                  <div className="w-12 h-12 bg-gradient-to-br from-accent/20 to-accent/10 rounded-xl flex items-center justify-center mb-4 group-hover:from-accent/30 group-hover:to-accent/20 transition-all">
+                    <step.icon className="h-6 w-6 text-accent" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-3 text-primary">{step.title}</h3>
-                  <p className="text-muted-foreground">{step.description}</p>
+                  <h3 className="text-lg font-semibold mb-2 text-primary">{step.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
                 </div>
               ))}
             </motion.div>
@@ -321,38 +333,38 @@ const Sales = () => {
       </section>
 
       {/* What This Changes for Leaders */}
-      <section className="py-20 px-6 bg-highlight-gold">
+      <section className="py-12 px-6 bg-highlight-gold">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-12"
+            className="space-y-8"
           >
-            <motion.div variants={fadeIn} className="text-center space-y-4">
-              <p className="text-accent-foreground font-semibold uppercase tracking-wide">For Leaders</p>
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <p className="text-accent-foreground font-semibold uppercase tracking-wide text-sm">For Leaders</p>
               <h2 className="text-3xl md:text-4xl font-bold text-primary">What This Changes For You</h2>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-8">
-              <div className="bg-background rounded-2xl p-8 border-2 border-muted shadow-lg">
-                <h3 className="text-xl font-semibold text-muted-foreground mb-6">Less of this:</h3>
-                <ul className="space-y-4">
+            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-5">
+              <div className="bg-background/80 backdrop-blur-sm rounded-xl p-6 border border-muted">
+                <h3 className="text-lg font-semibold text-muted-foreground mb-4">Less of this:</h3>
+                <ul className="space-y-3">
                   {["Chasing", "Reminding", "Babysitting"].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-lg text-muted-foreground">
-                      <span className="w-3 h-3 bg-muted-foreground/50 rounded-full" />
+                    <li key={i} className="flex items-center gap-3 text-muted-foreground">
+                      <span className="w-2 h-2 bg-muted-foreground/50 rounded-full" />
                       {item}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-primary rounded-2xl p-8 border-2 border-accent shadow-lg">
-                <h3 className="text-xl font-semibold text-accent mb-6">More of this:</h3>
-                <ul className="space-y-4">
+              <div className="bg-gradient-to-br from-primary to-primary/95 rounded-xl p-6 border border-accent/30 shadow-lg">
+                <h3 className="text-lg font-semibold text-accent mb-4">More of this:</h3>
+                <ul className="space-y-3">
                   {["Ownership", "Consistency", "Faster development", "Stronger execution"].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-lg font-medium text-primary-foreground">
-                      <Zap className="h-5 w-5 text-accent" />
+                    <li key={i} className="flex items-center gap-3 font-medium text-primary-foreground">
+                      <Zap className="h-4 w-4 text-accent" />
                       {item}
                     </li>
                   ))}
@@ -360,8 +372,8 @@ const Sales = () => {
               </div>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="bg-primary rounded-2xl p-8 text-center">
-              <p className="text-2xl font-medium text-primary-foreground">
+            <motion.div variants={fadeIn} className="text-center">
+              <p className="text-xl font-medium text-primary">
                 Jericho doesn't replace leadership. <span className="text-accent">It scales leadership.</span>
               </p>
             </motion.div>
@@ -370,49 +382,49 @@ const Sales = () => {
       </section>
 
       {/* PROOF - Why This Works + Logos */}
-      <section className="py-20 px-6 bg-background">
+      <section className="py-14 px-6 bg-background">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-16"
+            className="space-y-10"
           >
-            <motion.div variants={fadeIn} className="text-center space-y-4">
-              <p className="text-accent font-semibold uppercase tracking-wide">Why It Works</p>
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <p className="text-accent font-semibold uppercase tracking-wide text-sm">Why It Works</p>
               <h2 className="text-3xl md:text-4xl font-bold">Jericho Solves What Most Systems Avoid</h2>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="grid sm:grid-cols-2 gap-6">
+            <motion.div variants={fadeIn} className="grid sm:grid-cols-2 gap-4">
               {[
                 "Removes subjectivity from performance",
                 "Gives leaders and employees shared language",
                 "Replaces emotional conversations with objective clarity",
                 "Turns development into something people can actually see"
               ].map((item, i) => (
-                <div key={i} className="flex items-start gap-4 p-6 bg-accent/10 rounded-xl border-2 border-accent/30 shadow-lg">
-                  <CheckCircle2 className="h-6 w-6 text-accent flex-shrink-0 mt-0.5" />
-                  <p className="text-lg font-medium text-primary">{item}</p>
+                <div key={i} className="flex items-start gap-3 p-4 bg-gradient-to-r from-accent/10 to-accent/5 rounded-xl border border-accent/20 hover:border-accent/40 transition-colors">
+                  <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+                  <p className="font-medium text-primary">{item}</p>
                 </div>
               ))}
             </motion.div>
 
-            <motion.div variants={fadeIn} className="bg-primary rounded-2xl p-8 md:p-12 text-center space-y-4">
-              <p className="text-primary-foreground/70">Instead of asking:</p>
-              <p className="text-xl text-primary-foreground/80 italic">"How do I get my people to care more?"</p>
-              <p className="text-primary-foreground/70">Leaders start saying:</p>
-              <p className="text-2xl font-bold text-accent">"My people finally know how to move themselves forward."</p>
+            <motion.div variants={fadeIn} className="bg-gradient-to-br from-primary via-primary to-primary/95 rounded-2xl p-8 text-center space-y-3 shadow-xl">
+              <p className="text-primary-foreground/70 text-sm">Instead of asking:</p>
+              <p className="text-lg text-primary-foreground/80 italic">"How do I get my people to care more?"</p>
+              <p className="text-primary-foreground/70 text-sm">Leaders start saying:</p>
+              <p className="text-xl font-bold text-accent">"My people finally know how to move themselves forward."</p>
             </motion.div>
 
-            {/* Customer Logos Placeholder */}
-            <motion.div variants={fadeIn} className="space-y-6">
-              <p className="text-center text-muted-foreground font-medium">Trusted by growth-minded organizations</p>
-              <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
+            {/* Customer Logos */}
+            <motion.div variants={fadeIn} className="space-y-4">
+              <p className="text-center text-muted-foreground text-sm font-medium">Trusted by growth-minded organizations</p>
+              <div className="flex flex-wrap justify-center items-center gap-6">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div 
                     key={i} 
-                    className="w-32 h-12 bg-muted rounded-lg flex items-center justify-center text-muted-foreground text-sm border-2 border-border"
+                    className="w-28 h-10 bg-muted/50 rounded-lg flex items-center justify-center text-muted-foreground text-xs border border-border"
                   >
                     Logo {i}
                   </div>
@@ -424,22 +436,25 @@ const Sales = () => {
       </section>
 
       {/* PRODUCT - What Jericho Is */}
-      <section className="py-20 px-6 bg-primary text-primary-foreground">
-        <div className="max-w-5xl mx-auto">
+      <section className="py-12 px-6 bg-primary text-primary-foreground relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/90" />
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-accent/10 rounded-full blur-[80px]" />
+        
+        <div className="max-w-5xl mx-auto relative">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-12"
+            className="space-y-8"
           >
-            <motion.div variants={fadeIn} className="text-center space-y-4">
-              <p className="text-accent font-semibold uppercase tracking-wide">The Product</p>
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <p className="text-accent font-semibold uppercase tracking-wide text-sm">The Product</p>
               <h2 className="text-3xl md:text-4xl font-bold">A Performance Management & Growth System</h2>
-              <p className="text-xl text-primary-foreground/70">Not another task tool.</p>
+              <p className="text-primary-foreground/70">Not another task tool.</p>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <motion.div variants={fadeIn} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {[
                 { icon: Target, text: "Role-specific success definitions" },
                 { icon: TrendingUp, text: "Vision and execution planning tools" },
@@ -448,14 +463,14 @@ const Sales = () => {
                 { icon: Brain, text: "Hyper-personalized AI insights and training" },
                 { icon: MessageSquare, text: "Structured, data-backed 1:1 agendas" }
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 p-4 bg-primary-foreground/5 rounded-lg border border-primary-foreground/10">
+                <div key={i} className="flex items-center gap-3 p-3.5 bg-primary-foreground/5 backdrop-blur-sm rounded-lg border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-colors">
                   <item.icon className="h-5 w-5 text-accent flex-shrink-0" />
-                  <p className="text-primary-foreground">{item.text}</p>
+                  <p className="text-primary-foreground text-sm">{item.text}</p>
                 </div>
               ))}
             </motion.div>
 
-            <motion.p variants={fadeIn} className="text-center text-primary-foreground/70">
+            <motion.p variants={fadeIn} className="text-center text-primary-foreground/70 text-sm">
               Jericho can run as a standalone system, or alongside your existing leadership or operating system.
             </motion.p>
           </motion.div>
@@ -463,36 +478,35 @@ const Sales = () => {
       </section>
 
       {/* PRICE + PLACE */}
-      <section className="py-20 px-6 bg-background">
+      <section className="py-12 px-6 bg-gradient-to-b from-background to-muted/20">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="space-y-12"
           >
-            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-8">
+            <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-5">
               {/* Price */}
-              <div className="p-8 bg-highlight-gold rounded-2xl border-2 border-accent/30 space-y-6 shadow-lg">
-                <div className="space-y-2">
-                  <p className="text-accent-foreground font-semibold text-sm uppercase tracking-wide">Investment</p>
-                  <h3 className="text-2xl font-bold text-primary">Simple, Transparent Pricing</h3>
+              <div className="p-6 bg-gradient-to-br from-highlight-gold to-highlight-gold/80 rounded-xl border border-accent/20 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-accent-foreground font-semibold text-xs uppercase tracking-wide">Investment</p>
+                  <h3 className="text-xl font-bold text-primary">Simple, Transparent Pricing</h3>
                 </div>
-                <div className="space-y-4">
-                  <p className="text-4xl font-bold text-primary">~$500<span className="text-lg text-muted-foreground font-normal">/employee/year</span></p>
-                  <p className="text-muted-foreground">Exact pricing depends on team size, rollout scope, and support level.</p>
-                  <p className="text-sm text-accent-foreground font-medium">We'll walk through this on your clarity call.</p>
+                <div className="space-y-3">
+                  <p className="text-3xl font-bold text-primary">~$500<span className="text-base text-muted-foreground font-normal">/employee/year</span></p>
+                  <p className="text-muted-foreground text-sm">Exact pricing depends on team size, rollout scope, and support level.</p>
+                  <p className="text-xs text-accent-foreground font-medium">We'll walk through this on your clarity call.</p>
                 </div>
               </div>
 
               {/* Place */}
-              <div className="p-8 bg-card rounded-2xl border-2 border-border space-y-6 shadow-lg">
-                <div className="space-y-2">
-                  <p className="text-accent font-semibold text-sm uppercase tracking-wide">Delivery</p>
-                  <h3 className="text-2xl font-bold text-primary">How It's Delivered</h3>
+              <div className="p-6 bg-card rounded-xl border border-border space-y-4">
+                <div className="space-y-1">
+                  <p className="text-accent font-semibold text-xs uppercase tracking-wide">Delivery</p>
+                  <h3 className="text-xl font-bold text-primary">How It's Delivered</h3>
                 </div>
-                <ul className="space-y-3">
+                <ul className="space-y-2">
                   {[
                     "Fully virtual platform",
                     "Works across departments and roles",
@@ -501,7 +515,7 @@ const Sales = () => {
                     "No long implementation cycles",
                     "No heavy lift for your team"
                   ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-muted-foreground">
+                    <li key={i} className="flex items-center gap-2 text-muted-foreground text-sm">
                       <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
                       {item}
                     </li>
@@ -514,7 +528,7 @@ const Sales = () => {
       </section>
 
       {/* PUSH - Final CTA */}
-      <section className="py-24 px-6 bg-primary relative overflow-hidden">
+      <section className="py-16 px-6 bg-primary relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-accent/20 rounded-full blur-[100px]" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-accent/10 rounded-full blur-[80px]" />
         
@@ -524,13 +538,13 @@ const Sales = () => {
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="text-center space-y-8"
+            className="text-center space-y-6"
           >
-            <motion.div variants={fadeIn} className="space-y-4">
+            <motion.div variants={fadeIn} className="space-y-3">
               <h2 className="text-3xl md:text-5xl font-bold text-primary-foreground">
                 Ready to Stop Carrying Everything?
               </h2>
-              <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
+              <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto">
                 Build a team that knows what success looks like, executes without constant oversight, and grows into mastery over time.
               </p>
             </motion.div>
@@ -542,25 +556,25 @@ const Sales = () => {
               </Button>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="pt-4 space-y-4">
-              <p className="text-primary-foreground/70">On the call, we'll help you determine:</p>
-              <ul className="inline-flex flex-col items-start gap-3 text-left">
+            <motion.div variants={fadeIn} className="pt-2 space-y-3">
+              <p className="text-primary-foreground/70 text-sm">On the call, we'll help you determine:</p>
+              <ul className="inline-flex flex-col items-start gap-2 text-left">
                 {[
                   "If Jericho fits your organization",
                   "Where clarity is breaking down now",
                   "What it would look like to scale leadership — not stress"
                 ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-accent" />
-                    <span className="text-primary-foreground">{item}</span>
+                  <li key={i} className="flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 text-accent" />
+                    <span className="text-primary-foreground text-sm">{item}</span>
                   </li>
                 ))}
               </ul>
             </motion.div>
 
-            <motion.div variants={fadeIn} className="flex items-center justify-center gap-6 pt-8 text-sm text-primary-foreground/60">
-              <span className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
+            <motion.div variants={fadeIn} className="flex items-center justify-center gap-5 pt-4 text-xs text-primary-foreground/60">
+              <span className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5" />
                 SOC 2 Compliant
               </span>
               <span>•</span>
@@ -573,8 +587,8 @@ const Sales = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-border bg-background">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      <footer className="py-8 px-6 border-t border-border bg-background">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-accent-foreground" />
@@ -587,7 +601,7 @@ const Sales = () => {
             <a href="#" className="hover:text-foreground transition-colors">Contact</a>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2024 Jericho. Scale leadership, not stress.
+            © 2025 Jericho. Scale leadership, not stress.
           </p>
         </div>
       </footer>
