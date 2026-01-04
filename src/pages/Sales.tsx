@@ -17,6 +17,14 @@ import {
   Shield
 } from "lucide-react";
 
+// Client logos
+import loganLogo from "@/assets/logos/logan-contractors.avif";
+import mcmLogo from "@/assets/logos/mcm-logo.png";
+import iasLogo from "@/assets/logos/ias-logo.png";
+import slcLogo from "@/assets/logos/slc-logo.png";
+import winfieldLogo from "@/assets/logos/winfield-logo.png";
+import agPartnersLogo from "@/assets/logos/ag-partners-logo.webp";
+
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
@@ -420,15 +428,12 @@ const Sales = () => {
             {/* Customer Logos */}
             <motion.div variants={fadeIn} className="space-y-4">
               <p className="text-center text-muted-foreground text-sm font-medium">Trusted by growth-minded organizations</p>
-              <div className="flex flex-wrap justify-center items-center gap-6">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div 
-                    key={i} 
-                    className="w-28 h-10 bg-muted/50 rounded-lg flex items-center justify-center text-muted-foreground text-xs border border-border"
-                  >
-                    Logo {i}
-                  </div>
-                ))}
+              <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
+                <img src={loganLogo} alt="Logan Contractors" className="h-10 md:h-12 w-auto object-contain grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300" />
+                <img src={iasLogo} alt="Innovative Ag Services" className="h-10 md:h-12 w-auto object-contain grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300" />
+                <img src={winfieldLogo} alt="WinField United" className="h-8 md:h-10 w-auto object-contain grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300" />
+                <img src={agPartnersLogo} alt="Ag Partners" className="h-10 md:h-12 w-auto object-contain grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300" />
+                <img src={mcmLogo} alt="MCM" className="h-10 md:h-12 w-auto object-contain grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300" />
               </div>
             </motion.div>
           </motion.div>
