@@ -30,7 +30,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   const [streamBuffer, setStreamBuffer] = useState(''); // Full content from server
   const [displayedChars, setDisplayedChars] = useState(0); // Characters revealed so far
   const [hasSummarized, setHasSummarized] = useState(false); // Track if we've summarized this session
-  const [initialMessageSent, setInitialMessageSent] = useState(false); // Track if initial message was already sent
+  const initialMessageSentRef = useRef(false); // Use ref to prevent race conditions
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -100,6 +100,9 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
       clearTimeout(inactivityTimerRef.current);
     }
     
+    // Reset initial message flag so it can be sent again if chat reopens
+    initialMessageSentRef.current = false;
+    
     onClose();
   }, [conversationId, messages.length, hasSummarized, summarizeConversation, onClose]);
 
@@ -162,11 +165,11 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
 
   // Send initial message if provided (only once)
   useEffect(() => {
-    if (isOpen && initialMessage && messages.length === 0 && !initialMessageSent && !isLoading) {
-      setInitialMessageSent(true);
+    if (isOpen && initialMessage && messages.length === 0 && !initialMessageSentRef.current && !isLoading) {
+      initialMessageSentRef.current = true;
       handleSendMessage(initialMessage);
     }
-  }, [isOpen, initialMessage, messages.length, initialMessageSent, isLoading]);
+  }, [isOpen, initialMessage, messages.length, isLoading]);
 
   const loadConversationHistory = async () => {
     try {
