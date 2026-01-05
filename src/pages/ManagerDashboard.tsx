@@ -54,6 +54,7 @@ export default function ManagerDashboard() {
   const [capabilitiesDialogOpen, setCapabilitiesDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [oneOnOneDialogOpen, setOneOnOneDialogOpen] = useState(false);
+  const [oneOnOneScheduleMode, setOneOnOneScheduleMode] = useState(false);
   
   const [recognitionDialogOpen, setRecognitionDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -457,6 +458,17 @@ export default function ManagerDashboard() {
                 company_id: employee.company_id,
                 email: employee.email
               });
+              setOneOnOneScheduleMode(false);
+              setOneOnOneDialogOpen(true);
+            }}
+            onScheduleOneOnOne={(employee) => {
+              setSelectedEmployee({
+                id: employee.id,
+                full_name: employee.full_name,
+                company_id: employee.company_id,
+                email: employee.email
+              });
+              setOneOnOneScheduleMode(true);
               setOneOnOneDialogOpen(true);
             }}
             onScheduleReview={(employee) => {
@@ -549,7 +561,10 @@ export default function ManagerDashboard() {
                 open={oneOnOneDialogOpen}
                 onOpenChange={(open) => {
                   setOneOnOneDialogOpen(open);
-                  if (!open) loadDirectReports();
+                  if (!open) {
+                    setOneOnOneScheduleMode(false);
+                    loadDirectReports();
+                  }
                 }}
                 employee={{
                   id: selectedEmployee.id,
@@ -557,6 +572,7 @@ export default function ManagerDashboard() {
                   company_id: selectedEmployee.company_id,
                   email: selectedEmployee.email,
                 }}
+                scheduleOnly={oneOnOneScheduleMode}
               />
               <RecognitionDialog
                 open={recognitionDialogOpen}

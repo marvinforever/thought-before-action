@@ -26,6 +26,7 @@ interface OneOnOneDialogProps {
     company_id: string;
     email?: string;
   };
+  scheduleOnly?: boolean;
 }
 
 interface PreviousNote {
@@ -45,7 +46,7 @@ interface RecentRecognition {
   created_at: string;
 }
 
-export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogProps) {
+export function OneOnOneDialog({ open, onOpenChange, employee, scheduleOnly = false }: OneOnOneDialogProps) {
   const [meetingDate, setMeetingDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [wins, setWins] = useState("");
@@ -373,281 +374,27 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>1-on-1 with {employee.full_name}</DialogTitle>
+          <DialogTitle>
+            {scheduleOnly ? `Schedule 1-on-1 with ${employee.full_name}` : `1-on-1 with ${employee.full_name}`}
+          </DialogTitle>
           <DialogDescription>
-            Document your conversation, wins, concerns, and action items
+            {scheduleOnly 
+              ? "Pick a date and time to schedule your next 1-on-1 meeting"
+              : "Document your conversation, wins, concerns, and action items"
+            }
           </DialogDescription>
         </DialogHeader>
 
-        {/* Previous 1:1s Section */}
-        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="border rounded-lg">
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="w-full justify-between p-4 h-auto"
-              disabled={loadingHistory}
-            >
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Previous 1:1s</span>
-                <span className="text-muted-foreground text-sm">({previousNotes.length})</span>
-              </div>
-              {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-4">
-            {loadingHistory ? (
-              <div className="py-3 text-sm text-muted-foreground">Loading previous 1:1s…</div>
-            ) : previousNotes.length === 0 ? (
-              <div className="py-3 text-sm text-muted-foreground">No previous 1:1s yet.</div>
-            ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {previousNotes.map((note) => (
-                  <Collapsible 
-                    key={note.id} 
-                    open={expandedNoteId === note.id}
-                    onOpenChange={(isOpen) => setExpandedNoteId(isOpen ? note.id : null)}
-                  >
-                    <div className="border rounded-md">
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-between p-3 h-auto text-left">
-                          <span className="font-medium text-sm">
-                            {format(new Date(note.meeting_date), "MMMM d, yyyy")}
-                          </span>
-                          {expandedNoteId === note.id ? (
-                            <ChevronUp className="h-3 w-3" />
-                          ) : (
-                            <ChevronDown className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="px-3 pb-3 space-y-2">
-                        {note.notes && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground">Notes</p>
-                            <p className="text-sm">{note.notes}</p>
-                          </div>
-                        )}
-                        {note.wins && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground">Wins</p>
-                            <p className="text-sm">{note.wins}</p>
-                          </div>
-                        )}
-                        {note.concerns && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground">Concerns</p>
-                            <p className="text-sm">{note.concerns}</p>
-                          </div>
-                        )}
-                        {Array.isArray(note.action_items) && note.action_items.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground">Action Items</p>
-                            <ul className="list-disc list-inside text-sm">
-                              {note.action_items.map((item, idx) => (
-                                <li key={idx}>{String(item)}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full mt-2"
-                          onClick={() => handleSendFollowUp(note)}
-                          disabled={sendingEmail === note.id}
-                        >
-                          {sendingEmail === note.id ? (
-                            <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                          ) : (
-                            <Mail className="h-3 w-3 mr-2" />
-                          )}
-                          Send as Follow-up Email
-                        </Button>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                ))}
-              </div>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Recent Recognition Section */}
-        {recentRecognitions.length > 0 && (
-          <Collapsible open={recognitionOpen} onOpenChange={setRecognitionOpen} className="border rounded-lg border-amber-500/20 bg-amber-500/5">
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-between p-4 h-auto"
-              >
-                <div className="flex items-center gap-2">
-                  <Award className="h-4 w-4 text-amber-500" />
-                  <span className="font-medium">Recent Wins to Discuss</span>
-                  <Badge variant="secondary" className="text-xs">{recentRecognitions.length}</Badge>
-                </div>
-                {recognitionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="px-4 pb-4">
-              <p className="text-xs text-muted-foreground mb-3">
-                Recognition from the last 30 days — great talking points!
-              </p>
-              <div className="space-y-2">
-                {recentRecognitions.map((recognition) => (
-                  <div
-                    key={recognition.id}
-                    className="p-3 rounded-md border bg-background"
-                  >
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{recognition.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                          {recognition.description}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {recognition.category && (
-                            <Badge variant="outline" className="text-xs">{recognition.category}</Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(recognition.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        <div className="space-y-4">
-          <Alert>
-            <AlertDescription className="flex items-center justify-between">
-              <span className="text-sm">
-                {isRecording ? "Recording in progress..." : isProcessing ? "Processing recording..." : "Record your conversation to auto-fill notes"}
-              </span>
-              <Button
-                variant={isRecording ? "destructive" : "default"}
-                size="sm"
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing
-                  </>
-                ) : isRecording ? (
-                  <>
-                    <Square className="h-4 w-4 mr-2" />
-                    Stop Recording
-                  </>
-                ) : (
-                  <>
-                    <Mic className="h-4 w-4 mr-2" />
-                    Start Recording
-                  </>
-                )}
-              </Button>
-            </AlertDescription>
-          </Alert>
-          <div className="space-y-2">
-            <Label>Meeting Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn("w-full justify-start text-left font-normal", !meetingDate && "text-muted-foreground")}
-                >
-                  {meetingDate ? format(meetingDate, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
-                <Calendar
-                  mode="single"
-                  selected={meetingDate}
-                  onSelect={(date) => date && setMeetingDate(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <Label>General Notes</Label>
-            <Textarea
-              placeholder="Overall conversation notes..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={4}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Wins & Accomplishments</Label>
-            <Textarea
-              placeholder="What went well? What did they accomplish?"
-              value={wins}
-              onChange={(e) => setWins(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Concerns & Challenges</Label>
-            <Textarea
-              placeholder="Any concerns, blockers, or challenges?"
-              value={concerns}
-              onChange={(e) => setConcerns(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Action Items</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddActionItem}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
-            </div>
-            {actionItems.map((item, index) => (
-              <div key={index} className="flex gap-2">
-                <Input
-                  placeholder="Action item..."
-                  value={item}
-                  onChange={(e) => handleActionItemChange(index, e.target.value)}
-                />
-                {actionItems.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveActionItem(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Next Meeting Date (Optional)</Label>
-            <div className="flex gap-2">
+        {scheduleOnly ? (
+          /* Schedule-only mode - simplified UI */
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Meeting Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn("flex-1 justify-start text-left font-normal", !nextMeetingDate && "text-muted-foreground")}
+                    className={cn("w-full justify-start text-left font-normal", !nextMeetingDate && "text-muted-foreground")}
                   >
                     {nextMeetingDate ? format(nextMeetingDate, "PPP") : "Select date"}
                   </Button>
@@ -658,12 +405,17 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
                     selected={nextMeetingDate}
                     onSelect={setNextMeetingDate}
                     initialFocus
+                    disabled={(date) => date < new Date()}
                   />
                 </PopoverContent>
               </Popover>
-              {nextMeetingDate && (
+            </div>
+
+            {nextMeetingDate && (
+              <div className="space-y-2">
+                <Label>Select Time</Label>
                 <Select value={nextMeetingTime} onValueChange={setNextMeetingTime}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Time" />
                   </SelectTrigger>
                   <SelectContent className="bg-background z-50">
@@ -680,17 +432,18 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
                     })}
                   </SelectContent>
                 </Select>
-              )}
-            </div>
+              </div>
+            )}
+
             {nextMeetingDate && employee.email && (
               <div className="flex items-center space-x-2 pt-2">
                 <Checkbox 
-                  id="send-invite" 
+                  id="send-invite-schedule" 
                   checked={sendCalendarInvite}
                   onCheckedChange={(checked) => setSendCalendarInvite(checked === true)}
                 />
                 <label
-                  htmlFor="send-invite"
+                  htmlFor="send-invite-schedule"
                   className="text-sm flex items-center gap-1 cursor-pointer"
                 >
                   <CalendarPlus className="h-4 w-4 text-muted-foreground" />
@@ -699,17 +452,350 @@ export function OneOnOneDialog({ open, onOpenChange, employee }: OneOnOneDialogP
               </div>
             )}
           </div>
-        </div>
+        ) : (
+          /* Full 1:1 mode */
+          <>
+            {/* Previous 1:1s Section */}
+            <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="border rounded-lg">
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-4 h-auto"
+                  disabled={loadingHistory}
+                >
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Previous 1:1s</span>
+                    <span className="text-muted-foreground text-sm">({previousNotes.length})</span>
+                  </div>
+                  {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                {loadingHistory ? (
+                  <div className="py-3 text-sm text-muted-foreground">Loading previous 1:1s…</div>
+                ) : previousNotes.length === 0 ? (
+                  <div className="py-3 text-sm text-muted-foreground">No previous 1:1s yet.</div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {previousNotes.map((note) => (
+                      <Collapsible 
+                        key={note.id} 
+                        open={expandedNoteId === note.id}
+                        onOpenChange={(isOpen) => setExpandedNoteId(isOpen ? note.id : null)}
+                      >
+                        <div className="border rounded-md">
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-between p-3 h-auto text-left">
+                              <span className="font-medium text-sm">
+                                {format(new Date(note.meeting_date), "MMMM d, yyyy")}
+                              </span>
+                              {expandedNoteId === note.id ? (
+                                <ChevronUp className="h-3 w-3" />
+                              ) : (
+                                <ChevronDown className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="px-3 pb-3 space-y-2">
+                            {note.notes && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Notes</p>
+                                <p className="text-sm">{note.notes}</p>
+                              </div>
+                            )}
+                            {note.wins && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Wins</p>
+                                <p className="text-sm">{note.wins}</p>
+                              </div>
+                            )}
+                            {note.concerns && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Concerns</p>
+                                <p className="text-sm">{note.concerns}</p>
+                              </div>
+                            )}
+                            {Array.isArray(note.action_items) && note.action_items.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Action Items</p>
+                                <ul className="list-disc list-inside text-sm">
+                                  {note.action_items.map((item, idx) => (
+                                    <li key={idx}>{String(item)}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full mt-2"
+                              onClick={() => handleSendFollowUp(note)}
+                              disabled={sendingEmail === note.id}
+                            >
+                              {sendingEmail === note.id ? (
+                                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                              ) : (
+                                <Mail className="h-3 w-3 mr-2" />
+                              )}
+                              Send as Follow-up Email
+                            </Button>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    ))}
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Recent Recognition Section */}
+            {recentRecognitions.length > 0 && (
+              <Collapsible open={recognitionOpen} onOpenChange={setRecognitionOpen} className="border rounded-lg border-amber-500/20 bg-amber-500/5">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between p-4 h-auto"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Award className="h-4 w-4 text-amber-500" />
+                      <span className="font-medium">Recent Wins to Discuss</span>
+                      <Badge variant="secondary" className="text-xs">{recentRecognitions.length}</Badge>
+                    </div>
+                    {recognitionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-4 pb-4">
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Recognition from the last 30 days — great talking points!
+                  </p>
+                  <div className="space-y-2">
+                    {recentRecognitions.map((recognition) => (
+                      <div
+                        key={recognition.id}
+                        className="p-3 rounded-md border bg-background"
+                      >
+                        <div className="flex items-start gap-2">
+                          <Sparkles className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{recognition.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                              {recognition.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {recognition.category && (
+                                <Badge variant="outline" className="text-xs">{recognition.category}</Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(recognition.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            <div className="space-y-4">
+              <Alert>
+                <AlertDescription className="flex items-center justify-between">
+                  <span className="text-sm">
+                    {isRecording ? "Recording in progress..." : isProcessing ? "Processing recording..." : "Record your conversation to auto-fill notes"}
+                  </span>
+                  <Button
+                    variant={isRecording ? "destructive" : "default"}
+                    size="sm"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing
+                      </>
+                    ) : isRecording ? (
+                      <>
+                        <Square className="h-4 w-4 mr-2" />
+                        Stop Recording
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-4 w-4 mr-2" />
+                        Start Recording
+                      </>
+                    )}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+              <div className="space-y-2">
+                <Label>Meeting Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("w-full justify-start text-left font-normal", !meetingDate && "text-muted-foreground")}
+                    >
+                      {meetingDate ? format(meetingDate, "PPP") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={meetingDate}
+                      onSelect={(date) => date && setMeetingDate(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>General Notes</Label>
+                <Textarea
+                  placeholder="Overall conversation notes..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={4}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Wins & Accomplishments</Label>
+                <Textarea
+                  placeholder="What went well? What did they accomplish?"
+                  value={wins}
+                  onChange={(e) => setWins(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Concerns & Challenges</Label>
+                <Textarea
+                  placeholder="Any concerns, blockers, or challenges?"
+                  value={concerns}
+                  onChange={(e) => setConcerns(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Action Items</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddActionItem}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Item
+                  </Button>
+                </div>
+                {actionItems.map((item, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Action item..."
+                      value={item}
+                      onChange={(e) => handleActionItemChange(index, e.target.value)}
+                    />
+                    {actionItems.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveActionItem(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Next Meeting Date (Optional)</Label>
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn("flex-1 justify-start text-left font-normal", !nextMeetingDate && "text-muted-foreground")}
+                      >
+                        {nextMeetingDate ? format(nextMeetingDate, "PPP") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={nextMeetingDate}
+                        onSelect={setNextMeetingDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {nextMeetingDate && (
+                    <Select value={nextMeetingTime} onValueChange={setNextMeetingTime}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Time" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        {Array.from({ length: 19 }, (_, i) => {
+                          const hour = Math.floor(i / 2) + 8;
+                          const min = i % 2 === 0 ? "00" : "30";
+                          const time = `${hour.toString().padStart(2, "0")}:${min}`;
+                          const displayTime = `${hour > 12 ? hour - 12 : hour}:${min} ${hour >= 12 ? "PM" : "AM"}`;
+                          return (
+                            <SelectItem key={time} value={time}>
+                              {displayTime}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {nextMeetingDate && employee.email && (
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox 
+                      id="send-invite" 
+                      checked={sendCalendarInvite}
+                      onCheckedChange={(checked) => setSendCalendarInvite(checked === true)}
+                    />
+                    <label
+                      htmlFor="send-invite"
+                      className="text-sm flex items-center gap-1 cursor-pointer"
+                    >
+                      <CalendarPlus className="h-4 w-4 text-muted-foreground" />
+                      Send calendar invite to both of us
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting || sendingInvite}>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={submitting || sendingInvite || (scheduleOnly && !nextMeetingDate)}
+          >
             {submitting || sendingInvite ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 {sendingInvite ? "Sending invite..." : "Saving..."}
+              </>
+            ) : scheduleOnly ? (
+              <>
+                <CalendarPlus className="h-4 w-4 mr-2" />
+                Schedule Meeting
               </>
             ) : (
               "Save Notes"

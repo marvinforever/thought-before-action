@@ -8,12 +8,20 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
-  User
+  User,
+  ChevronDown,
+  Play
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { format, differenceInDays, isPast, isToday } from "date-fns";
@@ -35,12 +43,13 @@ interface ToDoItem {
 
 interface ManagerToDoTabProps {
   onStartOneOnOne: (employee: { id: string; full_name: string; company_id: string; email?: string }) => void;
+  onScheduleOneOnOne?: (employee: { id: string; full_name: string; company_id: string; email?: string }) => void;
   onScheduleReview: (employee: { id: string; full_name: string; company_id: string }) => void;
   onViewRequest: (requestId: string) => void;
   onHandleMeetingRequest?: (employeeId: string, employeeName: string) => void;
 }
 
-export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewRequest, onHandleMeetingRequest }: ManagerToDoTabProps) {
+export function ManagerToDoTab({ onStartOneOnOne, onScheduleOneOnOne, onScheduleReview, onViewRequest, onHandleMeetingRequest }: ManagerToDoTabProps) {
   const [items, setItems] = useState<ToDoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -499,13 +508,55 @@ export function ManagerToDoTab({ onStartOneOnOne, onScheduleReview, onViewReques
                     )}
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleItemClick(item)}
-                >
-                  {item.type === "pending_request" ? "Review" : item.type === "meeting_request" ? "Schedule" : "Start"}
-                </Button>
+                {(item.type === "overdue_checkin" || item.type === "scheduled_1on1" || item.type === "meeting_request") ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        Start
+                        <ChevronDown className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => onStartOneOnOne({
+                        id: item.employeeId,
+                        full_name: item.employeeName,
+                        company_id: item.companyId,
+                        email: item.email
+                      })}>
+                        <Play className="h-4 w-4 mr-2" />
+                        Conduct 1:1 Now
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        if (onScheduleOneOnOne) {
+                          onScheduleOneOnOne({
+                            id: item.employeeId,
+                            full_name: item.employeeName,
+                            company_id: item.companyId,
+                            email: item.email
+                          });
+                        } else {
+                          onStartOneOnOne({
+                            id: item.employeeId,
+                            full_name: item.employeeName,
+                            company_id: item.companyId,
+                            email: item.email
+                          });
+                        }
+                      }}>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Schedule for Later
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleItemClick(item)}
+                  >
+                    {item.type === "pending_request" ? "Review" : "Start"}
+                  </Button>
+                )}
               </motion.div>
             );
           })}
