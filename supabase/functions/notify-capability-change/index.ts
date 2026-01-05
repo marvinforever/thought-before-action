@@ -72,17 +72,19 @@ serve(async (req) => {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; background-color: #f6f9fc; margin: 0; padding: 0;">
   <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); padding: 32px 40px; border-radius: 8px 8px 0 0;">
+      <h1 style="color: #f5a623; font-size: 24px; font-weight: bold; margin: 0;">🎉 Capability Level Upgrade Approved!</h1>
+    </div>
+    
     <div style="padding: 40px;">
-      <h1 style="color: #1a1a1a; font-size: 24px; font-weight: bold; margin: 0 0 24px 0;">🎉 Capability Level Upgrade Approved!</h1>
-      
-      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hi ${employeeName},</p>
+      <p style="color: #1e3a5f; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hi ${employeeName},</p>
       
       <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
         ${managerName} has approved your capability level upgrade request!
       </p>
       
-      <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 0 0 24px 0; border-left: 4px solid #667eea;">
-        <h3 style="color: #2d3748; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+      <div style="background-color: #fef9e7; border-radius: 8px; padding: 20px; margin: 0 0 24px 0; border-left: 4px solid #f5a623;">
+        <h3 style="color: #1e3a5f; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
           ${capabilityName}
         </h3>
         
@@ -91,8 +93,8 @@ serve(async (req) => {
           <span style="background: #e2e8f0; padding: 6px 12px; border-radius: 4px; font-weight: 600; color: #718096; text-transform: capitalize; font-size: 14px;">
             ${previousLevel}
           </span>
-          <span style="color: #667eea; font-size: 18px; margin: 0 8px;">→</span>
-          <span style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 6px 12px; border-radius: 4px; font-weight: 600; color: white; text-transform: capitalize; font-size: 14px;">
+          <span style="color: #f5a623; font-size: 18px; margin: 0 8px;">→</span>
+          <span style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); padding: 6px 12px; border-radius: 4px; font-weight: 600; color: #f5a623; text-transform: capitalize; font-size: 14px;">
             ${newLevel}
           </span>
         </div>
@@ -101,7 +103,7 @@ serve(async (req) => {
       
       ${reason ? `
       <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
-        <h3 style="color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0;">📝 Manager's Feedback</h3>
+        <h3 style="color: #1e3a5f; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0;">📝 Manager's Feedback</h3>
         <p style="color: #4a5568; font-size: 15px; line-height: 1.6; margin: 0;">
           ${reason}
         </p>
@@ -112,22 +114,22 @@ serve(async (req) => {
         Keep up the excellent work! Your dedication to growth and development is truly impressive.
       </p>
       
-      <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">Keep growing,<br><strong>Jericho</strong></p>
+      <p style="color: #1e3a5f; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">Keep growing,<br><strong>Jericho</strong></p>
       <p style="color: #718096; font-size: 13px; line-height: 1.5; margin: 16px 0 20px 0; font-style: italic;">
         <strong>P.S.</strong> View your updated capabilities in your Growth Plan—I'm here if you need help!
       </p>
       
       <div style="margin-top: 20px;">
-        <a href="https://www.askjericho.com" style="display: inline-block; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 600; font-size: 14px;">View My Growth Plan</a>
+        <a href="https://www.askjericho.com" style="display: inline-block; background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); color: #f5a623; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 600; font-size: 14px;">View My Growth Plan</a>
       </div>
     </div>
     
-    <div style="background-color: #f7fafc; padding: 24px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
+    <div style="background-color: #1e3a5f; padding: 24px 40px; border-radius: 0 0 8px 8px; text-align: center;">
       <p style="color: #a0aec0; font-size: 12px; margin: 0;">
-        © ${new Date().getFullYear()} The Momentum Company • <a href="https://www.askjericho.com" style="color: #667eea; text-decoration: none;">askjericho.com</a>
+        © ${new Date().getFullYear()} The Momentum Company • <a href="https://www.askjericho.com" style="color: #f5a623; text-decoration: none;">askjericho.com</a>
       </p>
       <p style="color: #a0aec0; font-size: 11px; margin: 8px 0 0 0;">
-        Questions? Reply to this email or reach out to <a href="mailto:jericho@askjericho.com" style="color: #667eea; text-decoration: none;">jericho@askjericho.com</a>
+        Questions? Reply to this email or reach out to <a href="mailto:jericho@askjericho.com" style="color: #f5a623; text-decoration: none;">jericho@askjericho.com</a>
       </p>
     </div>
   </div>
