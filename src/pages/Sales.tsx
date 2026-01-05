@@ -2,6 +2,15 @@ import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { 
   ArrowRight, 
@@ -83,77 +92,70 @@ const Sales = () => {
   const [email, setEmail] = useState("");
   const [searchParams] = useSearchParams();
 
-  // Capture referral code on page load
+  // Capture referral code on page load (no anonymous click tracking - just store the code)
   useEffect(() => {
     const refCode = searchParams.get('ref');
     if (refCode) {
-      // Store referral code in localStorage with timestamp
       localStorage.setItem('referral_code', refCode);
       localStorage.setItem('referral_timestamp', Date.now().toString());
-      
-      // Create a click record in the database
-      const trackReferralClick = async () => {
-        try {
-          // Resolve partner id without exposing partner data publicly
-          const { data: partnerId, error: partnerIdError } = await supabase
-            .rpc('get_partner_id_by_referral_code', { p_referral_code: refCode });
-
-          if (partnerIdError) throw partnerIdError;
-
-          if (partnerId) {
-            // Create a lead record for the click
-            await supabase.from('referral_leads').insert({
-              partner_id: partnerId,
-              status: 'clicked',
-            });
-          }
-        } catch (error) {
-          console.log('Referral tracking error:', error);
-        }
-      };
-      
-      trackReferralClick();
     }
   }, [searchParams]);
 
+  // Demo form state
+  const [showDemoForm, setShowDemoForm] = useState(false);
+  const [demoName, setDemoName] = useState('');
+  const [demoCompany, setDemoCompany] = useState('');
+  const [demoEmail, setDemoEmail] = useState('');
+  const [isSubmittingDemo, setIsSubmittingDemo] = useState(false);
+
   const handleDemoRequest = () => {
-    // Use current URL ref first (covers the "click immediately" case), then fall back to stored value
+    const refCode = searchParams.get('ref') || localStorage.getItem('referral_code');
+    
+    // If there's a referral code, show the form to capture company info
+    if (refCode) {
+      setShowDemoForm(true);
+      return;
+    }
+    
+    // No referral - just open the calendar directly
+    window.open('https://calendar.app.google/v1xwnCaqnRJ57UmJ6', '_blank');
+  };
+
+  const handleDemoFormSubmit = async () => {
+    if (!demoName.trim() || !demoCompany.trim() || !demoEmail.trim()) return;
+    
+    setIsSubmittingDemo(true);
     const refCode = searchParams.get('ref') || localStorage.getItem('referral_code');
 
+    // Open calendar immediately
+    window.open('https://calendar.app.google/v1xwnCaqnRJ57UmJ6', '_blank');
+    setShowDemoForm(false);
+
+    // Track demo in background
     if (refCode) {
-      localStorage.setItem('referral_code', refCode);
-      localStorage.setItem('referral_timestamp', Date.now().toString());
-    }
-
-    // Open immediately to avoid popup blockers
-    const baseUrl = new URL('https://calendar.app.google/v1xwnCaqnRJ57UmJ6');
-    if (refCode) {
-      baseUrl.searchParams.set('ref', refCode);
-      baseUrl.searchParams.set('utm_source', 'partner');
-      baseUrl.searchParams.set('utm_medium', 'referral');
-    }
-
-    window.open(baseUrl.toString(), '_blank');
-
-    // Track demo intent (this is a demo click, not a confirmed booking)
-    if (!refCode) return;
-    setTimeout(async () => {
       try {
-        const { data: partnerId, error: partnerIdError } = await supabase
+        const { data: partnerId } = await supabase
           .rpc('get_partner_id_by_referral_code', { p_referral_code: refCode });
-
-        if (partnerIdError) throw partnerIdError;
 
         if (partnerId) {
           await supabase.from('referral_leads').insert({
             partner_id: partnerId,
+            lead_company: demoCompany.trim(),
+            contact_name: demoName.trim(),
+            lead_email: demoEmail.trim(),
             status: 'demo_booked',
           });
         }
       } catch (error) {
         console.log('Referral demo tracking error:', error);
       }
-    }, 0);
+    }
+
+    // Reset form
+    setDemoName('');
+    setDemoCompany('');
+    setDemoEmail('');
+    setIsSubmittingDemo(false);
   };
 
   const handleTrialRequest = () => {
@@ -161,6 +163,61 @@ const Sales = () => {
   };
 
   return (
+    <>
+      {/* Demo Form Dialog */}
+      <Dialog open={showDemoForm} onOpenChange={setShowDemoForm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Book Your Demo</DialogTitle>
+            <DialogDescription>
+              Quick info so we can personalize your demo experience.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="demo-name">Your Name</Label>
+              <Input
+                id="demo-name"
+                placeholder="John Smith"
+                value={demoName}
+                onChange={(e) => setDemoName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="demo-company">Company Name</Label>
+              <Input
+                id="demo-company"
+                placeholder="Acme Corp"
+                value={demoCompany}
+                onChange={(e) => setDemoCompany(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="demo-email">Work Email</Label>
+              <Input
+                id="demo-email"
+                type="email"
+                placeholder="john@acme.com"
+                value={demoEmail}
+                onChange={(e) => setDemoEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setShowDemoForm(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDemoFormSubmit} 
+              disabled={!demoName.trim() || !demoCompany.trim() || !demoEmail.trim() || isSubmittingDemo}
+              className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              {isSubmittingDemo ? 'Opening...' : 'Continue to Calendar'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md border-b border-primary">
@@ -660,6 +717,7 @@ const Sales = () => {
         </div>
       </footer>
     </div>
+    </>
   );
 };
 
