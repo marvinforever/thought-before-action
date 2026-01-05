@@ -222,7 +222,7 @@ export default function PartnerRegister() {
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-highlight-gold" style={{ clipPath: 'polygon(0 100%, 100% 100%, 100% 0)' }} />
       </section>
 
-      {/* Who This Is For */}
+      {/* What is Jericho */}
       <section className="pt-8 pb-12 px-6 bg-highlight-gold relative">
         <div className="max-w-5xl mx-auto">
           <motion.div
@@ -233,7 +233,85 @@ export default function PartnerRegister() {
             className="space-y-8"
           >
             <motion.div variants={fadeIn} className="text-center space-y-2">
-              <p className="text-accent-foreground font-semibold uppercase tracking-wide text-sm">Perfect For</p>
+              <p className="text-accent-foreground font-semibold uppercase tracking-wide text-sm">About Jericho</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-primary">What is Jericho?</h2>
+            </motion.div>
+
+            <motion.div variants={fadeIn} className="bg-background/80 backdrop-blur-sm rounded-2xl p-8 border border-primary/10 shadow-lg">
+              <p className="text-lg text-primary leading-relaxed mb-6">
+                <span className="font-semibold text-accent">Jericho</span> is an AI-powered growth platform that helps organizations build high-performing teams through clarity, accountability, and capability development.
+              </p>
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-primary flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+                      <Target className="w-4 h-4 text-accent" />
+                    </div>
+                    For Employees
+                  </h3>
+                  <ul className="space-y-2 text-muted-foreground text-sm">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                      <span>AI coach (Jericho) that guides daily growth</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                      <span>Personalized learning roadmaps & resources</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                      <span>Clear capability frameworks showing what "great" looks like</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-primary flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-accent" />
+                    </div>
+                    For Leaders
+                  </h3>
+                  <ul className="space-y-2 text-muted-foreground text-sm">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                      <span>Real-time visibility into team growth & engagement</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                      <span>Data-driven 1:1s that replace guesswork</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                      <span>Retention insights & capability gap analysis</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-6 border-t border-primary/10">
+                <p className="text-center text-muted-foreground text-sm">
+                  <span className="font-medium text-primary">The result:</span> Leaders get their time back. Employees own their growth. Organizations scale without chaos.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Who This Is For */}
+      <section className="py-12 px-6 bg-muted/30 relative">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+            className="space-y-8"
+          >
+            <motion.div variants={fadeIn} className="text-center space-y-2">
+              <p className="text-accent font-semibold uppercase tracking-wide text-sm">Perfect For</p>
               <h2 className="text-3xl md:text-4xl font-bold text-primary">This Partnership Is For You If You're...</h2>
             </motion.div>
 
@@ -244,7 +322,7 @@ export default function PartnerRegister() {
                 "Someone who believes in recommending tools that actually work",
                 "Looking for passive income from relationships you've already built"
               ].map((item, i) => (
-                <div key={i} className="flex items-start gap-3 p-5 bg-background/80 backdrop-blur-sm rounded-xl border border-primary/10 shadow-sm hover:shadow-md hover:bg-background transition-all duration-300">
+                <div key={i} className="flex items-start gap-3 p-5 bg-card rounded-xl border border-border shadow-sm hover:shadow-md hover:border-accent/30 transition-all duration-300">
                   <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
                   <p className="text-primary font-medium">{item}</p>
                 </div>
