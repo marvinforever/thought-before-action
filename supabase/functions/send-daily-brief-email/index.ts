@@ -32,10 +32,13 @@ interface UserContext {
   dailyChallenge: string | null;
   streakDays: number | null;
   habits: { name: string; currentStreak: number; completionsThisWeek: number }[];
-  ninetyDayTargets: { title: string; progress: number; daysRemaining: number }[];
+  ninetyDayTargets: { title: string; progress: number; daysRemaining: number; benchmarks: { title: string; isCompleted: boolean }[] }[];
   topCapabilities: { name: string; currentLevel: string; targetLevel: string }[];
   recentAchievements: string[];
   personalVision: string | null;
+  recognitionsSent: number;
+  totalBenchmarks: number;
+  completedBenchmarks: number;
 }
 
 async function fetchProfileWithRetry(
@@ -107,10 +110,18 @@ Format your response as JSON with two fields:
 
 ${context.personalVision ? `Personal Vision: "${context.personalVision}"` : ''}
 
-90-Day Targets:
+90-Day Targets (${context.ninetyDayTargets.length} active):
 ${context.ninetyDayTargets.length > 0 
-  ? context.ninetyDayTargets.map(t => `- ${t.title}: ${t.progress}% complete, ${t.daysRemaining} days remaining`).join('\n')
-  : 'No active 90-day targets set'}
+  ? context.ninetyDayTargets.map(t => {
+      const benchmarkInfo = t.benchmarks.length > 0 
+        ? ` | Benchmarks: ${t.benchmarks.filter(b => b.isCompleted).length}/${t.benchmarks.length} complete (${t.benchmarks.map(b => `${b.isCompleted ? '✓' : '○'} ${b.title}`).join(', ')})`
+        : '';
+      return `- ${t.title}: ${t.progress}% complete, ${t.daysRemaining} days remaining${benchmarkInfo}`;
+    }).join('\n')
+  : 'No active 90-day targets set yet'}
+
+Total Benchmarks: ${context.completedBenchmarks}/${context.totalBenchmarks} completed
+Recognitions Sent: ${context.recognitionsSent}
 
 Active Habits:
 ${context.habits.length > 0
@@ -249,7 +260,8 @@ serve(async (req) => {
       targetsResult,
       capabilitiesResult,
       achievementsResult,
-      visionResult
+      visionResult,
+      recognitionsResult
     ] = await Promise.all([
       // Profile (use maybeSingle to avoid hard failure on transient/missing row)
       supabase
@@ -282,10 +294,10 @@ serve(async (req) => {
         .select("habit_id")
         .eq("profile_id", profileId)
         .gte("completed_date", weekAgo),
-      // 90-day targets
+    // 90-day targets with benchmarks
       supabase
         .from("ninety_day_targets")
-        .select("id, title, progress_percentage, start_date, status")
+        .select("id, title, progress_percentage, start_date, status, target_benchmarks(id, title, is_completed)")
         .eq("profile_id", profileId)
         .eq("status", "active"),
       // Top capabilities (priority 1-3)
@@ -311,6 +323,12 @@ serve(async (req) => {
         .select("vision_statement")
         .eq("profile_id", profileId)
         .maybeSingle(),
+      // Recognitions sent (last 30 days)
+      supabase
+        .from("recognitions")
+        .select("id", { count: 'exact', head: true })
+        .eq("giver_id", profileId)
+        .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     ]);
 
     const profile = (profileResult as any).data as any | null;
@@ -351,12 +369,20 @@ serve(async (req) => {
       };
     });
 
-    // Process 90-day targets
+    // Process 90-day targets with benchmarks
     const ninetyDayTargets = (targetsResult.data || []).map((t: any) => ({
       title: t.title,
       progress: t.progress_percentage || 0,
-      daysRemaining: getDaysRemaining(t.start_date)
+      daysRemaining: getDaysRemaining(t.start_date),
+      benchmarks: (t.target_benchmarks || []).map((b: any) => ({
+        title: b.title,
+        isCompleted: b.is_completed || false
+      }))
     }));
+
+    // Calculate total benchmarks across all targets
+    const totalBenchmarks = ninetyDayTargets.reduce((sum, t) => sum + t.benchmarks.length, 0);
+    const completedBenchmarks = ninetyDayTargets.reduce((sum, t) => sum + t.benchmarks.filter((b: any) => b.isCompleted).length, 0);
 
     // Process capabilities
     const topCapabilities = (capabilitiesResult.data || [])
@@ -370,6 +396,9 @@ serve(async (req) => {
     // Recent achievements
     const recentAchievements = (achievementsResult.data || []).map((a: any) => a.achievement_text);
 
+    // Get recognitions count
+    const recognitionsSent = (recognitionsResult as any).count || 0;
+
     // Build context for AI
     const userContext: UserContext = {
       firstName,
@@ -382,7 +411,10 @@ serve(async (req) => {
       ninetyDayTargets,
       topCapabilities,
       recentAchievements,
-      personalVision: (visionResult as any).data?.vision_statement || null
+      personalVision: (visionResult as any).data?.vision_statement || null,
+      recognitionsSent,
+      totalBenchmarks,
+      completedBenchmarks
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {
@@ -403,7 +435,7 @@ serve(async (req) => {
       ? Math.round(ninetyDayTargets.reduce((sum, t) => sum + t.progress, 0) / ninetyDayTargets.length)
       : null;
 
-    // Build the on-brand Jericho email HTML
+    // Build the on-brand Jericho email HTML - Navy Blue (#0a1628, #1e3a5f) and Gold (#d4a855)
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -411,46 +443,64 @@ serve(async (req) => {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0f0f23; margin: 0; padding: 0;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #0f0f23;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a1628; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #0a1628;">
     
-    <!-- Header with Jericho branding -->
+    <!-- Header with Jericho branding - Navy and Gold -->
     <div style="padding: 40px 32px 24px 32px; text-align: center;">
       <div style="display: inline-block;">
-        <h1 style="font-size: 28px; font-weight: 700; margin: 0; color: #a855f7;">Jericho</h1>
+        <h1 style="font-size: 28px; font-weight: 700; margin: 0; color: #d4a855;">Jericho</h1>
       </div>
-      <p style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; letter-spacing: 0.5px;">${formatDate(new Date()).toUpperCase()}</p>
+      <p style="color: #8892a8; font-size: 13px; margin: 8px 0 0 0; letter-spacing: 0.5px;">${formatDate(new Date()).toUpperCase()}</p>
     </div>
 
     <!-- Main content card -->
-    <div style="margin: 0 16px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); border-radius: 16px; border: 1px solid #2a2a4a; overflow: hidden;">
+    <div style="margin: 0 16px; background: linear-gradient(180deg, #132238 0%, #0e1a2d 100%); border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;">
       
       <!-- AI-generated personalized content -->
       <div style="padding: 32px; color: #e2e8f0; font-size: 16px; line-height: 1.7;">
         ${personalizedBody}
       </div>
 
-      <!-- Listen button -->
+      <!-- Listen button - Navy/Gold gradient -->
       ${briefFormat !== 'text' ? `
       <div style="padding: 0 32px 32px 32px;">
-        <a href="${appUrl}" style="display: block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; text-align: center;">
+        <a href="${appUrl}" style="display: block; background: linear-gradient(135deg, #1e3a5f 0%, #2a4a6f 50%, #d4a855 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; text-align: center;">
           🎧 Listen to Today's Episode
         </a>
       </div>
       ` : ''}
 
-      <!-- Stats bar -->
-      <div style="display: flex; border-top: 1px solid #2a2a4a;">
+      <!-- Enhanced Stats bar -->
+      <div style="display: flex; flex-wrap: wrap; border-top: 1px solid #1e3a5f;">
+        ${ninetyDayTargets.length > 0 ? `
+        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
+          <div style="color: #d4a855; font-size: 24px; font-weight: 700;">${ninetyDayTargets.length}</div>
+          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">90-Day Goals</div>
+        </div>
+        ` : ''}
+        ${totalBenchmarks > 0 ? `
+        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
+          <div style="color: #22c55e; font-size: 24px; font-weight: 700;">${completedBenchmarks}/${totalBenchmarks}</div>
+          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Benchmarks</div>
+        </div>
+        ` : ''}
         ${totalHabitCompletions > 0 ? `
-        <div style="flex: 1; padding: 20px; text-align: center; ${avgTargetProgress !== null ? 'border-right: 1px solid #2a2a4a;' : ''}">
-          <div style="color: #6366f1; font-size: 28px; font-weight: 700;">${totalHabitCompletions}</div>
-          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Habit Check-ins</div>
+        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
+          <div style="color: #3b82f6; font-size: 24px; font-weight: 700;">${totalHabitCompletions}</div>
+          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Habits This Week</div>
+        </div>
+        ` : ''}
+        ${recognitionsSent > 0 ? `
+        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-bottom: 1px solid #1e3a5f;">
+          <div style="color: #f59e0b; font-size: 24px; font-weight: 700;">${recognitionsSent}</div>
+          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Recognitions Sent</div>
         </div>
         ` : ''}
         ${avgTargetProgress !== null ? `
-        <div style="flex: 1; padding: 20px; text-align: center;">
-          <div style="color: #22c55e; font-size: 28px; font-weight: 700;">${avgTargetProgress}%</div>
-          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Goal Progress</div>
+        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center;">
+          <div style="color: #22c55e; font-size: 24px; font-weight: 700;">${avgTargetProgress}%</div>
+          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Avg Goal Progress</div>
         </div>
         ` : ''}
       </div>
@@ -458,10 +508,10 @@ serve(async (req) => {
 
     <!-- Footer -->
     <div style="padding: 32px; text-align: center;">
-      <p style="color: #64748b; font-size: 13px; margin: 0 0 16px 0;">
+      <p style="color: #8892a8; font-size: 13px; margin: 0 0 16px 0;">
         Reply to this email anytime — I read every message.
       </p>
-      <a href="${appUrl}" style="color: #6366f1; font-size: 13px; text-decoration: none;">Update Preferences</a>
+      <a href="${appUrl}" style="color: #d4a855; font-size: 13px; text-decoration: none;">Update Preferences</a>
     </div>
   </div>
 </body>
