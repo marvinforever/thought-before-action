@@ -7,7 +7,7 @@ import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { ViewAsProvider } from "@/contexts/ViewAsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthHashRedirect } from "@/components/AuthHashRedirect";
-import Landing from "./pages/Landing";
+
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
@@ -44,8 +44,7 @@ const App = () => (
           <AuthHashRedirect />
           <FloatingJerichoButton />
           <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/sales" element={<Sales />} />
+            <Route path="/" element={<Sales />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/super-admin" element={<SuperAdminLayout />}>
