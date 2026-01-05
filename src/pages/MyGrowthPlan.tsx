@@ -139,7 +139,7 @@ export default function MyGrowthPlan() {
               variant="secondary" 
               size="sm"
               onClick={() => setRequestMeetingOpen(true)}
-              className="bg-white/10 hover:bg-white/20 border-white/20"
+              className="bg-white text-primary hover:bg-white/90"
             >
               <MessageSquare className="h-4 w-4 mr-2" />
               Request Meeting

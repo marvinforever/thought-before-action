@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { AI_CONFIG, mapCapabilityLevel, COACHING_STYLE, MISSING_PLAN_GUIDANCE, VARIETY_RULES } from "../_shared/jericho-config.ts";
+import { AI_CONFIG, mapCapabilityLevel, COACHING_STYLE, MISSING_PLAN_GUIDANCE, VARIETY_RULES, CONVERSATION_FORMAT, PODCAST_HOSTS } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -590,41 +590,44 @@ PACING: Keep it punchy! No rambling. Each section should feel tight and purposef
 
     const config = durationConfig[durationMinutes] || durationConfig[2];
 
-    // Generate script using Lovable AI with enhanced prompts
-    const systemPrompt = `You are a warm, insightful podcast host creating a personalized ${durationMinutes}-minute daily growth brief. You're like a supportive mentor who genuinely knows and cares about this person's development journey.
+    // Generate script using Lovable AI with two-host conversational format
+    const systemPrompt = `You are writing a ${durationMinutes}-minute conversational podcast between two hosts who genuinely know and care about this person's growth journey.
 
-Your tone is:
-- Conversational and authentic - like a trusted friend who happens to be a great coach
-- Direct and challenging (never placating) - you celebrate wins, but you also push for real action
-- Energetic but grounded - enthusiastic without being over-the-top, with natural emphasis on KEY words
-- Specific and personal - using the user's actual data and calling things by name
-- Action-oriented - every episode ends with a clear, doable challenge
-- Vision-connected - helping them see how today's small steps lead to their bigger aspirations
-- VARIED INTONATION - emphasize important words, pause for impact, don't be monotonous. Write with natural speech rhythm.
+THE HOSTS:
+- ${PODCAST_HOSTS.primary.name}: ${PODCAST_HOSTS.primary.role}
+- ${PODCAST_HOSTS.secondary.name}: ${PODCAST_HOSTS.secondary.role}
+
+${CONVERSATION_FORMAT}
 
 Today's Theme: ${dayTheme.name} - ${dayTheme.focus}
 ${dayTheme.additionalInstructions}
 
 ${config.structure}
 
-Rules:
-- Write for spoken audio - use contractions, simple sentences, natural pauses
-- Include [pause] markers for dramatic effect or transitions (use sparingly, 2-4 per episode max)
-- If data is missing, do NOT fill it in. Skip that section gracefully.
-- Never say "according to your data" or "based on your profile" - just state things naturally as if you know them
-- Avoid repeating the same phrasing across days (no templated lines). Use varied sentence openings.
-- CRITICAL: Capability levels must be referred to ONLY as Level 1 / Level 2 / Level 3 / Level 4 (never "foundational/advancing/independent/mastery").
-- If a target level EQUALS the current level (e.g., "Level 2 to Level 2"), don't say they're "on track to stay at Level 2." Instead say: "I noticed your target is the same as your current level. That means it's time to stretch! Head to My Capabilities and click 'Request Level Change' to set a higher target, or chat with your manager about leveling up."
-- If a target level appears LOWER than the current level, tell them to double-check and update it in My Capabilities.
-- If 30-day benchmarks or 7-day sprints are missing, be direct: tell them to open My Growth Plan and add them, and if they need help, click the chat bubble to do it with you.
-- CRITICAL: Only reference CURRENT QUARTER goals. If there are no recent goals, encourage them to set new ones for this quarter instead of referencing old goals.
-- Target approximately ${config.words}
-- IMPORTANT: Do NOT include any stage directions, audio cues, or production notes like "intro music fades in", "music plays", etc. Write ONLY the spoken words.
-- CRITICAL: Do NOT use asterisks, markdown formatting, or any text emphasis markers. Write plain text only.
-- CRITICAL: Do NOT use time-of-day greetings like "Good morning", "Good afternoon", or "Good evening". Use timeless greetings like "Hey [name]".
-- Extract and clearly state the daily challenge in a way that it could be pulled out and stored separately`;
+CRITICAL FORMATTING RULES:
+- Write as dialogue with speaker labels: "JERICHO: [text]" and "SAM: [text]"
+- Each speaker turn should be on its own line(s)
+- Keep exchanges SHORT and PUNCHY - no long monologues
+- Sam's reactions should feel genuine and energetic
+- Jericho delivers the coaching substance
 
-    const userPrompt = `Create today's ${durationMinutes}-minute podcast script for this user:
+GENERAL RULES:
+- Write for spoken audio - use contractions, simple sentences, natural pauses
+- Include [pause] markers for dramatic effect (use sparingly, 2-4 per episode max)
+- If data is missing, skip that section gracefully
+- Never say "according to your data" - just state things naturally
+- CRITICAL: Capability levels must be Level 1 / Level 2 / Level 3 / Level 4 only
+- If target level EQUALS current level, tell them to stretch higher via My Capabilities
+- If 30-day benchmarks or 7-day sprints are missing, be direct about adding them
+- CRITICAL: Only reference CURRENT QUARTER goals
+- Target approximately ${config.words}
+- IMPORTANT: Do NOT include stage directions, audio cues, or production notes
+- CRITICAL: Do NOT use asterisks, markdown formatting, or text emphasis markers
+- CRITICAL: Do NOT use time-of-day greetings. Use timeless greetings like "Hey [name]"
+- Sam should open the episode and hand off to Jericho
+- Jericho should deliver the daily challenge and close the episode`;
+
+    const userPrompt = `Create today's ${durationMinutes}-minute conversational podcast script between JERICHO and SAM for this user:
 
 User Context:
 - Name: ${context.userName}
@@ -634,81 +637,67 @@ User Context:
 Yesterday's Challenge: ${context.yesterdayChallenge || 'None given (first episode or break)'}
 
 ${context.pendingFollowUps.length > 0 
-  ? `COACHING FOLLOW-UPS (from recent conversations - naturally check in on these):
-${context.pendingFollowUps.map(f => `- ${f.topic}${f.context?.action_items?.length > 0 ? ` (they committed to: ${f.context.action_items.map((a: any) => a.item || a).join(', ')})` : ''}`).join('\n')}
-These are things they discussed in recent coaching sessions. Weave in a natural, caring check-in about one or more of these.`
+  ? `COACHING FOLLOW-UPS (from recent conversations):
+${context.pendingFollowUps.map(f => `- ${f.topic}${f.context?.action_items?.length > 0 ? ` (committed to: ${f.context.action_items.map((a: any) => a.item || a).join(', ')})` : ''}`).join('\n')}`
   : ''}
 
 ${context.recentConversationSummary 
-  ? `Recent Coaching Session Summary (this is about ${context.userName}'s own conversations - things THEY discussed with you):
-${context.recentConversationSummary}
-IMPORTANT: This summary is about ${context.userName}'s own actions and discussions. If it mentions other people (like sending recognition TO someone), ${context.userName} was the one doing the action, not receiving it.`
+  ? `Recent Coaching Summary: ${context.recentConversationSummary}`
   : ''}
 
 Habits & Streaks:
-- Top habit: ${context.habitStreak > 0 ? `"${context.habitName}" with a ${context.habitStreak}-day streak` : 'No active habit streak yet - opportunity to encourage starting one'}
+- Top habit: ${context.habitStreak > 0 ? `"${context.habitName}" with a ${context.habitStreak}-day streak` : 'No active streak yet'}
 
 Recent Achievements (last 7 days):
 ${context.recentAchievements.length > 0 
   ? context.recentAchievements.map(a => `- ${a.category}: "${a.text}"`).join('\n')
-  : '- None recorded in last week'}
+  : '- None recorded'}
 
 ${context.recentRecognitions.length > 0 
-  ? `Manager & Peer Recognition (last 14 days):\n${context.recentRecognitions.map(r => `- "${r.title}" from ${r.givenByName}${r.category ? ` (${r.category})` : ''}${r.description ? `: "${r.description}"` : ''}`).join('\n')}`
+  ? `Recognition received:\n${context.recentRecognitions.map(r => `- "${r.title}" from ${r.givenByName}`).join('\n')}`
   : ''}
 
 ${context.managerWins && context.managerWins.length > 0
-  ? `Wins from Recent 1:1 with Manager:\n- Your manager noted: ${context.managerWins.join('; ')}\n- Last 1:1 was on: ${context.lastOneOnOneDate}`
+  ? `Manager wins: ${context.managerWins.join('; ')}`
   : ''}
 
-Today's Capability Focus (rotating through priorities):
+Capability Focus:
 - Capability: ${context.priorityCapability || 'Not set'}
-- Current level: ${context.capabilityLevel || 'unassessed'}
-- Target level: ${context.targetLevel || 'growth'}
-${context.capabilityLevel === context.targetLevel ? `⚠️ SAME LEVEL ALERT: Current and target are BOTH ${context.capabilityLevel}. This needs attention - encourage them to set a higher target in My Capabilities or talk to their manager about leveling up. Don't say they're "on track" - they need to stretch!` : ''}
+- Current: ${context.capabilityLevel || 'unassessed'} → Target: ${context.targetLevel || 'growth'}
+${context.capabilityLevel === context.targetLevel ? `⚠️ SAME LEVEL - needs to stretch higher!` : ''}
 - Description: ${context.capabilityDescription || 'A key skill for their role'}
-${context.allPriorityCapabilities.length > 1 ? `- Other priorities they're working on: ${context.allPriorityCapabilities.filter((_, i) => i !== context.capabilityFocusIndex).map(c => c.name).join(', ')}` : ''}
 
-CURRENT QUARTER Goal & Execution Plan:
-- Current focus goal: ${context.activeGoal || 'No current quarter goal set - encourage them to set one!'}
+Goal & Execution:
+- Goal: ${context.activeGoal || 'No current quarter goal'}
 ${context.goalBenchmarks.length > 0 
-  ? `- 30-Day Benchmarks (${context.completedBenchmarks} of ${context.totalBenchmarks} complete):
-  ${context.goalBenchmarks.map(b => `  ${b.completed ? '✓' : '○'} ${b.text}`).join('\n  ')}`
-  : '⚠️ NO 30-DAY BENCHMARKS SET.'}
+  ? `- Benchmarks (${context.completedBenchmarks}/${context.totalBenchmarks}): ${context.goalBenchmarks.slice(0, 2).map(b => `${b.completed ? '✓' : '○'} ${b.text}`).join('; ')}`
+  : '⚠️ NO BENCHMARKS SET'}
 ${context.goalSprints.length > 0 
-  ? `- 7-Day Sprints (this week):
-  ${context.goalSprints.map(s => `  ${s.completed ? '✓' : '○'} ${s.text}`).join('\n  ')}`
-  : '⚠️ NO 7-DAY SPRINTS SET.'}
-${!context.activeGoal ? '\n⚠️ NO CURRENT QUARTER GOALS: If they have no goals for this quarter, encourage them to set fresh goals in My Growth Plan. Don\'t reference old 2025 goals - focus on what\'s next!' : ''}
+  ? `- Sprints: ${context.goalSprints.slice(0, 2).map(s => `${s.completed ? '✓' : '○'} ${s.text}`).join('; ')}`
+  : '⚠️ NO SPRINTS SET'}
 
-MISSING PLAN GUIDANCE:
-If benchmarks or sprints are missing, DO NOT just say "that's okay for today." Instead, be direct but encouraging:
-  "Hey ${context.userName}, I see we're missing your 30-day benchmarks or 7-day sprints. No worries - open up My Growth Plan and let's get those in. Click on any 90-day goal to add benchmarks and sprints. Not sure how? Click the chat bubble and I'll walk you through it. Let's set this week's focus today."
-Encourage them to take action now - you're a coach, not a cheerleader.
+${!context.activeGoal || context.goalBenchmarks.length === 0 || context.goalSprints.length === 0 
+  ? `MISSING PLAN - Jericho should call this out directly and tell them to set it up in My Growth Plan.` 
+  : ''}
 
-ROTATION RULES (CRITICAL):
-- Do NOT repeat the 90-day outcome every day.
-- Only mention the 90-day outcome explicitly if: ${canMentionOutcomeToday ? 'YES (allowed today)' : 'NO (not allowed today)'}
-- If outcome mention is not allowed, focus ONLY on the next incomplete sprint or benchmark and what to do today/this week.
+ROTATION RULES:
+- Mention 90-day outcome only if: ${canMentionOutcomeToday ? 'YES' : 'NO - focus on sprints/benchmarks'}
 
-Personal Vision:
-- Vision: ${context.personalVision || 'Not yet articulated'}
+Personal Vision: ${context.personalVision || 'Not yet set'}
+Strength: ${context.diagnosticStrength || 'Not assessed'}
+Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 
-Diagnostic Insights:
-- Natural strength: ${context.diagnosticStrength || 'Not assessed'}
-- Skill to develop: ${context.diagnosticGrowthArea || 'Not assessed'}
+Quote to include: "${context.inspirationalQuote.quote}" — ${context.inspirationalQuote.author}
 
-Learning Style: ${context.learningPreference || 'Not specified'}
+SCRIPT FORMAT REQUIREMENTS:
+1. Sam opens with energy: "SAM: Hey, welcome back! So Jericho, what do we have for ${context.userName} today?"
+2. Quick back-and-forth exchanges (not monologues)
+3. Sam reacts genuinely to wins/streaks with enthusiasm
+4. Jericho delivers coaching insights with authority
+5. Jericho gives the daily challenge near the end
+6. Jericho closes with a brief motivating send-off
 
-Inspirational Quote to weave in:
-"${context.inspirationalQuote.quote}" — ${context.inspirationalQuote.author}
-(Naturally include this quote somewhere in the episode - it can be in the opening, middle, or closing. Make it feel organic, not forced.)
-
-Generate the complete podcast script. Make it feel personal and motivating. Use natural speech patterns and include [pause] markers where appropriate.
-
-IMPORTANT: Near the end, clearly state the daily challenge in a memorable way. Make it specific, achievable, and connected to their growth.
-IMPORTANT: If they have benchmarks or sprints, focus on those SPECIFIC next steps rather than just repeating their 90-day outcome over and over.
-${context.pendingFollowUps.length > 0 ? '\nBONUS: If there are coaching follow-ups, naturally weave in a caring check-in about at least one of them. Make it conversational, not robotic.' : ''}`;
+Remember: Write dialogue with "JERICHO:" and "SAM:" labels. Keep it punchy and energetic!`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

@@ -40,14 +40,73 @@ export function mapCapabilityLevel(level: string | null): string {
 // ============================================================================
 // ELEVENLABS TTS VOICE SETTINGS
 // ============================================================================
-// Voice settings optimized for Midwestern American accent - warmer, less monotonous
+// Voice settings for conversational podcast - two different host styles
 export const TTS_VOICE_SETTINGS = {
-  stability: 0.18,        // Lower = more expressive/varied (was 0.25)
-  similarity_boost: 0.80, // Slightly lower for more natural variation (was 0.85)
-  style: 0.72,           // Higher = more stylistic expression (was 0.65)
+  stability: 0.18,        // Lower = more expressive/varied
+  similarity_boost: 0.80, // Natural variation
+  style: 0.72,           // Higher = more stylistic expression
   use_speaker_boost: true,
-  speed: 1.08,           // Slightly faster pace to keep energy up (was 1.0)
+  speed: 1.08,           // Slightly faster pace to keep energy up
 };
+
+// Secondary host voice settings - more energetic, reactive
+export const TTS_VOICE_SETTINGS_SECONDARY = {
+  stability: 0.15,        // Even more expressive for reactions
+  similarity_boost: 0.75, // More variation allowed
+  style: 0.80,           // Higher style for energy
+  use_speaker_boost: true,
+  speed: 1.12,           // Slightly faster, more energetic
+};
+
+// ============================================================================
+// PODCAST HOST CONFIGURATION (Two-Voice NotebookLM Style)
+// ============================================================================
+export const PODCAST_HOSTS = {
+  primary: {
+    name: 'Jericho',
+    voiceId: 'FuTV0OBHmKN2S3ej42IO', // Current Jericho voice
+    role: 'The wise, experienced growth coach - insightful, warm, direct',
+    voiceSettings: TTS_VOICE_SETTINGS,
+  },
+  secondary: {
+    name: 'Sam',
+    voiceId: 'N2lVS1w4EtoT3dr4eOWO', // Callum - energetic, warm, charismatic
+    role: 'The curious co-host - asks great questions, reacts genuinely, brings energy',
+    voiceSettings: TTS_VOICE_SETTINGS_SECONDARY,
+  }
+};
+
+export const CONVERSATION_FORMAT = `
+FORMAT: Two hosts having a natural, energetic conversation about the user's growth journey.
+- JERICHO: The experienced coach who delivers insights, challenges, and wisdom. Speaks with warm authority.
+- SAM: The energetic co-host who asks clarifying questions, reacts to wins, and keeps energy high. More casual.
+
+Write the script as a dialogue with clear speaker labels:
+JERICHO: [speaks]
+SAM: [responds/reacts/asks]
+JERICHO: [continues]
+...
+
+The conversation should feel natural and dynamic:
+- Sam can react enthusiastically to achievements ("Wait, a 15-day streak? That's incredible!")
+- Sam asks follow-up questions that help clarify coaching points
+- Sam adds energy and variety to the pacing with genuine reactions
+- Sam can share relatable observations ("I love that approach!")
+
+Jericho should:
+- Deliver the core coaching insights with authority
+- Challenge and push for action (the backbone of the conversation)
+- Connect everything to their bigger vision
+- Have the "final word" on topics and deliver the daily challenge
+
+FLOW EXAMPLE:
+SAM: Hey, welcome back! So Jericho, what are we diving into today for [name]?
+JERICHO: Sam, we've got some great stuff. [Name] is on day 15 of their Morning Planning habit.
+SAM: Wait, 15 days? That's awesome - most people drop off by day 7!
+JERICHO: Exactly. And that consistency is showing up in their work...
+
+Keep exchanges SHORT and PUNCHY. Don't let either host ramble. Quick back-and-forth creates energy.
+`;
 
 // ============================================================================
 // JERICHO COACHING PHILOSOPHY
