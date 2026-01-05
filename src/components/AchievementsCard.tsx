@@ -4,8 +4,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Award, Plus, Trash2, Calendar, Pencil } from "lucide-react";
+import { Award, Plus, Trash2, Calendar, Pencil, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { RecognitionDialog } from "@/components/RecognitionDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Achievement = {
   id: string;
@@ -23,6 +25,12 @@ type Recognition = {
   given_by_name: string;
 };
 
+interface Teammate {
+  id: string;
+  full_name: string;
+  company_id: string;
+}
+
 export default function AchievementsCard() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [recognitions, setRecognitions] = useState<Recognition[]>([]);
@@ -30,12 +38,50 @@ export default function AchievementsCard() {
   const [editingAchievement, setEditingAchievement] = useState<string | null>(null);
   const [newAchievement, setNewAchievement] = useState({ text: "", date: "" });
   const [editData, setEditData] = useState({ text: "", date: "" });
+  const [teammates, setTeammates] = useState<Teammate[]>([]);
+  const [selectedTeammate, setSelectedTeammate] = useState<Teammate | null>(null);
+  const [recognitionDialogOpen, setRecognitionDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     loadAchievements();
     loadRecognitions();
+    loadTeammates();
   }, []);
+
+  const loadTeammates = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.company_id) return;
+
+      // Fetch all active teammates in the same company (excluding self)
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, company_id")
+        .eq("company_id", profile.company_id)
+        .eq("is_active", true)
+        .neq("id", user.id)
+        .order("full_name");
+
+      if (error) throw error;
+      setTeammates(data || []);
+    } catch (error: any) {
+      console.error("Error loading teammates:", error);
+    }
+  };
+
+  const handleRecognizeTeammate = (teammate: Teammate) => {
+    setSelectedTeammate(teammate);
+    setRecognitionDialogOpen(true);
+  };
 
   const loadAchievements = async () => {
     try {
@@ -385,13 +431,41 @@ export default function AchievementsCard() {
   return (
     <Card className="bg-highlight-gold">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Award className="h-5 w-5 text-primary" />
-          Celebrations & Achievements
-        </CardTitle>
-        <CardDescription>
-          Track and celebrate your accomplishments
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-primary" />
+              Celebrations & Achievements
+            </CardTitle>
+            <CardDescription>
+              Track and celebrate your accomplishments
+            </CardDescription>
+          </div>
+          {teammates.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Select
+                onValueChange={(id) => {
+                  const teammate = teammates.find(t => t.id === id);
+                  if (teammate) handleRecognizeTeammate(teammate);
+                }}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-4 w-4 text-pink-500" />
+                    <span>Recognize Teammate</span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {teammates.map((teammate) => (
+                    <SelectItem key={teammate.id} value={teammate.id}>
+                      {teammate.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 md:grid-cols-3">
@@ -400,6 +474,16 @@ export default function AchievementsCard() {
           {renderRecognitionsList()}
         </div>
       </CardContent>
+
+      {/* Peer Recognition Dialog */}
+      {selectedTeammate && (
+        <RecognitionDialog
+          open={recognitionDialogOpen}
+          onOpenChange={setRecognitionDialogOpen}
+          employee={selectedTeammate}
+          isPeerRecognition={true}
+        />
+      )}
     </Card>
   );
 }

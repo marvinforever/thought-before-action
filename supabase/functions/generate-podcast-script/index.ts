@@ -623,7 +623,7 @@ ${dayTheme.additionalInstructions}
 ${config.structure}
 
 CRITICAL FORMATTING RULES:
-- Write as dialogue with speaker labels: "JERICHO: [text]" and "ALEX: [text]"
+- Write as dialogue with speaker labels: "JERICHO: [text]" and "SAM: [text]"
 - Each speaker turn should be on its own line(s)
 - Keep exchanges SHORT and PUNCHY - no long monologues
 - Alex's reactions should feel genuine and energetic
@@ -690,11 +690,22 @@ ${context.managerWins && context.managerWins.length > 0
   ? `Manager wins: ${context.managerWins.join('; ')}`
   : ''}
 
-Capability Focus:
-- Capability: ${context.priorityCapability || 'Not set'}
-- Current: ${context.capabilityLevel || 'unassessed'} → Target: ${context.targetLevel || 'growth'}
+TODAY'S Capability Focus:
+- Primary: ${context.priorityCapability || 'Not set'} (${context.capabilityLevel || 'unassessed'} → ${context.targetLevel || 'growth'})
 ${context.capabilityLevel === context.targetLevel ? `⚠️ SAME LEVEL - needs to stretch higher!` : ''}
 - Description: ${context.capabilityDescription || 'A key skill for their role'}
+
+ALL Their Capabilities (feel free to reference ANY of these casually in conversation):
+${context.allPriorityCapabilities.length > 0 
+  ? context.allPriorityCapabilities.map((c, i) => `${i + 1}. ${c.name} (${c.level} → ${c.target})`).join('\n')
+  : '- No capabilities assigned yet'}
+
+🎯 COACHING FREEDOM: You have full permission to:
+- Reference ANY of the capabilities above naturally in conversation
+- Go deeper on ONE specific topic if it feels right (don't spread too thin)
+- Connect capabilities to each other ("Your communication skills will help with that leadership challenge...")
+- Mention capabilities they haven't focused on in a while to keep them top of mind
+- Vary your focus day-to-day - don't always hit the same capability
 
 Goal & Execution:
 - Goal: ${context.activeGoal || 'No current quarter goal'}
@@ -719,14 +730,14 @@ Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 Quote to include: "${context.inspirationalQuote.quote}" — ${context.inspirationalQuote.author}
 
 SCRIPT FORMAT REQUIREMENTS:
-1. Alex opens with energy: "ALEX: Hey, welcome back! So Jericho, what do we have for ${context.userName} today?"
+1. Sam opens with energy: "SAM: Hey, welcome back! So Jericho, what do we have for ${context.userName} today?"
 2. Quick back-and-forth exchanges (not monologues)
-3. Alex reacts genuinely to wins/streaks with enthusiasm
+3. Sam reacts genuinely to wins/streaks with enthusiasm
 4. Jericho delivers coaching insights with authority
 5. Jericho gives the daily challenge near the end - KEEP IT SHORT (1-2 sentences, under 20 words)
 6. Jericho closes with a brief motivating send-off
 
-Remember: Write dialogue with "JERICHO:" and "ALEX:" labels. Keep it punchy and energetic!`;
+Remember: Write dialogue with "JERICHO:" and "SAM:" labels. Keep it punchy and energetic!`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
