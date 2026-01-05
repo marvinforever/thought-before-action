@@ -145,7 +145,7 @@ async function generateChunkAudio(
   }
   
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=pcm_44100`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
     {
       method: 'POST',
       headers: {
@@ -389,10 +389,8 @@ serve(async (req) => {
       wordCount = cleanedScript.split(/\s+/).length;
     }
 
-    // Wrap PCM in WAV to avoid cumulative encoder padding/drift across chunks
-    const wavBuffer = pcmToWav(audioBuffer);
-
-    console.log(`Audio generated, wav size: ${wavBuffer.byteLength} bytes`);
+    // Audio is already in MP3 format from ElevenLabs
+    console.log(`Audio generated, mp3 size: ${audioBuffer.byteLength} bytes`);
 
     // Estimate duration (rough: ~150 words per minute)
     const estimatedDurationSeconds = Math.round((wordCount / 150) * 60);
@@ -404,14 +402,14 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       // Generate unique filename
-      const fileName = `${profileId}/${episodeDate}.wav`;
+      const fileName = `${profileId}/${episodeDate}.mp3`;
 
       // Upload to Storage
       const { error: uploadError } = await supabase
         .storage
         .from('podcasts')
-        .upload(fileName, wavBuffer, {
-          contentType: 'audio/wav',
+        .upload(fileName, audioBuffer, {
+          contentType: 'audio/mpeg',
           upsert: true, // Replace if exists (regenerating)
         });
 
@@ -444,15 +442,15 @@ serve(async (req) => {
         }
       );
     } else {
-      // Return audio directly as base64 (WAV)
-      const base64Audio = base64Encode(wavBuffer);
+      // Return audio directly as base64 (MP3)
+      const base64Audio = base64Encode(audioBuffer);
       return new Response(
         JSON.stringify({
           success: true,
           audioContent: base64Audio,
           durationSeconds: estimatedDurationSeconds,
           wordCount,
-          mimeType: 'audio/wav',
+          mimeType: 'audio/mpeg',
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
