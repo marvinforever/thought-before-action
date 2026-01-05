@@ -244,8 +244,17 @@ serve(async (req) => {
     const subjectLine = `Your Growth Brief for ${day} - ${capabilityFocus}`;
 
     // Send email
-    const fromAddress = Deno.env.get("RESEND_FROM") || "Jericho <onboarding@resend.dev>";
+    const rawFrom = Deno.env.get("RESEND_FROM");
+    const cleanedFrom = (rawFrom || "").trim().replace(/^"|"$/g, "");
 
+    const isBareEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedFrom);
+    const isNameEmail = /^.+<[^>]+>$/.test(cleanedFrom);
+
+    const fromAddress = cleanedFrom
+      ? (isBareEmail ? `Jericho <${cleanedFrom}>` : cleanedFrom)
+      : "Jericho <onboarding@resend.dev>";
+
+    console.log("Using RESEND_FROM:", { rawFrom, fromAddress });
     const emailResponse = await resend.emails.send({
       from: fromAddress,
       to: [profile.email],
