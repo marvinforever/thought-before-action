@@ -210,20 +210,20 @@ const DashboardLayout = () => {
 
       {/* Main Content */}
       <div className={cn(
-        "transition-all duration-300",
+        "transition-all duration-300 min-h-screen",
         !isMobile && sidebarOpen ? "ml-64" : "ml-0"
       )}>
         {/* Header */}
         <header className="bg-card border-b border-border sticky top-0 z-30">
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between p-3 md:p-4">
             {isMobile ? (
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-64 p-0">
+                <SheetContent side="left" className="w-72 p-0">
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
@@ -236,25 +236,25 @@ const DashboardLayout = () => {
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <Button
                 variant="default"
                 size="sm"
                 onClick={() => navigate("/dashboard/growth-roadmap")}
-                className="gap-2"
+                className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3"
               >
-                <Map className="h-4 w-4" />
-                My Roadmap
+                <Map className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                <span className="hidden xs:inline">My </span>Roadmap
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-xs md:text-sm text-muted-foreground truncate max-w-[120px] md:max-w-none">
                 {user.email}
               </span>
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="p-6">
+        {/* Page Content - reduced padding on mobile */}
+        <main className="p-3 md:p-6 pb-20 md:pb-6">
           <Outlet />
         </main>
       </div>

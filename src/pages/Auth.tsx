@@ -75,7 +75,7 @@ const Auth = () => {
         });
         if (error) throw error;
         toast({ title: "Welcome back!", description: "Successfully logged in." });
-        navigate("/dashboard");
+        navigate("/dashboard/my-growth-plan");
       } else {
         // Set flag to prevent onAuthStateChange from redirecting prematurely
         setIsSigningUp(true);

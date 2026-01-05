@@ -176,10 +176,19 @@ async function generateSegmentAudio(
   previousText?: string,
   nextText?: string
 ): Promise<ArrayBuffer> {
-  // Clean text for TTS
+  // Clean text for TTS - remove AI-sounding pauses and artifacts
   const cleanedText = text
-    .replace(/\[pause\]/gi, '...')
-    .replace(/\n\n/g, '\n')
+    // Remove explicit pause markers
+    .replace(/\[pause\]/gi, '')
+    // Replace multiple periods with single pause (sounds more natural)
+    .replace(/\.{2,}/g, '.')
+    // Remove double dashes that create awkward pauses
+    .replace(/\s*--\s*/g, ' ')
+    .replace(/—/g, ', ')
+    // Clean up multiple spaces
+    .replace(/\s+/g, ' ')
+    // Remove newlines (cause unnatural breaks)
+    .replace(/\n+/g, ' ')
     .trim();
   
   // If text is short enough, generate directly
