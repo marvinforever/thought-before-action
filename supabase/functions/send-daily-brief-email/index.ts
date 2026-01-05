@@ -225,7 +225,7 @@ serve(async (req) => {
     );
 
     // Build the app URL
-    const appUrl = `https://aiihzjkspwsriktvrdle.lovableproject.com/dashboard`;
+    const appUrl = `https://askjericho.com/dashboard/my-growth-plan`;
 
     // Build the on-brand Jericho email HTML
     const emailHtml = `
