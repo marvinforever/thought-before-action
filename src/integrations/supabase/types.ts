@@ -3290,6 +3290,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          phone: string | null
           referral_code: string
           status: string
           user_id: string | null
@@ -3301,6 +3302,7 @@ export type Database = {
           email: string
           id?: string
           name: string
+          phone?: string | null
           referral_code: string
           status?: string
           user_id?: string | null
@@ -3312,6 +3314,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          phone?: string | null
           referral_code?: string
           status?: string
           user_id?: string | null

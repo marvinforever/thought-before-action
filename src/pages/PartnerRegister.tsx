@@ -35,6 +35,7 @@ const staggerContainer = {
 export default function PartnerRegister() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,6 +77,7 @@ export default function PartnerRegister() {
           user_id: authData.user.id,
           name,
           email,
+          phone: phone || null,
           company: company || null,
           referral_code: referralCode,
         });
@@ -372,6 +374,17 @@ export default function PartnerRegister() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="john@company.com"
                     required
+                    className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50 focus:border-accent"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-primary-foreground">Phone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="(555) 123-4567"
                     className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50 focus:border-accent"
                   />
                 </div>
