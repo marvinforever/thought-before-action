@@ -42,20 +42,7 @@ export default function PartnerDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const referralBaseUrl = (() => {
-    const explicit = (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/$/, "");
-    if (explicit) return explicit;
-
-    // If we're on the preview domain, prefer the published domain (same subdomain) so links work for the public.
-    const origin = window.location.origin;
-    const host = window.location.host;
-    if (host.endsWith(".lovableproject.com")) {
-      const publishedHost = host.replace(".lovableproject.com", ".lovable.app");
-      return `${window.location.protocol}//${publishedHost}`;
-    }
-
-    return origin;
-  })();
+  const referralBaseUrl = "https://www.askjericho.com";
   const referralLink = partner ? `${referralBaseUrl}/?ref=${partner.referral_code}` : '';
 
   useEffect(() => {
