@@ -170,9 +170,14 @@ export default function PartnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex gap-2">
-              <div className="flex-1 bg-slate-700/50 border border-slate-600 rounded-md px-4 py-2 text-white font-mono text-sm overflow-x-auto">
+              <a 
+                href={referralLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex-1 bg-slate-700/50 border border-slate-600 rounded-md px-4 py-2 text-white font-mono text-sm overflow-x-auto hover:bg-slate-600/50 transition-colors cursor-pointer"
+              >
                 {referralLink}
-              </div>
+              </a>
               <Button onClick={copyLink} className="bg-emerald-600 hover:bg-emerald-700">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </Button>
