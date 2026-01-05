@@ -108,7 +108,7 @@ const Sales = () => {
               <Button variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10">Sign In</Button>
             </Link>
             <Button className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/30" onClick={handleDemoRequest}>
-              Book a Clarity Call
+              Book a Demo
             </Button>
           </div>
         </div>
@@ -149,7 +149,7 @@ const Sales = () => {
 
             <motion.div variants={fadeIn} className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
               <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-8 py-6 shadow-xl shadow-accent/30" onClick={handleDemoRequest}>
-                Book a Clarity Call
+                Book a Demo
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={handleTrialRequest}>
@@ -547,7 +547,7 @@ const Sales = () => {
 
             <motion.div variants={fadeIn}>
               <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-10 py-6 shadow-xl shadow-accent/30" onClick={handleDemoRequest}>
-                Book a Jericho Clarity Call
+                Book a Demo
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </motion.div>
