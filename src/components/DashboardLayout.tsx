@@ -149,7 +149,6 @@ const DashboardLayout = () => {
         { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
         { icon: BookOpen, label: "Resources", path: "/dashboard/resources" },
         { icon: Upload, label: "Import Resources", path: "/dashboard/resource-import" },
-        { icon: Target, label: "AI Resource Research", path: "/dashboard/resource-research" },
         { icon: Handshake, label: "Partner Portal", path: "/partner" },
         { icon: Settings, label: "Settings", path: "/dashboard/settings" },
       ]
