@@ -42,21 +42,7 @@ export default function PartnerDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const referralBaseUrl = (() => {
-    // If the app is being served on your production domain, always use it.
-    if (window.location.host === "www.askjericho.com" || window.location.host === "askjericho.com") {
-      return window.location.origin;
-    }
-
-    // Otherwise (preview / staging), use the published Lovable domain so the link works for the public.
-    const host = window.location.host;
-    if (host.endsWith(".lovableproject.com")) {
-      const publishedHost = host.replace(".lovableproject.com", ".lovable.app");
-      return `${window.location.protocol}//${publishedHost}`;
-    }
-
-    return window.location.origin;
-  })();
+  const referralBaseUrl = "https://www.askjericho.com";
   const referralLink = partner ? `${referralBaseUrl}/?ref=${partner.referral_code}` : "";
 
   useEffect(() => {
