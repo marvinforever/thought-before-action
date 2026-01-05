@@ -40,22 +40,22 @@ export function mapCapabilityLevel(level: string | null): string {
 // ============================================================================
 // ELEVENLABS TTS VOICE SETTINGS
 // ============================================================================
-// Voice settings for Jessica - quicker pace, more emphasis, fewer awkward pauses
+// Voice settings for Jessica - quicker pace, more emphasis, high energy
 export const TTS_VOICE_SETTINGS = {
-  stability: 0.18,        // Lower = more expressive and dynamic
-  similarity_boost: 0.80, // Strong voice consistency
-  style: 0.75,           // Higher emphasis and energy
+  stability: 0.15,        // Lower = more expressive and dynamic delivery
+  similarity_boost: 0.82, // Strong voice consistency
+  style: 0.80,           // Higher emphasis and energy
   use_speaker_boost: true,
-  speed: 1.15,           // Quicker pace, keeps momentum
+  speed: 1.18,           // Quicker pace, keeps momentum going
 };
 
 // Secondary host voice settings (unused in solo mode, but kept for compatibility)
 export const TTS_VOICE_SETTINGS_SECONDARY = {
-  stability: 0.18,        
-  similarity_boost: 0.80, 
-  style: 0.75,           
+  stability: 0.15,        
+  similarity_boost: 0.82, 
+  style: 0.80,           
   use_speaker_boost: true,
-  speed: 1.15,           
+  speed: 1.18,           
 };
 
 // ============================================================================

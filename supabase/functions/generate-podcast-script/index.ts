@@ -73,6 +73,12 @@ interface PodcastContext {
     givenByName: string;
     recognitionDate: string;
   }[];
+  // Recognition GIVEN to others
+  recognitionGiven: {
+    title: string;
+    recipientName: string;
+    recognitionDate: string;
+  }[];
   managerWins: string[] | null;
   lastOneOnOneDate: string | null;
   // Coaching follow-ups from conversations
@@ -84,6 +90,15 @@ interface PodcastContext {
   }[];
   recentConversationSummary: string | null;
   inspirationalQuote: { quote: string; author: string };
+  // Diagnostic scores for closing summary
+  diagnosticScores: {
+    clarity: number | null;
+    engagement: number | null;
+    burnout: number | null;
+    career: number | null;
+    manager: number | null;
+    retention: number | null;
+  } | null;
 }
 
 interface DayTheme {
@@ -532,6 +547,47 @@ serve(async (req) => {
     const diagnosticStrength = diagnostic?.[0]?.natural_strength || null;
     const diagnosticGrowthArea = diagnostic?.[0]?.skill_to_master || null;
 
+    // Fetch diagnostic scores for closing summary
+    const { data: diagnosticScoresData } = await supabase
+      .from('diagnostic_scores')
+      .select('clarity_score, engagement_score, burnout_score, career_score, manager_score, retention_score')
+      .eq('profile_id', profileId)
+      .order('calculated_at', { ascending: false })
+      .limit(1);
+
+    const diagnosticScores = diagnosticScoresData?.[0] ? {
+      clarity: diagnosticScoresData[0].clarity_score,
+      engagement: diagnosticScoresData[0].engagement_score,
+      burnout: diagnosticScoresData[0].burnout_score,
+      career: diagnosticScoresData[0].career_score,
+      manager: diagnosticScoresData[0].manager_score,
+      retention: diagnosticScoresData[0].retention_score,
+    } : null;
+
+    console.log('Diagnostic scores:', diagnosticScores);
+
+    // Fetch recognition GIVEN by the user (last 14 days)
+    const { data: recognitionGivenData } = await supabase
+      .from('recognition_notes')
+      .select(`
+        title,
+        recognition_date,
+        given_to,
+        profiles!recognition_notes_given_to_fkey (full_name)
+      `)
+      .eq('given_by', profileId)
+      .gte('recognition_date', fourteenDaysAgo.toISOString().split('T')[0])
+      .order('recognition_date', { ascending: false })
+      .limit(3);
+
+    const recognitionGiven = (recognitionGivenData || []).map(r => ({
+      title: r.title,
+      recipientName: (r.profiles as any)?.full_name?.split(' ')[0] || 'a teammate',
+      recognitionDate: r.recognition_date
+    }));
+
+    console.log(`Found ${recognitionGiven.length} recognitions given by user`);
+
     // Pick a random inspirational quote for today
     const todayQuote = INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)];
 
@@ -564,11 +620,13 @@ serve(async (req) => {
         target: (c as any).targetLabel || c.target,
       })),
       recentRecognitions,
+      recognitionGiven,
       managerWins,
       lastOneOnOneDate,
       pendingFollowUps,
       recentConversationSummary,
       inspirationalQuote: todayQuote,
+      diagnosticScores,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
@@ -576,28 +634,33 @@ serve(async (req) => {
     // Duration-based parameters - INCREASED word counts by ~20%
     const durationConfig: Record<number, { words: string; structure: string; maxTokens: number }> = {
       2: {
-        words: '350-420 words',
-        structure: `Structure (keep to ~350-420 words total for 2-minute audio):
-1. Opening (15 sec, ~35 words): Greet by name, acknowledge the day with energy
-2. Accountability Check (20 sec, ~40 words): Reference yesterday's challenge if given, or acknowledge their streak/consistency
-3. Personal Win (25 sec, ~50 words): Celebrate a specific achievement, streak, or progress
-4. Growth Insight (50 sec, ~100 words): One educational nugget related to today's capability focus
-5. Daily Challenge (35 sec, ~70 words): Specific, actionable micro-challenge for today - be clear and measurable
-6. Vision Connection (15 sec, ~30 words): Briefly tie today's work to their bigger picture
-7. Closing (10 sec, ~25 words): Encouraging, energizing sign-off`,
-        maxTokens: 1200
+        words: '400-480 words',
+        structure: `Structure (keep to ~400-480 words total for 2-2.5 minute audio):
+1. Opening (15 sec, ~35 words): Greet by name with genuine warmth and energy
+2. Accountability Check (15 sec, ~30 words): Quick reference to yesterday's challenge or their consistency
+3. Personal Win (20 sec, ~45 words): Celebrate a specific achievement or progress
+4. Growth Insight (40 sec, ~85 words): One punchy insight related to today's capability focus
+5. Daily Challenge (20 sec, ~45 words): Specific, SHORT micro-challenge - one sentence max
+6. Quick Pulse Check (25 sec, ~55 words): Quick rundown of their diagnostic scores if available - keep it encouraging
+7. Recognition Shoutout (15 sec, ~35 words): If they gave recognition to others, acknowledge their leadership in lifting others up
+8. Warm Closing (20 sec, ~45 words): Genuine, warm sign-off - make them feel seen and supported
+
+PACING: Keep the energy UP! Quick transitions, punchy delivery. Emphasize key words. End on a HIGH note with genuine warmth - not cold or abrupt.`,
+        maxTokens: 1400
       },
       5: {
-        words: '550-650 words',  // Target ~3.5 min actual audio (was 850-1000)
+        words: '550-650 words',  // Target ~3.5 min actual audio
         structure: `Structure (keep to ~550-650 words total for ~3.5 minute audio - keep the pace MOVING):
 1. Opening (15 sec, ~35 words): Energetic greeting by name, quick ${dayTheme.name} theme hook
 2. Quick Win (20 sec, ~45 words): ONE highlight - best achievement, recognition, or streak
 3. Capability Focus (60 sec, ~120 words): Punchy insight on today's capability with ONE actionable tip
 4. Goal Progress (45 sec, ~90 words): Current quarter goal status - focus on next sprint/benchmark, not the 90-day outcome
-5. Daily Challenge (30 sec, ~60 words): Clear, specific, achievable challenge for today
-6. Closing (25 sec, ~50 words): Connect to vision briefly, energizing sign-off
+5. Daily Challenge (25 sec, ~50 words): Clear, specific, SHORT challenge for today
+6. Pulse Check (20 sec, ~45 words): Quick diagnostic scores rundown if available
+7. Recognition Shoutout (15 sec, ~35 words): Acknowledge any recognition they gave to teammates
+8. Warm Closing (25 sec, ~55 words): Connect to vision, genuinely warm sign-off - leave them feeling supported
 
-PACING: Keep it punchy! No rambling. Each section should feel tight and purposeful. Emphasize key words naturally - vary your tone to highlight important points. Don't drone.`,
+PACING: Keep it punchy! No rambling. Each section should feel tight and purposeful. End warm, not cold.`,
         maxTokens: 1800
       },
       10: {
@@ -736,14 +799,33 @@ Personal Vision: ${context.personalVision || 'Not yet set'}
 Strength: ${context.diagnosticStrength || 'Not assessed'}
 Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 
+${context.diagnosticScores ? `DIAGNOSTIC PULSE (for quick closing summary - mention 2-3 key scores naturally):
+- Role Clarity: ${context.diagnosticScores.clarity ?? 'N/A'}%
+- Engagement: ${context.diagnosticScores.engagement ?? 'N/A'}%
+- Burnout Risk: ${context.diagnosticScores.burnout ?? 'N/A'}% (lower is better)
+- Career Growth: ${context.diagnosticScores.career ?? 'N/A'}%
+- Manager Support: ${context.diagnosticScores.manager ?? 'N/A'}%
+- Retention: ${context.diagnosticScores.retention ?? 'N/A'}%
+Keep it encouraging! If scores are low, frame as "areas we're working on" not problems.` : ''}
+
+${context.recognitionGiven.length > 0 
+  ? `RECOGNITION GIVEN (acknowledge their leadership in lifting others):
+${context.recognitionGiven.map(r => `- "${r.title}" to ${r.recipientName}`).join('\n')}
+Praise them for being the kind of leader who sees and celebrates others!`
+  : ''}
+
 SCRIPT FORMAT REQUIREMENTS:
-1. Jessica opens warmly: "JESSICA: Hey ${context.userName}, welcome back..."
+1. Jessica opens warmly: "JESSICA: Hey ${context.userName}!"
 2. Solo monologue format - Jessica speaks directly to the listener throughout
 3. Jessica delivers coaching insights with warmth and authority
-4. Jessica gives the daily challenge near the end - KEEP IT SHORT (1-2 sentences, under 20 words)
-5. Jessica closes with a brief motivating send-off
+4. Jessica gives the daily challenge - KEEP IT SHORT (1 sentence, under 15 words)
+5. Quick pulse check on their diagnostic scores (if available) - keep it encouraging
+6. If they gave recognition, acknowledge them for lifting up their teammates
+7. Jessica closes with GENUINE WARMTH - make them feel seen, supported, and cheered on. NOT cold or abrupt.
 
-Remember: Write as solo host with "JESSICA:" label only. Keep it warm, direct, and actionable!`;
+CLOSING ENERGY: End on a HIGH note. Something like "I'm so proud of you" or "You've got this and I'll be right here cheering you on" - genuine, warm, personal. NOT just "Have a great day!"
+
+Remember: Write as solo host with "JESSICA:" label only. Keep it warm, direct, and end with HEART!`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
