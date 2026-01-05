@@ -56,6 +56,9 @@ export default function PartnerRegister() {
     setLoading(true);
 
     try {
+      // Sign out any existing session first
+      await supabase.auth.signOut();
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -67,7 +70,13 @@ export default function PartnerRegister() {
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Handle "User already registered" error
+        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+          throw new Error("This email is already registered. Please use the login page instead.");
+        }
+        throw authError;
+      }
       if (!authData.user) throw new Error("Failed to create account");
 
       const referralCode = generateReferralCode();
