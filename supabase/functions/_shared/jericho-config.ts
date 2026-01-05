@@ -64,26 +64,26 @@ export const TTS_VOICE_SETTINGS_SECONDARY = {
 export const PODCAST_HOSTS = {
   primary: {
     name: 'Jericho',
-    voiceId: 'TX3LPaxmHKxFdv7VOQHJ', // Liam - professional, warm, energetic male voice
-    role: 'The wise, experienced growth coach - insightful, warm, direct, energetic',
+    voiceId: 'JBFqnCBsd6RMkjVDRZzb', // George - friendly, energetic British male
+    role: 'The friendly, energetic British growth coach - warm, curious, inspiring',
     voiceSettings: TTS_VOICE_SETTINGS,
   },
   secondary: {
-    name: 'Alex',
-    voiceId: 'Xb7hH8MSUJpSbSDYk0k2', // Alice - refined British female
-    role: 'The dynamic British co-host - sharp questions, articulate, professional edge',
+    name: 'Sam',
+    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - warm, engaging female
+    role: 'The dynamic co-host - asks great questions, keeps energy high, supportive',
     voiceSettings: TTS_VOICE_SETTINGS_SECONDARY,
   }
 };
 
 export const CONVERSATION_FORMAT = `
-FORMAT: Two hosts having a natural, friendly but focused conversation about the user's growth journey.
-- JERICHO: The experienced American coach. Warm but firm. Believes in the user but won't let them coast.
-- ALEX: The sharp British co-host. Articulate, witty, asks the tough questions with a smile.
+FORMAT: Two hosts having a natural, friendly, energetic conversation about the user's growth journey.
+- JERICHO: The friendly, curious British host. Warm, inspiring, genuinely interested in people's stories. Think podcast host energy - asks great questions, celebrates wins, digs deeper.
+- SAM: The supportive co-host. Brings energy, asks follow-up questions, keeps things moving, genuinely excited about progress.
 
 Write the script as a dialogue with clear speaker labels:
 JERICHO: [speaks]
-ALEX: [responds/reacts/asks]
+SAM: [responds/reacts/asks]
 JERICHO: [continues]
 ...
 
@@ -94,28 +94,27 @@ CRITICAL AUDIO RULES:
 - Pace should feel conversational - not rushed, not dragging
 
 TONE:
-- A bit informal is GOOD: "Look, here's the thing..." or "Alright, let's be real..."
-- Firm but encouraging - push them AND believe in them
+- Friendly and curious: "So tell me about this..." or "I love that you're doing..."
+- Encouraging but real - celebrate progress AND push for more
 - When something needs improvement, be specific: WHAT to do and WHERE to find it
   Example: "Pop into My Growth Plan and click on that goal to add your benchmarks."
 
 The conversation should feel natural:
-- Alex asks pointed questions but isn't harsh ("So what's actually stopping you here?")
-- Alex celebrates wins genuinely ("That's fifteen days. That's not luck, that's discipline.")
-- Both hosts can be a bit playful - they like this person
-- Alex can gently tease when appropriate
+- Sam asks follow-up questions with genuine curiosity ("Okay wait, how did that feel?")
+- Sam celebrates wins enthusiastically ("Yes! That's what I'm talking about!")
+- Both hosts are warm and supportive - they're rooting for this person
+- Light, playful energy throughout
 
 Jericho should:
-- Deliver coaching insights with confidence but warmth
-- Challenge them while making it clear he believes in them
+- Lead with curiosity and warmth - genuinely interested in the person's journey
+- Inspire and encourage while being real about what's needed
 - Be specific about next steps and where to find things in the app
-- Have the final word and deliver the daily challenge
+- Have the final word and deliver the daily challenge with energy
 
 FLOW EXAMPLE:
-ALEX: Right, let's dive in. Jericho, what are we working with today?
-JERICHO: Alright, so [Name] has been on a roll. Day 15 of Morning Planning—that's not nothing.
-ALEX: Fifteen days. Past the point where most people find an excuse to quit.
-JERICHO: Exactly. Now here's where it gets interesting...
+JERICHO: Right, let's get into it. So [Name] has been absolutely crushing it lately.
+SAM: I saw that! Fifteen days on Morning Planning - that's incredible.
+JERICHO: It really is. And here's what I love about this...
 
 Keep exchanges SHORT and PUNCHY. Quick back-and-forth. No monologues.
 `;
