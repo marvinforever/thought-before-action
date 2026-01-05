@@ -94,18 +94,16 @@ const Sales = () => {
       // Create a click record in the database
       const trackReferralClick = async () => {
         try {
-          // Find the partner by referral code
-          const { data: partner } = await supabase
-            .from('referral_partners')
-            .select('id')
-            .eq('referral_code', refCode.toUpperCase())
-            .eq('status', 'active')
-            .maybeSingle();
+          // Resolve partner id without exposing partner data publicly
+          const { data: partnerId, error: partnerIdError } = await supabase
+            .rpc('get_partner_id_by_referral_code', { p_referral_code: refCode });
 
-          if (partner) {
+          if (partnerIdError) throw partnerIdError;
+
+          if (partnerId) {
             // Create a lead record for the click
             await supabase.from('referral_leads').insert({
-              partner_id: partner.id,
+              partner_id: partnerId,
               status: 'clicked',
             });
           }
@@ -135,16 +133,14 @@ const Sales = () => {
     if (!refCode) return;
     setTimeout(async () => {
       try {
-        const { data: partner } = await supabase
-          .from('referral_partners')
-          .select('id')
-          .eq('referral_code', refCode.toUpperCase())
-          .eq('status', 'active')
-          .maybeSingle();
+        const { data: partnerId, error: partnerIdError } = await supabase
+          .rpc('get_partner_id_by_referral_code', { p_referral_code: refCode });
 
-        if (partner) {
+        if (partnerIdError) throw partnerIdError;
+
+        if (partnerId) {
           await supabase.from('referral_leads').insert({
-            partner_id: partner.id,
+            partner_id: partnerId,
             status: 'demo_booked',
           });
         }
