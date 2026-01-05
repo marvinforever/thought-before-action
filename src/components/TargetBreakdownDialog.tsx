@@ -67,6 +67,7 @@ Format your response clearly with sections for benchmarks and sprints.`;
           message: initialPrompt,
           conversationId: null,
           contextType: "90-day-breakdown",
+          stream: false,
         },
       });
 
@@ -103,6 +104,7 @@ Format your response clearly with sections for benchmarks and sprints.`;
           message: userMessage,
           conversationId: null,
           contextType: "90-day-breakdown",
+          stream: false,
         },
       });
 
