@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,29 +7,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { 
-  Sparkles, 
-  CheckCircle2, 
-  DollarSign, 
-  Users, 
+import {
+  Sparkles,
+  CheckCircle2,
+  DollarSign,
+  Users,
   TrendingUp,
   ArrowRight,
   Handshake,
   Target,
-  Gift
+  Gift,
 } from "lucide-react";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
 };
 
 const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+    transition: { staggerChildren: 0.1 },
+  },
 };
 
 export default function PartnerRegister() {
@@ -39,17 +39,75 @@ export default function PartnerRegister() {
   const [company, setCompany] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const generateReferralCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = '';
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
     for (let i = 0; i < 6; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
   };
+
+  const enrollSessionUserAsPartner = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) return false;
+
+    const { data: existingPartner, error: existingErr } = await supabase
+      .from("referral_partners")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingErr) throw existingErr;
+
+    if (!existingPartner) {
+      const referralCode = generateReferralCode();
+      const { error: enrollErr } = await supabase.from("referral_partners").insert({
+        user_id: user.id,
+        name: name || user.user_metadata?.full_name || user.email || "Unknown",
+        email: user.email || email,
+        phone: phone || null,
+        company: company || null,
+        referral_code: referralCode,
+      });
+      if (enrollErr) throw enrollErr;
+
+      const { error: roleErr } = await supabase.from("user_roles").upsert(
+        { user_id: user.id, role: "partner" },
+        { onConflict: "user_id,role" }
+      );
+      if (roleErr) throw roleErr;
+    }
+
+    return true;
+  };
+
+  useEffect(() => {
+    const shouldAutoEnroll = searchParams.get("enroll") === "1";
+    if (!shouldAutoEnroll) return;
+
+    // Defer to avoid any auth listener deadlocks
+    setTimeout(() => {
+      enrollSessionUserAsPartner()
+        .then((enrolled) => {
+          if (enrolled) navigate("/partner");
+        })
+        .catch((err: any) => {
+          toast({
+            title: "Partner enrollment failed",
+            description: err?.message || "Please try again.",
+            variant: "destructive",
+          });
+        });
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,61 +171,23 @@ export default function PartnerRegister() {
       });
 
       if (authError) {
-        // If the email already exists, prompt them to log in first
+        // If the email already exists, send a magic link so they can enroll without knowing their old password.
         if (authError.message.toLowerCase().includes("already")) {
-          toast({
-            title: "Account exists",
-            description: "You already have a Jericho account. Please log in with your existing password to enroll as a partner.",
-            variant: "destructive",
-          });
-          // Try signing in with the provided password
-          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+          const { error: otpErr } = await supabase.auth.signInWithOtp({
             email,
-            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/partner/register?enroll=1`,
+            },
           });
-          
-          if (signInErr) {
-            toast({
-              title: "Login required",
-              description: "Please use your existing Jericho password, or use the Partner Login page to sign in first.",
-              variant: "destructive",
-            });
-            return;
-          }
-          
-          if (signInData.user) {
-            // Successfully logged in - now enroll as partner
-            const { data: existingPartner } = await supabase
-              .from("referral_partners")
-              .select("id")
-              .eq("user_id", signInData.user.id)
-              .maybeSingle();
 
-            if (!existingPartner) {
-              const referralCode = generateReferralCode();
-              const { error: enrollErr } = await supabase.from("referral_partners").insert({
-                user_id: signInData.user.id,
-                name,
-                email,
-                phone: phone || null,
-                company: company || null,
-                referral_code: referralCode,
-              });
-              if (enrollErr) throw enrollErr;
+          if (otpErr) throw otpErr;
 
-              await supabase.from("user_roles").upsert(
-                { user_id: signInData.user.id, role: "partner" },
-                { onConflict: "user_id,role" }
-              );
-            }
-
-            toast({
-              title: "You're in!",
-              description: "Welcome to the partner program!",
-            });
-            navigate("/partner");
-            return;
-          }
+          toast({
+            title: "Check your email",
+            description:
+              "You already have an account. We sent you a sign-in link—open it to finish partner enrollment.",
+          });
+          return;
         }
 
         throw authError;
