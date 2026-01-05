@@ -86,9 +86,43 @@ function isConversationalScript(script: string): boolean {
 }
 
 /**
- * Generate TTS for a single segment
+ * Split text into sentences for chunking
  */
-async function generateSegmentAudio(
+function splitIntoSentences(text: string): string[] {
+  // Split on sentence endings while preserving the punctuation
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  return sentences.map(s => s.trim()).filter(s => s.length > 0);
+}
+
+/**
+ * Chunk sentences into groups that stay under the character limit
+ * This prevents voice quality degradation on long segments
+ */
+function chunkText(text: string, maxCharsPerChunk = 800): string[] {
+  const sentences = splitIntoSentences(text);
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  for (const sentence of sentences) {
+    if (currentChunk.length + sentence.length + 1 > maxCharsPerChunk && currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk += (currentChunk ? ' ' : '') + sentence;
+    }
+  }
+
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+}
+
+/**
+ * Generate TTS for a single text chunk
+ */
+async function generateChunkAudio(
   text: string,
   voiceId: string,
   voiceSettings: typeof TTS_VOICE_SETTINGS,
@@ -96,24 +130,18 @@ async function generateSegmentAudio(
   previousText?: string,
   nextText?: string
 ): Promise<ArrayBuffer> {
-  // Clean text for TTS
-  const cleanedText = text
-    .replace(/\[pause\]/gi, '...')
-    .replace(/\n\n/g, '\n')
-    .trim();
-  
   const body: any = {
-    text: cleanedText,
+    text,
     model_id: 'eleven_turbo_v2_5',
     voice_settings: voiceSettings,
   };
   
   // Add context for request stitching (natural transitions)
   if (previousText) {
-    body.previous_text = previousText.slice(-200); // Last ~200 chars of context
+    body.previous_text = previousText.slice(-200);
   }
   if (nextText) {
-    body.next_text = nextText.slice(0, 200); // First ~200 chars of next
+    body.next_text = nextText.slice(0, 200);
   }
   
   const response = await fetch(
@@ -135,6 +163,53 @@ async function generateSegmentAudio(
   }
   
   return await response.arrayBuffer();
+}
+
+/**
+ * Generate TTS for a speaker segment, chunking long text to maintain voice quality
+ */
+async function generateSegmentAudio(
+  text: string,
+  voiceId: string,
+  voiceSettings: typeof TTS_VOICE_SETTINGS,
+  apiKey: string,
+  previousText?: string,
+  nextText?: string
+): Promise<ArrayBuffer> {
+  // Clean text for TTS
+  const cleanedText = text
+    .replace(/\[pause\]/gi, '...')
+    .replace(/\n\n/g, '\n')
+    .trim();
+  
+  // If text is short enough, generate directly
+  if (cleanedText.length <= 800) {
+    return await generateChunkAudio(cleanedText, voiceId, voiceSettings, apiKey, previousText, nextText);
+  }
+  
+  // For longer text, chunk it to prevent voice quality degradation
+  console.log(`Chunking long segment (${cleanedText.length} chars) to maintain voice quality`);
+  const chunks = chunkText(cleanedText, 800);
+  console.log(`Split into ${chunks.length} chunks`);
+  
+  const audioBuffers: ArrayBuffer[] = [];
+  
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const prevContext = i === 0 ? previousText : chunks[i - 1];
+    const nextContext = i === chunks.length - 1 ? nextText : chunks[i + 1];
+    
+    const audioBuffer = await generateChunkAudio(chunk, voiceId, voiceSettings, apiKey, prevContext, nextContext);
+    audioBuffers.push(audioBuffer);
+    
+    // Small delay between chunk requests
+    if (i < chunks.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  
+  // Combine all chunk buffers
+  return concatenateAudioBuffers(audioBuffers);
 }
 
 /**
