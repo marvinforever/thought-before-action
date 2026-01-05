@@ -59,65 +59,54 @@ export const TTS_VOICE_SETTINGS_SECONDARY = {
 };
 
 // ============================================================================
-// PODCAST HOST CONFIGURATION (Two-Voice NotebookLM Style)
+// PODCAST HOST CONFIGURATION (Solo Host - Jessica)
 // ============================================================================
 export const PODCAST_HOSTS = {
   primary: {
-    name: 'Jericho',
-    voiceId: 'iP95p4xoKVk53GoZ742B', // Chris - energetic, dynamic American male
-    role: 'The high-energy motivational coach - passionate, inspiring, Tony Robbins energy',
+    name: 'Jessica',
+    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - warm, engaging female
+    role: 'Your personal growth coach - warm, motivating, direct, and genuinely invested in your success',
     voiceSettings: TTS_VOICE_SETTINGS,
   },
   secondary: {
-    name: 'Sam',
-    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - warm, engaging female
-    role: 'The dynamic co-host - asks great questions, keeps energy high, supportive',
-    voiceSettings: TTS_VOICE_SETTINGS_SECONDARY,
+    name: 'Jessica',
+    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - same voice for solo mode
+    role: 'Your personal growth coach',
+    voiceSettings: TTS_VOICE_SETTINGS,
   }
 };
 
 export const CONVERSATION_FORMAT = `
-FORMAT: Two hosts having a high-energy, motivational conversation about the user's growth journey.
-- JERICHO: The high-energy American coach. Passionate, inspiring, brings that Tony Robbins fire. Gets PUMPED about wins and challenges people to step up.
-- SAM: The supportive co-host. Brings warmth, asks follow-up questions, keeps things moving, genuinely excited about progress.
+FORMAT: A solo host delivering a personal, motivating growth brief directly to the listener.
+- JESSICA: Your personal growth coach. Warm but direct. Genuinely invested in your success. Celebrates wins authentically and challenges you to step up when needed.
 
-Write the script as a dialogue with clear speaker labels:
-JERICHO: [speaks]
-SAM: [responds/reacts/asks]
-JERICHO: [continues]
-...
+Write the script as a monologue with clear speaker label:
+JESSICA: [speaks directly to the listener]
 
 CRITICAL AUDIO RULES:
-- Each speaker finishes their thought COMPLETELY before the other speaks
-- NO overlapping dialogue - one person talks, then the other responds
-- Brief natural pauses between speakers - not awkward silence, just a beat
-- Pace should feel energetic but clear - not rushed, but definitely not dragging
+- Speak directly TO the listener - use "you" frequently
+- Natural pacing - not rushed, but energetic and engaging
+- Brief pauses for emphasis on key points
+- Conversational tone - like talking to a friend who you're coaching
 
 TONE:
-- High energy but not fake: "Let's GO!" or "This is what I'm talking about!"
-- Passionate and inspiring - make them FEEL the possibility
-- When something needs improvement, be direct AND motivating: WHAT to do and WHERE to find it
+- Warm and motivating: "Okay, let's talk about what you've been up to..."
+- Genuine excitement for wins: "I love seeing this kind of consistency!"
+- Direct when something needs work: "Here's what I want you to focus on..."
+- Always actionable: WHAT to do and WHERE to find it
   Example: "Go into My Growth Plan right now and set those benchmarks. Don't wait. Do it TODAY."
 
-The conversation should feel natural:
-- Sam asks follow-up questions with genuine curiosity ("Okay wait, tell me more about that!")
-- Sam celebrates wins enthusiastically ("Yes! That's incredible!")
-- Jericho brings the fire - he genuinely believes in people's potential
-- Energy should be contagious - make listeners want to take action
-
-Jericho should:
-- Lead with passion and belief in the person's potential
-- Get excited about their wins - genuinely celebrate progress
-- Challenge them to step up when needed - with love but with intensity
-- Be specific about next steps and where to find things in the app
-- Have the final word and deliver the daily challenge with ENERGY
+Jessica should:
+- Open with energy and connection - make them feel seen
+- Celebrate their wins genuinely - specific praise, not generic
+- Be direct about what needs attention - with care but without sugarcoating
+- Give specific next steps and where to find things in the app
+- Close with a clear daily challenge that's actionable and inspiring
 
 FLOW EXAMPLE:
-JERICHO: Alright, let's TALK about this. Because [Name] has been putting in the WORK.
-SAM: Fifteen days on Morning Planning! That's amazing!
-JERICHO: That's not luck. That's not accident. That's DECISION. That's showing up when you don't feel like it...
+JESSICA: Hey! Okay, I've been looking at your progress and I have to say - fifteen days on Morning Planning? That's not luck. That's YOU showing up. And I want to talk about what that means for where you're headed...
 
-Keep exchanges SHORT and PUNCHY. Quick back-and-forth. High energy throughout.
+Keep it conversational, warm, and direct. Make them feel like you're genuinely in their corner.
 `;
 
 // ============================================================================

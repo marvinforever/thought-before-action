@@ -27,7 +27,7 @@ const VOICES = {
 };
 
 interface ScriptSegment {
-  speaker: 'JERICHO' | 'ALEX';
+  speaker: 'JERICHO' | 'ALEX' | 'JESSICA';
   text: string;
 }
 
@@ -37,9 +37,9 @@ interface ScriptSegment {
 function parseConversationScript(script: string): ScriptSegment[] {
   const segments: ScriptSegment[] = [];
   
-  // Split by speaker labels (JERICHO: or ALEX: or SAM: for backward compatibility)
+  // Split by speaker labels (JERICHO: or ALEX: or SAM: or JESSICA: for solo mode)
   const lines = script.split('\n');
-  let currentSpeaker: 'JERICHO' | 'ALEX' | null = null;
+  let currentSpeaker: 'JERICHO' | 'ALEX' | 'JESSICA' | null = null;
   let currentText = '';
   
   for (const line of lines) {
@@ -49,8 +49,16 @@ function parseConversationScript(script: string): ScriptSegment[] {
     const jerichoMatch = trimmedLine.match(/^JERICHO:\s*(.*)/i);
     const alexMatch = trimmedLine.match(/^ALEX:\s*(.*)/i);
     const samMatch = trimmedLine.match(/^SAM:\s*(.*)/i); // Backward compatibility
+    const jessicaMatch = trimmedLine.match(/^JESSICA:\s*(.*)/i); // Solo host mode
     
-    if (jerichoMatch) {
+    if (jessicaMatch) {
+      // Save previous segment if exists
+      if (currentSpeaker && currentText.trim()) {
+        segments.push({ speaker: currentSpeaker, text: currentText.trim() });
+      }
+      currentSpeaker = 'JESSICA';
+      currentText = jessicaMatch[1] || '';
+    } else if (jerichoMatch) {
       // Save previous segment if exists
       if (currentSpeaker && currentText.trim()) {
         segments.push({ speaker: currentSpeaker, text: currentText.trim() });
@@ -293,10 +301,11 @@ async function generateMultiVoiceAudio(
     const previousSegment = segments[i - 1];
     const nextSegment = segments[i + 1];
     
-    // Select voice and settings based on speaker
+    // Select voice and settings based on speaker - now supports solo host (Jessica)
+    const isJessica = segment.speaker === 'JESSICA';
     const isJericho = segment.speaker === 'JERICHO';
-    const voiceId = isJericho ? PODCAST_HOSTS.primary.voiceId : PODCAST_HOSTS.secondary.voiceId;
-    const voiceSettings = isJericho ? TTS_VOICE_SETTINGS : TTS_VOICE_SETTINGS_SECONDARY;
+    const voiceId = isJessica ? PODCAST_HOSTS.primary.voiceId : (isJericho ? PODCAST_HOSTS.primary.voiceId : PODCAST_HOSTS.secondary.voiceId);
+    const voiceSettings = TTS_VOICE_SETTINGS; // Use primary settings for solo host
     
     console.log(`Generating segment ${i + 1}/${segments.length}: ${segment.speaker} (${segment.text.slice(0, 50)}...)`);
     
