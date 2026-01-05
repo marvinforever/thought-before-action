@@ -140,7 +140,8 @@ const DashboardLayout = () => {
   // Partner Portal is available to everyone
   const navItems = isAdmin || isManager || isSuperAdmin 
     ? [
-        { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+        // Dashboard temporarily hidden - only visible to super admins
+        ...(isSuperAdmin ? [{ icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" }] : []),
         { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
         { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
         { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
