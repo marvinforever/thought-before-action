@@ -10,6 +10,9 @@ import { AuthHashRedirect } from "@/components/AuthHashRedirect";
 
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import PartnerRegister from "./pages/PartnerRegister";
+import PartnerLogin from "./pages/PartnerLogin";
+import PartnerDashboard from "./pages/PartnerDashboard";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import SuperAdmin from "./pages/SuperAdmin";
@@ -47,6 +50,10 @@ const App = () => (
             <Route path="/" element={<Sales />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Partner Routes */}
+            <Route path="/partner" element={<PartnerDashboard />} />
+            <Route path="/partner/register" element={<PartnerRegister />} />
+            <Route path="/partner/login" element={<PartnerLogin />} />
             <Route path="/super-admin" element={<SuperAdminLayout />}>
               <Route index element={<SuperAdmin />} />
               <Route path="demo" element={<SuperAdminDemo />} />

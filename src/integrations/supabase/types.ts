@@ -3241,6 +3241,131 @@ export type Database = {
           },
         ]
       }
+      referral_leads: {
+        Row: {
+          converted_at: string | null
+          created_at: string
+          deal_value: number | null
+          id: string
+          lead_company: string | null
+          lead_email: string | null
+          partner_id: string
+          status: string
+        }
+        Insert: {
+          converted_at?: string | null
+          created_at?: string
+          deal_value?: number | null
+          id?: string
+          lead_company?: string | null
+          lead_email?: string | null
+          partner_id: string
+          status?: string
+        }
+        Update: {
+          converted_at?: string | null
+          created_at?: string
+          deal_value?: number | null
+          id?: string
+          lead_company?: string | null
+          lead_email?: string | null
+          partner_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_leads_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "referral_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_partners: {
+        Row: {
+          commission_rate: number
+          company: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          referral_code: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          commission_rate?: number
+          company?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          referral_code: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          commission_rate?: number
+          company?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          referral_code?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      referral_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          paid_at: string | null
+          partner_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          paid_at?: string | null
+          partner_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          paid_at?: string | null
+          partner_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_payouts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_payouts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "referral_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_capabilities: {
         Row: {
           capability_id: string
@@ -4090,6 +4215,7 @@ export type Database = {
         Returns: number
       }
       check_and_award_badges: { Args: { user_id: string }; Returns: undefined }
+      generate_referral_code: { Args: never; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -4110,7 +4236,7 @@ export type Database = {
       reset_periodic_points: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "manager" | "user"
+      app_role: "super_admin" | "admin" | "manager" | "user" | "partner"
       burnout_level: "energized" | "normal" | "tired" | "drained" | "burned_out"
       capability_level: "foundational" | "advancing" | "independent" | "mastery"
       content_type:
@@ -4266,7 +4392,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "manager", "user"],
+      app_role: ["super_admin", "admin", "manager", "user", "partner"],
       burnout_level: ["energized", "normal", "tired", "drained", "burned_out"],
       capability_level: ["foundational", "advancing", "independent", "mastery"],
       content_type: [

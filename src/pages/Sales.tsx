@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { 
@@ -80,6 +81,42 @@ const SideFlowArrows = ({ direction = "right", className = "" }: { direction?: "
 
 const Sales = () => {
   const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+
+  // Capture referral code on page load
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      // Store referral code in localStorage with timestamp
+      localStorage.setItem('referral_code', refCode);
+      localStorage.setItem('referral_timestamp', Date.now().toString());
+      
+      // Create a click record in the database
+      const trackReferralClick = async () => {
+        try {
+          // Find the partner by referral code
+          const { data: partner } = await supabase
+            .from('referral_partners')
+            .select('id')
+            .eq('referral_code', refCode.toUpperCase())
+            .eq('status', 'active')
+            .single();
+
+          if (partner) {
+            // Create a lead record for the click
+            await supabase.from('referral_leads').insert({
+              partner_id: partner.id,
+              status: 'clicked',
+            });
+          }
+        } catch (error) {
+          console.log('Referral tracking error:', error);
+        }
+      };
+      
+      trackReferralClick();
+    }
+  }, [searchParams]);
 
   const handleDemoRequest = () => {
     window.open('https://calendar.app.google/v1xwnCaqnRJ57UmJ6', '_blank');
