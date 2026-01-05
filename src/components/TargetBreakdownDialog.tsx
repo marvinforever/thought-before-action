@@ -38,12 +38,88 @@ export default function TargetBreakdownDialog({
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
 
+  const streamJericho = async ({
+    message,
+    onToken,
+  }: {
+    message: string;
+    onToken: (delta: string) => void;
+  }) => {
+    // NOTE: chat-with-jericho responds as an SSE stream in personal coaching mode.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
+    const resp = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-jericho`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          message,
+          conversationId: null,
+          contextType: "90-day-breakdown",
+          stream: true,
+        }),
+      }
+    );
+
+    if (!resp.ok || !resp.body) {
+      const t = await resp.text().catch(() => "");
+      throw new Error(t || `Jericho request failed (${resp.status})`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let done = false;
+
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      if (readerDone) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE events separated by blank lines
+      let boundaryIndex: number;
+      while ((boundaryIndex = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, boundaryIndex);
+        buffer = buffer.slice(boundaryIndex + 2);
+
+        const lines = rawEvent.split("\n");
+        for (let line of lines) {
+          line = line.trim();
+          if (!line.startsWith("data:")) continue;
+          const jsonStr = line.slice(5).trim();
+          if (!jsonStr) continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.done) {
+              done = true;
+              break;
+            }
+            if (typeof parsed.content === "string") {
+              onToken(parsed.content);
+            }
+          } catch {
+            // ignore malformed chunks
+          }
+        }
+
+        if (done) break;
+      }
+    }
+  };
+
   const handleGenerateSuggestions = async () => {
     if (!target) return;
-    
+
     setGenerating(true);
     setMessages([]);
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -60,30 +136,34 @@ Please provide:
 
 Format your response clearly with sections for benchmarks and sprints.`;
 
-      setMessages([{ role: "user", content: initialPrompt }]);
+      setMessages([
+        { role: "user", content: initialPrompt },
+        { role: "assistant", content: "" },
+      ]);
 
-      const { data, error } = await supabase.functions.invoke("chat-with-jericho", {
-        body: {
-          message: initialPrompt,
-          conversationId: null,
-          contextType: "90-day-breakdown",
-          stream: false,
+      let assistantSoFar = "";
+      await streamJericho({
+        message: initialPrompt,
+        onToken: (delta) => {
+          assistantSoFar += delta;
+          setMessages((prev) =>
+            prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
+          );
         },
       });
 
-      if (error) throw error;
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.message },
-      ]);
+      if (!assistantSoFar.trim()) {
+        throw new Error("No response received from Jericho");
+      }
     } catch (error: any) {
       console.error("Error generating suggestions:", error);
       toast({
         title: "Error",
-        description: "Failed to generate suggestions",
+        description: error?.message || "Failed to generate suggestions",
         variant: "destructive",
       });
+      // Remove the empty assistant bubble if any
+      setMessages((prev) => prev.filter((m) => !(m.role === "assistant" && !m.content)));
     } finally {
       setGenerating(false);
     }
@@ -97,30 +177,30 @@ Format your response clearly with sections for benchmarks and sprints.`;
     setLoading(true);
 
     try {
-      setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+      setMessages((prev) => [...prev, { role: "user", content: userMessage }, { role: "assistant", content: "" }]);
 
-      const { data, error } = await supabase.functions.invoke("chat-with-jericho", {
-        body: {
-          message: userMessage,
-          conversationId: null,
-          contextType: "90-day-breakdown",
-          stream: false,
+      let assistantSoFar = "";
+      await streamJericho({
+        message: userMessage,
+        onToken: (delta) => {
+          assistantSoFar += delta;
+          setMessages((prev) =>
+            prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
+          );
         },
       });
 
-      if (error) throw error;
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.message },
-      ]);
+      if (!assistantSoFar.trim()) {
+        throw new Error("No response received from Jericho");
+      }
     } catch (error: any) {
       console.error("Error sending message:", error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: error?.message || "Failed to send message",
         variant: "destructive",
       });
+      setMessages((prev) => prev.filter((m) => !(m.role === "assistant" && !m.content)));
     } finally {
       setLoading(false);
     }
