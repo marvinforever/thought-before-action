@@ -15,10 +15,8 @@ import { RecognitionDialog } from "@/components/RecognitionDialog";
 import { ScheduleReviewDialog } from "@/components/ScheduleReviewDialog";
 import { ManageMyTeamDialog } from "@/components/ManageMyTeamDialog";
 import { ViewGrowthPlanDialog } from "@/components/ViewGrowthPlanDialog";
-import { PendingCapabilitiesTab } from "@/components/PendingCapabilitiesTab";
 import { StandardCapWatchlistTab } from "@/components/StandardCapWatchlistTab";
 import { TeamAnalytics } from "@/components/TeamAnalytics";
-import { DiagnosticInsights } from "@/components/DiagnosticInsights";
 import { TeamDiagnosticSnapshot } from "@/components/TeamDiagnosticSnapshot";
 import { ReviewsTab } from "@/components/ReviewsTab";
 import { TeamHealthRisks } from "@/components/TeamHealthRisks";
@@ -329,11 +327,9 @@ export default function ManagerDashboard() {
             Resources
           </TabsTrigger>
           <TabsTrigger value="recognition">Recognition</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
           <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
         </TabsList>
 
@@ -494,10 +490,6 @@ export default function ManagerDashboard() {
           </div>
         </TabsContent>
 
-        <TabsContent value="requests" className="space-y-4">
-          <PendingCapabilitiesTab />
-        </TabsContent>
-
         <TabsContent value="watchlist" className="space-y-4">
           <StandardCapWatchlistTab />
         </TabsContent>
@@ -521,10 +513,6 @@ export default function ManagerDashboard() {
 
         <TabsContent value="analytics" className="space-y-4">
           <TeamAnalytics />
-        </TabsContent>
-
-        <TabsContent value="insights" className="space-y-4">
-          <DiagnosticInsights />
         </TabsContent>
 
         <TabsContent value="reviews">
