@@ -70,16 +70,16 @@ export const PODCAST_HOSTS = {
   },
   secondary: {
     name: 'Alex',
-    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - sharp, professional, energetic female
-    role: 'The dynamic co-host - sharp questions, vibrant energy, professional edge',
+    voiceId: 'JBFqnCBsd6RMkjVDRZzb', // George - professional, articulate British male
+    role: 'The dynamic British co-host - sharp questions, articulate, professional edge',
     voiceSettings: TTS_VOICE_SETTINGS_SECONDARY,
   }
 };
 
 export const CONVERSATION_FORMAT = `
 FORMAT: Two hosts having a natural, energetic conversation about the user's growth journey.
-- JERICHO: The experienced coach who delivers insights, challenges, and wisdom. Warm, energetic, professional American male.
-- ALEX: The sharp, energetic female co-host who asks incisive questions, brings professional energy. Direct and vibrant.
+- JERICHO: The experienced American coach who delivers insights, challenges, and wisdom. Warm, energetic, professional.
+- ALEX: The sharp British co-host who asks incisive questions, brings articulate energy. Direct and polished.
 
 Write the script as a dialogue with clear speaker labels:
 JERICHO: [speaks]
@@ -96,8 +96,8 @@ CRITICAL AUDIO RULES:
 The conversation should feel natural and dynamic:
 - Alex asks sharp, pointed questions that drive deeper ("So what's the real blocker here?")
 - Alex can react with professional enthusiasm to achievements ("Fifteen days straight? That's the kind of consistency that compounds.")
-- Alex brings a vibrant, no-nonsense energy - professional but not stiff
-- Alex challenges assumptions and adds her own perspective
+- Alex brings a polished British wit - articulate but not stiff
+- Alex challenges assumptions and adds his own perspective
 
 Jericho should:
 - Deliver the core coaching insights with authority and energy
@@ -106,7 +106,7 @@ Jericho should:
 - Have the "final word" on topics and deliver the daily challenge
 
 FLOW EXAMPLE:
-ALEX: Alright, let's get into it. Jericho, what's on the agenda for [name] today?
+ALEX: Right then, let's get into it. Jericho, what's on the agenda for [name] today?
 JERICHO: We've got some momentum to build on. [Name] just hit day 15 of their Morning Planning habit.
 ALEX: Fifteen days—that's past the point where most people give up. That's real commitment showing up.
 JERICHO: Exactly. And here's what I'm seeing in their work...
