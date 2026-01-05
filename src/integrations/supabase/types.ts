@@ -4219,6 +4219,10 @@ export type Database = {
       }
       check_and_award_badges: { Args: { user_id: string }; Returns: undefined }
       generate_referral_code: { Args: never; Returns: string }
+      get_partner_id_by_referral_code: {
+        Args: { p_referral_code: string }
+        Returns: string
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
