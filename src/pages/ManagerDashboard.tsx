@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo, BookOpen } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
@@ -32,6 +32,7 @@ import { RecognitionNudge } from "@/components/RecognitionNudge";
 import { ManagerToDoTab } from "@/components/ManagerToDoTab";
 import { MeetingRequestsSection } from "@/components/MeetingRequestsSection";
 import { PrepareConversationButton } from "@/components/PrepareConversationButton";
+import { ManagerResourcesTab } from "@/components/ManagerResourcesTab";
 
 
 type DirectReport = {
@@ -322,6 +323,10 @@ export default function ManagerDashboard() {
             <ListTodo className="h-3 w-3" />
             To-Do
           </TabsTrigger>
+          <TabsTrigger value="resources" className="flex items-center gap-1">
+            <BookOpen className="h-3 w-3" />
+            Resources
+          </TabsTrigger>
           <TabsTrigger value="recognition">Recognition</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
@@ -464,6 +469,10 @@ export default function ManagerDashboard() {
             }}
             onViewRequest={() => setActiveTab("requests")}
           />
+        </TabsContent>
+
+        <TabsContent value="resources" className="space-y-4">
+          <ManagerResourcesTab employee={selectedEmployee} />
         </TabsContent>
 
         <TabsContent value="recognition" className="space-y-4">
