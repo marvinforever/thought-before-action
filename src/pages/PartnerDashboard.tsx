@@ -321,30 +321,99 @@ export default function PartnerDashboard() {
           </Button>
         </div>
 
-        {/* Referral Link Card */}
-        <Card className="border-slate-700 bg-slate-800/50 backdrop-blur mb-6">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              🎯 Your Referral Link
-            </CardTitle>
-            <CardDescription>Share this link to earn 10% commission on converted deals</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <a 
-                href={referralLink} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex-1 bg-slate-700/50 border border-slate-600 rounded-md px-4 py-2 text-white font-mono text-sm overflow-x-auto hover:bg-slate-600/50 transition-colors cursor-pointer"
-              >
-                {referralLink}
-              </a>
-              <Button onClick={copyLink} className="bg-emerald-600 hover:bg-emerald-700">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Getting Started Guide - show prominently for new partners */}
+        {leads.length === 0 && (
+          <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-800/50 backdrop-blur mb-6">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                🚀 Get Started in 3 Simple Steps
+              </CardTitle>
+              <CardDescription className="text-slate-300">
+                You're ready to start earning! Follow these steps to get your first referral.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold">
+                  1
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white mb-1">Copy Your Referral Link</h3>
+                  <p className="text-slate-400 text-sm mb-3">
+                    Your unique link tracks every referral back to you automatically.
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 bg-slate-700/50 border border-slate-600 rounded-md px-3 py-2 text-emerald-400 font-mono text-sm truncate">
+                      {referralLink}
+                    </div>
+                    <Button onClick={copyLink} className="bg-emerald-600 hover:bg-emerald-700">
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      <span className="ml-2">{copied ? "Copied!" : "Copy"}</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                  2
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white mb-1">Share with Business Leaders</h3>
+                  <p className="text-slate-400 text-sm">
+                    Think of CEOs, HR directors, or team leaders who want to develop their people. 
+                    Jericho helps organizations build capability, boost engagement, and retain talent.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Badge variant="outline" className="border-slate-600 text-slate-300">LinkedIn message</Badge>
+                    <Badge variant="outline" className="border-slate-600 text-slate-300">Email introduction</Badge>
+                    <Badge variant="outline" className="border-slate-600 text-slate-300">Coffee conversation</Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold">
+                  3
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white mb-1">Earn 10% Commission</h3>
+                  <p className="text-slate-400 text-sm">
+                    When your referral becomes a customer, you earn 10% of their first year's contract. 
+                    There's no cap on how much you can earn!
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Referral Link Card - compact version when they have leads */}
+        {leads.length > 0 && (
+          <Card className="border-slate-700 bg-slate-800/50 backdrop-blur mb-6">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                🎯 Your Referral Link
+              </CardTitle>
+              <CardDescription>Share this link to earn 10% commission on converted deals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <a 
+                  href={referralLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-slate-700/50 border border-slate-600 rounded-md px-4 py-2 text-white font-mono text-sm overflow-x-auto hover:bg-slate-600/50 transition-colors cursor-pointer"
+                >
+                  {referralLink}
+                </a>
+                <Button onClick={copyLink} className="bg-emerald-600 hover:bg-emerald-700">
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
