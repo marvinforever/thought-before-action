@@ -26,19 +26,41 @@ export default function PartnerLogin() {
 
       if (error) throw error;
 
-      // Check if user is a partner
-      const { data: partnerData } = await supabase
-        .from('referral_partners')
-        .select('id')
-        .eq('user_id', data.user.id)
-        .single();
+      // Ensure this user has a partner record (auto-enroll if needed)
+      const { data: partnerData, error: partnerErr } = await supabase
+        .from("referral_partners")
+        .select("id")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      if (partnerErr) throw partnerErr;
 
       if (!partnerData) {
-        await supabase.auth.signOut();
-        throw new Error("This account is not registered as a partner. Please register first.");
+        const referralCode = (Math.random().toString(36).slice(2, 8)).toUpperCase();
+        const displayName =
+          (data.user.user_metadata as any)?.full_name ||
+          (data.user.user_metadata as any)?.name ||
+          email.split("@")[0];
+
+        const { error: createErr } = await supabase.from("referral_partners").insert({
+          user_id: data.user.id,
+          name: displayName,
+          email,
+          company: null,
+          phone: null,
+          referral_code: referralCode,
+        });
+
+        if (createErr) throw createErr;
+
+        // Add partner role (safe if it already exists)
+        await supabase.from("user_roles").upsert(
+          { user_id: data.user.id, role: "partner" },
+          { onConflict: "user_id,role" }
+        );
       }
 
-      navigate('/partner');
+      navigate("/partner");
     } catch (error: any) {
       toast({
         title: "Login failed",

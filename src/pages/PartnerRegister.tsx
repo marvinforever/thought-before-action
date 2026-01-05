@@ -71,10 +71,49 @@ export default function PartnerRegister() {
       });
 
       if (authError) {
-        // Handle "User already registered" error
-        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
-          throw new Error("This email is already registered. Please use the login page instead.");
+        // If the email already exists, log them in and enroll them as a partner instead.
+        if (authError.message.toLowerCase().includes("already")) {
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (signInErr) throw signInErr;
+          if (!signInData.user) throw new Error("Unable to sign in.");
+
+          const { data: existingPartner, error: existingErr } = await supabase
+            .from("referral_partners")
+            .select("id")
+            .eq("user_id", signInData.user.id)
+            .maybeSingle();
+
+          if (existingErr) throw existingErr;
+
+          if (!existingPartner) {
+            const referralCode = generateReferralCode();
+            const { error: enrollErr } = await supabase.from("referral_partners").insert({
+              user_id: signInData.user.id,
+              name,
+              email,
+              phone: phone || null,
+              company: company || null,
+              referral_code: referralCode,
+            });
+            if (enrollErr) throw enrollErr;
+
+            await supabase.from("user_roles").upsert(
+              { user_id: signInData.user.id, role: "partner" },
+              { onConflict: "user_id,role" }
+            );
+          }
+
+          toast({
+            title: "You're in!",
+            description: "We found your account and enrolled you as a partner.",
+          });
+          navigate("/partner");
+          return;
         }
+
         throw authError;
       }
       if (!authData.user) throw new Error("Failed to create account");
