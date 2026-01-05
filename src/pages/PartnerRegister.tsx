@@ -314,15 +314,15 @@ export default function PartnerRegister() {
               <div className="grid md:grid-cols-3 gap-6 text-center">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Average Deal Size</p>
-                  <p className="text-3xl font-bold text-primary">$4,800<span className="text-lg font-normal text-muted-foreground">/year</span></p>
+                  <p className="text-3xl font-bold text-primary">$25,000<span className="text-lg font-normal text-muted-foreground">/year</span></p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
-                  <p className="text-3xl font-bold text-accent">$480<span className="text-lg font-normal text-muted-foreground">/referral</span></p>
+                  <p className="text-3xl font-bold text-accent">$2,500<span className="text-lg font-normal text-muted-foreground">/referral</span></p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">5 Referrals =</p>
-                  <p className="text-3xl font-bold text-primary">$2,400</p>
+                  <p className="text-3xl font-bold text-primary">$12,500</p>
                 </div>
               </div>
               <p className="text-center text-muted-foreground mt-6 text-sm">
