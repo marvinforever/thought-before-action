@@ -63,19 +63,35 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
         return;
       }
 
-      const { data: profile } = await supabase
+      let { data: profile } = await supabase
         .from('profiles')
         .select('id, full_name, company_id')
         .eq('id', user.id)
         .maybeSingle();
 
+      // Auto-create profile if it doesn't exist (handles new signups)
       if (!profile) {
-        toast({
-          title: "Profile not ready yet",
-          description: "Try again in a moment.",
-          variant: "destructive",
-        });
-        return;
+        const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'New User';
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: displayName,
+            company_id: '00000000-0000-0000-0000-000000000001', // Default company
+          })
+          .select('id, full_name, company_id')
+          .single();
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          toast({
+            title: "Couldn't set up your profile",
+            description: "Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        profile = newProfile;
       }
 
       console.log('OnboardingWizard: opening manually for', profile.id);
