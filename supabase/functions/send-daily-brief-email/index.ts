@@ -16,23 +16,37 @@ function formatDate(date: Date): string {
   });
 }
 
+// Calculate days remaining in 90-day period
+function getDaysRemaining(startDate: string): number {
+  const start = new Date(startDate);
+  const now = new Date();
+  const daysPassed = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(0, 90 - daysPassed);
+}
+
+interface UserContext {
+  firstName: string;
+  episodeTitle: string;
+  topics: string[];
+  script: string;
+  dailyChallenge: string | null;
+  streakDays: number | null;
+  habits: { name: string; currentStreak: number; completionsThisWeek: number }[];
+  ninetyDayTargets: { title: string; progress: number; daysRemaining: number }[];
+  topCapabilities: { name: string; currentLevel: string; targetLevel: string }[];
+  recentAchievements: string[];
+  personalVision: string | null;
+}
+
 // Generate personalized email content using AI
-async function generatePersonalizedEmail(
-  firstName: string,
-  episodeTitle: string,
-  topics: string[],
-  script: string,
-  dailyChallenge: string | null,
-  streakDays: number | null,
-  habitsCount: number
-): Promise<{ subject: string; body: string }> {
+async function generatePersonalizedEmail(context: UserContext): Promise<{ subject: string; body: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
   if (!LOVABLE_API_KEY) {
     console.warn("LOVABLE_API_KEY not configured, using fallback template");
     return {
-      subject: `Hey ${firstName}, your growth moment is ready`,
-      body: generateFallbackBody(firstName, episodeTitle, topics, dailyChallenge)
+      subject: `Hey ${context.firstName}, your daily growth update`,
+      body: generateFallbackBody(context)
     };
   }
 
@@ -43,37 +57,63 @@ Your voice is:
 - Encouraging but not cheesy or over-the-top
 - Practical and actionable
 - Conversational and human
-- Brief but meaningful
+- Data-informed but not robotic
 
-You never use:
-- Corporate jargon
-- Excessive exclamation points
-- Generic phrases like "I hope this email finds you well"
-- Bullet points (write in flowing prose)
+You structure emails like a personal daily briefing:
+1. A warm, personalized greeting
+2. A quick status update on their 90-day goals (celebrate progress or gently nudge)
+3. Habit tracker summary (which ones are on fire, which need attention)
+4. Today's learning focus (the podcast episode content)
+5. The daily challenge
+6. A motivating sign-off
 
 Format your response as JSON with two fields:
-- "subject": A short, personal email subject line (max 60 chars, no emojis)
-- "body": The email body in HTML format (use <p> tags, keep it 3-4 short paragraphs)`;
+- "subject": A short, personal email subject line (max 60 chars, no emojis, make it about THEM not the podcast)
+- "body": The email body in HTML format. Use <p> tags for paragraphs, <strong> for emphasis. Keep it scannable but personal.`;
 
-  const userPrompt = `Write today's growth email for ${firstName}.
+  const userPrompt = `Write today's personalized growth email for ${context.firstName}.
 
-Today's episode: "${episodeTitle}"
-Topics covered: ${topics.join(', ')}
-${dailyChallenge ? `Today's challenge: ${dailyChallenge}` : ''}
-${streakDays ? `Their current streak: ${streakDays} days` : ''}
-${habitsCount > 0 ? `Habits completed this week: ${habitsCount}` : ''}
+=== THEIR CURRENT STATUS ===
 
-Episode content summary:
-${script.substring(0, 1500)}
+${context.personalVision ? `Personal Vision: "${context.personalVision}"` : ''}
 
-Write a short, personalized email (like a letter from a coach) that:
-1. Greets them warmly by name
-2. Briefly introduces what they'll learn today
-3. Gives them one key insight or teaser from the content
-4. Encourages them to listen and mentions the challenge if there is one
-5. Signs off warmly as Jericho
+90-Day Targets:
+${context.ninetyDayTargets.length > 0 
+  ? context.ninetyDayTargets.map(t => `- ${t.title}: ${t.progress}% complete, ${t.daysRemaining} days remaining`).join('\n')
+  : 'No active 90-day targets set'}
 
-Keep it under 200 words. Make it feel like a personal note, not a newsletter.`;
+Active Habits:
+${context.habits.length > 0
+  ? context.habits.map(h => `- ${h.name}: ${h.currentStreak} day streak, ${h.completionsThisWeek} times this week`).join('\n')
+  : 'No active habits tracked'}
+
+${context.streakDays ? `Login Streak: ${context.streakDays} days` : ''}
+
+Capabilities They're Developing:
+${context.topCapabilities.length > 0
+  ? context.topCapabilities.map(c => `- ${c.name}: currently ${c.currentLevel}, targeting ${c.targetLevel}`).join('\n')
+  : 'No capabilities assigned yet'}
+
+${context.recentAchievements.length > 0 ? `Recent Wins: ${context.recentAchievements.join(', ')}` : ''}
+
+=== TODAY'S EPISODE ===
+Title: "${context.episodeTitle}"
+Topics: ${context.topics.join(', ')}
+${context.dailyChallenge ? `Today's Challenge: ${context.dailyChallenge}` : ''}
+
+Episode Content Summary:
+${context.script.substring(0, 2000)}
+
+=== INSTRUCTIONS ===
+Write a personalized daily briefing email that:
+1. Opens with a warm greeting that acknowledges where they are in their journey
+2. Gives a quick, encouraging update on their 90-day targets (if any are close to deadline or behind, gently nudge)
+3. Celebrates habit streaks or encourages consistency where needed
+4. Introduces today's episode and how it connects to their growth goals
+5. Mentions the daily challenge as something specific to try today
+6. Signs off warmly as Jericho
+
+Keep it around 250-300 words. Make it feel like a personal check-in from a coach who knows them well.`;
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -88,7 +128,6 @@ Keep it under 200 words. Make it feel like a personal note, not a newsletter.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        temperature: 0.7,
       }),
     });
 
@@ -109,8 +148,8 @@ Keep it under 200 words. Make it feel like a personal note, not a newsletter.`;
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
-        subject: parsed.subject || `Hey ${firstName}, your growth moment is ready`,
-        body: parsed.body || generateFallbackBody(firstName, episodeTitle, topics, dailyChallenge)
+        subject: parsed.subject || `Hey ${context.firstName}, your daily growth update`,
+        body: parsed.body || generateFallbackBody(context)
       };
     }
 
@@ -118,24 +157,29 @@ Keep it under 200 words. Make it feel like a personal note, not a newsletter.`;
   } catch (error) {
     console.error("AI email generation error:", error);
     return {
-      subject: `Hey ${firstName}, your growth moment is ready`,
-      body: generateFallbackBody(firstName, episodeTitle, topics, dailyChallenge)
+      subject: `Hey ${context.firstName}, your daily growth update`,
+      body: generateFallbackBody(context)
     };
   }
 }
 
-function generateFallbackBody(
-  firstName: string,
-  episodeTitle: string,
-  topics: string[],
-  dailyChallenge: string | null
-): string {
+function generateFallbackBody(context: UserContext): string {
+  const habitsSection = context.habits.length > 0
+    ? `<p><strong>Your habits this week:</strong> ${context.habits.map(h => `${h.name} (${h.currentStreak} day streak)`).join(', ')}</p>`
+    : '';
+  
+  const targetsSection = context.ninetyDayTargets.length > 0
+    ? `<p><strong>90-Day Progress:</strong> ${context.ninetyDayTargets.map(t => `${t.title} at ${t.progress}%`).join(', ')}</p>`
+    : '';
+
   return `
-    <p>Hey ${firstName},</p>
-    <p>I've got something special for you today. Your personalized episode "${episodeTitle}" is ready, and I think you're going to find it really valuable.</p>
-    <p>We're diving into ${topics.slice(0, 2).join(' and ')}${topics.length > 2 ? ' and more' : ''}. These are the exact skills that will help you level up right now.</p>
-    ${dailyChallenge ? `<p>Today's challenge: ${dailyChallenge}. I know you can do this.</p>` : ''}
-    <p>Take a few minutes to listen — your future self will thank you.</p>
+    <p>Hey ${context.firstName},</p>
+    <p>Here's your daily growth check-in.</p>
+    ${targetsSection}
+    ${habitsSection}
+    <p>Today's episode "${context.episodeTitle}" covers ${context.topics.slice(0, 2).join(' and ')}. Take a few minutes to listen — it's tailored just for you.</p>
+    ${context.dailyChallenge ? `<p><strong>Today's challenge:</strong> ${context.dailyChallenge}</p>` : ''}
+    <p>Keep showing up. You're making progress.</p>
     <p>Talk soon,<br/>Jericho</p>
   `;
 }
@@ -163,69 +207,115 @@ serve(async (req) => {
 
     const resend = new Resend(resendApiKey);
     const today = episodeDate || new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Fetch profile
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, company_id")
-      .eq("id", profileId)
-      .single();
+    // Fetch all user data in parallel
+    const [
+      profileResult,
+      episodeResult,
+      prefsResult,
+      habitsResult,
+      habitCompletionsResult,
+      targetsResult,
+      capabilitiesResult,
+      achievementsResult,
+      visionResult
+    ] = await Promise.all([
+      // Profile
+      supabase.from("profiles").select("id, email, full_name, company_id, login_streak").eq("id", profileId).single(),
+      // Today's episode
+      supabase.from("podcast_episodes").select("*").eq("profile_id", profileId).eq("episode_date", today).single(),
+      // Preferences
+      supabase.from("email_preferences").select("brief_format").eq("profile_id", profileId).single(),
+      // Active habits
+      supabase.from("leading_indicators").select("id, habit_name, current_streak").eq("profile_id", profileId).eq("is_active", true),
+      // Habit completions this week
+      supabase.from("habit_completions").select("habit_id").eq("profile_id", profileId).gte("completed_date", weekAgo),
+      // 90-day targets
+      supabase.from("ninety_day_targets").select("id, title, progress_percentage, start_date, status").eq("profile_id", profileId).eq("status", "active"),
+      // Top capabilities (priority 1-3)
+      supabase.from("employee_capabilities").select("current_level, target_level, priority, capabilities(name)").eq("profile_id", profileId).lte("priority", 3).order("priority"),
+      // Recent achievements (last 30 days)
+      supabase.from("achievements").select("achievement_text").eq("profile_id", profileId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()).limit(3),
+      // Personal vision
+      supabase.from("personal_visions").select("vision_statement").eq("profile_id", profileId).single()
+    ]);
 
-    if (profileError || !profile || !profile.email) {
+    const profile = profileResult.data;
+    const episode = episodeResult.data;
+
+    if (!profile || !profile.email) {
       throw new Error("Profile not found or missing email");
     }
 
-    // Fetch today's podcast episode
-    const { data: episode, error: episodeError } = await supabase
-      .from("podcast_episodes")
-      .select("*")
-      .eq("profile_id", profileId)
-      .eq("episode_date", today)
-      .single();
-
-    if (episodeError || !episode) {
+    if (!episode) {
       throw new Error(`No podcast episode found for ${today}`);
     }
 
-    // Fetch user preferences
-    const { data: prefs } = await supabase
-      .from("email_preferences")
-      .select("brief_format")
-      .eq("profile_id", profileId)
-      .single();
-
-    const briefFormat = prefs?.brief_format || 'both';
-
-    // Fetch user stats
-    const { data: streakData } = await supabase
-      .from("profiles")
-      .select("login_streak")
-      .eq("id", profileId)
-      .single();
-
-    const { data: habitsThisWeek } = await supabase
-      .from("habit_completions")
-      .select("id")
-      .eq("profile_id", profileId)
-      .gte("completed_date", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-
+    const briefFormat = prefsResult.data?.brief_format || 'both';
     const firstName = profile.full_name?.split(' ')[0] || 'there';
-    const topics = episode.topics_covered || [];
 
-    // Generate personalized email content using AI
-    console.log("Generating personalized email for", firstName);
-    const { subject, body: personalizedBody } = await generatePersonalizedEmail(
+    // Process habits with completion counts
+    const habits = (habitsResult.data || []).map((h: any) => {
+      const completionsThisWeek = (habitCompletionsResult.data || []).filter((c: any) => c.habit_id === h.id).length;
+      return {
+        name: h.habit_name,
+        currentStreak: h.current_streak || 0,
+        completionsThisWeek
+      };
+    });
+
+    // Process 90-day targets
+    const ninetyDayTargets = (targetsResult.data || []).map((t: any) => ({
+      title: t.title,
+      progress: t.progress_percentage || 0,
+      daysRemaining: getDaysRemaining(t.start_date)
+    }));
+
+    // Process capabilities
+    const topCapabilities = (capabilitiesResult.data || [])
+      .filter((c: any) => c.capabilities?.name)
+      .map((c: any) => ({
+        name: c.capabilities.name,
+        currentLevel: c.current_level || 'Not assessed',
+        targetLevel: c.target_level || 'Not set'
+      }));
+
+    // Recent achievements
+    const recentAchievements = (achievementsResult.data || []).map((a: any) => a.achievement_text);
+
+    // Build context for AI
+    const userContext: UserContext = {
       firstName,
-      episode.title,
-      topics,
-      episode.script || '',
-      episode.daily_challenge,
-      streakData?.login_streak,
-      habitsThisWeek?.length || 0
-    );
+      episodeTitle: episode.title,
+      topics: episode.topics_covered || [],
+      script: episode.script || '',
+      dailyChallenge: episode.daily_challenge,
+      streakDays: profile.login_streak,
+      habits,
+      ninetyDayTargets,
+      topCapabilities,
+      recentAchievements,
+      personalVision: visionResult.data?.vision_statement || null
+    };
+
+    console.log("Generating personalized email for", firstName, "with context:", {
+      habits: habits.length,
+      targets: ninetyDayTargets.length,
+      capabilities: topCapabilities.length,
+      hasVision: !!userContext.personalVision
+    });
+
+    const { subject, body: personalizedBody } = await generatePersonalizedEmail(userContext);
 
     // Build the app URL
     const appUrl = `https://askjericho.com/dashboard/my-growth-plan`;
+
+    // Build stats for the email footer
+    const totalHabitCompletions = habits.reduce((sum, h) => sum + h.completionsThisWeek, 0);
+    const avgTargetProgress = ninetyDayTargets.length > 0
+      ? Math.round(ninetyDayTargets.reduce((sum, t) => sum + t.progress, 0) / ninetyDayTargets.length)
+      : null;
 
     // Build the on-brand Jericho email HTML
     const emailHtml = `
@@ -240,7 +330,7 @@ serve(async (req) => {
     
     <!-- Header with Jericho branding -->
     <div style="padding: 40px 32px 24px 32px; text-align: center;">
-      <div style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); -webkit-background-clip: text; background-clip: text;">
+      <div style="display: inline-block;">
         <h1 style="font-size: 28px; font-weight: 700; margin: 0; color: #a855f7;">Jericho</h1>
       </div>
       <p style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; letter-spacing: 0.5px;">${formatDate(new Date()).toUpperCase()}</p>
@@ -264,22 +354,26 @@ serve(async (req) => {
       ` : ''}
 
       <!-- Stats bar -->
-      ${(streakData?.login_streak || habitsThisWeek?.length) ? `
       <div style="display: flex; border-top: 1px solid #2a2a4a;">
-        ${streakData?.login_streak ? `
-        <div style="flex: 1; padding: 20px; text-align: center; ${habitsThisWeek?.length ? 'border-right: 1px solid #2a2a4a;' : ''}">
-          <div style="color: #a855f7; font-size: 28px; font-weight: 700;">${streakData.login_streak}</div>
+        ${profile.login_streak ? `
+        <div style="flex: 1; padding: 20px; text-align: center; border-right: 1px solid #2a2a4a;">
+          <div style="color: #a855f7; font-size: 28px; font-weight: 700;">${profile.login_streak}</div>
           <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Day Streak</div>
         </div>
         ` : ''}
-        ${habitsThisWeek?.length ? `
+        ${totalHabitCompletions > 0 ? `
+        <div style="flex: 1; padding: 20px; text-align: center; ${avgTargetProgress !== null ? 'border-right: 1px solid #2a2a4a;' : ''}">
+          <div style="color: #6366f1; font-size: 28px; font-weight: 700;">${totalHabitCompletions}</div>
+          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Habit Check-ins</div>
+        </div>
+        ` : ''}
+        ${avgTargetProgress !== null ? `
         <div style="flex: 1; padding: 20px; text-align: center;">
-          <div style="color: #6366f1; font-size: 28px; font-weight: 700;">${habitsThisWeek.length}</div>
-          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Habits This Week</div>
+          <div style="color: #22c55e; font-size: 28px; font-weight: 700;">${avgTargetProgress}%</div>
+          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Goal Progress</div>
         </div>
         ` : ''}
       </div>
-      ` : ''}
     </div>
 
     <!-- Footer -->
@@ -359,6 +453,11 @@ serve(async (req) => {
         episodeDate: today,
         briefFormat,
         aiGenerated: true,
+        contextUsed: {
+          habits: habits.length,
+          targets: ninetyDayTargets.length,
+          capabilities: topCapabilities.length
+        }
       },
     });
 
