@@ -34,6 +34,7 @@ import Sales from "./pages/Sales";
 import DashboardLayout from "./components/DashboardLayout";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import { RegistrationWizard } from "./components/RegistrationWizard";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Sales />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/register" element={<RegistrationWizard />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             {/* Partner Routes */}
             <Route path="/partner" element={<PartnerDashboard />} />

@@ -56,7 +56,6 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [companyName, setCompanyName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -84,7 +83,8 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}/register`,
           },
         });
         if (authError) {
@@ -93,36 +93,11 @@ const Auth = () => {
         }
 
         if (authData.user) {
-          try {
-            // Create company
-            const { data: company, error: companyError } = await supabase
-              .from("companies")
-              .insert({ name: companyName })
-              .select()
-              .single();
-            
-            if (companyError) throw companyError;
-
-            // Create profile
-            const { error: profileError } = await supabase
-              .from("profiles")
-              .insert({
-                id: authData.user.id,
-                company_id: company.id,
-                full_name: fullName,
-                email,
-                is_admin: true,
-              });
-            
-            if (profileError) throw profileError;
-
-            toast({ title: "Account created!", description: "Welcome to Jericho." });
-            setIsSigningUp(false);
-            navigate("/dashboard/my-growth-plan");
-          } catch (error) {
-            setIsSigningUp(false);
-            throw error;
-          }
+          // For self-serve signup, redirect to registration wizard
+          // The wizard will handle profile creation and onboarding
+          toast({ title: "Account created!", description: "Let's get you set up." });
+          setIsSigningUp(false);
+          navigate("/register");
         } else {
           setIsSigningUp(false);
         }
@@ -193,30 +168,18 @@ const Auth = () => {
         <CardContent>
           <form onSubmit={isResetPassword ? handlePasswordReset : handleAuth} className="space-y-4">
             {!isLogin && !isResetPassword && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="companyName">Company Name</Label>
-                  <Input
-                    id="companyName"
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  disabled={loading}
+                  placeholder="Jane Smith"
+                />
+              </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
