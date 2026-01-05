@@ -446,19 +446,19 @@ serve(async (req) => {
 
     console.log(`Day calculation: UTC=${now.toISOString()}, Central Time=${centralTime.toISOString()}, day=${dayOfWeek}`);
 
-    // Fetch 90-day goals - ONLY current quarter goals (filter out old 2025 goals)
-    // Calculate the start of the current quarter
+    // Fetch 90-day goals - ONLY current year goals (no old 2025 goals)
     const currentDate = new Date();
-    const currentQuarterStart = new Date(currentDate.getFullYear(), Math.floor(currentDate.getMonth() / 3) * 3, 1);
-    // Also include goals from the previous quarter (rolling 6-month window)
-    const sixMonthsAgo = new Date(currentDate.getFullYear(), currentDate.getMonth() - 6, 1);
+    const currentYear = currentDate.getFullYear();
+    const currentQuarter = Math.ceil((currentDate.getMonth() + 1) / 3);
+    const currentQuarterName = `Q${currentQuarter}`;
     
+    // Get goals from current year only, prioritizing current quarter
     const { data: goals } = await supabase
       .from('ninety_day_targets')
-      .select('goal_text, completed, benchmarks, sprints, goal_type, category, created_at')
+      .select('goal_text, completed, benchmarks, sprints, goal_type, category, created_at, quarter, year')
       .eq('profile_id', profileId)
       .eq('completed', false)
-      .gte('created_at', sixMonthsAgo.toISOString()) // Only goals from last 6 months
+      .eq('year', currentYear) // STRICT: Only current year (2026)
       .order('created_at', { ascending: false })
       .limit(10);
 
