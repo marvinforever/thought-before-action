@@ -1638,10 +1638,12 @@ export type Database = {
       }
       email_preferences: {
         Row: {
+          brief_format: string | null
           created_at: string
           email_enabled: boolean
           frequency: string
           id: string
+          include_podcast: boolean | null
           preferred_day: string | null
           preferred_time: string
           profile_id: string
@@ -1649,10 +1651,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brief_format?: string | null
           created_at?: string
           email_enabled?: boolean
           frequency?: string
           id?: string
+          include_podcast?: boolean | null
           preferred_day?: string | null
           preferred_time?: string
           profile_id: string
@@ -1660,10 +1664,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brief_format?: string | null
           created_at?: string
           email_enabled?: boolean
           frequency?: string
           id?: string
+          include_podcast?: boolean | null
           preferred_day?: string | null
           preferred_time?: string
           profile_id?: string
