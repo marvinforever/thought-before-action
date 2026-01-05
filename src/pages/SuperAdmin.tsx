@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield, Pencil, FolderTree, Flag, Phone, Lightbulb, Share2 } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, Plus, UserPlus, Upload, Loader2, CheckCircle2, FileUp, Eye, Copy, Mail, Users2, Search, Shield, Pencil, FolderTree, Flag, Phone, Lightbulb, Share2, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewAs } from "@/contexts/ViewAsContext";
@@ -21,6 +21,7 @@ import { FeatureFlagsManager } from "@/components/FeatureFlagsManager";
 import { SMSManagementTab } from "@/components/SMSManagementTab";
 import { DevelopmentIdeasTab } from "@/components/DevelopmentIdeasTab";
 import ReferralAdminTab from "@/components/ReferralAdminTab";
+import { SystemHealthDashboard } from "@/components/SystemHealthDashboard";
 
 interface CompanyStats {
   id: string;
@@ -1749,6 +1750,10 @@ const SuperAdmin = () => {
               <Share2 className="h-4 w-4 mr-2" />
               Referrals
             </TabsTrigger>
+            <TabsTrigger value="system-health">
+              <Activity className="h-4 w-4 mr-2" />
+              System Health
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -2451,6 +2456,10 @@ const SuperAdmin = () => {
 
         <TabsContent value="referrals" className="space-y-6">
           <ReferralAdminTab />
+        </TabsContent>
+
+        <TabsContent value="system-health" className="space-y-6">
+          <SystemHealthDashboard />
         </TabsContent>
       </Tabs>
 
