@@ -118,6 +118,16 @@ export function useOnboardingProgress(): OnboardingProgress {
     refresh();
   }, [refresh]);
 
+  // Allow other parts of the app (e.g. Jericho chat) to trigger an onboarding refresh
+  useEffect(() => {
+    const handler = () => {
+      refresh();
+    };
+
+    window.addEventListener('onboardingProgressRefresh', handler as EventListener);
+    return () => window.removeEventListener('onboardingProgressRefresh', handler as EventListener);
+  }, [refresh]);
+
   // Video URLs - replace with your actual tutorial video URLs
   // Supports: YouTube, Vimeo, or direct video file URLs
   const tutorialVideos: Record<string, string | undefined> = {
