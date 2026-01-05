@@ -61,10 +61,16 @@ export default function PartnerDashboard() {
         .from('referral_partners')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (partnerError || !partnerData) {
+      if (partnerError) {
+        console.error(partnerError);
         navigate('/partner/login');
+        return;
+      }
+
+      if (!partnerData) {
+        navigate('/partner/register');
         return;
       }
 
