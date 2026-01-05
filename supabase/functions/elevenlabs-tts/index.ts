@@ -145,7 +145,7 @@ async function generateChunkAudio(
   }
   
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=pcm_44100`,
     {
       method: 'POST',
       headers: {
@@ -222,18 +222,57 @@ async function generateSegmentAudio(
 }
 
 /**
+ * Wrap raw PCM audio bytes in a WAV container.
+ * ElevenLabs `pcm_44100` output is mono 16-bit PCM at 44.1kHz.
+ */
+function pcmToWav(pcmBuffer: ArrayBuffer, sampleRate = 44100, numChannels = 1, bitsPerSample = 16): ArrayBuffer {
+  const pcmData = new Uint8Array(pcmBuffer);
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = pcmData.byteLength;
+
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+
+  // "RIFF"
+  view.setUint32(0, 0x52494646, false);
+  view.setUint32(4, 36 + dataSize, true);
+  view.setUint32(8, 0x57415645, false); // "WAVE"
+
+  // "fmt " chunk
+  view.setUint32(12, 0x666d7420, false);
+  view.setUint32(16, 16, true); // PCM header size
+  view.setUint16(20, 1, true); // audio format = PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // "data" chunk
+  view.setUint32(36, 0x64617461, false);
+  view.setUint32(40, dataSize, true);
+
+  // concat header + pcm
+  const out = new Uint8Array(44 + dataSize);
+  out.set(new Uint8Array(header), 0);
+  out.set(pcmData, 44);
+  return out.buffer;
+}
+
+/**
  * Concatenate multiple audio buffers into one
  */
 function concatenateAudioBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
   const totalLength = buffers.reduce((acc, buf) => acc + buf.byteLength, 0);
   const result = new Uint8Array(totalLength);
   let offset = 0;
-  
+
   for (const buffer of buffers) {
     result.set(new Uint8Array(buffer), offset);
     offset += buffer.byteLength;
   }
-  
+
   return result.buffer;
 }
 
@@ -317,7 +356,7 @@ serve(async (req) => {
       console.log('Detected conversational script - generating multi-voice audio');
       const segments = parseConversationScript(script);
       console.log(`Parsed ${segments.length} speaker segments`);
-      
+
       if (segments.length > 0) {
         const result = await generateMultiVoiceAudio(segments, elevenlabsApiKey);
         audioBuffer = result.audioBuffer;
@@ -326,11 +365,12 @@ serve(async (req) => {
         // Fallback to single voice if parsing fails
         console.log('Segment parsing failed, falling back to single voice');
         const cleanedScript = script
-          .replace(/\[pause\]/gi, '...')
-          .replace(/\n\n/g, '\n')
+          .replace(/\[pause\]/gi, '')
+          .replace(/\n+/g, ' ')
           .replace(/^(JERICHO|SAM):\s*/gim, '') // Remove speaker labels
+          .replace(/\s+/g, ' ')
           .trim();
-        
+
         const voiceId = VOICES[voice as keyof typeof VOICES] || VOICES.jericho;
         audioBuffer = await generateSegmentAudio(cleanedScript, voiceId, TTS_VOICE_SETTINGS, elevenlabsApiKey);
         wordCount = cleanedScript.split(/\s+/).length;
@@ -339,8 +379,9 @@ serve(async (req) => {
       // Single voice mode (legacy)
       console.log('Single voice mode');
       const cleanedScript = script
-        .replace(/\[pause\]/gi, '...')
-        .replace(/\n\n/g, '\n')
+        .replace(/\[pause\]/gi, '')
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
 
       const voiceId = VOICES[voice as keyof typeof VOICES] || VOICES.jericho;
@@ -348,7 +389,10 @@ serve(async (req) => {
       wordCount = cleanedScript.split(/\s+/).length;
     }
 
-    console.log(`Audio generated, size: ${audioBuffer.byteLength} bytes`);
+    // Wrap PCM in WAV to avoid cumulative encoder padding/drift across chunks
+    const wavBuffer = pcmToWav(audioBuffer);
+
+    console.log(`Audio generated, wav size: ${wavBuffer.byteLength} bytes`);
 
     // Estimate duration (rough: ~150 words per minute)
     const estimatedDurationSeconds = Math.round((wordCount / 150) * 60);
@@ -360,14 +404,14 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       // Generate unique filename
-      const fileName = `${profileId}/${episodeDate}.mp3`;
+      const fileName = `${profileId}/${episodeDate}.wav`;
 
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase
+      // Upload to Storage
+      const { error: uploadError } = await supabase
         .storage
         .from('podcasts')
-        .upload(fileName, audioBuffer, {
-          contentType: 'audio/mpeg',
+        .upload(fileName, wavBuffer, {
+          contentType: 'audio/wav',
           upsert: true, // Replace if exists (regenerating)
         });
 
@@ -400,14 +444,15 @@ serve(async (req) => {
         }
       );
     } else {
-      // Return audio directly as base64
-      const base64Audio = base64Encode(audioBuffer);
+      // Return audio directly as base64 (WAV)
+      const base64Audio = base64Encode(wavBuffer);
       return new Response(
         JSON.stringify({
           success: true,
           audioContent: base64Audio,
           durationSeconds: estimatedDurationSeconds,
           wordCount,
+          mimeType: 'audio/wav',
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
