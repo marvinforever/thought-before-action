@@ -27,7 +27,7 @@ const VOICES = {
 };
 
 interface ScriptSegment {
-  speaker: 'JERICHO' | 'SAM';
+  speaker: 'JERICHO' | 'ALEX';
   text: string;
 }
 
@@ -37,9 +37,9 @@ interface ScriptSegment {
 function parseConversationScript(script: string): ScriptSegment[] {
   const segments: ScriptSegment[] = [];
   
-  // Split by speaker labels (JERICHO: or SAM:)
+  // Split by speaker labels (JERICHO: or ALEX: or SAM: for backward compatibility)
   const lines = script.split('\n');
-  let currentSpeaker: 'JERICHO' | 'SAM' | null = null;
+  let currentSpeaker: 'JERICHO' | 'ALEX' | null = null;
   let currentText = '';
   
   for (const line of lines) {
@@ -47,7 +47,8 @@ function parseConversationScript(script: string): ScriptSegment[] {
     
     // Check for speaker label
     const jerichoMatch = trimmedLine.match(/^JERICHO:\s*(.*)/i);
-    const samMatch = trimmedLine.match(/^SAM:\s*(.*)/i);
+    const alexMatch = trimmedLine.match(/^ALEX:\s*(.*)/i);
+    const samMatch = trimmedLine.match(/^SAM:\s*(.*)/i); // Backward compatibility
     
     if (jerichoMatch) {
       // Save previous segment if exists
@@ -56,13 +57,13 @@ function parseConversationScript(script: string): ScriptSegment[] {
       }
       currentSpeaker = 'JERICHO';
       currentText = jerichoMatch[1] || '';
-    } else if (samMatch) {
+    } else if (alexMatch || samMatch) {
       // Save previous segment if exists
       if (currentSpeaker && currentText.trim()) {
         segments.push({ speaker: currentSpeaker, text: currentText.trim() });
       }
-      currentSpeaker = 'SAM';
-      currentText = samMatch[1] || '';
+      currentSpeaker = 'ALEX';
+      currentText = (alexMatch?.[1] || samMatch?.[1]) || '';
     } else if (currentSpeaker && trimmedLine) {
       // Continue current speaker's text
       currentText += ' ' + trimmedLine;
@@ -81,7 +82,7 @@ function parseConversationScript(script: string): ScriptSegment[] {
  * Check if script is in conversational format (has speaker labels)
  */
 function isConversationalScript(script: string): boolean {
-  return /^(JERICHO|SAM):/im.test(script);
+  return /^(JERICHO|ALEX|SAM):/im.test(script);
 }
 
 /**

@@ -64,34 +64,34 @@ export const TTS_VOICE_SETTINGS_SECONDARY = {
 export const PODCAST_HOSTS = {
   primary: {
     name: 'Jericho',
-    voiceId: 'FuTV0OBHmKN2S3ej42IO', // Current Jericho voice
+    voiceId: 'FuTV0OBHmKN2S3ej42IO', // Current Jericho voice - British, authoritative
     role: 'The wise, experienced growth coach - insightful, warm, direct',
     voiceSettings: TTS_VOICE_SETTINGS,
   },
   secondary: {
-    name: 'Sam',
-    voiceId: 'N2lVS1w4EtoT3dr4eOWO', // Callum - energetic, warm, charismatic
-    role: 'The curious co-host - asks great questions, reacts genuinely, brings energy',
+    name: 'Alex',
+    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - sharp, professional, energetic female
+    role: 'The dynamic co-host - sharp questions, vibrant energy, professional edge',
     voiceSettings: TTS_VOICE_SETTINGS_SECONDARY,
   }
 };
 
 export const CONVERSATION_FORMAT = `
 FORMAT: Two hosts having a natural, energetic conversation about the user's growth journey.
-- JERICHO: The experienced coach who delivers insights, challenges, and wisdom. Speaks with warm authority.
-- SAM: The energetic co-host who asks clarifying questions, reacts to wins, and keeps energy high. More casual.
+- JERICHO: The experienced coach who delivers insights, challenges, and wisdom. British, warm authority.
+- ALEX: The sharp, energetic female co-host who asks incisive questions, brings professional energy. Direct and vibrant.
 
 Write the script as a dialogue with clear speaker labels:
 JERICHO: [speaks]
-SAM: [responds/reacts/asks]
+ALEX: [responds/reacts/asks]
 JERICHO: [continues]
 ...
 
 The conversation should feel natural and dynamic:
-- Sam can react enthusiastically to achievements ("Wait, a 15-day streak? That's incredible!")
-- Sam asks follow-up questions that help clarify coaching points
-- Sam adds energy and variety to the pacing with genuine reactions
-- Sam can share relatable observations ("I love that approach!")
+- Alex asks sharp, pointed questions that drive deeper ("So what's the real blocker here?")
+- Alex can react with professional enthusiasm to achievements ("Fifteen days straight? That's the kind of consistency that compounds.")
+- Alex brings a vibrant, no-nonsense energy - professional but not stiff
+- Alex challenges assumptions and adds her own perspective
 
 Jericho should:
 - Deliver the core coaching insights with authority
@@ -100,10 +100,10 @@ Jericho should:
 - Have the "final word" on topics and deliver the daily challenge
 
 FLOW EXAMPLE:
-SAM: Hey, welcome back! So Jericho, what are we diving into today for [name]?
-JERICHO: Sam, we've got some great stuff. [Name] is on day 15 of their Morning Planning habit.
-SAM: Wait, 15 days? That's awesome - most people drop off by day 7!
-JERICHO: Exactly. And that consistency is showing up in their work...
+ALEX: Alright, let's get into it. Jericho, what's on the agenda for [name] today?
+JERICHO: We've got some momentum to build on. [Name] just hit day 15 of their Morning Planning habit.
+ALEX: Fifteen days—that's past the point where most people give up. That's real commitment showing up.
+JERICHO: Exactly. And here's what I'm seeing in their work...
 
 Keep exchanges SHORT and PUNCHY. Don't let either host ramble. Quick back-and-forth creates energy.
 `;

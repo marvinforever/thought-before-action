@@ -32,6 +32,7 @@ import { RecognitionNudge } from "@/components/RecognitionNudge";
 import { ManagerToDoTab } from "@/components/ManagerToDoTab";
 import { MeetingRequestsSection } from "@/components/MeetingRequestsSection";
 import { PrepareConversationButton } from "@/components/PrepareConversationButton";
+import { SalesCallPrepButton } from "@/components/SalesCallPrepButton";
 
 type DirectReport = {
   id: string;
@@ -274,6 +275,11 @@ export default function ManagerDashboard() {
                 </div>
               </div>
               <PrepareConversationButton 
+                variant="default"
+                size="lg"
+                className="bg-white/10 hover:bg-white/20 border-white/20 text-primary-foreground"
+              />
+              <SalesCallPrepButton 
                 variant="default"
                 size="lg"
                 className="bg-white/10 hover:bg-white/20 border-white/20 text-primary-foreground"
