@@ -31,7 +31,6 @@ const DashboardLayout = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
-  const [isPartner, setIsPartner] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,15 +64,6 @@ const DashboardLayout = () => {
             .in("role", ["manager", "admin", "super_admin"]);
           
           setIsManager((roles && roles.length > 0) || false);
-
-          // Check if user is a partner
-          const { data: partnerData } = await supabase
-            .from("referral_partners")
-            .select("id")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-          
-          setIsPartner(!!partnerData);
         }
       } catch (error) {
         console.error("Error loading session:", error);
@@ -109,15 +99,6 @@ const DashboardLayout = () => {
               .in("role", ["manager", "admin", "super_admin"]);
             
             setIsManager((roles && roles.length > 0) || false);
-
-            // Check if user is a partner
-            const { data: partnerData } = await supabase
-              .from("referral_partners")
-              .select("id")
-              .eq("user_id", session.user!.id)
-              .maybeSingle();
-            
-            setIsPartner(!!partnerData);
           } catch (error) {
             console.error("Error fetching profile after auth change:", error);
           }
@@ -146,6 +127,7 @@ const DashboardLayout = () => {
   if (!user) return null;
 
   // Role-based navigation: Employees only see My Growth Plan + My Capabilities + My Resources
+  // Partner Portal is available to everyone
   const navItems = isAdmin || isManager || isSuperAdmin 
     ? [
         { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -158,19 +140,16 @@ const DashboardLayout = () => {
         { icon: BookOpen, label: "Resources", path: "/dashboard/resources" },
         { icon: Upload, label: "Import Resources", path: "/dashboard/resource-import" },
         { icon: Target, label: "AI Resource Research", path: "/dashboard/resource-research" },
+        { icon: Handshake, label: "Partner Portal", path: "/partner" },
         { icon: Settings, label: "Settings", path: "/dashboard/settings" },
       ]
     : [
         { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
         { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
         { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
+        { icon: Handshake, label: "Partner Portal", path: "/partner" },
         { icon: Settings, label: "Settings", path: "/dashboard/settings" },
       ];
-
-  // Add Partner tab if user is a registered partner
-  if (isPartner) {
-    navItems.push({ icon: Handshake, label: "Partner Portal", path: "/partner" });
-  }
 
   const SidebarContent = () => (
     <>

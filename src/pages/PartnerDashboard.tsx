@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Copy, Check, LogOut, MousePointerClick, Calendar, DollarSign, TrendingUp } from "lucide-react";
+import { Copy, Check, LogOut, MousePointerClick, Calendar, DollarSign, TrendingUp, Handshake, CheckCircle2, Users, Target, ArrowLeft } from "lucide-react";
 
 interface Partner {
   id: string;
@@ -39,7 +39,9 @@ export default function PartnerDashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enrolling, setEnrolling] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -50,29 +52,41 @@ export default function PartnerDashboard() {
     loadPartnerData();
   }, []);
 
+  const generateReferralCode = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
   const loadPartnerData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
         navigate('/partner/login');
         return;
       }
+
+      setUser(currentUser);
 
       // Load partner record
       const { data: partnerData, error: partnerError } = await supabase
         .from('referral_partners')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .maybeSingle();
 
       if (partnerError) {
         console.error(partnerError);
-        navigate('/partner/login');
+        setLoading(false);
         return;
       }
 
       if (!partnerData) {
-        navigate('/partner/register');
+        // User is not a partner yet - they'll see the enrollment page
+        setLoading(false);
         return;
       }
 
@@ -99,6 +113,49 @@ export default function PartnerDashboard() {
       console.error('Error loading partner data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnroll = async () => {
+    if (!user) return;
+    
+    setEnrolling(true);
+    try {
+      const referralCode = generateReferralCode();
+      const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Partner";
+
+      const { error: enrollErr } = await supabase.from("referral_partners").insert({
+        user_id: user.id,
+        name: displayName,
+        email: user.email,
+        phone: null,
+        company: null,
+        referral_code: referralCode,
+      });
+
+      if (enrollErr) throw enrollErr;
+
+      // Add partner role
+      await supabase.from("user_roles").upsert(
+        { user_id: user.id, role: "partner" },
+        { onConflict: "user_id,role" }
+      );
+
+      toast({
+        title: "Welcome to the Partner Program! 🎉",
+        description: "You're now enrolled. Start sharing your referral link!",
+      });
+
+      // Reload to show the dashboard
+      loadPartnerData();
+    } catch (error: any) {
+      toast({
+        title: "Enrollment failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -147,14 +204,115 @@ export default function PartnerDashboard() {
     );
   }
 
+  // Show enrollment page for non-partners
+  if (!partner && user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
+        <div className="max-w-3xl mx-auto">
+          {/* Back button */}
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/dashboard/my-growth-plan')}
+            className="text-slate-400 hover:text-white mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Button>
+
+          {/* Hero */}
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 mb-6">
+              <Handshake className="w-4 h-4 text-emerald-400" />
+              <span className="text-emerald-400 font-medium text-sm">Partner Program</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Help Leaders Grow. <span className="text-emerald-400">Get Rewarded.</span>
+            </h1>
+            <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+              Earn <span className="text-emerald-400 font-semibold">10% commission</span> on every organization you refer to Jericho. Simple. Transparent. Lucrative.
+            </p>
+          </div>
+
+          {/* Benefits */}
+          <Card className="border-slate-700 bg-slate-800/50 backdrop-blur mb-8">
+            <CardHeader>
+              <CardTitle className="text-white">How It Works</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-emerald-500/20 rounded-lg">
+                  <Target className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Get Your Unique Link</h3>
+                  <p className="text-slate-400 text-sm">Join with one click and receive your personal referral link instantly.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <Users className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Share With Your Network</h3>
+                  <p className="text-slate-400 text-sm">Send your link to leaders who need better clarity, accountability, and growth systems.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-500/20 rounded-lg">
+                  <DollarSign className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Earn 10% Commission</h3>
+                  <p className="text-slate-400 text-sm">When they become a customer, you earn 10% of their first year. No cap on earnings.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CTA */}
+          <div className="text-center">
+            <Button
+              size="lg"
+              onClick={handleEnroll}
+              disabled={enrolling}
+              className="bg-emerald-600 hover:bg-emerald-700 text-lg px-8 py-6"
+            >
+              {enrolling ? (
+                "Enrolling..."
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5 mr-2" />
+                  Join the Partner Program
+                </>
+              )}
+            </Button>
+            <p className="text-slate-500 text-sm mt-4">
+              Joining as {user.email}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Partner Dashboard</h1>
-            <p className="text-slate-400">Welcome back, {partner?.name}</p>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/dashboard/my-growth-plan')}
+              className="text-slate-400 hover:text-white"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Partner Dashboard</h1>
+              <p className="text-slate-400">Welcome back, {partner?.name}</p>
+            </div>
           </div>
           <Button variant="ghost" onClick={handleLogout} className="text-slate-400 hover:text-white">
             <LogOut className="w-4 h-4 mr-2" />
