@@ -304,19 +304,22 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
                 setStreamBuffer(accumulatedContent); // Update buffer, typing effect will reveal it
               }
               
-              if (data.done) {
-                // Update the actual message with final content before exiting
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  newMessages[placeholderIndex] = {
-                    role: 'assistant',
-                    content: accumulatedContent,
-                    timestamp: new Date(),
-                  };
-                  return newMessages;
-                });
-                break;
-              }
+               if (data.done) {
+                 // Update the actual message with final content before exiting
+                 setMessages(prev => {
+                   const newMessages = [...prev];
+                   newMessages[placeholderIndex] = {
+                     role: 'assistant',
+                     content: accumulatedContent,
+                     timestamp: new Date(),
+                   };
+                   return newMessages;
+                 });
+
+                 // Nudge onboarding UI to refresh (used for "Chat with Jericho" milestone)
+                 window.dispatchEvent(new Event('onboardingProgressRefresh'));
+                 break;
+               }
             } catch (e) {
               console.error('Failed to parse SSE data:', e);
             }
