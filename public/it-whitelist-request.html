@@ -158,6 +158,14 @@
     .print-btn:hover {
       background: #2a2a4e;
     }
+    
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', monospace;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
@@ -176,7 +184,7 @@
   </p>
   
   <div class="highlight">
-    <strong>Request Summary:</strong> Please whitelist the following domains to enable 
+    <strong>Request Summary:</strong> Please whitelist the following domains and email addresses to enable 
     employee access to the Jericho platform for professional development and performance management.
   </div>
   
@@ -192,13 +200,18 @@
     </thead>
     <tbody>
       <tr>
-        <td><code>*.lovable.app</code></td>
-        <td>Primary application hosting</td>
+        <td><code>www.askjericho.com</code></td>
+        <td>Primary application website</td>
         <td>HTTPS (443)</td>
       </tr>
       <tr>
-        <td><code>*.lovableproject.com</code></td>
-        <td>Application preview environments</td>
+        <td><code>*.askjericho.com</code></td>
+        <td>Application subdomains</td>
+        <td>HTTPS (443)</td>
+      </tr>
+      <tr>
+        <td><code>*.lovable.app</code></td>
+        <td>Application hosting infrastructure</td>
         <td>HTTPS (443)</td>
       </tr>
       <tr>
@@ -210,6 +223,41 @@
         <td><code>*.elevenlabs.io</code></td>
         <td>AI voice coaching features</td>
         <td>HTTPS (443)</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <h2>Email Whitelist (Inbound)</h2>
+  
+  <p>Please add the following email addresses and domains to your email whitelist/safe sender list to ensure platform notifications are delivered:</p>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Email Address / Domain</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>jericho@sender.askjericho.com</code></td>
+        <td>System notifications, coaching messages, daily briefs</td>
+      </tr>
+      <tr>
+        <td><code>jericho@askjericho.com</code></td>
+        <td>Support communications</td>
+      </tr>
+      <tr>
+        <td><code>noreply@sender.askjericho.com</code></td>
+        <td>Automated notifications (password resets, etc.)</td>
+      </tr>
+      <tr>
+        <td><code>@sender.askjericho.com</code></td>
+        <td>All transactional emails from platform</td>
+      </tr>
+      <tr>
+        <td><code>@askjericho.com</code></td>
+        <td>All company communications</td>
       </tr>
     </tbody>
   </table>
@@ -249,6 +297,7 @@
       <li>The platform is SOC 2 compliant infrastructure (Supabase)</li>
       <li>User authentication uses industry-standard OAuth 2.0 / JWT tokens</li>
       <li>No executable files are downloaded</li>
+      <li>Email sending domains use SPF, DKIM, and DMARC authentication</li>
     </ul>
   </div>
   
@@ -265,15 +314,15 @@
   <h2>Testing Access</h2>
   
   <p>After whitelisting, users can verify access by navigating to:</p>
-  <p><strong>https://jericho.lovable.app</strong> (or your organization's specific URL)</p>
+  <p><strong>https://www.askjericho.com</strong></p>
   
   <div class="contact">
     <h2>Technical Support Contact</h2>
     <p>For technical questions regarding this whitelist request:</p>
     <ul>
       <li><strong>Vendor:</strong> The Momentum Company (Jericho)</li>
-      <li><strong>Email:</strong> support@themomentumcompany.com</li>
-      <li><strong>Website:</strong> https://jericho.lovable.app</li>
+      <li><strong>Website:</strong> https://www.askjericho.com</li>
+      <li><strong>Support Email:</strong> jericho@askjericho.com</li>
     </ul>
   </div>
   
