@@ -162,12 +162,12 @@ const DashboardLayout = () => {
       ];
 
   const SidebarContent = () => (
-    <>
-      <div className="p-6 border-b border-sidebar-border bg-sidebar">
+    <div className="flex flex-col h-full">
+      <div className="p-6 border-b border-sidebar-border bg-sidebar shrink-0">
         <h1 className="text-2xl font-bold text-sidebar-primary">Jericho</h1>
         <p className="text-sm text-sidebar-foreground/70">by The Momentum Company</p>
       </div>
-      <nav className="p-4 space-y-2 bg-sidebar">
+      <nav className="p-4 space-y-2 bg-sidebar flex-1 overflow-y-auto">
         {isSuperAdmin && (
           <Button
             variant="ghost"
@@ -196,7 +196,7 @@ const DashboardLayout = () => {
           </Button>
         ))}
       </nav>
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border bg-sidebar">
+      <div className="p-4 border-t border-sidebar-border bg-sidebar shrink-0">
         <Button
           variant="ghost"
           className="w-full justify-start text-sidebar-foreground hover:bg-destructive/20 hover:text-destructive"
@@ -206,7 +206,7 @@ const DashboardLayout = () => {
           Logout
         </Button>
       </div>
-    </>
+    </div>
   );
 
   return (
