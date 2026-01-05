@@ -174,10 +174,10 @@ export default function PartnerRegister() {
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/partner/login">
-              <Button variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10">Partner Login</Button>
+              <Button variant="ghost" className="text-accent hover:text-accent hover:bg-accent/10">Partner Login</Button>
             </Link>
             <Link to="/">
-              <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+              <Button variant="outline" className="border-accent text-accent hover:bg-accent/10">
                 Back to Jericho
               </Button>
             </Link>
