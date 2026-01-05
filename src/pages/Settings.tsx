@@ -65,6 +65,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [savingPodcast, setSavingPodcast] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -212,6 +213,50 @@ export default function Settings() {
       });
     } finally {
       setSavingEmail(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    setSendingTest(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      toast({
+        title: "Generating brief...",
+        description: "Creating your personalized podcast and email. This may take a minute.",
+      });
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Generate podcast
+      const { error: genError } = await supabase.functions.invoke("auto-generate-podcasts", {
+        body: { profileIds: [user.id], batchSize: 1 }
+      });
+
+      if (genError) {
+        console.warn("Podcast generation warning:", genError);
+      }
+
+      // Send the email
+      const { data, error } = await supabase.functions.invoke("send-daily-brief-email", {
+        body: { profileId: user.id, episodeDate: today }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Test email sent! 🎉",
+        description: `Check your inbox at ${profile?.email}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send test email.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -520,6 +565,31 @@ export default function Settings() {
                   onCheckedChange={(checked) => saveEmailPrefs({ include_podcast: checked })}
                   disabled={savingEmail}
                 />
+              </div>
+
+              {/* Send Test Button */}
+              <div className="pt-4 border-t">
+                <Button
+                  onClick={sendTestEmail}
+                  disabled={sendingTest}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {sendingTest ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Generating & Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Test Email Now
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Generates today's brief and sends it to {profile?.email}
+                </p>
               </div>
             </>
           )}
