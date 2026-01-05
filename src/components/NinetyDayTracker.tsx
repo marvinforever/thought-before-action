@@ -6,11 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Target, Plus, Check, Trash2, Sparkles, Loader2, MessageSquare, LayoutGrid, Layers } from "lucide-react";
+import { Calendar, Target, Plus, Check, Trash2, Sparkles, Loader2, MessageSquare, LayoutGrid, Layers, Square, CheckSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import TargetBreakdownDialog from "./TargetBreakdownDialog";
+
+type BenchmarkItem = {
+  id: string;
+  text: string;
+  completed: boolean;
+  completedAt?: string;
+};
+
+type SprintItem = {
+  id: string;
+  text: string;
+  completed: boolean;
+  completedAt?: string;
+};
+
 type NinetyDayTarget = {
   id: string;
   quarter: string;
@@ -21,8 +37,8 @@ type NinetyDayTarget = {
   by_when: string | null;
   support_needed: string | null;
   completed: boolean;
-  benchmarks: any;
-  sprints: any;
+  benchmarks: { text?: string; items?: BenchmarkItem[] } | null;
+  sprints: { text?: string; items?: SprintItem[] } | null;
 };
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 
@@ -77,6 +93,12 @@ export default function NinetyDayTracker() {
   const [isLoadingAiBenchmarks, setIsLoadingAiBenchmarks] = useState(false);
   const [aiSuggestionSprints, setAiSuggestionSprints] = useState("");
   const [isLoadingAiSprints, setIsLoadingAiSprints] = useState(false);
+  const [addNewItemDialog, setAddNewItemDialog] = useState<{
+    targetId: string;
+    type: 'benchmark' | 'sprint';
+    target: NinetyDayTarget;
+  } | null>(null);
+  const [newItemText, setNewItemText] = useState("");
   const {
     toast
   } = useToast();
@@ -105,7 +127,8 @@ export default function NinetyDayTracker() {
         ascending: true
       });
       if (error) throw error;
-      setTargets(data || []);
+      // Cast to NinetyDayTarget[] to handle JSON type from Supabase
+      setTargets((data || []) as unknown as NinetyDayTarget[]);
     } catch (error: any) {
       console.error("Error loading targets:", error);
     }
@@ -239,6 +262,157 @@ export default function NinetyDayTracker() {
         description: error.message,
         variant: "destructive"
       });
+    }
+  };
+
+  // Toggle benchmark item completion
+  const handleToggleBenchmark = async (target: NinetyDayTarget, itemId: string) => {
+    try {
+      const items = target.benchmarks?.items || [];
+      const updatedItems = items.map(item => 
+        item.id === itemId 
+          ? { ...item, completed: !item.completed, completedAt: !item.completed ? new Date().toISOString() : undefined }
+          : item
+      );
+      
+      const { error } = await supabase
+        .from("ninety_day_targets")
+        .update({ benchmarks: { ...target.benchmarks, items: updatedItems } })
+        .eq("id", target.id);
+      
+      if (error) throw error;
+
+      // Check if this was a completion - prompt to add new
+      const toggledItem = items.find(i => i.id === itemId);
+      if (toggledItem && !toggledItem.completed) {
+        toast({
+          title: "Benchmark completed! 🎉",
+          description: "Great progress! Add your next benchmark.",
+        });
+        setAddNewItemDialog({ targetId: target.id, type: 'benchmark', target });
+      }
+      
+      await loadTargets();
+    } catch (error: any) {
+      toast({
+        title: "Error updating benchmark",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Toggle sprint item completion
+  const handleToggleSprint = async (target: NinetyDayTarget, itemId: string) => {
+    try {
+      const items = target.sprints?.items || [];
+      const updatedItems = items.map(item => 
+        item.id === itemId 
+          ? { ...item, completed: !item.completed, completedAt: !item.completed ? new Date().toISOString() : undefined }
+          : item
+      );
+      
+      const { error } = await supabase
+        .from("ninety_day_targets")
+        .update({ sprints: { ...target.sprints, items: updatedItems } })
+        .eq("id", target.id);
+      
+      if (error) throw error;
+
+      // Check if this was a completion - prompt to add new
+      const toggledItem = items.find(i => i.id === itemId);
+      if (toggledItem && !toggledItem.completed) {
+        toast({
+          title: "Sprint completed! 🎉",
+          description: "Momentum! Add your next 7-day sprint.",
+        });
+        setAddNewItemDialog({ targetId: target.id, type: 'sprint', target });
+      }
+      
+      await loadTargets();
+    } catch (error: any) {
+      toast({
+        title: "Error updating sprint",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Add a new benchmark or sprint item
+  const handleAddNewItem = async () => {
+    if (!addNewItemDialog || !newItemText.trim()) return;
+    
+    try {
+      const { target, type } = addNewItemDialog;
+      const newItem = {
+        id: crypto.randomUUID(),
+        text: newItemText.trim(),
+        completed: false,
+      };
+
+      if (type === 'benchmark') {
+        const existingItems = target.benchmarks?.items || [];
+        const { error } = await supabase
+          .from("ninety_day_targets")
+          .update({ benchmarks: { ...target.benchmarks, items: [...existingItems, newItem] } })
+          .eq("id", target.id);
+        if (error) throw error;
+      } else {
+        const existingItems = target.sprints?.items || [];
+        const { error } = await supabase
+          .from("ninety_day_targets")
+          .update({ sprints: { ...target.sprints, items: [...existingItems, newItem] } })
+          .eq("id", target.id);
+        if (error) throw error;
+      }
+
+      toast({
+        title: type === 'benchmark' ? "Benchmark added!" : "Sprint added!",
+        description: "Keep building momentum!",
+      });
+      
+      setNewItemText("");
+      setAddNewItemDialog(null);
+      await loadTargets();
+    } catch (error: any) {
+      toast({
+        title: "Error adding item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Convert text-based benchmarks/sprints to items (migration helper)
+  const convertTextToItems = async (target: NinetyDayTarget, type: 'benchmark' | 'sprint') => {
+    try {
+      const text = type === 'benchmark' ? target.benchmarks?.text : target.sprints?.text;
+      if (!text) return;
+
+      const newItem = {
+        id: crypto.randomUUID(),
+        text: text.trim(),
+        completed: false,
+      };
+
+      if (type === 'benchmark') {
+        const { error } = await supabase
+          .from("ninety_day_targets")
+          .update({ benchmarks: { items: [newItem] } })
+          .eq("id", target.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("ninety_day_targets")
+          .update({ sprints: { items: [newItem] } })
+          .eq("id", target.id);
+        if (error) throw error;
+      }
+      
+      await loadTargets();
+    } catch (error: any) {
+      console.error("Error converting to items:", error);
     }
   };
   const startEditing = (quarter: string, category: string, goalNumber: number, existing?: any) => {
@@ -607,16 +781,96 @@ export default function NinetyDayTracker() {
               {goal.support_needed && <p className="text-xs text-muted-foreground italic">
                   Support: {goal.support_needed}
                 </p>}
-              {goal.benchmarks?.text && (
+              {/* Benchmarks Section */}
+              {(goal.benchmarks?.items?.length > 0 || goal.benchmarks?.text) && (
                 <div className="mt-3 p-2 bg-muted/50 rounded-md">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">30 Day Benchmarks:</p>
-                  <p className="text-xs">{goal.benchmarks.text}</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-muted-foreground">30 Day Benchmarks:</p>
+                    {goal.id && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-xs"
+                        onClick={() => setAddNewItemDialog({ targetId: goal.id, type: 'benchmark', target: goal })}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add
+                      </Button>
+                    )}
+                  </div>
+                  {goal.benchmarks?.items?.length > 0 ? (
+                    <div className="space-y-1">
+                      {goal.benchmarks.items.map((item: BenchmarkItem) => (
+                        <div 
+                          key={item.id} 
+                          className="flex items-start gap-2 cursor-pointer hover:bg-muted/70 rounded p-1 -m-1"
+                          onClick={() => handleToggleBenchmark(goal, item.id)}
+                        >
+                          {item.completed ? (
+                            <CheckSquare className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <Square className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          )}
+                          <span className={`text-xs ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {item.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : goal.benchmarks?.text ? (
+                    <div 
+                      className="text-xs cursor-pointer hover:bg-muted/70 rounded p-1 -m-1"
+                      onClick={() => convertTextToItems(goal, 'benchmark')}
+                      title="Click to make checkable"
+                    >
+                      {goal.benchmarks.text}
+                    </div>
+                  ) : null}
                 </div>
               )}
-              {goal.sprints?.text && (
+              {/* Sprints Section */}
+              {(goal.sprints?.items?.length > 0 || goal.sprints?.text) && (
                 <div className="mt-2 p-2 bg-accent/10 rounded-md">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Next 7 Day Sprint:</p>
-                  <p className="text-xs">{goal.sprints.text}</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-muted-foreground">7 Day Sprints:</p>
+                    {goal.id && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-xs"
+                        onClick={() => setAddNewItemDialog({ targetId: goal.id, type: 'sprint', target: goal })}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add
+                      </Button>
+                    )}
+                  </div>
+                  {goal.sprints?.items?.length > 0 ? (
+                    <div className="space-y-1">
+                      {goal.sprints.items.map((item: SprintItem) => (
+                        <div 
+                          key={item.id} 
+                          className="flex items-start gap-2 cursor-pointer hover:bg-accent/20 rounded p-1 -m-1"
+                          onClick={() => handleToggleSprint(goal, item.id)}
+                        >
+                          {item.completed ? (
+                            <CheckSquare className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <Square className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          )}
+                          <span className={`text-xs ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {item.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : goal.sprints?.text ? (
+                    <div 
+                      className="text-xs cursor-pointer hover:bg-accent/20 rounded p-1 -m-1"
+                      onClick={() => convertTextToItems(goal, 'sprint')}
+                      title="Click to make checkable"
+                    >
+                      {goal.sprints.text}
+                    </div>
+                  ) : null}
                 </div>
               )}
               <div className="flex gap-2 pt-2">
@@ -767,5 +1021,40 @@ export default function NinetyDayTracker() {
         target={selectedTarget}
         onSave={loadTargets}
       />
+
+      {/* Add New Item Dialog */}
+      <Dialog open={!!addNewItemDialog} onOpenChange={(open) => !open && setAddNewItemDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {addNewItemDialog?.type === 'benchmark' ? '🎯 Add New Benchmark' : '🏃 Add New Sprint'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              {addNewItemDialog?.type === 'benchmark' 
+                ? "What's your next 30-day benchmark to hit?"
+                : "What will you accomplish in the next 7 days?"}
+            </p>
+            <Textarea
+              value={newItemText}
+              onChange={(e) => setNewItemText(e.target.value)}
+              placeholder={addNewItemDialog?.type === 'benchmark' 
+                ? "e.g., Complete first draft of project proposal..."
+                : "e.g., Research and outline 3 key strategies..."}
+              className="min-h-[80px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddNewItemDialog(null)}>
+              Skip for now
+            </Button>
+            <Button onClick={handleAddNewItem} disabled={!newItemText.trim()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add {addNewItemDialog?.type === 'benchmark' ? 'Benchmark' : 'Sprint'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>;
 }
