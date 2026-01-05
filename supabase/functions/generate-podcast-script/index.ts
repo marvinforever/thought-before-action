@@ -621,12 +621,11 @@ PACING: Keep it punchy! No rambling. Each section should feel tight and purposef
 
     const config = durationConfig[durationMinutes] || durationConfig[2];
 
-    // Generate script using Lovable AI with two-host conversational format
-    const systemPrompt = `You are writing a ${durationMinutes}-minute conversational podcast between two hosts who genuinely know and care about this person's growth journey.
+    // Generate script using Lovable AI with solo host format (Jessica)
+    const systemPrompt = `You are writing a ${durationMinutes}-minute personal growth podcast hosted by Jessica, who genuinely knows and cares about this person's growth journey.
 
-THE HOSTS:
+THE HOST:
 - ${PODCAST_HOSTS.primary.name}: ${PODCAST_HOSTS.primary.role}
-- ${PODCAST_HOSTS.secondary.name}: ${PODCAST_HOSTS.secondary.role}
 
 ${CONVERSATION_FORMAT}
 
@@ -636,12 +635,10 @@ ${dayTheme.additionalInstructions}
 ${config.structure}
 
 CRITICAL FORMATTING RULES:
-- Write as dialogue with speaker labels: "JERICHO: [text]" and "SAM: [text]"
-- Each speaker turn should be on its own line(s)
-- Keep exchanges SHORT and PUNCHY - no long monologues
-- Alex's reactions should feel genuine and energetic
-- Jericho delivers the coaching substance
-- CRITICAL: Each speaker must FINISH their thought before the other speaks - NO interruptions
+- Write as a solo monologue with speaker label: "JESSICA: [text]"
+- Jessica speaks directly TO the listener throughout
+- Keep it conversational and warm, but direct and actionable
+- Natural pacing with brief pauses for emphasis
 
 GENERAL RULES:
 - Write for spoken audio - use contractions, simple sentences, natural pauses
@@ -656,8 +653,7 @@ GENERAL RULES:
 - IMPORTANT: Do NOT include stage directions, audio cues, or production notes
 - CRITICAL: Do NOT use asterisks, markdown formatting, or text emphasis markers
 - CRITICAL: Do NOT use time-of-day greetings. Use timeless greetings like "Hey [name]"
-- Alex should open the episode and hand off to Jericho
-- Jericho should deliver the daily challenge and close the episode
+- Jessica opens, delivers all content, and closes with the daily challenge
 
 DAILY CHALLENGE RULES:
 - Keep challenges SHORT: 1-2 sentences max, under 20 words
@@ -665,7 +661,7 @@ DAILY CHALLENGE RULES:
 - Examples: "Have one 5-minute conversation with a peer about your progress" or "Send a quick thank-you message to someone who helped you this week"
 - NOT lengthy multi-part challenges or vague instructions`;
 
-    const userPrompt = `Create today's ${durationMinutes}-minute conversational podcast script between JERICHO and ALEX for this user:
+    const userPrompt = `Create today's ${durationMinutes}-minute solo podcast script for JESSICA for this user:
 
 User Context:
 - Name: ${context.userName}
