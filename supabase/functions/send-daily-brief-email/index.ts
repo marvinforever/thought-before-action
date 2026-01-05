@@ -16,12 +16,16 @@ function formatDate(date: Date): string {
   });
 }
 
-// Calculate days remaining in 90-day period
-function getDaysRemaining(startDate: string): number {
-  const start = new Date(startDate);
+// Calculate days remaining in 90-day period from quarter start
+function getDaysRemaining(quarter: string, year: number): number {
+  // Parse quarter like "Q1" -> month 1, "Q2" -> month 4, etc.
+  const quarterNum = parseInt(quarter?.replace('Q', '') || '1');
+  const startMonth = (quarterNum - 1) * 3; // Q1=0 (Jan), Q2=3 (Apr), etc.
+  const quarterStart = new Date(year, startMonth, 1);
+  const quarterEnd = new Date(year, startMonth + 3, 0); // Last day of quarter
   const now = new Date();
-  const daysPassed = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  return Math.max(0, 90 - daysPassed);
+  const daysRemaining = Math.max(0, Math.ceil((quarterEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  return daysRemaining;
 }
 
 interface UserContext {
@@ -294,12 +298,13 @@ serve(async (req) => {
         .select("habit_id")
         .eq("profile_id", profileId)
         .gte("completed_date", weekAgo),
-    // 90-day targets with benchmarks
+    // 90-day targets (correct column names: goal_text, completed, benchmarks as JSON)
       supabase
         .from("ninety_day_targets")
-        .select("id, title, progress_percentage, start_date, status, target_benchmarks(id, title, is_completed)")
+        .select("id, goal_text, completed, quarter, year, benchmarks")
         .eq("profile_id", profileId)
-        .eq("status", "active"),
+        .eq("completed", false)
+        .eq("year", new Date().getFullYear()),
       // Top capabilities (priority 1-3)
       supabase
         .from("employee_capabilities")
@@ -323,11 +328,11 @@ serve(async (req) => {
         .select("vision_statement")
         .eq("profile_id", profileId)
         .maybeSingle(),
-      // Recognitions sent (last 30 days)
+      // Recognitions sent (last 30 days) - correct column is given_by
       supabase
-        .from("recognitions")
+        .from("recognition_notes")
         .select("id", { count: 'exact', head: true })
-        .eq("giver_id", profileId)
+        .eq("given_by", profileId)
         .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     ]);
 
@@ -369,16 +374,35 @@ serve(async (req) => {
       };
     });
 
-    // Process 90-day targets with benchmarks
-    const ninetyDayTargets = (targetsResult.data || []).map((t: any) => ({
-      title: t.title,
-      progress: t.progress_percentage || 0,
-      daysRemaining: getDaysRemaining(t.start_date),
-      benchmarks: (t.target_benchmarks || []).map((b: any) => ({
-        title: b.title,
-        isCompleted: b.is_completed || false
-      }))
-    }));
+    // Process 90-day targets with benchmarks (benchmarks are stored as JSON in the benchmarks column)
+    const ninetyDayTargets = (targetsResult.data || []).map((t: any) => {
+      // Parse benchmarks from JSON - can be an object with text property or an array
+      let parsedBenchmarks: { title: string; isCompleted: boolean }[] = [];
+      if (t.benchmarks) {
+        if (typeof t.benchmarks === 'object' && t.benchmarks.text) {
+          // Format: { text: "bullet point list" }
+          const lines = String(t.benchmarks.text)
+            .split('\n')
+            .map((l: string) => l.trim())
+            .filter((l: string) => l && !l.startsWith('*') || l.length > 2)
+            .map((l: string) => l.replace(/^\*+\s*/, '').replace(/^\d+\.\s*/, '').trim())
+            .filter((l: string) => l.length > 5);
+          parsedBenchmarks = lines.map((l: string) => ({ title: l, isCompleted: false }));
+        } else if (Array.isArray(t.benchmarks)) {
+          parsedBenchmarks = t.benchmarks.map((b: any) => ({
+            title: typeof b === 'string' ? b : (b.text || b.title || String(b)),
+            isCompleted: b.completed || b.isCompleted || false
+          }));
+        }
+      }
+      
+      return {
+        title: t.goal_text || 'Untitled Goal',
+        progress: 0, // No progress_percentage column - could calculate from benchmarks if needed
+        daysRemaining: getDaysRemaining(t.quarter, t.year),
+        benchmarks: parsedBenchmarks.slice(0, 5) // Limit to 5 benchmarks per goal
+      };
+    });
 
     // Calculate total benchmarks across all targets
     const totalBenchmarks = ninetyDayTargets.reduce((sum, t) => sum + t.benchmarks.length, 0);
