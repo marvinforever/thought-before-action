@@ -42,7 +42,8 @@ export default function PartnerDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const referralLink = partner ? `https://www.askjericho.com/?ref=${partner.referral_code}` : '';
+  const referralBaseUrl = (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/$/, "") || window.location.origin;
+  const referralLink = partner ? `${referralBaseUrl}/?ref=${partner.referral_code}` : '';
 
   useEffect(() => {
     loadPartnerData();
