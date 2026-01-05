@@ -64,8 +64,8 @@ export const TTS_VOICE_SETTINGS_SECONDARY = {
 export const PODCAST_HOSTS = {
   primary: {
     name: 'Jericho',
-    voiceId: 'JBFqnCBsd6RMkjVDRZzb', // George - friendly, energetic British male
-    role: 'The friendly, energetic British growth coach - warm, curious, inspiring',
+    voiceId: 'iP95p4xoKVk53GoZ742B', // Chris - energetic, dynamic American male
+    role: 'The high-energy motivational coach - passionate, inspiring, Tony Robbins energy',
     voiceSettings: TTS_VOICE_SETTINGS,
   },
   secondary: {
@@ -77,9 +77,9 @@ export const PODCAST_HOSTS = {
 };
 
 export const CONVERSATION_FORMAT = `
-FORMAT: Two hosts having a natural, friendly, energetic conversation about the user's growth journey.
-- JERICHO: The friendly, curious British host. Warm, inspiring, genuinely interested in people's stories. Think podcast host energy - asks great questions, celebrates wins, digs deeper.
-- SAM: The supportive co-host. Brings energy, asks follow-up questions, keeps things moving, genuinely excited about progress.
+FORMAT: Two hosts having a high-energy, motivational conversation about the user's growth journey.
+- JERICHO: The high-energy American coach. Passionate, inspiring, brings that Tony Robbins fire. Gets PUMPED about wins and challenges people to step up.
+- SAM: The supportive co-host. Brings warmth, asks follow-up questions, keeps things moving, genuinely excited about progress.
 
 Write the script as a dialogue with clear speaker labels:
 JERICHO: [speaks]
@@ -91,32 +91,33 @@ CRITICAL AUDIO RULES:
 - Each speaker finishes their thought COMPLETELY before the other speaks
 - NO overlapping dialogue - one person talks, then the other responds
 - Brief natural pauses between speakers - not awkward silence, just a beat
-- Pace should feel conversational - not rushed, not dragging
+- Pace should feel energetic but clear - not rushed, but definitely not dragging
 
 TONE:
-- Friendly and curious: "So tell me about this..." or "I love that you're doing..."
-- Encouraging but real - celebrate progress AND push for more
-- When something needs improvement, be specific: WHAT to do and WHERE to find it
-  Example: "Pop into My Growth Plan and click on that goal to add your benchmarks."
+- High energy but not fake: "Let's GO!" or "This is what I'm talking about!"
+- Passionate and inspiring - make them FEEL the possibility
+- When something needs improvement, be direct AND motivating: WHAT to do and WHERE to find it
+  Example: "Go into My Growth Plan right now and set those benchmarks. Don't wait. Do it TODAY."
 
 The conversation should feel natural:
-- Sam asks follow-up questions with genuine curiosity ("Okay wait, how did that feel?")
-- Sam celebrates wins enthusiastically ("Yes! That's what I'm talking about!")
-- Both hosts are warm and supportive - they're rooting for this person
-- Light, playful energy throughout
+- Sam asks follow-up questions with genuine curiosity ("Okay wait, tell me more about that!")
+- Sam celebrates wins enthusiastically ("Yes! That's incredible!")
+- Jericho brings the fire - he genuinely believes in people's potential
+- Energy should be contagious - make listeners want to take action
 
 Jericho should:
-- Lead with curiosity and warmth - genuinely interested in the person's journey
-- Inspire and encourage while being real about what's needed
+- Lead with passion and belief in the person's potential
+- Get excited about their wins - genuinely celebrate progress
+- Challenge them to step up when needed - with love but with intensity
 - Be specific about next steps and where to find things in the app
-- Have the final word and deliver the daily challenge with energy
+- Have the final word and deliver the daily challenge with ENERGY
 
 FLOW EXAMPLE:
-JERICHO: Right, let's get into it. So [Name] has been absolutely crushing it lately.
-SAM: I saw that! Fifteen days on Morning Planning - that's incredible.
-JERICHO: It really is. And here's what I love about this...
+JERICHO: Alright, let's TALK about this. Because [Name] has been putting in the WORK.
+SAM: Fifteen days on Morning Planning! That's amazing!
+JERICHO: That's not luck. That's not accident. That's DECISION. That's showing up when you don't feel like it...
 
-Keep exchanges SHORT and PUNCHY. Quick back-and-forth. No monologues.
+Keep exchanges SHORT and PUNCHY. Quick back-and-forth. High energy throughout.
 `;
 
 // ============================================================================
