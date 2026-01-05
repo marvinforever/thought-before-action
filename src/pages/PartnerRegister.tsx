@@ -239,7 +239,7 @@ export default function PartnerRegister() {
 
             <motion.div variants={fadeIn} className="bg-background/80 backdrop-blur-sm rounded-2xl p-8 border border-primary/10 shadow-lg">
               <p className="text-lg text-primary leading-relaxed mb-6">
-                <span className="font-semibold text-accent">Jericho</span> is an AI-powered growth platform that helps organizations build high-performing teams through clarity, accountability, and capability development.
+                <span className="font-semibold text-accent">Jericho</span> is an AI-driven performance management system that replaces outdated annual reviews with continuous growth. It combines capability frameworks, personalized coaching, and real-time analytics to help organizations build high-performing teams.
               </p>
               
               <div className="grid md:grid-cols-2 gap-6">
