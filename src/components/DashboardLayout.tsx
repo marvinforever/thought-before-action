@@ -14,7 +14,8 @@ import {
   Upload,
   Shield,
   GraduationCap,
-  Map
+  Map,
+  Handshake
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +31,7 @@ const DashboardLayout = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
+  const [isPartner, setIsPartner] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,6 +65,15 @@ const DashboardLayout = () => {
             .in("role", ["manager", "admin", "super_admin"]);
           
           setIsManager((roles && roles.length > 0) || false);
+
+          // Check if user is a partner
+          const { data: partnerData } = await supabase
+            .from("referral_partners")
+            .select("id")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          
+          setIsPartner(!!partnerData);
         }
       } catch (error) {
         console.error("Error loading session:", error);
@@ -98,6 +109,15 @@ const DashboardLayout = () => {
               .in("role", ["manager", "admin", "super_admin"]);
             
             setIsManager((roles && roles.length > 0) || false);
+
+            // Check if user is a partner
+            const { data: partnerData } = await supabase
+              .from("referral_partners")
+              .select("id")
+              .eq("user_id", session.user!.id)
+              .maybeSingle();
+            
+            setIsPartner(!!partnerData);
           } catch (error) {
             console.error("Error fetching profile after auth change:", error);
           }
@@ -146,6 +166,11 @@ const DashboardLayout = () => {
         { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
         { icon: Settings, label: "Settings", path: "/dashboard/settings" },
       ];
+
+  // Add Partner tab if user is a registered partner
+  if (isPartner) {
+    navItems.push({ icon: Handshake, label: "Partner Portal", path: "/partner" });
+  }
 
   const SidebarContent = () => (
     <>
