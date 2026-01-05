@@ -48,7 +48,7 @@ async function fetchProfileWithRetry(
   for (let i = 0; i < attempts; i++) {
     const result = await supabase
       .from("profiles")
-      .select("id, email, full_name, company_id, login_streak")
+      .select("id, email, full_name, company_id")
       .eq("id", profileId)
       .maybeSingle();
 
@@ -254,7 +254,7 @@ serve(async (req) => {
       // Profile (use maybeSingle to avoid hard failure on transient/missing row)
       supabase
         .from("profiles")
-        .select("id, email, full_name, company_id, login_streak")
+        .select("id, email, full_name, company_id")
         .eq("id", profileId)
         .maybeSingle(),
       // Today's episode
@@ -377,7 +377,7 @@ serve(async (req) => {
       topics: episode.topics_covered || [],
       script: episode.script || '',
       dailyChallenge: episode.daily_challenge,
-      streakDays: profile?.login_streak ?? null,
+      streakDays: null,
       habits,
       ninetyDayTargets,
       topCapabilities,
@@ -441,12 +441,6 @@ serve(async (req) => {
 
       <!-- Stats bar -->
       <div style="display: flex; border-top: 1px solid #2a2a4a;">
-        ${profile.login_streak ? `
-        <div style="flex: 1; padding: 20px; text-align: center; border-right: 1px solid #2a2a4a;">
-          <div style="color: #a855f7; font-size: 28px; font-weight: 700;">${profile.login_streak}</div>
-          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Day Streak</div>
-        </div>
-        ` : ''}
         ${totalHabitCompletions > 0 ? `
         <div style="flex: 1; padding: 20px; text-align: center; ${avgTargetProgress !== null ? 'border-right: 1px solid #2a2a4a;' : ''}">
           <div style="color: #6366f1; font-size: 28px; font-weight: 700;">${totalHabitCompletions}</div>
