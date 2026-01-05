@@ -251,31 +251,87 @@ serve(async (req) => {
       achievementsResult,
       visionResult
     ] = await Promise.all([
-      // Profile
-      supabase.from("profiles").select("id, email, full_name, company_id, login_streak").eq("id", profileId).single(),
+      // Profile (use maybeSingle to avoid hard failure on transient/missing row)
+      supabase
+        .from("profiles")
+        .select("id, email, full_name, company_id, login_streak")
+        .eq("id", profileId)
+        .maybeSingle(),
       // Today's episode
-      supabase.from("podcast_episodes").select("*").eq("profile_id", profileId).eq("episode_date", today).single(),
+      supabase
+        .from("podcast_episodes")
+        .select("*")
+        .eq("profile_id", profileId)
+        .eq("episode_date", today)
+        .single(),
       // Preferences
-      supabase.from("email_preferences").select("brief_format").eq("profile_id", profileId).single(),
+      supabase
+        .from("email_preferences")
+        .select("brief_format")
+        .eq("profile_id", profileId)
+        .single(),
       // Active habits
-      supabase.from("leading_indicators").select("id, habit_name, current_streak").eq("profile_id", profileId).eq("is_active", true),
+      supabase
+        .from("leading_indicators")
+        .select("id, habit_name, current_streak")
+        .eq("profile_id", profileId)
+        .eq("is_active", true),
       // Habit completions this week
-      supabase.from("habit_completions").select("habit_id").eq("profile_id", profileId).gte("completed_date", weekAgo),
+      supabase
+        .from("habit_completions")
+        .select("habit_id")
+        .eq("profile_id", profileId)
+        .gte("completed_date", weekAgo),
       // 90-day targets
-      supabase.from("ninety_day_targets").select("id, title, progress_percentage, start_date, status").eq("profile_id", profileId).eq("status", "active"),
+      supabase
+        .from("ninety_day_targets")
+        .select("id, title, progress_percentage, start_date, status")
+        .eq("profile_id", profileId)
+        .eq("status", "active"),
       // Top capabilities (priority 1-3)
-      supabase.from("employee_capabilities").select("current_level, target_level, priority, capabilities(name)").eq("profile_id", profileId).lte("priority", 3).order("priority"),
+      supabase
+        .from("employee_capabilities")
+        .select("current_level, target_level, priority, capabilities(name)")
+        .eq("profile_id", profileId)
+        .lte("priority", 3)
+        .order("priority"),
       // Recent achievements (last 30 days)
-      supabase.from("achievements").select("achievement_text").eq("profile_id", profileId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()).limit(3),
+      supabase
+        .from("achievements")
+        .select("achievement_text")
+        .eq("profile_id", profileId)
+        .gte(
+          "created_at",
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        )
+        .limit(3),
       // Personal vision
-      supabase.from("personal_visions").select("vision_statement").eq("profile_id", profileId).single()
+      supabase
+        .from("personal_visions")
+        .select("vision_statement")
+        .eq("profile_id", profileId)
+        .maybeSingle(),
     ]);
 
-    const profile = profileResult.data;
+    const profile = (profileResult as any).data as any | null;
     const episode = episodeResult.data;
 
-    if (!profile || !profile.email) {
-      throw new Error("Profile not found or missing email");
+    // Email fallback: if profiles row isn't available, use auth user email (service role can read it)
+    let email: string | null = profile?.email ?? null;
+    if (!email) {
+      const authRes = await supabase.auth.admin.getUserById(profileId);
+      email = (authRes as any)?.data?.user?.email ?? null;
+      console.warn("Profile missing email; falling back to auth email", {
+        profileId,
+        profileError: (profileResult as any).error,
+        hasAuthEmail: !!email,
+      });
+    }
+
+    if (!email) {
+      throw new Error(
+        `Profile not found or missing email (profileId=${profileId})`
+      );
     }
 
     if (!episode) {
@@ -283,7 +339,7 @@ serve(async (req) => {
     }
 
     const briefFormat = prefsResult.data?.brief_format || 'both';
-    const firstName = profile.full_name?.split(' ')[0] || 'there';
+    const firstName = profile?.full_name?.split(' ')[0] || email.split('@')[0] || 'there';
 
     // Process habits with completion counts
     const habits = (habitsResult.data || []).map((h: any) => {
@@ -321,12 +377,12 @@ serve(async (req) => {
       topics: episode.topics_covered || [],
       script: episode.script || '',
       dailyChallenge: episode.daily_challenge,
-      streakDays: profile.login_streak,
+      streakDays: profile?.login_streak ?? null,
       habits,
       ninetyDayTargets,
       topCapabilities,
       recentAchievements,
-      personalVision: visionResult.data?.vision_statement || null
+      personalVision: (visionResult as any).data?.vision_statement || null
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {
