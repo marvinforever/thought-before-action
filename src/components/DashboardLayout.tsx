@@ -237,15 +237,6 @@ const DashboardLayout = () => {
               </Button>
             )}
             <div className="flex items-center gap-2 md:gap-4">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => navigate("/dashboard/growth-roadmap")}
-                className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3"
-              >
-                <Map className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                <span className="hidden xs:inline">My </span>Roadmap
-              </Button>
               <span className="text-xs md:text-sm text-muted-foreground truncate max-w-[120px] md:max-w-none">
                 {user.email}
               </span>
