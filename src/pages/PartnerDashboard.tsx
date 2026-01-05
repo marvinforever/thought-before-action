@@ -21,6 +21,7 @@ interface Lead {
   id: string;
   lead_email: string | null;
   lead_company: string | null;
+  contact_name: string | null;
   status: string;
   deal_value: number | null;
   created_at: string;
@@ -280,6 +281,7 @@ export default function PartnerDashboard() {
                   <thead>
                     <tr className="border-b border-slate-700">
                       <th className="text-left py-3 px-2 text-sm font-medium text-slate-400">Company</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-slate-400">Contact</th>
                       <th className="text-left py-3 px-2 text-sm font-medium text-slate-400">Status</th>
                       <th className="text-left py-3 px-2 text-sm font-medium text-slate-400">Date</th>
                       <th className="text-right py-3 px-2 text-sm font-medium text-slate-400">Commission</th>
@@ -293,7 +295,15 @@ export default function PartnerDashboard() {
                       return (
                         <tr key={lead.id} className="border-b border-slate-700/50">
                           <td className="py-3 px-2 text-white">
-                            {lead.lead_company || lead.lead_email || 'Anonymous'}
+                            {lead.lead_company || 'Unknown'}
+                          </td>
+                          <td className="py-3 px-2 text-slate-300 text-sm">
+                            {lead.contact_name && lead.lead_email ? (
+                              <div>
+                                <div>{lead.contact_name}</div>
+                                <div className="text-slate-500 text-xs">{lead.lead_email}</div>
+                              </div>
+                            ) : lead.contact_name || lead.lead_email || '-'}
                           </td>
                           <td className="py-3 px-2">{getStatusBadge(lead.status)}</td>
                           <td className="py-3 px-2 text-slate-400 text-sm">

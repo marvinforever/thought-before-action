@@ -3243,6 +3243,7 @@ export type Database = {
       }
       referral_leads: {
         Row: {
+          contact_name: string | null
           converted_at: string | null
           created_at: string
           deal_value: number | null
@@ -3253,6 +3254,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          contact_name?: string | null
           converted_at?: string | null
           created_at?: string
           deal_value?: number | null
@@ -3263,6 +3265,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          contact_name?: string | null
           converted_at?: string | null
           created_at?: string
           deal_value?: number | null
