@@ -58,6 +58,7 @@ interface PodcastContext {
   learningPreference: string | null;
   dayOfWeek: string;
   personalVision: string | null;
+  professionalVision: string | null;
   diagnosticStrength: string | null;
   diagnosticGrowthArea: string | null;
   yesterdayChallenge: string | null;
@@ -99,6 +100,18 @@ interface PodcastContext {
     manager: number | null;
     retention: number | null;
   } | null;
+  // Badges and achievements
+  badges: {
+    name: string;
+    description: string;
+    earnedAt: string;
+  }[];
+  nextBadgeHint: string | null;
+  // Leaderboard position
+  leaderboardPosition: number | null;
+  totalEmployees: number | null;
+  // System usage tips
+  underutilizedFeatures: string[];
 }
 
 interface DayTheme {
@@ -523,8 +536,8 @@ serve(async (req) => {
     const totalBenchmarks = goalBenchmarks.length;
     const completedBenchmarks = goalBenchmarks.filter(b => b.completed).length;
 
-    // Fetch personal vision
-    const { data: personalGoals } = await supabase
+    // Fetch both personal and professional visions
+    const { data: professionalGoals } = await supabase
       .from('personal_goals')
       .select('one_year_vision, three_year_vision')
       .eq('profile_id', profileId)
@@ -532,8 +545,18 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    const personalVision = personalGoals?.[0]?.one_year_vision ||
-      personalGoals?.[0]?.three_year_vision || null;
+    const { data: personalGoalsData } = await supabase
+      .from('personal_goals')
+      .select('one_year_vision, three_year_vision')
+      .eq('profile_id', profileId)
+      .eq('goal_type', 'personal')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const professionalVision = professionalGoals?.[0]?.one_year_vision ||
+      professionalGoals?.[0]?.three_year_vision || null;
+    const personalVision = personalGoalsData?.[0]?.one_year_vision ||
+      personalGoalsData?.[0]?.three_year_vision || null;
 
     // Fetch diagnostic insights (strengths and growth areas)
     const { data: diagnostic } = await supabase
@@ -588,6 +611,82 @@ serve(async (req) => {
 
     console.log(`Found ${recognitionGiven.length} recognitions given by user`);
 
+    // Fetch user badges (last 30 days for recency, but show recent ones)
+    const { data: userBadges } = await supabase
+      .from('user_badges')
+      .select(`
+        earned_at,
+        badge_id,
+        badges (name, description, requirement_type, requirement_value, tier)
+      `)
+      .eq('profile_id', profileId)
+      .order('earned_at', { ascending: false })
+      .limit(5);
+
+    const badges = (userBadges || []).map(ub => ({
+      name: (ub.badges as any)?.name || 'Badge',
+      description: (ub.badges as any)?.description || '',
+      earnedAt: ub.earned_at
+    }));
+
+    // Determine next badge hint based on what they don't have
+    const badgeTypes = (userBadges || []).map(ub => (ub.badges as any)?.requirement_type);
+    let nextBadgeHint: string | null = null;
+    if (!badgeTypes.includes('login_streak')) {
+      nextBadgeHint = 'Keep logging in daily to earn a Consistency badge!';
+    } else if (!badgeTypes.includes('habit_streak')) {
+      nextBadgeHint = 'Build a 7-day habit streak to unlock a Habit Champion badge!';
+    } else if (!badgeTypes.includes('recognition_given')) {
+      nextBadgeHint = 'Recognize 3 teammates to earn a Team Builder badge!';
+    } else if (!badgeTypes.includes('resources_completed')) {
+      nextBadgeHint = 'Complete 5 learning resources to earn a Knowledge Seeker badge!';
+    }
+
+    console.log(`Found ${badges.length} badges, next hint: ${nextBadgeHint}`);
+
+    // Fetch leaderboard position
+    const { data: allEmployeePoints } = await supabase
+      .from('profiles')
+      .select('id, growth_points')
+      .eq('company_id', companyId)
+      .not('growth_points', 'is', null)
+      .order('growth_points', { ascending: false });
+
+    let leaderboardPosition: number | null = null;
+    let totalEmployees: number | null = null;
+    if (allEmployeePoints && allEmployeePoints.length > 0) {
+      totalEmployees = allEmployeePoints.length;
+      const userIndex = allEmployeePoints.findIndex(e => e.id === profileId);
+      if (userIndex !== -1) {
+        leaderboardPosition = userIndex + 1;
+      }
+    }
+
+    console.log(`Leaderboard: position ${leaderboardPosition} of ${totalEmployees}`);
+
+    // Determine underutilized features based on missing data
+    const underutilizedFeatures: string[] = [];
+    if (!personalVision && !professionalVision) {
+      underutilizedFeatures.push('Set your personal and professional vision in Settings to help Jessica tailor your growth journey');
+    }
+    if (!topHabit) {
+      underutilizedFeatures.push('Create a daily habit in the Habits section to build consistency and earn badges');
+    }
+    if ((capabilities || []).length === 0) {
+      underutilizedFeatures.push('Head to My Capabilities to identify skills you want to develop');
+    }
+    if (!activeGoal) {
+      underutilizedFeatures.push('Set a 90-day goal in My Growth Plan to focus your development');
+    }
+    if (recentRecognitions.length === 0 && recognitionGiven.length === 0) {
+      underutilizedFeatures.push('Use the Recognition feature to celebrate your teammates and build team culture');
+    }
+    if (!diagnosticScores) {
+      underutilizedFeatures.push('Complete your diagnostic assessment to unlock personalized insights and track your growth scores');
+    }
+
+    console.log(`Underutilized features: ${underutilizedFeatures.length}`);
+
     // Pick a random inspirational quote for today
     const todayQuote = INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)];
 
@@ -608,6 +707,7 @@ serve(async (req) => {
       learningPreference: learningPref || null,
       dayOfWeek,
       personalVision,
+      professionalVision,
       diagnosticStrength,
       diagnosticGrowthArea,
       yesterdayChallenge,
@@ -627,6 +727,11 @@ serve(async (req) => {
       recentConversationSummary,
       inspirationalQuote: todayQuote,
       diagnosticScores,
+      badges,
+      nextBadgeHint,
+      leaderboardPosition,
+      totalEmployees,
+      underutilizedFeatures,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
@@ -795,18 +900,34 @@ ${!context.activeGoal || context.goalBenchmarks.length === 0 || context.goalSpri
 ROTATION RULES:
 - Mention 90-day outcome only if: ${canMentionOutcomeToday ? 'YES' : 'NO - focus on sprints/benchmarks'}
 
-Personal Vision: ${context.personalVision || 'Not yet set'}
+Personal Vision (life/personal goals): ${context.personalVision || 'Not yet set'}
+Professional Vision (career goals): ${context.professionalVision || 'Not yet set'}
+${!context.personalVision && !context.professionalVision ? `💡 TIP: Encourage them to set their vision in Settings - it helps personalize their growth journey!` : ''}
 Strength: ${context.diagnosticStrength || 'Not assessed'}
 Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 
-${context.diagnosticScores ? `DIAGNOSTIC PULSE (for quick closing summary - mention 2-3 key scores naturally):
-- Role Clarity: ${context.diagnosticScores.clarity ?? 'N/A'}%
-- Engagement: ${context.diagnosticScores.engagement ?? 'N/A'}%
-- Burnout Risk: ${context.diagnosticScores.burnout ?? 'N/A'}% (lower is better)
-- Career Growth: ${context.diagnosticScores.career ?? 'N/A'}%
-- Manager Support: ${context.diagnosticScores.manager ?? 'N/A'}%
-- Retention: ${context.diagnosticScores.retention ?? 'N/A'}%
-Keep it encouraging! If scores are low, frame as "areas we're working on" not problems.` : ''}
+${context.diagnosticScores ? `DIAGNOSTIC PULSE (HIGHER SCORES = BETTER! This is positive data):
+- Role Clarity: ${context.diagnosticScores.clarity ?? 'N/A'}% ${(context.diagnosticScores.clarity ?? 0) >= 70 ? '✨ Strong!' : ''}
+- Engagement: ${context.diagnosticScores.engagement ?? 'N/A'}% ${(context.diagnosticScores.engagement ?? 0) >= 70 ? '✨ Strong!' : ''}
+- Burnout RESILIENCE: ${context.diagnosticScores.burnout ?? 'N/A'}% ${(context.diagnosticScores.burnout ?? 0) >= 70 ? '✨ Healthy!' : '(higher = more resilient)'}
+- Career Growth: ${context.diagnosticScores.career ?? 'N/A'}% ${(context.diagnosticScores.career ?? 0) >= 70 ? '✨ On track!' : ''}
+- Manager Support: ${context.diagnosticScores.manager ?? 'N/A'}% ${(context.diagnosticScores.manager ?? 0) >= 70 ? '✨ Great support!' : ''}
+- Retention Confidence: ${context.diagnosticScores.retention ?? 'N/A'}% ${(context.diagnosticScores.retention ?? 0) >= 70 ? '✨ Committed!' : ''}
+IMPORTANT: ALL scores are positive - higher is ALWAYS better. Celebrate high scores! For lower scores, frame as "opportunities we're building together."
+Only mention 2-3 scores - pick a mix of their strongest and one growth area.` : `NO DIAGNOSTIC DATA - encourage them to complete their assessment to unlock personalized growth insights!`}
+
+${context.badges.length > 0 
+  ? `🏆 BADGES EARNED:
+${context.badges.slice(0, 3).map(b => `- ${b.name}: ${b.description}`).join('\n')}
+Celebrate their achievements! Reference a recent badge if relevant.`
+  : `NO BADGES YET - mention they can earn badges through consistent habits, giving recognition, and completing learning!`}
+
+${context.nextBadgeHint ? `💡 NEXT BADGE HINT: ${context.nextBadgeHint}` : ''}
+
+${context.leaderboardPosition && context.totalEmployees 
+  ? `📊 LEADERBOARD: #${context.leaderboardPosition} out of ${context.totalEmployees} teammates!
+${context.leaderboardPosition <= 3 ? 'They\'re a TOP performer - celebrate this!' : context.leaderboardPosition <= Math.ceil(context.totalEmployees / 2) ? 'Solid position - encourage them to keep climbing!' : 'Encourage consistent engagement to climb the ranks!'}`
+  : ''}
 
 ${context.recognitionGiven.length > 0 
   ? `RECOGNITION GIVEN (acknowledge their leadership in lifting others):
@@ -814,14 +935,29 @@ ${context.recognitionGiven.map(r => `- "${r.title}" to ${r.recipientName}`).join
 Praise them for being the kind of leader who sees and celebrates others!`
   : ''}
 
+${context.underutilizedFeatures.length > 0 
+  ? `🎓 SYSTEM TIPS (pick ONE to mention naturally - help them get more from Jericho):
+${context.underutilizedFeatures.slice(0, 2).map(f => `- ${f}`).join('\n')}
+Work this in casually, like "Hey, one thing I'd love you to try..." - don't lecture!`
+  : ''}
+
 SCRIPT FORMAT REQUIREMENTS:
 1. Jessica opens warmly: "JESSICA: Hey ${context.userName}!"
 2. Solo monologue format - Jessica speaks directly to the listener throughout
 3. Jessica delivers coaching insights with warmth and authority
 4. Jessica gives the daily challenge - KEEP IT SHORT (1 sentence, under 15 words)
-5. Quick pulse check on their diagnostic scores (if available) - keep it encouraging
-6. If they gave recognition, acknowledge them for lifting up their teammates
-7. Jessica closes with GENUINE WARMTH - make them feel seen, supported, and cheered on. NOT cold or abrupt.
+5. If diagnostic scores exist, mention 2-3 highlights - CELEBRATE the high ones!
+6. If no diagnostics, encourage completing the assessment
+7. Reference badges, leaderboard position, or vision when relevant (don't force all of them)
+8. If they gave recognition, acknowledge them for lifting up their teammates
+9. Optionally drop ONE system tip if there's something they're underutilizing
+10. Jessica closes with GENUINE WARMTH - make them feel seen, supported, and cheered on. NOT cold or abrupt.
+
+VARIETY: Don't hit everything every day! Rotate focus based on what's most relevant:
+- Some days focus on vision and purpose
+- Some days celebrate badges and leaderboard
+- Some days give a system tip
+- Always keep it feeling fresh and personalized
 
 CLOSING ENERGY: End on a HIGH note. Something like "I'm so proud of you" or "You've got this and I'll be right here cheering you on" - genuine, warm, personal. NOT just "Have a great day!"
 
