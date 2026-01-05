@@ -356,14 +356,27 @@ serve(async (req) => {
       .filter(([_, count]) => count >= 3)
       .map(([topic]) => topic);
     
+    // HARDCODED BLOCKLIST - topics that should NEVER appear in podcasts regardless of frequency
+    const blockedTopics = [
+      'crucial conversation', 'crucial conversations', 'difficult conversation',
+      'test conversation', 'demo', 'example topic'
+    ];
+    
+    // Combine blocklist with dynamically overused topics
+    const allBlockedTopics = [...new Set([...overusedTopics, ...blockedTopics])];
+    
     console.log('Overused topics (filtering from podcast):', overusedTopics);
+    console.log('All blocked topics:', allBlockedTopics);
 
     const safeSummary = (recentSummaries || []).find(s => {
       const topics = (s.key_topics || []).map((k: string) => String(k).toLowerCase());
       const text = (s.summary_text || '').toLowerCase();
-      // Skip recognition topics and overused topics
-      const hasOverused = topics.some((t: string) => overusedTopics.includes(t));
-      return !topics.includes('recognition') && !text.includes('send recognition') && !hasOverused;
+      // Skip recognition topics, overused topics, AND blocked topics
+      const hasBlocked = topics.some((t: string) => 
+        allBlockedTopics.some(blocked => t.includes(blocked) || blocked.includes(t))
+      );
+      const textHasBlocked = allBlockedTopics.some(blocked => text.includes(blocked));
+      return !topics.includes('recognition') && !text.includes('send recognition') && !hasBlocked && !textHasBlocked;
     }) || null;
 
     const recentConversationSummary = safeSummary?.summary_text || null;
@@ -670,8 +683,8 @@ ${context.recentConversationSummary
   ? `Recent Coaching Summary: ${context.recentConversationSummary}`
   : ''}
 
-${overusedTopics.length > 0 
-  ? `⚠️ DO NOT DISCUSS THESE TOPICS (overused recently): ${overusedTopics.join(', ')}`
+${allBlockedTopics.length > 0 
+  ? `⚠️ NEVER DISCUSS THESE TOPICS: ${allBlockedTopics.join(', ')}`
   : ''}
 
 Habits & Streaks:
