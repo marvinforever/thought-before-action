@@ -24,50 +24,84 @@ export function RequestMeetingDialog({ open, onOpenChange, onSuccess }: RequestM
   const [urgency, setUrgency] = useState<"low" | "normal" | "high">("normal");
   const [preferredDate, setPreferredDate] = useState<Date | undefined>();
   const [loading, setLoading] = useState(false);
-  const [managerInfo, setManagerInfo] = useState<{ id: string; name: string } | null>(null);
-  const [loadingManager, setLoadingManager] = useState(true);
+  const [selectedPersonId, setSelectedPersonId] = useState<string>("");
+  const [people, setPeople] = useState<{ id: string; name: string; isManager: boolean }[]>([]);
+  const [loadingPeople, setLoadingPeople] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
-      loadManagerInfo();
+      loadPeople();
     }
   }, [open]);
 
-  const loadManagerInfo = async () => {
+  const loadPeople = async () => {
     try {
-      setLoadingManager(true);
+      setLoadingPeople(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Get user's company and manager
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.company_id) return;
 
       // Find the user's manager
       const { data: assignment } = await supabase
         .from("manager_assignments")
-        .select(`
-          manager_id,
-          profiles!manager_assignments_manager_id_fkey(id, full_name)
-        `)
+        .select("manager_id")
         .eq("employee_id", user.id)
         .single();
 
-      if (assignment?.profiles) {
-        setManagerInfo({
-          id: (assignment.profiles as any).id,
-          name: (assignment.profiles as any).full_name || "Your Manager"
-        });
+      const managerId = assignment?.manager_id || null;
+
+      // Get all people in the company (excluding self)
+      const { data: colleagues } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("company_id", profile.company_id)
+        .neq("id", user.id)
+        .order("full_name");
+
+      const peopleList = (colleagues || []).map(p => ({
+        id: p.id,
+        name: p.full_name || "Unknown",
+        isManager: p.id === managerId
+      }));
+
+      // Sort so manager appears first
+      peopleList.sort((a, b) => {
+        if (a.isManager) return -1;
+        if (b.isManager) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      setPeople(peopleList);
+      
+      // Default to manager if they have one
+      if (managerId && peopleList.some(p => p.id === managerId)) {
+        setSelectedPersonId(managerId);
+      } else if (peopleList.length > 0) {
+        setSelectedPersonId(peopleList[0].id);
       }
     } catch (error) {
-      console.error("Error loading manager:", error);
+      console.error("Error loading people:", error);
     } finally {
-      setLoadingManager(false);
+      setLoadingPeople(false);
     }
   };
 
+  const selectedPerson = people.find(p => p.id === selectedPersonId);
+
   const handleSubmit = async () => {
-    if (!managerInfo) {
+    if (!selectedPersonId) {
       toast({
-        title: "No manager assigned",
-        description: "Please contact your admin to assign you to a manager.",
+        title: "Please select someone",
+        description: "Choose who you'd like to meet with.",
         variant: "destructive"
       });
       return;
@@ -90,7 +124,7 @@ export function RequestMeetingDialog({ open, onOpenChange, onSuccess }: RequestM
         .from("meeting_requests")
         .insert({
           requester_id: user.id,
-          requested_manager_id: managerInfo.id,
+          requested_manager_id: selectedPersonId,
           company_id: profile.company_id,
           topic: topic.trim() || null,
           urgency,
@@ -102,13 +136,14 @@ export function RequestMeetingDialog({ open, onOpenChange, onSuccess }: RequestM
 
       toast({
         title: "Meeting Requested",
-        description: `Your request has been sent to ${managerInfo.name}.`
+        description: `Your request has been sent to ${selectedPerson?.name || "them"}.`
       });
 
       // Reset form
       setTopic("");
       setUrgency("normal");
       setPreferredDate(undefined);
+      setSelectedPersonId("");
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
@@ -132,26 +167,36 @@ export function RequestMeetingDialog({ open, onOpenChange, onSuccess }: RequestM
             Request a Meeting
           </DialogTitle>
           <DialogDescription>
-            {loadingManager ? (
-              "Loading..."
-            ) : managerInfo ? (
-              `Send a meeting request to ${managerInfo.name}`
-            ) : (
-              "You don't have a manager assigned yet."
-            )}
+            Choose who you'd like to meet with and share what's on your mind.
           </DialogDescription>
         </DialogHeader>
 
-        {loadingManager ? (
+        {loadingPeople ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : !managerInfo ? (
+        ) : people.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            <p>Please contact your administrator to assign you to a manager.</p>
+            <p>No colleagues found in your organization.</p>
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Who would you like to meet with?</Label>
+              <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a person" />
+                </SelectTrigger>
+                <SelectContent>
+                  {people.map((person) => (
+                    <SelectItem key={person.id} value={person.id}>
+                      {person.name}{person.isManager ? " (Your Manager)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="topic">What would you like to discuss? (optional)</Label>
               <Textarea
@@ -213,7 +258,7 @@ export function RequestMeetingDialog({ open, onOpenChange, onSuccess }: RequestM
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || !managerInfo}
+            disabled={loading || !selectedPersonId || people.length === 0}
           >
             {loading ? (
               <>
