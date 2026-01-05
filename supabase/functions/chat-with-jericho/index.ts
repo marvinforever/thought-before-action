@@ -588,6 +588,7 @@ YOU HAVE ACCESS TO THESE TOOLS - USE THEM:
 - **add_habit**: Create a new habit they want to track
 - **update_habit**: Update or deactivate an existing habit
 - **save_coaching_insight**: Save an important insight about them for future reference (use sparingly!)
+- **forget_coaching_memory**: Permanently remove a specific past topic/conversation from long-term memory when the user asks you to forget it
 
 WHEN TO USE TOOLS:
 - When they say "write that down" or "add that to my plan"
@@ -596,6 +597,7 @@ WHEN TO USE TOOLS:
 - When they want to start tracking a new habit
 - When they want to update their vision statements
 - When they share something significant about themselves (life events, blockers, preferences) worth remembering
+- When they explicitly say "forget X", "stop bringing up X", "delete that memory", or similar — call **forget_coaching_memory**
 - **Always confirm what you're adding before or after using the tool**
 
 LONG-TERM MEMORY - YOU REMEMBER PAST CONVERSATIONS:
@@ -605,6 +607,9 @@ You have access to coaching insights and summaries from past conversations. Use 
 - Notice patterns across conversations ("I've noticed you often mention feeling overwhelmed...")
 - Follow up on commitments ("How did that conversation with your team go?")
 - Build genuine continuity ("Remember when you said public speaking was tough? How's that going?")
+
+CRITICAL MEMORY RULE:
+- If the user asks you to forget a topic or stop referencing something, you MUST call **forget_coaching_memory** and then never reference it again.
 
 ${userContext.coaching_memory?.insights?.length > 0 ? `
 🧠 WHAT I KNOW ABOUT ${userContext.profile.name?.toUpperCase() || 'THIS PERSON'}:
@@ -622,6 +627,7 @@ ${userContext.coaching_memory.pending_follow_ups.map((f: any) => `- ${f.topic ||
 Consider naturally checking in on these topics during the conversation!
 ` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 USER'S CURRENT GROWTH PLAN DATA:
 ${JSON.stringify(userContext, null, 2)}
@@ -1162,6 +1168,24 @@ Be direct, practical, and help them feel prepared and confident.`;
               }
             },
             required: ["insight_type", "insight_text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "forget_coaching_memory",
+          description: "Permanently remove a specific past topic/conversation from long-term memory (summaries + insights) when the user asks you to forget it.",
+          parameters: {
+            type: "object",
+            properties: {
+              topic: {
+                type: "string",
+                description: "The topic/phrase to forget (e.g., 'that crucial conversation test', 'Project Atlas', 'my divorce')"
+              }
+            },
+            required: ["topic"],
+            additionalProperties: false
           }
         }
       },
@@ -1826,6 +1850,95 @@ Share these results with empathy and offer 2-3 specific coaching suggestions for
                 });
               }
             }
+          } else if (functionName === 'forget_coaching_memory') {
+            const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+            const topicRaw = String(functionArgs.topic || '').trim();
+
+            if (!topicRaw) {
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: 'No topic provided to forget.'
+              });
+              continue;
+            }
+
+            // Find summaries to remove (match on summary text OR conversation title)
+            const { data: summariesByText } = await serviceClient
+              .from('conversation_summaries')
+              .select('id, conversation_id')
+              .eq('profile_id', user.id)
+              .ilike('summary_text', `%${topicRaw}%`)
+              .limit(50);
+
+            const { data: summariesByTitle } = await serviceClient
+              .from('conversation_summaries')
+              .select('id, conversation_id, conversations(title)')
+              .eq('profile_id', user.id)
+              .ilike('conversations.title', `%${topicRaw}%`)
+              .limit(50);
+
+            const summaryIds = new Set<string>();
+            const conversationIds = new Set<string>();
+
+            for (const s of (summariesByText || [])) {
+              if (s?.id) summaryIds.add(s.id);
+              if (s?.conversation_id) conversationIds.add(s.conversation_id);
+            }
+            for (const s of (summariesByTitle || [])) {
+              if (s?.id) summaryIds.add(s.id);
+              if (s?.conversation_id) conversationIds.add(s.conversation_id);
+            }
+
+            // Delete summaries
+            let deletedSummaries = 0;
+            if (summaryIds.size > 0) {
+              const { error: delSummaryErr } = await serviceClient
+                .from('conversation_summaries')
+                .delete()
+                .in('id', Array.from(summaryIds))
+                .eq('profile_id', user.id);
+
+              if (delSummaryErr) {
+                console.error('Error deleting conversation summaries:', delSummaryErr);
+                toolResults.push({
+                  tool_call_id: toolCall.id,
+                  role: 'tool',
+                  content: `Tried to forget "${topicRaw}" but failed deleting summaries: ${delSummaryErr.message}`
+                });
+                continue;
+              }
+              deletedSummaries = summaryIds.size;
+            }
+
+            // Delete insights (match by topic text OR by source conversation ids we just removed)
+            const { error: delInsightByTextErr } = await serviceClient
+              .from('coaching_insights')
+              .delete()
+              .eq('profile_id', user.id)
+              .ilike('insight_text', `%${topicRaw}%`);
+
+            if (delInsightByTextErr) {
+              console.error('Error deleting coaching insights by text:', delInsightByTextErr);
+            }
+
+            if (conversationIds.size > 0) {
+              const { error: delInsightByConvErr } = await serviceClient
+                .from('coaching_insights')
+                .delete()
+                .eq('profile_id', user.id)
+                .in('source_conversation_id', Array.from(conversationIds));
+
+              if (delInsightByConvErr) {
+                console.error('Error deleting coaching insights by conversation:', delInsightByConvErr);
+              }
+            }
+
+            toolResults.push({
+              tool_call_id: toolCall.id,
+              role: 'tool',
+              content: `Done. I removed "${topicRaw}" from long-term memory (deleted ${deletedSummaries} conversation summaries${conversationIds.size ? ` and cleared insights tied to ${conversationIds.size} conversation(s)` : ''}).`
+            });
           } else if (functionName === 'complete_follow_up') {
             // Mark a pending follow-up as completed
             const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
