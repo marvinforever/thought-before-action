@@ -46,7 +46,7 @@ export const TTS_VOICE_SETTINGS = {
   similarity_boost: 0.78, // Natural variation
   style: 0.65,           // Good expression without overdoing it
   use_speaker_boost: true,
-  speed: 1.02,           // Just slightly above normal - not rushed, not dragging
+  speed: 1.05,           // Match Sam's energy
 };
 
 // Secondary host voice settings - slightly more animated but still controlled
