@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Sparkles, X, Search } from "lucide-react";
+import { BookOpen, Video, Headphones, ExternalLink, Star, Loader2, CheckCircle2, Circle, Sparkles, X, Search, Phone } from "lucide-react";
+import { SalesCallPrepButton } from "@/components/SalesCallPrepButton";
 import { ResourceRatingDialog } from "@/components/ResourceRatingDialog";
 import { SuggestResourceDialog } from "@/components/SuggestResourceDialog";
 import { ContentTypeFilter } from "@/components/ContentTypeFilter";
@@ -500,8 +501,9 @@ export default function MyResources() {
         </Card>
       </div>
 
-      {/* Get Recommendations Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3">
+        <SalesCallPrepButton />
         <Button
           onClick={handleGetRecommendations}
           disabled={isGeneratingRecommendations}
