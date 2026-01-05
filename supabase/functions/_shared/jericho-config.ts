@@ -70,7 +70,7 @@ export const PODCAST_HOSTS = {
   },
   secondary: {
     name: 'Alex',
-    voiceId: 'JBFqnCBsd6RMkjVDRZzb', // George - professional, articulate British male
+    voiceId: 'Xb7hH8MSUJpSbSDYk0k2', // Alice - refined British female
     role: 'The dynamic British co-host - sharp questions, articulate, professional edge',
     voiceSettings: TTS_VOICE_SETTINGS_SECONDARY,
   }
