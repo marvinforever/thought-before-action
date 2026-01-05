@@ -1716,39 +1716,41 @@ const SuperAdmin = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="all-users">
-            <Users2 className="h-4 w-4 mr-2" />
-            All Users
-          </TabsTrigger>
-          <TabsTrigger value="diagnostics">Import Diagnostics</TabsTrigger>
-          <TabsTrigger value="email-testing">
-            <Mail className="h-4 w-4 mr-2" />
-            Email Testing
-          </TabsTrigger>
-          <TabsTrigger value="edit-scores">Edit Scores</TabsTrigger>
-          <TabsTrigger value="taxonomy">
-            <FolderTree className="h-4 w-4 mr-2" />
-            Taxonomy
-          </TabsTrigger>
-          <TabsTrigger value="feature-flags">
-            <Flag className="h-4 w-4 mr-2" />
-            Feature Flags
-          </TabsTrigger>
-          <TabsTrigger value="sms">
-            <Phone className="h-4 w-4 mr-2" />
-            SMS
-          </TabsTrigger>
-          <TabsTrigger value="dev-ideas">
-            <Lightbulb className="h-4 w-4 mr-2" />
-            Dev Ideas
-          </TabsTrigger>
-          <TabsTrigger value="referrals">
-            <Share2 className="h-4 w-4 mr-2" />
-            Referrals
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-2">
+          <TabsList className="inline-flex w-max">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="all-users">
+              <Users2 className="h-4 w-4 mr-2" />
+              All Users
+            </TabsTrigger>
+            <TabsTrigger value="diagnostics">Import Diagnostics</TabsTrigger>
+            <TabsTrigger value="email-testing">
+              <Mail className="h-4 w-4 mr-2" />
+              Email Testing
+            </TabsTrigger>
+            <TabsTrigger value="edit-scores">Edit Scores</TabsTrigger>
+            <TabsTrigger value="taxonomy">
+              <FolderTree className="h-4 w-4 mr-2" />
+              Taxonomy
+            </TabsTrigger>
+            <TabsTrigger value="feature-flags">
+              <Flag className="h-4 w-4 mr-2" />
+              Feature Flags
+            </TabsTrigger>
+            <TabsTrigger value="sms">
+              <Phone className="h-4 w-4 mr-2" />
+              SMS
+            </TabsTrigger>
+            <TabsTrigger value="dev-ideas">
+              <Lightbulb className="h-4 w-4 mr-2" />
+              Dev Ideas
+            </TabsTrigger>
+            <TabsTrigger value="referrals">
+              <Share2 className="h-4 w-4 mr-2" />
+              Referrals
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
 
