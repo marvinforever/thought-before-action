@@ -82,7 +82,7 @@ const Sales = () => {
   const [email, setEmail] = useState("");
 
   const handleDemoRequest = () => {
-    window.open('https://calendly.com/jericho-poulton/jericho-ai-demo', '_blank');
+    window.open('https://calendar.app.google/v1xwnCaqnRJ57UmJ6', '_blank');
   };
 
   const handleTrialRequest = () => {
