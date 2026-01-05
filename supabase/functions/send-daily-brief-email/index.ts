@@ -43,6 +43,8 @@ interface UserContext {
   recognitionsSent: number;
   totalBenchmarks: number;
   completedBenchmarks: number;
+  capabilityScore: number | null;
+  totalCapabilities: number;
 }
 
 async function fetchProfileWithRetry(
@@ -134,10 +136,11 @@ ${context.habits.length > 0
 
 ${context.streakDays ? `Login Streak: ${context.streakDays} days` : ''}
 
-Capabilities They're Developing:
+Capabilities They're Developing (${context.topCapabilities.length} of ${context.totalCapabilities} total):
 ${context.topCapabilities.length > 0
   ? context.topCapabilities.map(c => `- ${c.name}: currently ${c.currentLevel}, targeting ${c.targetLevel}`).join('\n')
   : 'No capabilities assigned yet'}
+${context.capabilityScore !== null ? `\nOverall Capability Score: ${context.capabilityScore}%` : ''}
 
 ${context.recentAchievements.length > 0 ? `Recent Wins: ${context.recentAchievements.join(', ')}` : ''}
 
@@ -409,13 +412,30 @@ serve(async (req) => {
     const completedBenchmarks = ninetyDayTargets.reduce((sum, t) => sum + t.benchmarks.filter((b: any) => b.isCompleted).length, 0);
 
     // Process capabilities
-    const topCapabilities = (capabilitiesResult.data || [])
-      .filter((c: any) => c.capabilities?.name)
-      .map((c: any) => ({
-        name: c.capabilities.name,
-        currentLevel: c.current_level || 'Not assessed',
-        targetLevel: c.target_level || 'Not set'
-      }));
+    const allCapabilities = (capabilitiesResult.data || [])
+      .filter((c: any) => c.capabilities?.name);
+    
+    const topCapabilities = allCapabilities.map((c: any) => ({
+      name: c.capabilities.name,
+      currentLevel: c.current_level || 'Not assessed',
+      targetLevel: c.target_level || 'Not set'
+    }));
+
+    // Calculate capability score (percentage of capabilities at or above target)
+    const levelOrder = ['foundational', 'level 1', 'advancing', 'level 2', 'independent', 'level 3', 'mastery', 'level 4'];
+    const getLevelIndex = (level: string) => {
+      const normalized = (level || '').toLowerCase();
+      const idx = levelOrder.findIndex(l => normalized.includes(l) || l.includes(normalized));
+      return idx >= 0 ? Math.floor(idx / 2) : 0; // Group into 4 levels
+    };
+    
+    const assessedCaps = allCapabilities.filter((c: any) => c.current_level && c.target_level);
+    const capabilityScore = assessedCaps.length > 0 
+      ? Math.round((assessedCaps.filter((c: any) => 
+          getLevelIndex(c.current_level) >= getLevelIndex(c.target_level)
+        ).length / assessedCaps.length) * 100)
+      : null;
+    const totalCapabilities = allCapabilities.length;
 
     // Recent achievements
     const recentAchievements = (achievementsResult.data || []).map((a: any) => a.achievement_text);
@@ -438,7 +458,9 @@ serve(async (req) => {
       personalVision: (visionResult as any).data?.vision_statement || null,
       recognitionsSent,
       totalBenchmarks,
-      completedBenchmarks
+      completedBenchmarks,
+      capabilityScore,
+      totalCapabilities
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {
@@ -497,6 +519,12 @@ serve(async (req) => {
 
       <!-- Enhanced Stats bar -->
       <div style="display: flex; flex-wrap: wrap; border-top: 1px solid #1e3a5f;">
+        ${capabilityScore !== null ? `
+        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
+          <div style="color: #a855f7; font-size: 24px; font-weight: 700;">${capabilityScore}%</div>
+          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Capability Score</div>
+        </div>
+        ` : ''}
         ${ninetyDayTargets.length > 0 ? `
         <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
           <div style="color: #d4a855; font-size: 24px; font-weight: 700;">${ninetyDayTargets.length}</div>
