@@ -117,7 +117,13 @@ const Sales = () => {
   }, [searchParams]);
 
   const handleDemoRequest = () => {
-    const refCode = localStorage.getItem('referral_code');
+    // Use current URL ref first (covers the "click immediately" case), then fall back to stored value
+    const refCode = searchParams.get('ref') || localStorage.getItem('referral_code');
+
+    if (refCode) {
+      localStorage.setItem('referral_code', refCode);
+      localStorage.setItem('referral_timestamp', Date.now().toString());
+    }
 
     // Open immediately to avoid popup blockers
     const baseUrl = new URL('https://calendar.app.google/v1xwnCaqnRJ57UmJ6');
@@ -129,7 +135,7 @@ const Sales = () => {
 
     window.open(baseUrl.toString(), '_blank');
 
-    // Track demo intent in the background
+    // Track demo intent (this is a demo click, not a confirmed booking)
     if (!refCode) return;
     setTimeout(async () => {
       try {
