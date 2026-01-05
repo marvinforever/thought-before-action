@@ -244,12 +244,47 @@ serve(async (req) => {
     const subjectLine = `Your Growth Brief for ${day} - ${capabilityFocus}`;
 
     // Send email
+    const fromAddress = Deno.env.get("RESEND_FROM") || "Jericho <onboarding@resend.dev>";
+
     const emailResponse = await resend.emails.send({
-      from: "Jericho <jericho@themomentumcompany.io>",
+      from: fromAddress,
       to: [profile.email],
       subject: subjectLine,
       html: emailHtml,
     });
+
+    // Resend may return { data: null, error: {...} } without throwing
+    const resendError = (emailResponse as any)?.error;
+    if (resendError) {
+      console.error(`Resend error sending to ${profile.email}:`, resendError);
+
+      // Record failed delivery for audit/debugging
+      await supabase.from("email_deliveries").insert({
+        profile_id: profileId,
+        company_id: profile.company_id,
+        subject: subjectLine,
+        body: emailHtml,
+        sent_at: new Date().toISOString(),
+        status: 'failed',
+        resources_included: {
+          episodeId: episode.id,
+          episodeDate: today,
+          briefFormat,
+          resendError,
+        },
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          to: profile.email,
+          subject: subjectLine,
+          error: resendError?.message || 'Email provider returned an error',
+          statusCode: resendError?.statusCode,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log(`Daily brief email sent to ${profile.email}:`, emailResponse);
 
@@ -261,19 +296,20 @@ serve(async (req) => {
       body: emailHtml,
       sent_at: new Date().toISOString(),
       status: 'sent',
-      resources_included: { 
+      resources_included: {
         episodeId: episode.id,
         episodeDate: today,
-        briefFormat
-      }
+        briefFormat,
+      },
     });
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        emailId: (emailResponse as any).id || 'sent',
+      JSON.stringify({
+        success: true,
+        emailId: (emailResponse as any)?.data?.id || (emailResponse as any)?.id || 'sent',
         to: profile.email,
-        subject: subjectLine
+        subject: subjectLine,
+        from: fromAddress,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
