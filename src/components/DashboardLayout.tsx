@@ -44,16 +44,26 @@ const DashboardLayout = () => {
         if (!session) {
           navigate("/auth");
         } else {
-          // Check if user is super admin or admin
+          // Check if user is super admin or admin and if registration is complete
           const { data: profile, error } = await supabase
             .from("profiles")
-            .select("is_super_admin, is_admin")
+            .select("is_super_admin, is_admin, registration_complete, created_by_admin")
             .eq("id", session.user.id)
             .maybeSingle();
           
-          if (!error) {
-            setIsSuperAdmin(profile?.is_super_admin || false);
-            setIsAdmin(profile?.is_admin || false);
+          if (!error && profile) {
+            setIsSuperAdmin(profile.is_super_admin || false);
+            setIsAdmin(profile.is_admin || false);
+            
+            // Redirect to registration wizard if not complete (and not admin-created)
+            if (!profile.registration_complete && !profile.created_by_admin) {
+              navigate("/register");
+              return;
+            }
+          } else if (!profile) {
+            // No profile exists - redirect to registration
+            navigate("/register");
+            return;
           }
 
           // Check if user has manager role

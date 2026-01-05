@@ -2766,6 +2766,7 @@ export type Database = {
           episode_date: string
           id: string
           intro_music_url: string | null
+          is_welcome_episode: boolean | null
           listened_at: string | null
           outro_music_url: string | null
           profile_id: string
@@ -2788,6 +2789,7 @@ export type Database = {
           episode_date: string
           id?: string
           intro_music_url?: string | null
+          is_welcome_episode?: boolean | null
           listened_at?: string | null
           outro_music_url?: string | null
           profile_id: string
@@ -2810,6 +2812,7 @@ export type Database = {
           episode_date?: string
           id?: string
           intro_music_url?: string | null
+          is_welcome_episode?: boolean | null
           listened_at?: string | null
           outro_music_url?: string | null
           profile_id?: string
@@ -2974,6 +2977,7 @@ export type Database = {
         Row: {
           company_id: string | null
           created_at: string | null
+          created_by_admin: boolean | null
           email: string | null
           full_name: string | null
           has_seen_manager_onboarding: boolean | null
@@ -2981,9 +2985,11 @@ export type Database = {
           is_active: boolean | null
           is_admin: boolean | null
           is_super_admin: boolean | null
+          job_title: string | null
           phone: string | null
           phone_verified: boolean | null
           podcast_duration_minutes: number | null
+          registration_complete: boolean | null
           role: string | null
           sms_opted_in: boolean | null
           sms_opted_in_at: string | null
@@ -2995,6 +3001,7 @@ export type Database = {
         Insert: {
           company_id?: string | null
           created_at?: string | null
+          created_by_admin?: boolean | null
           email?: string | null
           full_name?: string | null
           has_seen_manager_onboarding?: boolean | null
@@ -3002,9 +3009,11 @@ export type Database = {
           is_active?: boolean | null
           is_admin?: boolean | null
           is_super_admin?: boolean | null
+          job_title?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           podcast_duration_minutes?: number | null
+          registration_complete?: boolean | null
           role?: string | null
           sms_opted_in?: boolean | null
           sms_opted_in_at?: string | null
@@ -3016,6 +3025,7 @@ export type Database = {
         Update: {
           company_id?: string | null
           created_at?: string | null
+          created_by_admin?: boolean | null
           email?: string | null
           full_name?: string | null
           has_seen_manager_onboarding?: boolean | null
@@ -3023,9 +3033,11 @@ export type Database = {
           is_active?: boolean | null
           is_admin?: boolean | null
           is_super_admin?: boolean | null
+          job_title?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           podcast_duration_minutes?: number | null
+          registration_complete?: boolean | null
           role?: string | null
           sms_opted_in?: boolean | null
           sms_opted_in_at?: string | null
@@ -3374,6 +3386,47 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "referral_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registration_metadata: {
+        Row: {
+          attribution_source: string | null
+          company_name: string | null
+          created_at: string | null
+          goal_details: string | null
+          id: string
+          primary_goal: string | null
+          profile_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          attribution_source?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          goal_details?: string | null
+          id?: string
+          primary_goal?: string | null
+          profile_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          attribution_source?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          goal_details?: string | null
+          id?: string
+          primary_goal?: string | null
+          profile_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_metadata_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
