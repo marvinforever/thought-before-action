@@ -56,9 +56,51 @@ export default function PartnerRegister() {
     setLoading(true);
 
     try {
-      // Sign out any existing session first
-      await supabase.auth.signOut();
+      // First, check if user is already logged in
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (currentSession?.user) {
+        // User is already logged in - just enroll them as a partner
+        const { data: existingPartner } = await supabase
+          .from("referral_partners")
+          .select("id")
+          .eq("user_id", currentSession.user.id)
+          .maybeSingle();
 
+        if (existingPartner) {
+          toast({
+            title: "Already a partner!",
+            description: "You're already enrolled in the partner program.",
+          });
+          navigate("/partner");
+          return;
+        }
+
+        const referralCode = generateReferralCode();
+        const { error: enrollErr } = await supabase.from("referral_partners").insert({
+          user_id: currentSession.user.id,
+          name: name || currentSession.user.user_metadata?.full_name || email,
+          email: currentSession.user.email || email,
+          phone: phone || null,
+          company: company || null,
+          referral_code: referralCode,
+        });
+        if (enrollErr) throw enrollErr;
+
+        await supabase.from("user_roles").upsert(
+          { user_id: currentSession.user.id, role: "partner" },
+          { onConflict: "user_id,role" }
+        );
+
+        toast({
+          title: "Welcome to the Partner Program!",
+          description: "You've been enrolled as a partner.",
+        });
+        navigate("/partner");
+        return;
+      }
+
+      // Try to sign up new user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -71,51 +113,66 @@ export default function PartnerRegister() {
       });
 
       if (authError) {
-        // If the email already exists, log them in and enroll them as a partner instead.
+        // If the email already exists, prompt them to log in first
         if (authError.message.toLowerCase().includes("already")) {
+          toast({
+            title: "Account exists",
+            description: "You already have a Jericho account. Please log in with your existing password to enroll as a partner.",
+            variant: "destructive",
+          });
+          // Try signing in with the provided password
           const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
-          if (signInErr) throw signInErr;
-          if (!signInData.user) throw new Error("Unable to sign in.");
-
-          const { data: existingPartner, error: existingErr } = await supabase
-            .from("referral_partners")
-            .select("id")
-            .eq("user_id", signInData.user.id)
-            .maybeSingle();
-
-          if (existingErr) throw existingErr;
-
-          if (!existingPartner) {
-            const referralCode = generateReferralCode();
-            const { error: enrollErr } = await supabase.from("referral_partners").insert({
-              user_id: signInData.user.id,
-              name,
-              email,
-              phone: phone || null,
-              company: company || null,
-              referral_code: referralCode,
+          
+          if (signInErr) {
+            toast({
+              title: "Login required",
+              description: "Please use your existing Jericho password, or use the Partner Login page to sign in first.",
+              variant: "destructive",
             });
-            if (enrollErr) throw enrollErr;
-
-            await supabase.from("user_roles").upsert(
-              { user_id: signInData.user.id, role: "partner" },
-              { onConflict: "user_id,role" }
-            );
+            return;
           }
+          
+          if (signInData.user) {
+            // Successfully logged in - now enroll as partner
+            const { data: existingPartner } = await supabase
+              .from("referral_partners")
+              .select("id")
+              .eq("user_id", signInData.user.id)
+              .maybeSingle();
 
-          toast({
-            title: "You're in!",
-            description: "We found your account and enrolled you as a partner.",
-          });
-          navigate("/partner");
-          return;
+            if (!existingPartner) {
+              const referralCode = generateReferralCode();
+              const { error: enrollErr } = await supabase.from("referral_partners").insert({
+                user_id: signInData.user.id,
+                name,
+                email,
+                phone: phone || null,
+                company: company || null,
+                referral_code: referralCode,
+              });
+              if (enrollErr) throw enrollErr;
+
+              await supabase.from("user_roles").upsert(
+                { user_id: signInData.user.id, role: "partner" },
+                { onConflict: "user_id,role" }
+              );
+            }
+
+            toast({
+              title: "You're in!",
+              description: "Welcome to the partner program!",
+            });
+            navigate("/partner");
+            return;
+          }
         }
 
         throw authError;
       }
+      
       if (!authData.user) throw new Error("Failed to create account");
 
       const referralCode = generateReferralCode();
