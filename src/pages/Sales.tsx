@@ -100,7 +100,7 @@ const Sales = () => {
             .select('id')
             .eq('referral_code', refCode.toUpperCase())
             .eq('status', 'active')
-            .single();
+            .maybeSingle();
 
           if (partner) {
             // Create a lead record for the click
@@ -119,7 +119,39 @@ const Sales = () => {
   }, [searchParams]);
 
   const handleDemoRequest = () => {
-    window.open('https://calendar.app.google/v1xwnCaqnRJ57UmJ6', '_blank');
+    const refCode = localStorage.getItem('referral_code');
+
+    // Open immediately to avoid popup blockers
+    const baseUrl = new URL('https://calendar.app.google/v1xwnCaqnRJ57UmJ6');
+    if (refCode) {
+      baseUrl.searchParams.set('ref', refCode);
+      baseUrl.searchParams.set('utm_source', 'partner');
+      baseUrl.searchParams.set('utm_medium', 'referral');
+    }
+
+    window.open(baseUrl.toString(), '_blank');
+
+    // Track demo intent in the background
+    if (!refCode) return;
+    setTimeout(async () => {
+      try {
+        const { data: partner } = await supabase
+          .from('referral_partners')
+          .select('id')
+          .eq('referral_code', refCode.toUpperCase())
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (partner) {
+          await supabase.from('referral_leads').insert({
+            partner_id: partner.id,
+            status: 'demo_booked',
+          });
+        }
+      } catch (error) {
+        console.log('Referral demo tracking error:', error);
+      }
+    }, 0);
   };
 
   const handleTrialRequest = () => {
