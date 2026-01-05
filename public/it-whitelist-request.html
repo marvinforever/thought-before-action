@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT Whitelist Request - Jericho Performance Management</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #1a1a2e;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #fff;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #c9a227;
+    }
+    
+    .logo {
+      font-size: 32px;
+      font-weight: bold;
+      color: #1a1a2e;
+      margin-bottom: 8px;
+    }
+    
+    .logo span {
+      color: #c9a227;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #1a1a2e;
+    }
+    
+    h2 {
+      font-size: 18px;
+      margin: 30px 0 15px;
+      color: #1a1a2e;
+      border-left: 4px solid #c9a227;
+      padding-left: 12px;
+    }
+    
+    p {
+      margin-bottom: 15px;
+      color: #333;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px 15px;
+      text-align: left;
+    }
+    
+    th {
+      background: #1a1a2e;
+      color: white;
+      font-weight: 600;
+    }
+    
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    
+    .highlight {
+      background: #fffbeb;
+      border: 1px solid #c9a227;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .highlight strong {
+      color: #1a1a2e;
+    }
+    
+    ul {
+      margin: 15px 0 15px 25px;
+    }
+    
+    li {
+      margin-bottom: 8px;
+    }
+    
+    .security-note {
+      background: #f0fdf4;
+      border: 1px solid #22c55e;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .security-note h3 {
+      color: #166534;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    
+    .contact {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+    }
+    
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+    }
+    
+    @media print {
+      body {
+        padding: 20px;
+      }
+      
+      .no-print {
+        display: none;
+      }
+    }
+    
+    .print-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #1a1a2e;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .print-btn:hover {
+      background: #2a2a4e;
+    }
+  </style>
+</head>
+<body>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+  
+  <div class="header">
+    <div class="logo">Jericho<span>™</span></div>
+    <div class="subtitle">AI-Powered Performance Management Platform</div>
+  </div>
+  
+  <h1>Network Whitelist Request</h1>
+  
+  <p>
+    This document provides the technical requirements for allowing access to the Jericho 
+    performance management platform through your organization's network security infrastructure.
+  </p>
+  
+  <div class="highlight">
+    <strong>Request Summary:</strong> Please whitelist the following domains to enable 
+    employee access to the Jericho platform for professional development and performance management.
+  </div>
+  
+  <h2>Required Domain Whitelist</h2>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Domain</th>
+        <th>Purpose</th>
+        <th>Protocol/Port</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>*.lovable.app</code></td>
+        <td>Primary application hosting</td>
+        <td>HTTPS (443)</td>
+      </tr>
+      <tr>
+        <td><code>*.lovableproject.com</code></td>
+        <td>Application preview environments</td>
+        <td>HTTPS (443)</td>
+      </tr>
+      <tr>
+        <td><code>*.supabase.co</code></td>
+        <td>Backend services, authentication, database</td>
+        <td>HTTPS (443), WSS (443)</td>
+      </tr>
+      <tr>
+        <td><code>*.elevenlabs.io</code></td>
+        <td>AI voice coaching features</td>
+        <td>HTTPS (443)</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <h2>Specific Endpoints (If Wildcard Not Permitted)</h2>
+  
+  <p>If your security policy requires specific domain whitelisting rather than wildcards:</p>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Specific Domain</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>aiihzjkspwsriktvrdle.supabase.co</code></td>
+        <td>Jericho backend API & database</td>
+      </tr>
+      <tr>
+        <td><code>api.elevenlabs.io</code></td>
+        <td>Voice AI services</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <h2>WebSocket Connections</h2>
+  
+  <p>The platform uses WebSocket connections for real-time features. Please ensure WSS (WebSocket Secure) connections are permitted on port 443 for the domains listed above.</p>
+  
+  <div class="security-note">
+    <h3>🔒 Security Information</h3>
+    <ul>
+      <li>All traffic is encrypted using TLS 1.2 or higher</li>
+      <li>No inbound connections are required</li>
+      <li>The platform is SOC 2 compliant infrastructure (Supabase)</li>
+      <li>User authentication uses industry-standard OAuth 2.0 / JWT tokens</li>
+      <li>No executable files are downloaded</li>
+    </ul>
+  </div>
+  
+  <h2>Content Categories</h2>
+  
+  <p>If your firewall uses content categorization, the domains should be classified under:</p>
+  <ul>
+    <li>Business Applications</li>
+    <li>Professional Development / Training</li>
+    <li>Human Resources / HR Technology</li>
+    <li>SaaS / Cloud Services</li>
+  </ul>
+  
+  <h2>Testing Access</h2>
+  
+  <p>After whitelisting, users can verify access by navigating to:</p>
+  <p><strong>https://jericho.lovable.app</strong> (or your organization's specific URL)</p>
+  
+  <div class="contact">
+    <h2>Technical Support Contact</h2>
+    <p>For technical questions regarding this whitelist request:</p>
+    <ul>
+      <li><strong>Vendor:</strong> The Momentum Company (Jericho)</li>
+      <li><strong>Email:</strong> support@themomentumcompany.com</li>
+      <li><strong>Website:</strong> https://jericho.lovable.app</li>
+    </ul>
+  </div>
+  
+  <div class="footer">
+    <p>Document generated for IT security review purposes</p>
+    <p>Jericho™ by The Momentum Company</p>
+  </div>
+</body>
+</html>
