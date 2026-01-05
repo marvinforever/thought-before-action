@@ -152,9 +152,6 @@ const Sales = () => {
                 Book a Demo
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={handleTrialRequest}>
-                Start Free Trial
-              </Button>
             </motion.div>
 
           </motion.div>
