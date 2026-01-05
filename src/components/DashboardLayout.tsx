@@ -26,7 +26,6 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 const DashboardLayout = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -198,12 +197,9 @@ const DashboardLayout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar - always visible */}
       {!isMobile && (
-        <aside className={cn(
-          "fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 z-40",
-          sidebarOpen ? "w-64" : "w-0 -translate-x-full"
-        )}>
+        <aside className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border z-40">
           <SidebarContent />
         </aside>
       )}
@@ -211,11 +207,12 @@ const DashboardLayout = () => {
       {/* Main Content */}
       <div className={cn(
         "transition-all duration-300 min-h-screen",
-        !isMobile && sidebarOpen ? "ml-64" : "ml-0"
+        !isMobile ? "ml-64" : "ml-0"
       )}>
         {/* Header */}
         <header className="bg-card border-b border-border sticky top-0 z-30">
           <div className="flex items-center justify-between p-3 md:p-4">
+            {/* Mobile menu trigger - only shows on mobile */}
             {isMobile ? (
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -228,13 +225,7 @@ const DashboardLayout = () => {
                 </SheetContent>
               </Sheet>
             ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
+              <div /> /* Empty spacer on desktop */
             )}
             <div className="flex items-center gap-2 md:gap-4">
               <span className="text-xs md:text-sm text-muted-foreground truncate max-w-[120px] md:max-w-none">
