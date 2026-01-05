@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
-import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail, Headphones } from "lucide-react";
+import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail, Headphones, Send, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SMSOptInCard } from "@/components/SMSOptInCard";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const PASSWORD_REQUIREMENTS = {
   minLength: 8,
@@ -62,30 +64,83 @@ export default function Settings() {
   const { isEnabled: isSmsEnabled } = useFeatureFlag('sms_engagement');
   const [loading, setLoading] = useState(false);
   const [savingPodcast, setSavingPodcast] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profile, setProfile] = useState<{ full_name: string; email: string; podcast_duration_minutes: number } | null>(null);
+  
+  // Email preferences state
+  const [emailPrefs, setEmailPrefs] = useState({
+    email_enabled: false,
+    preferred_time: "07:00:00",
+    timezone: "America/Chicago",
+    frequency: "daily",
+    preferred_day: "Monday",
+    include_podcast: true,
+    brief_format: "both"
+  });
+
+  const timezones = [
+    { value: "America/New_York", label: "Eastern Time (ET)" },
+    { value: "America/Chicago", label: "Central Time (CT)" },
+    { value: "America/Denver", label: "Mountain Time (MT)" },
+    { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+    { value: "America/Phoenix", label: "Arizona (MST)" },
+    { value: "UTC", label: "UTC" },
+  ];
+
+  const timeOptions = Array.from({ length: 24 }, (_, i) => {
+    const hour = i;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return {
+      value: `${String(hour).padStart(2, '0')}:00:00`,
+      label: `${displayHour}:00 ${ampm}`
+    };
+  });
+
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
+        // Fetch profile
+        const { data: profileData } = await supabase
           .from("profiles")
           .select("full_name, podcast_duration_minutes")
           .eq("id", user.id)
           .single();
         
         setProfile({
-          full_name: data?.full_name || "",
+          full_name: profileData?.full_name || "",
           email: user.email || "",
-          podcast_duration_minutes: data?.podcast_duration_minutes || 2,
+          podcast_duration_minutes: profileData?.podcast_duration_minutes || 2,
         });
+
+        // Fetch email preferences
+        const { data: emailData } = await supabase
+          .from("email_preferences")
+          .select("*")
+          .eq("profile_id", user.id)
+          .single();
+
+        if (emailData) {
+          setEmailPrefs({
+            email_enabled: emailData.email_enabled ?? false,
+            preferred_time: emailData.preferred_time || "07:00:00",
+            timezone: emailData.timezone || "America/Chicago",
+            frequency: emailData.frequency || "daily",
+            preferred_day: emailData.preferred_day || "Monday",
+            include_podcast: emailData.include_podcast ?? true,
+            brief_format: emailData.brief_format || "both"
+          });
+        }
       }
     };
-    fetchProfile();
+    fetchData();
   }, []);
 
   const handlePodcastDurationChange = async (value: string) => {
@@ -117,6 +172,46 @@ export default function Settings() {
       });
     } finally {
       setSavingPodcast(false);
+    }
+  };
+
+  const saveEmailPrefs = async (updates: Partial<typeof emailPrefs>) => {
+    setSavingEmail(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const newPrefs = { ...emailPrefs, ...updates };
+      setEmailPrefs(newPrefs);
+
+      const { error } = await supabase
+        .from("email_preferences")
+        .upsert({
+          profile_id: user.id,
+          email_enabled: newPrefs.email_enabled,
+          preferred_time: newPrefs.preferred_time,
+          timezone: newPrefs.timezone,
+          frequency: newPrefs.frequency,
+          preferred_day: newPrefs.preferred_day,
+          include_podcast: newPrefs.include_podcast,
+          brief_format: newPrefs.brief_format,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'profile_id' });
+
+      if (error) throw error;
+
+      toast({
+        title: "Preferences saved",
+        description: "Your email delivery settings have been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save preferences.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -261,6 +356,173 @@ export default function Settings() {
               </div>
             </RadioGroup>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Daily Brief Email Delivery */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Daily Brief Email
+          </CardTitle>
+          <CardDescription>Get your growth brief delivered to your inbox</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Enable/Disable Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Email Delivery</Label>
+              <p className="text-sm text-muted-foreground">
+                Receive your daily growth brief via email
+              </p>
+            </div>
+            <Switch
+              checked={emailPrefs.email_enabled}
+              onCheckedChange={(checked) => saveEmailPrefs({ email_enabled: checked })}
+              disabled={savingEmail}
+            />
+          </div>
+
+          {emailPrefs.email_enabled && (
+            <>
+              {/* Frequency */}
+              <div className="space-y-3">
+                <Label>Frequency</Label>
+                <RadioGroup
+                  value={emailPrefs.frequency}
+                  onValueChange={(value) => saveEmailPrefs({ frequency: value })}
+                  disabled={savingEmail}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="daily" id="freq-daily" />
+                    <Label htmlFor="freq-daily" className="cursor-pointer">Daily</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="weekly" id="freq-weekly" />
+                    <Label htmlFor="freq-weekly" className="cursor-pointer">Weekly</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Time and Timezone */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    Delivery Time
+                  </Label>
+                  <Select
+                    value={emailPrefs.preferred_time}
+                    onValueChange={(value) => saveEmailPrefs({ preferred_time: value })}
+                    disabled={savingEmail}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timeOptions.map((time) => (
+                        <SelectItem key={time.value} value={time.value}>
+                          {time.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Timezone</Label>
+                  <Select
+                    value={emailPrefs.timezone}
+                    onValueChange={(value) => saveEmailPrefs({ timezone: value })}
+                    disabled={savingEmail}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timezones.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Weekly day selection */}
+              {emailPrefs.frequency === "weekly" && (
+                <div className="space-y-2">
+                  <Label>Delivery Day</Label>
+                  <Select
+                    value={emailPrefs.preferred_day}
+                    onValueChange={(value) => saveEmailPrefs({ preferred_day: value })}
+                    disabled={savingEmail}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {days.map((day) => (
+                        <SelectItem key={day} value={day}>
+                          {day}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Brief Format */}
+              <div className="space-y-3">
+                <Label>Brief Format</Label>
+                <RadioGroup
+                  value={emailPrefs.brief_format}
+                  onValueChange={(value) => saveEmailPrefs({ brief_format: value })}
+                  disabled={savingEmail}
+                  className="grid gap-3"
+                >
+                  <div className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value="both" id="format-both" />
+                    <Label htmlFor="format-both" className="flex-1 cursor-pointer">
+                      <div className="font-medium">Audio + Summary</div>
+                      <div className="text-sm text-muted-foreground">Listen button plus written highlights</div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value="audio" id="format-audio" />
+                    <Label htmlFor="format-audio" className="flex-1 cursor-pointer">
+                      <div className="font-medium">Audio Only</div>
+                      <div className="text-sm text-muted-foreground">Just the podcast link</div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value="text" id="format-text" />
+                    <Label htmlFor="format-text" className="flex-1 cursor-pointer">
+                      <div className="font-medium">Text Only</div>
+                      <div className="text-sm text-muted-foreground">Written summary without audio</div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Include Podcast Toggle */}
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div className="space-y-0.5">
+                  <Label>Generate Audio Podcast</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Create a personalized audio brief each day
+                  </p>
+                </div>
+                <Switch
+                  checked={emailPrefs.include_podcast}
+                  onCheckedChange={(checked) => saveEmailPrefs({ include_podcast: checked })}
+                  disabled={savingEmail}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
