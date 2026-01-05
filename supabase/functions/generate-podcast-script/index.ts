@@ -739,14 +739,13 @@ Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 Quote to include: "${context.inspirationalQuote.quote}" — ${context.inspirationalQuote.author}
 
 SCRIPT FORMAT REQUIREMENTS:
-1. Sam opens with energy: "SAM: Hey, welcome back! So Jericho, what do we have for ${context.userName} today?"
-2. Quick back-and-forth exchanges (not monologues)
-3. Sam reacts genuinely to wins/streaks with enthusiasm
-4. Jericho delivers coaching insights with authority
-5. Jericho gives the daily challenge near the end - KEEP IT SHORT (1-2 sentences, under 20 words)
-6. Jericho closes with a brief motivating send-off
+1. Jessica opens warmly: "JESSICA: Hey ${context.userName}, welcome back..."
+2. Solo monologue format - Jessica speaks directly to the listener throughout
+3. Jessica delivers coaching insights with warmth and authority
+4. Jessica gives the daily challenge near the end - KEEP IT SHORT (1-2 sentences, under 20 words)
+5. Jessica closes with a brief motivating send-off
 
-Remember: Write dialogue with "JERICHO:" and "SAM:" labels. Keep it punchy and energetic!`;
+Remember: Write as solo host with "JESSICA:" label only. Keep it warm, direct, and actionable!`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
