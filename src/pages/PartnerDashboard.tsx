@@ -216,7 +216,7 @@ export default function PartnerDashboard() {
             className="text-slate-400 hover:text-white mb-6"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            Back to Jericho
           </Button>
 
           {/* Hero */}
@@ -306,6 +306,7 @@ export default function PartnerDashboard() {
               size="icon"
               onClick={() => navigate('/dashboard/my-growth-plan')}
               className="text-slate-400 hover:text-white"
+              title="Back to Jericho"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
