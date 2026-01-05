@@ -38,6 +38,36 @@ interface UserContext {
   personalVision: string | null;
 }
 
+async function fetchProfileWithRetry(
+  supabase: any,
+  profileId: string,
+  attempts = 2
+): Promise<{ data: any; error: any }> {
+  let lastError: any = null;
+
+  for (let i = 0; i < attempts; i++) {
+    const result = await supabase
+      .from("profiles")
+      .select("id, email, full_name, company_id, login_streak")
+      .eq("id", profileId)
+      .maybeSingle();
+
+    if ((result.data as any)?.email) return result;
+
+    lastError = result.error;
+
+    // brief backoff for transient DB/network hiccups
+    if (i < attempts - 1) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+
+  return {
+    data: null,
+    error: lastError,
+  };
+}
+
 // Generate personalized email content using AI
 async function generatePersonalizedEmail(context: UserContext): Promise<{ subject: string; body: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
