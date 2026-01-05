@@ -736,8 +736,6 @@ Personal Vision: ${context.personalVision || 'Not yet set'}
 Strength: ${context.diagnosticStrength || 'Not assessed'}
 Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 
-Quote to include: "${context.inspirationalQuote.quote}" — ${context.inspirationalQuote.author}
-
 SCRIPT FORMAT REQUIREMENTS:
 1. Jessica opens warmly: "JESSICA: Hey ${context.userName}, welcome back..."
 2. Solo monologue format - Jessica speaks directly to the listener throughout
