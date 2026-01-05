@@ -7,20 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Get day name with optional greeting context
-function getDayGreeting(): { day: string; greeting: string } {
-  const now = new Date();
-  const hour = now.getHours();
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const day = days[now.getDay()];
-  
-  let greeting = 'Good morning';
-  if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
-  if (hour >= 17) greeting = 'Good evening';
-  
-  return { day, greeting };
-}
-
 // Format date nicely
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', { 
@@ -30,19 +16,129 @@ function formatDate(date: Date): string {
   });
 }
 
-// Inspirational quotes for variety
-const QUOTES = [
-  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-  { text: "Growth is never by mere chance; it is the result of forces working together.", author: "James Cash Penney" },
-  { text: "What you do today can improve all your tomorrows.", author: "Ralph Marston" },
-  { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
-  { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
-  { text: "Your limitation—it's only your imagination.", author: "Unknown" },
-  { text: "Great things never came from comfort zones.", author: "Unknown" },
-  { text: "Dream it. Wish it. Do it.", author: "Unknown" },
-  { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown" },
-  { text: "Don't stop when you're tired. Stop when you're done.", author: "Unknown" },
-];
+// Generate personalized email content using AI
+async function generatePersonalizedEmail(
+  firstName: string,
+  episodeTitle: string,
+  topics: string[],
+  script: string,
+  dailyChallenge: string | null,
+  streakDays: number | null,
+  habitsCount: number
+): Promise<{ subject: string; body: string }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  
+  if (!LOVABLE_API_KEY) {
+    console.warn("LOVABLE_API_KEY not configured, using fallback template");
+    return {
+      subject: `Hey ${firstName}, your growth moment is ready`,
+      body: generateFallbackBody(firstName, episodeTitle, topics, dailyChallenge)
+    };
+  }
+
+  const systemPrompt = `You are Jericho, a warm, encouraging AI growth coach. You write personalized daily emails to professionals to help them grow.
+
+Your voice is:
+- Warm and personal (like a trusted mentor writing a letter)
+- Encouraging but not cheesy or over-the-top
+- Practical and actionable
+- Conversational and human
+- Brief but meaningful
+
+You never use:
+- Corporate jargon
+- Excessive exclamation points
+- Generic phrases like "I hope this email finds you well"
+- Bullet points (write in flowing prose)
+
+Format your response as JSON with two fields:
+- "subject": A short, personal email subject line (max 60 chars, no emojis)
+- "body": The email body in HTML format (use <p> tags, keep it 3-4 short paragraphs)`;
+
+  const userPrompt = `Write today's growth email for ${firstName}.
+
+Today's episode: "${episodeTitle}"
+Topics covered: ${topics.join(', ')}
+${dailyChallenge ? `Today's challenge: ${dailyChallenge}` : ''}
+${streakDays ? `Their current streak: ${streakDays} days` : ''}
+${habitsCount > 0 ? `Habits completed this week: ${habitsCount}` : ''}
+
+Episode content summary:
+${script.substring(0, 1500)}
+
+Write a short, personalized email (like a letter from a coach) that:
+1. Greets them warmly by name
+2. Briefly introduces what they'll learn today
+3. Gives them one key insight or teaser from the content
+4. Encourages them to listen and mentions the challenge if there is one
+5. Signs off warmly as Jericho
+
+Keep it under 200 words. Make it feel like a personal note, not a newsletter.`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("AI gateway error:", response.status);
+      throw new Error("AI generation failed");
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error("No content in AI response");
+    }
+
+    // Parse JSON from the response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        subject: parsed.subject || `Hey ${firstName}, your growth moment is ready`,
+        body: parsed.body || generateFallbackBody(firstName, episodeTitle, topics, dailyChallenge)
+      };
+    }
+
+    throw new Error("Could not parse AI response as JSON");
+  } catch (error) {
+    console.error("AI email generation error:", error);
+    return {
+      subject: `Hey ${firstName}, your growth moment is ready`,
+      body: generateFallbackBody(firstName, episodeTitle, topics, dailyChallenge)
+    };
+  }
+}
+
+function generateFallbackBody(
+  firstName: string,
+  episodeTitle: string,
+  topics: string[],
+  dailyChallenge: string | null
+): string {
+  return `
+    <p>Hey ${firstName},</p>
+    <p>I've got something special for you today. Your personalized episode "${episodeTitle}" is ready, and I think you're going to find it really valuable.</p>
+    <p>We're diving into ${topics.slice(0, 2).join(' and ')}${topics.length > 2 ? ' and more' : ''}. These are the exact skills that will help you level up right now.</p>
+    ${dailyChallenge ? `<p>Today's challenge: ${dailyChallenge}. I know you can do this.</p>` : ''}
+    <p>Take a few minutes to listen — your future self will thank you.</p>
+    <p>Talk soon,<br/>Jericho</p>
+  `;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -100,7 +196,7 @@ serve(async (req) => {
 
     const briefFormat = prefs?.brief_format || 'both';
 
-    // Fetch user stats for the email
+    // Fetch user stats
     const { data: streakData } = await supabase
       .from("profiles")
       .select("login_streak")
@@ -113,26 +209,25 @@ serve(async (req) => {
       .eq("profile_id", profileId)
       .gte("completed_date", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
-    // Get a random quote
-    const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-
-    // Parse topics from episode
-    const topics = episode.topics_covered || [];
-    const topicsHtml = topics.length > 0 
-      ? topics.map((t: string) => `<li style="margin-bottom: 8px; color: #4a5568;">${t}</li>`).join('')
-      : '<li style="color: #718096;">Your personalized growth insights</li>';
-
-    // Extract a brief summary from the script (first few sentences)
-    const scriptLines = episode.script?.split('\n').filter((l: string) => l.trim()) || [];
-    const summaryText = scriptLines.slice(0, 3).join(' ').substring(0, 300) + '...';
-
-    const { day, greeting } = getDayGreeting();
     const firstName = profile.full_name?.split(' ')[0] || 'there';
+    const topics = episode.topics_covered || [];
 
-    // Build the app URL for listening
+    // Generate personalized email content using AI
+    console.log("Generating personalized email for", firstName);
+    const { subject, body: personalizedBody } = await generatePersonalizedEmail(
+      firstName,
+      episode.title,
+      topics,
+      episode.script || '',
+      episode.daily_challenge,
+      streakData?.login_streak,
+      habitsThisWeek?.length || 0
+    );
+
+    // Build the app URL
     const appUrl = `https://aiihzjkspwsriktvrdle.lovableproject.com/dashboard`;
 
-    // Build email HTML
+    // Build the on-brand Jericho email HTML
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -140,138 +235,92 @@ serve(async (req) => {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f6f9fc; margin: 0; padding: 0;">
-  <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0f0f23; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #0f0f23;">
     
-    <!-- Header -->
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 32px 40px; text-align: center;">
-      <h1 style="color: #ffffff; font-size: 24px; font-weight: 600; margin: 0;">Your Growth Brief</h1>
-      <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 8px 0 0 0;">${formatDate(new Date())}</p>
+    <!-- Header with Jericho branding -->
+    <div style="padding: 40px 32px 24px 32px; text-align: center;">
+      <div style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); -webkit-background-clip: text; background-clip: text;">
+        <h1 style="font-size: 28px; font-weight: 700; margin: 0; color: #a855f7;">Jericho</h1>
+      </div>
+      <p style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; letter-spacing: 0.5px;">${formatDate(new Date()).toUpperCase()}</p>
     </div>
 
-    <div style="padding: 40px;">
-      <!-- Greeting -->
-      <p style="color: #2d3748; font-size: 18px; margin: 0 0 24px 0;">${greeting}, ${firstName}!</p>
-      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">
-        Your personalized daily brief is ready. Take a few minutes to invest in your growth today.
-      </p>
-
-      <!-- Episode Card -->
-      <div style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0;">
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-          <span style="font-size: 32px;">🎧</span>
-          <div>
-            <h2 style="color: #2d3748; font-size: 18px; font-weight: 600; margin: 0;">${episode.title}</h2>
-            <p style="color: #718096; font-size: 14px; margin: 4px 0 0 0;">
-              ${episode.duration_seconds ? Math.ceil(episode.duration_seconds / 60) : 3} min listen
-            </p>
-          </div>
-        </div>
-        
-        ${briefFormat !== 'text' ? `
-        <a href="${appUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; text-align: center; width: 100%; box-sizing: border-box;">
-          ▶️ Listen Now
-        </a>
-        ` : ''}
+    <!-- Main content card -->
+    <div style="margin: 0 16px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); border-radius: 16px; border: 1px solid #2a2a4a; overflow: hidden;">
+      
+      <!-- AI-generated personalized content -->
+      <div style="padding: 32px; color: #e2e8f0; font-size: 16px; line-height: 1.7;">
+        ${personalizedBody}
       </div>
 
-      <!-- What's Covered -->
-      <h3 style="color: #2d3748; font-size: 16px; font-weight: 600; margin: 0 0 16px 0;">📋 What We're Covering:</h3>
-      <ul style="margin: 0 0 32px 0; padding-left: 20px;">
-        ${topicsHtml}
-      </ul>
-
-      ${episode.daily_challenge ? `
-      <!-- Daily Challenge -->
-      <div style="background-color: #faf5ff; border-left: 4px solid #9f7aea; padding: 20px; border-radius: 0 8px 8px 0; margin-bottom: 32px;">
-        <h3 style="color: #553c9a; font-size: 14px; font-weight: 600; text-transform: uppercase; margin: 0 0 8px 0;">💪 Today's Challenge</h3>
-        <p style="color: #44337a; font-size: 16px; line-height: 1.5; margin: 0;">${episode.daily_challenge}</p>
+      <!-- Listen button -->
+      ${briefFormat !== 'text' ? `
+      <div style="padding: 0 32px 32px 32px;">
+        <a href="${appUrl}" style="display: block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; text-align: center;">
+          🎧 Listen to Today's Episode
+        </a>
       </div>
       ` : ''}
 
-      <!-- Stats -->
-      <div style="display: flex; gap: 16px; margin-bottom: 32px;">
+      <!-- Stats bar -->
+      ${(streakData?.login_streak || habitsThisWeek?.length) ? `
+      <div style="display: flex; border-top: 1px solid #2a2a4a;">
         ${streakData?.login_streak ? `
-        <div style="flex: 1; background-color: #f7fafc; padding: 16px; border-radius: 8px; text-align: center;">
-          <div style="color: #667eea; font-size: 24px; font-weight: bold;">${streakData.login_streak}</div>
-          <div style="color: #718096; font-size: 12px;">Day Streak</div>
+        <div style="flex: 1; padding: 20px; text-align: center; ${habitsThisWeek?.length ? 'border-right: 1px solid #2a2a4a;' : ''}">
+          <div style="color: #a855f7; font-size: 28px; font-weight: 700;">${streakData.login_streak}</div>
+          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Day Streak</div>
         </div>
         ` : ''}
-        ${habitsThisWeek ? `
-        <div style="flex: 1; background-color: #f7fafc; padding: 16px; border-radius: 8px; text-align: center;">
-          <div style="color: #667eea; font-size: 24px; font-weight: bold;">${habitsThisWeek.length}</div>
-          <div style="color: #718096; font-size: 12px;">Habits This Week</div>
+        ${habitsThisWeek?.length ? `
+        <div style="flex: 1; padding: 20px; text-align: center;">
+          <div style="color: #6366f1; font-size: 28px; font-weight: 700;">${habitsThisWeek.length}</div>
+          <div style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Habits This Week</div>
         </div>
         ` : ''}
-      </div>
-
-      <!-- Quote -->
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; text-align: center;">
-        <p style="color: #4a5568; font-size: 16px; font-style: italic; line-height: 1.6; margin: 0 0 8px 0;">
-          "${quote.text}"
-        </p>
-        <p style="color: #a0aec0; font-size: 14px; margin: 0;">— ${quote.author}</p>
-      </div>
-
-      ${briefFormat !== 'audio' ? `
-      <!-- Quick Summary -->
-      <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-        <h3 style="color: #718096; font-size: 14px; font-weight: 600; margin: 0 0 12px 0;">📝 Quick Summary</h3>
-        <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 0;">${summaryText}</p>
       </div>
       ` : ''}
     </div>
 
     <!-- Footer -->
-    <div style="background-color: #f7fafc; padding: 24px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
-      <p style="color: #718096; font-size: 14px; margin: 0 0 8px 0;">
-        Talk soon,<br><strong style="color: #667eea;">Jericho</strong>
+    <div style="padding: 32px; text-align: center;">
+      <p style="color: #64748b; font-size: 13px; margin: 0 0 16px 0;">
+        Reply to this email anytime — I read every message.
       </p>
-      <p style="color: #a0aec0; font-size: 12px; margin: 16px 0 0 0;">
-        Reply to this email to chat with me anytime.
-      </p>
-      <p style="margin: 8px 0 0 0;">
-        <a href="${appUrl}" style="color: #a0aec0; font-size: 12px; text-decoration: underline;">Update Preferences</a>
-      </p>
+      <a href="${appUrl}" style="color: #6366f1; font-size: 13px; text-decoration: none;">Update Preferences</a>
     </div>
   </div>
 </body>
 </html>
     `;
 
-    // Determine capability focus for subject line
-    const capabilityFocus = topics[0] || 'Your Growth';
-    const subjectLine = `Your Growth Brief for ${day} - ${capabilityFocus}`;
-
     // Send email
     const rawFrom = Deno.env.get("RESEND_FROM");
     const cleanedFrom = (rawFrom || "").trim().replace(/^"|"$/g, "");
-
     const isBareEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedFrom);
-    const isNameEmail = /^.+<[^>]+>$/.test(cleanedFrom);
-
     const fromAddress = cleanedFrom
       ? (isBareEmail ? `Jericho <${cleanedFrom}>` : cleanedFrom)
       : "Jericho <onboarding@resend.dev>";
 
-    console.log("Using RESEND_FROM:", { rawFrom, fromAddress });
+    console.log("Sending email from:", fromAddress, "to:", profile.email);
+    console.log("Subject:", subject);
+
     const emailResponse = await resend.emails.send({
       from: fromAddress,
       to: [profile.email],
-      subject: subjectLine,
+      subject: subject,
       html: emailHtml,
     });
 
-    // Resend may return { data: null, error: {...} } without throwing
+    // Handle Resend errors
     const resendError = (emailResponse as any)?.error;
     if (resendError) {
       console.error(`Resend error sending to ${profile.email}:`, resendError);
 
-      // Record failed delivery for audit/debugging
       await supabase.from("email_deliveries").insert({
         profile_id: profileId,
         company_id: profile.company_id,
-        subject: subjectLine,
+        subject: subject,
         body: emailHtml,
         sent_at: new Date().toISOString(),
         status: 'failed',
@@ -287,7 +336,7 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           to: profile.email,
-          subject: subjectLine,
+          subject: subject,
           error: resendError?.message || 'Email provider returned an error',
           statusCode: resendError?.statusCode,
         }),
@@ -301,7 +350,7 @@ serve(async (req) => {
     await supabase.from("email_deliveries").insert({
       profile_id: profileId,
       company_id: profile.company_id,
-      subject: subjectLine,
+      subject: subject,
       body: emailHtml,
       sent_at: new Date().toISOString(),
       status: 'sent',
@@ -309,6 +358,7 @@ serve(async (req) => {
         episodeId: episode.id,
         episodeDate: today,
         briefFormat,
+        aiGenerated: true,
       },
     });
 
@@ -317,7 +367,7 @@ serve(async (req) => {
         success: true,
         emailId: (emailResponse as any)?.data?.id || (emailResponse as any)?.id || 'sent',
         to: profile.email,
-        subject: subjectLine,
+        subject: subject,
         from: fromAddress,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
