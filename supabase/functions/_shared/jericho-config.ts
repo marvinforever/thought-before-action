@@ -64,8 +64,8 @@ export const TTS_VOICE_SETTINGS_SECONDARY = {
 export const PODCAST_HOSTS = {
   primary: {
     name: 'Jericho',
-    voiceId: 'FuTV0OBHmKN2S3ej42IO', // Current Jericho voice - British, authoritative
-    role: 'The wise, experienced growth coach - insightful, warm, direct',
+    voiceId: 'TX3LPaxmHKxFdv7VOQHJ', // Liam - professional, warm, energetic male voice
+    role: 'The wise, experienced growth coach - insightful, warm, direct, energetic',
     voiceSettings: TTS_VOICE_SETTINGS,
   },
   secondary: {
@@ -78,7 +78,7 @@ export const PODCAST_HOSTS = {
 
 export const CONVERSATION_FORMAT = `
 FORMAT: Two hosts having a natural, energetic conversation about the user's growth journey.
-- JERICHO: The experienced coach who delivers insights, challenges, and wisdom. British, warm authority.
+- JERICHO: The experienced coach who delivers insights, challenges, and wisdom. Warm, energetic, professional American male.
 - ALEX: The sharp, energetic female co-host who asks incisive questions, brings professional energy. Direct and vibrant.
 
 Write the script as a dialogue with clear speaker labels:
@@ -87,6 +87,12 @@ ALEX: [responds/reacts/asks]
 JERICHO: [continues]
 ...
 
+CRITICAL AUDIO RULES:
+- Each speaker finishes their thought COMPLETELY before the other speaks
+- NO overlapping dialogue - one person talks, then the other responds
+- Use natural transition cues ("Right, and..." or "Exactly. So..." or "That's key.")
+- Leave brief natural pauses between speakers
+
 The conversation should feel natural and dynamic:
 - Alex asks sharp, pointed questions that drive deeper ("So what's the real blocker here?")
 - Alex can react with professional enthusiasm to achievements ("Fifteen days straight? That's the kind of consistency that compounds.")
@@ -94,7 +100,7 @@ The conversation should feel natural and dynamic:
 - Alex challenges assumptions and adds her own perspective
 
 Jericho should:
-- Deliver the core coaching insights with authority
+- Deliver the core coaching insights with authority and energy
 - Challenge and push for action (the backbone of the conversation)
 - Connect everything to their bigger vision
 - Have the "final word" on topics and deliver the daily challenge

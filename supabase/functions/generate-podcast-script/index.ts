@@ -335,17 +335,35 @@ serve(async (req) => {
     console.log(`Found ${pendingFollowUps.length} pending follow-ups for podcast (filtered)`);
 
     // Fetch most recent conversation summary for continuity (skip "recognition"-type summaries to avoid wrong attribution)
+    // Also skip topics that have been discussed too frequently (e.g., "crucial conversations")
     const { data: recentSummaries } = await supabase
       .from('conversation_summaries')
       .select('summary_text, key_topics, action_items, emotional_tone, created_at')
       .eq('profile_id', profileId)
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(10);
+
+    // Track topics discussed in the last 7 days to avoid repetition
+    const sevenDaysAgoTs = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const recentTopics = (recentSummaries || [])
+      .filter(s => s.created_at >= sevenDaysAgoTs)
+      .flatMap(s => (s.key_topics || []).map((k: string) => String(k).toLowerCase()));
+    
+    // Count topic frequency - if a topic appears 3+ times in 7 days, filter it out
+    const topicCounts: Record<string, number> = {};
+    recentTopics.forEach(t => { topicCounts[t] = (topicCounts[t] || 0) + 1; });
+    const overusedTopics = Object.entries(topicCounts)
+      .filter(([_, count]) => count >= 3)
+      .map(([topic]) => topic);
+    
+    console.log('Overused topics (filtering from podcast):', overusedTopics);
 
     const safeSummary = (recentSummaries || []).find(s => {
       const topics = (s.key_topics || []).map((k: string) => String(k).toLowerCase());
       const text = (s.summary_text || '').toLowerCase();
-      return !topics.includes('recognition') && !text.includes('send recognition');
+      // Skip recognition topics and overused topics
+      const hasOverused = topics.some((t: string) => overusedTopics.includes(t));
+      return !topics.includes('recognition') && !text.includes('send recognition') && !hasOverused;
     }) || null;
 
     const recentConversationSummary = safeSummary?.summary_text || null;
@@ -605,11 +623,12 @@ ${dayTheme.additionalInstructions}
 ${config.structure}
 
 CRITICAL FORMATTING RULES:
-- Write as dialogue with speaker labels: "JERICHO: [text]" and "SAM: [text]"
+- Write as dialogue with speaker labels: "JERICHO: [text]" and "ALEX: [text]"
 - Each speaker turn should be on its own line(s)
 - Keep exchanges SHORT and PUNCHY - no long monologues
-- Sam's reactions should feel genuine and energetic
+- Alex's reactions should feel genuine and energetic
 - Jericho delivers the coaching substance
+- CRITICAL: Each speaker must FINISH their thought before the other speaks - NO interruptions
 
 GENERAL RULES:
 - Write for spoken audio - use contractions, simple sentences, natural pauses
@@ -624,10 +643,16 @@ GENERAL RULES:
 - IMPORTANT: Do NOT include stage directions, audio cues, or production notes
 - CRITICAL: Do NOT use asterisks, markdown formatting, or text emphasis markers
 - CRITICAL: Do NOT use time-of-day greetings. Use timeless greetings like "Hey [name]"
-- Sam should open the episode and hand off to Jericho
-- Jericho should deliver the daily challenge and close the episode`;
+- Alex should open the episode and hand off to Jericho
+- Jericho should deliver the daily challenge and close the episode
 
-    const userPrompt = `Create today's ${durationMinutes}-minute conversational podcast script between JERICHO and SAM for this user:
+DAILY CHALLENGE RULES:
+- Keep challenges SHORT: 1-2 sentences max, under 20 words
+- Make them specific and immediately actionable
+- Examples: "Have one 5-minute conversation with a peer about your progress" or "Send a quick thank-you message to someone who helped you this week"
+- NOT lengthy multi-part challenges or vague instructions`;
+
+    const userPrompt = `Create today's ${durationMinutes}-minute conversational podcast script between JERICHO and ALEX for this user:
 
 User Context:
 - Name: ${context.userName}
@@ -643,6 +668,10 @@ ${context.pendingFollowUps.map(f => `- ${f.topic}${f.context?.action_items?.leng
 
 ${context.recentConversationSummary 
   ? `Recent Coaching Summary: ${context.recentConversationSummary}`
+  : ''}
+
+${overusedTopics.length > 0 
+  ? `⚠️ DO NOT DISCUSS THESE TOPICS (overused recently): ${overusedTopics.join(', ')}`
   : ''}
 
 Habits & Streaks:
@@ -690,14 +719,14 @@ Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 Quote to include: "${context.inspirationalQuote.quote}" — ${context.inspirationalQuote.author}
 
 SCRIPT FORMAT REQUIREMENTS:
-1. Sam opens with energy: "SAM: Hey, welcome back! So Jericho, what do we have for ${context.userName} today?"
+1. Alex opens with energy: "ALEX: Hey, welcome back! So Jericho, what do we have for ${context.userName} today?"
 2. Quick back-and-forth exchanges (not monologues)
-3. Sam reacts genuinely to wins/streaks with enthusiasm
+3. Alex reacts genuinely to wins/streaks with enthusiasm
 4. Jericho delivers coaching insights with authority
-5. Jericho gives the daily challenge near the end
+5. Jericho gives the daily challenge near the end - KEEP IT SHORT (1-2 sentences, under 20 words)
 6. Jericho closes with a brief motivating send-off
 
-Remember: Write dialogue with "JERICHO:" and "SAM:" labels. Keep it punchy and energetic!`;
+Remember: Write dialogue with "JERICHO:" and "ALEX:" labels. Keep it punchy and energetic!`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
