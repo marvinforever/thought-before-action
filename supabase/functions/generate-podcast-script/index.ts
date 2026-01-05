@@ -446,12 +446,19 @@ serve(async (req) => {
 
     console.log(`Day calculation: UTC=${now.toISOString()}, Central Time=${centralTime.toISOString()}, day=${dayOfWeek}`);
 
-    // Fetch 90-day goals (rotate through ALL goals, not just professional)
+    // Fetch 90-day goals - ONLY current quarter goals (filter out old 2025 goals)
+    // Calculate the start of the current quarter
+    const currentDate = new Date();
+    const currentQuarterStart = new Date(currentDate.getFullYear(), Math.floor(currentDate.getMonth() / 3) * 3, 1);
+    // Also include goals from the previous quarter (rolling 6-month window)
+    const sixMonthsAgo = new Date(currentDate.getFullYear(), currentDate.getMonth() - 6, 1);
+    
     const { data: goals } = await supabase
       .from('ninety_day_targets')
       .select('goal_text, completed, benchmarks, sprints, goal_type, category, created_at')
       .eq('profile_id', profileId)
       .eq('completed', false)
+      .gte('created_at', sixMonthsAgo.toISOString()) // Only goals from last 6 months
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -550,18 +557,17 @@ serve(async (req) => {
         maxTokens: 1200
       },
       5: {
-        words: '850-1000 words',
-        structure: `Structure (keep to ~850-1000 words total for 5-minute audio):
-1. Opening (20 sec, ~45 words): Warm greeting by name, set the ${dayTheme.name} theme
-2. Accountability Check (30 sec, ~60 words): Reference yesterday's challenge, celebrate follow-through or gently encourage
-3. Progress Review (50 sec, ~100 words): Celebrate achievements, streaks, and recent wins
-4. Capability Deep-Dive (100 sec, ~200 words): In-depth content on today's focus capability with practical examples
-5. Goal Check-In (60 sec, ~120 words): Review their 90-day goal progress (X of Y benchmarks), provide strategic guidance
-6. Daily Challenge (50 sec, ~100 words): Specific, actionable challenge with clear success criteria
-7. Vision Moment (40 sec, ~80 words): Connect today's growth to their bigger vision and aspirations
-8. Mindset Insight (30 sec, ~60 words): Brief wisdom on growth mindset or leadership
-9. Closing (20 sec, ~40 words): Encouraging, personalized sign-off`,
-        maxTokens: 2500
+        words: '550-650 words',  // Target ~3.5 min actual audio (was 850-1000)
+        structure: `Structure (keep to ~550-650 words total for ~3.5 minute audio - keep the pace MOVING):
+1. Opening (15 sec, ~35 words): Energetic greeting by name, quick ${dayTheme.name} theme hook
+2. Quick Win (20 sec, ~45 words): ONE highlight - best achievement, recognition, or streak
+3. Capability Focus (60 sec, ~120 words): Punchy insight on today's capability with ONE actionable tip
+4. Goal Progress (45 sec, ~90 words): Current quarter goal status - focus on next sprint/benchmark, not the 90-day outcome
+5. Daily Challenge (30 sec, ~60 words): Clear, specific, achievable challenge for today
+6. Closing (25 sec, ~50 words): Connect to vision briefly, energizing sign-off
+
+PACING: Keep it punchy! No rambling. Each section should feel tight and purposeful. Emphasize key words naturally - vary your tone to highlight important points. Don't drone.`,
+        maxTokens: 1800
       },
       10: {
         words: '1700-2000 words',
@@ -590,10 +596,11 @@ serve(async (req) => {
 Your tone is:
 - Conversational and authentic - like a trusted friend who happens to be a great coach
 - Direct and challenging (never placating) - you celebrate wins, but you also push for real action
-- Energetic but grounded - enthusiastic without being over-the-top
+- Energetic but grounded - enthusiastic without being over-the-top, with natural emphasis on KEY words
 - Specific and personal - using the user's actual data and calling things by name
 - Action-oriented - every episode ends with a clear, doable challenge
 - Vision-connected - helping them see how today's small steps lead to their bigger aspirations
+- VARIED INTONATION - emphasize important words, pause for impact, don't be monotonous. Write with natural speech rhythm.
 
 Today's Theme: ${dayTheme.name} - ${dayTheme.focus}
 ${dayTheme.additionalInstructions}
@@ -607,8 +614,10 @@ Rules:
 - Never say "according to your data" or "based on your profile" - just state things naturally as if you know them
 - Avoid repeating the same phrasing across days (no templated lines). Use varied sentence openings.
 - CRITICAL: Capability levels must be referred to ONLY as Level 1 / Level 2 / Level 3 / Level 4 (never "foundational/advancing/independent/mastery").
-- If a target level appears lower than the current level, do NOT pretend that's a growth target; instead, tell them to double-check and update it in My Growth Plan.
+- If a target level EQUALS the current level (e.g., "Level 2 to Level 2"), don't say they're "on track to stay at Level 2." Instead say: "I noticed your target is the same as your current level. That means it's time to stretch! Head to My Capabilities and click 'Request Level Change' to set a higher target, or chat with your manager about leveling up."
+- If a target level appears LOWER than the current level, tell them to double-check and update it in My Capabilities.
 - If 30-day benchmarks or 7-day sprints are missing, be direct: tell them to open My Growth Plan and add them, and if they need help, click the chat bubble to do it with you.
+- CRITICAL: Only reference CURRENT QUARTER goals. If there are no recent goals, encourage them to set new ones for this quarter instead of referencing old goals.
 - Target approximately ${config.words}
 - IMPORTANT: Do NOT include any stage directions, audio cues, or production notes like "intro music fades in", "music plays", etc. Write ONLY the spoken words.
 - CRITICAL: Do NOT use asterisks, markdown formatting, or any text emphasis markers. Write plain text only.
@@ -656,11 +665,12 @@ Today's Capability Focus (rotating through priorities):
 - Capability: ${context.priorityCapability || 'Not set'}
 - Current level: ${context.capabilityLevel || 'unassessed'}
 - Target level: ${context.targetLevel || 'growth'}
+${context.capabilityLevel === context.targetLevel ? `⚠️ SAME LEVEL ALERT: Current and target are BOTH ${context.capabilityLevel}. This needs attention - encourage them to set a higher target in My Capabilities or talk to their manager about leveling up. Don't say they're "on track" - they need to stretch!` : ''}
 - Description: ${context.capabilityDescription || 'A key skill for their role'}
 ${context.allPriorityCapabilities.length > 1 ? `- Other priorities they're working on: ${context.allPriorityCapabilities.filter((_, i) => i !== context.capabilityFocusIndex).map(c => c.name).join(', ')}` : ''}
 
-90-Day Goal & Execution Plan:
-- Current focus goal (rotating): ${context.activeGoal || 'Not set'}
+CURRENT QUARTER Goal & Execution Plan:
+- Current focus goal: ${context.activeGoal || 'No current quarter goal set - encourage them to set one!'}
 ${context.goalBenchmarks.length > 0 
   ? `- 30-Day Benchmarks (${context.completedBenchmarks} of ${context.totalBenchmarks} complete):
   ${context.goalBenchmarks.map(b => `  ${b.completed ? '✓' : '○'} ${b.text}`).join('\n  ')}`
@@ -669,6 +679,7 @@ ${context.goalSprints.length > 0
   ? `- 7-Day Sprints (this week):
   ${context.goalSprints.map(s => `  ${s.completed ? '✓' : '○'} ${s.text}`).join('\n  ')}`
   : '⚠️ NO 7-DAY SPRINTS SET.'}
+${!context.activeGoal ? '\n⚠️ NO CURRENT QUARTER GOALS: If they have no goals for this quarter, encourage them to set fresh goals in My Growth Plan. Don\'t reference old 2025 goals - focus on what\'s next!' : ''}
 
 MISSING PLAN GUIDANCE:
 If benchmarks or sprints are missing, DO NOT just say "that's okay for today." Instead, be direct but encouraging:

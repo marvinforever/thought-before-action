@@ -40,12 +40,13 @@ export function mapCapabilityLevel(level: string | null): string {
 // ============================================================================
 // ELEVENLABS TTS VOICE SETTINGS
 // ============================================================================
+// Voice settings optimized for Midwestern American accent - warmer, less monotonous
 export const TTS_VOICE_SETTINGS = {
-  stability: 0.25,        // Lower = more expressive/varied
-  similarity_boost: 0.85, // Higher = more like the original voice
-  style: 0.65,           // Higher = more stylistic expression
+  stability: 0.18,        // Lower = more expressive/varied (was 0.25)
+  similarity_boost: 0.80, // Slightly lower for more natural variation (was 0.85)
+  style: 0.72,           // Higher = more stylistic expression (was 0.65)
   use_speaker_boost: true,
-  speed: 1.0,            // 1.0 = normal speed
+  speed: 1.08,           // Slightly faster pace to keep energy up (was 1.0)
 };
 
 // ============================================================================
