@@ -64,62 +64,75 @@ serve(async (req) => {
       : `Capability Update: ${capabilityName}`;
 
     const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
-          <h1 style="margin: 0; font-size: 28px;">🎉 Great News!</h1>
-        </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; background-color: #f6f9fc; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <div style="padding: 40px;">
+      <h1 style="color: #1a1a1a; font-size: 24px; font-weight: bold; margin: 0 0 24px 0;">🎉 Capability Level Upgrade Approved!</h1>
+      
+      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hi ${employeeName},</p>
+      
+      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+        ${managerName} has approved your capability level upgrade request!
+      </p>
+      
+      <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 0 0 24px 0; border-left: 4px solid #667eea;">
+        <h3 style="color: #2d3748; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+          ${capabilityName}
+        </h3>
         
-        <div style="padding: 30px; background: #f9fafb;">
-          <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
-            Hi ${employeeName},
-          </p>
-          
-          <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">
-            ${managerName} has approved your capability level upgrade request!
-          </p>
-          
-          <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 25px; border-left: 4px solid #667eea;">
-            <h2 style="margin: 0 0 15px 0; font-size: 20px; color: #111827;">
-              ${capabilityName}
-            </h2>
-            
-            ${previousLevel !== newLevel ? `
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <span style="background: #e5e7eb; padding: 6px 12px; border-radius: 4px; font-weight: 600; color: #6b7280; text-transform: capitalize;">
-                  ${previousLevel}
-                </span>
-                <span style="color: #667eea; font-size: 20px;">→</span>
-                <span style="background: #667eea; padding: 6px 12px; border-radius: 4px; font-weight: 600; color: white; text-transform: capitalize;">
-                  ${newLevel}
-                </span>
-              </div>
-            ` : ''}
-          </div>
-          
-          ${reason ? `
-            <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
-              <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #111827;">Manager's Feedback:</h3>
-              <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
-                ${reason}
-              </p>
-            </div>
-          ` : ''}
-          
-          <p style="font-size: 16px; color: #374151; margin-bottom: 10px;">
-            Keep up the excellent work! Your dedication to growth and development is truly impressive.
-          </p>
-          
-          <p style="font-size: 14px; color: #6b7280; margin: 30px 0 0 0;">
-            You can view your updated capabilities in your Growth Plan.
-          </p>
+        ${previousLevel !== newLevel ? `
+        <div style="margin-bottom: 8px;">
+          <span style="background: #e2e8f0; padding: 6px 12px; border-radius: 4px; font-weight: 600; color: #718096; text-transform: capitalize; font-size: 14px;">
+            ${previousLevel}
+          </span>
+          <span style="color: #667eea; font-size: 18px; margin: 0 8px;">→</span>
+          <span style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 6px 12px; border-radius: 4px; font-weight: 600; color: white; text-transform: capitalize; font-size: 14px;">
+            ${newLevel}
+          </span>
         </div>
-        
-        <div style="background: #111827; padding: 20px; text-align: center;">
-          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            This is an automated notification from your Growth Management System
-          </p>
-        </div>
+        ` : ''}
       </div>
+      
+      ${reason ? `
+      <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
+        <h3 style="color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0;">📝 Manager's Feedback</h3>
+        <p style="color: #4a5568; font-size: 15px; line-height: 1.6; margin: 0;">
+          ${reason}
+        </p>
+      </div>
+      ` : ''}
+      
+      <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+        Keep up the excellent work! Your dedication to growth and development is truly impressive.
+      </p>
+      
+      <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0 0 12px 0;">Keep growing,<br><strong>Jericho</strong></p>
+      <p style="color: #718096; font-size: 13px; line-height: 1.5; margin: 16px 0 20px 0; font-style: italic;">
+        <strong>P.S.</strong> View your updated capabilities in your Growth Plan—I'm here if you need help!
+      </p>
+      
+      <div style="margin-top: 20px;">
+        <a href="https://www.askjericho.com" style="display: inline-block; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 600; font-size: 14px;">View My Growth Plan</a>
+      </div>
+    </div>
+    
+    <div style="background-color: #f7fafc; padding: 24px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
+      <p style="color: #a0aec0; font-size: 12px; margin: 0;">
+        © ${new Date().getFullYear()} The Momentum Company • <a href="https://www.askjericho.com" style="color: #667eea; text-decoration: none;">askjericho.com</a>
+      </p>
+      <p style="color: #a0aec0; font-size: 11px; margin: 8px 0 0 0;">
+        Questions? Reply to this email or reach out to <a href="mailto:jericho@askjericho.com" style="color: #667eea; text-decoration: none;">jericho@askjericho.com</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
     `;
 
     try {
