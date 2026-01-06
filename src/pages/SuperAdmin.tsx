@@ -22,6 +22,7 @@ import { SMSManagementTab } from "@/components/SMSManagementTab";
 import { DevelopmentIdeasTab } from "@/components/DevelopmentIdeasTab";
 import ReferralAdminTab from "@/components/ReferralAdminTab";
 import { SystemHealthDashboard } from "@/components/SystemHealthDashboard";
+import { AdminUserDebugPanel } from "@/components/AdminUserDebugPanel";
 
 interface CompanyStats {
   id: string;
@@ -120,6 +121,7 @@ const SuperAdmin = () => {
     is_active: true
   });
   const [updatingUser, setUpdatingUser] = useState(false);
+  const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -2459,9 +2461,20 @@ const SuperAdmin = () => {
         </TabsContent>
 
         <TabsContent value="system-health" className="space-y-6">
+          <div className="flex justify-end mb-4">
+            <Button variant="outline" onClick={() => setIsDebugPanelOpen(true)}>
+              <Search className="h-4 w-4 mr-2" />
+              User Data Debugger
+            </Button>
+          </div>
           <SystemHealthDashboard />
         </TabsContent>
       </Tabs>
+
+      <AdminUserDebugPanel 
+        open={isDebugPanelOpen} 
+        onOpenChange={setIsDebugPanelOpen} 
+      />
 
       {/* Edit Scores Dialog */}
       <Dialog open={isEditScoresDialogOpen} onOpenChange={setIsEditScoresDialogOpen}>
