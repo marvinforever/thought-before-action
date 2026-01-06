@@ -45,30 +45,15 @@ serve(async (req) => {
     const emailData = rawPayload.data || rawPayload;
     console.log("Email data keys:", Object.keys(emailData || {}));
     
-    // Log the full payload for debugging (truncated)
-    const payloadStr = JSON.stringify(rawPayload);
-    console.log("Full payload (first 2000 chars):", payloadStr.substring(0, 2000));
-    
     const from = emailData.from || rawPayload.from;
     const to = Array.isArray(emailData.to) ? emailData.to[0] : (emailData.to || rawPayload.to);
     const subject = emailData.subject || rawPayload.subject;
-    
-    // Try multiple possible locations for email body
-    let text = emailData.text || emailData.body || emailData.plain || rawPayload.text || "";
-    const html = emailData.html || rawPayload.html || "";
+    const emailId = emailData.email_id;
     
     console.log("Email from:", from);
     console.log("Email to:", to);
     console.log("Subject:", subject);
-    console.log("Text length:", text?.length || 0);
-    console.log("HTML length:", html?.length || 0);
-
-    // If no text but we have HTML, extract text from HTML
-    if (!text && html) {
-      console.log("Extracting text from HTML");
-      text = extractTextFromHtml(html);
-      console.log("Extracted text length:", text.length);
-    }
+    console.log("Email ID:", emailId);
 
     if (!from) {
       console.error("No 'from' field found in payload");
@@ -76,6 +61,45 @@ serve(async (req) => {
         JSON.stringify({ error: "Invalid payload - missing 'from' field", receivedKeys: Object.keys(rawPayload || {}) }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Fetch the full email content from Resend API
+    let text = "";
+    let html = "";
+    
+    if (emailId) {
+      console.log("Fetching email content from Resend API...");
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      
+      try {
+        const emailContentResponse = await fetch(`https://api.resend.com/emails/${emailId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+          },
+        });
+        
+        if (emailContentResponse.ok) {
+          const emailContent = await emailContentResponse.json();
+          console.log("Email content keys:", Object.keys(emailContent || {}));
+          text = emailContent.text || "";
+          html = emailContent.html || "";
+          console.log("Fetched text length:", text.length);
+          console.log("Fetched html length:", html.length);
+        } else {
+          const errorText = await emailContentResponse.text();
+          console.error("Failed to fetch email content:", emailContentResponse.status, errorText);
+        }
+      } catch (fetchError) {
+        console.error("Error fetching email content:", fetchError);
+      }
+    }
+
+    // If no text but we have HTML, extract text from HTML
+    if (!text && html) {
+      console.log("Extracting text from HTML");
+      text = extractTextFromHtml(html);
+      console.log("Extracted text length:", text.length);
     }
 
     // Clean the email body - strip signatures and quoted text
