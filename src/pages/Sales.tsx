@@ -133,20 +133,12 @@ const Sales = () => {
   const [isSubmittingDemo, setIsSubmittingDemo] = useState(false);
 
   const handleDemoRequest = () => {
-    const refCode = searchParams.get('ref') || localStorage.getItem('referral_code');
-    
-    // If there's a referral code, show the form to capture company info
-    if (refCode) {
-      setShowDemoForm(true);
-      return;
-    }
-    
-    // No referral - just open the calendar directly
-    window.open('https://calendar.app.google/v1xwnCaqnRJ57UmJ6', '_blank');
+    // Always show the form to capture contact info for marketing
+    setShowDemoForm(true);
   };
 
   const handleDemoFormSubmit = async () => {
-    if (!demoName.trim() || !demoCompany.trim() || !demoEmail.trim()) return;
+    if (!demoName.trim() || !demoEmail.trim()) return;
     
     setIsSubmittingDemo(true);
     const refCode = searchParams.get('ref') || localStorage.getItem('referral_code');
@@ -155,7 +147,27 @@ const Sales = () => {
     window.open('https://calendar.app.google/v1xwnCaqnRJ57UmJ6', '_blank');
     setShowDemoForm(false);
 
-    // Track demo in background
+    // Capture UTM params if present
+    const utmSource = searchParams.get('utm_source');
+    const utmMedium = searchParams.get('utm_medium');
+    const utmCampaign = searchParams.get('utm_campaign');
+
+    // Always save to demo_requests for marketing capture
+    try {
+      await supabase.from('demo_requests').insert({
+        name: demoName.trim(),
+        email: demoEmail.trim(),
+        company: demoCompany.trim() || null,
+        referral_code: refCode || null,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign,
+      });
+    } catch (error) {
+      console.log('Demo request capture error:', error);
+    }
+
+    // Also track in referral_leads if there's a referral code
     if (refCode) {
       try {
         const { data: partnerId } = await supabase
