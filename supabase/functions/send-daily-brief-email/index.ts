@@ -106,9 +106,13 @@ You structure emails like a personal daily briefing:
 5. The daily challenge
 6. A motivating sign-off
 
+CRITICAL RULES:
+- Do NOT include any URLs, links, or <a> tags in your response. The email template already has buttons for accessing the app.
+- Do NOT mention clicking links or visiting websites - just reference "your dashboard" or "the app" generically.
+
 Format your response as JSON with two fields:
 - "subject": A short, personal email subject line (max 60 chars, no emojis, make it about THEM not the podcast)
-- "body": The email body in HTML format. Use <p> tags for paragraphs, <strong> for emphasis. Keep it scannable but personal.`;
+- "body": The email body in HTML format. Use <p> tags for paragraphs, <strong> for emphasis. Keep it scannable but personal. NO LINKS.`;
 
   const userPrompt = `Write today's personalized growth email for ${context.firstName}.
 
