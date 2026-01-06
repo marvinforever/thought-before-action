@@ -122,12 +122,9 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
         description: "Creating personalized script and music",
       });
 
-      const [scriptResult, introResult, outroResult] = await Promise.all([
+      const [scriptResult, outroResult] = await Promise.all([
         supabase.functions.invoke('generate-podcast-script', {
           body: { profileId, companyId }
-        }),
-        supabase.functions.invoke('generate-podcast-music', {
-          body: { type: 'intro' }
         }),
         supabase.functions.invoke('generate-podcast-music', {
           body: { type: 'outro' }
@@ -139,7 +136,6 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
       }
 
       const scriptData = scriptResult.data;
-      const introUrl = introResult.data?.audioUrl;
       const outroUrl = outroResult.data?.audioUrl;
 
       toast({
@@ -174,7 +170,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
             title: scriptData.title,
             script: scriptData.script,
             audio_url: ttsData.audioUrl,
-            intro_music_url: introUrl || null,
+            intro_music_url: null,
             outro_music_url: outroUrl || null,
             duration_seconds: ttsData.durationSeconds,
             content_type: 'hybrid',
@@ -199,7 +195,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
 
       toast({
         title: regenerate ? "Episode regenerated! 🎧" : "Your Growth Brief is ready! 🎧",
-        description: introUrl ? "Press play - includes intro & outro music!" : "Press play to listen.",
+        description: "Press play to listen.",
       });
 
     } catch (error: unknown) {
@@ -216,18 +212,8 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
   };
 
   const startPlayback = () => {
-    // If we have intro music, start with that
-    if (episode?.intro_music_url && introRef.current) {
-      setPlaybackPhase('intro');
-      introRef.current.volume = isMuted ? 0 : volume;
-      introRef.current.play();
-      setIsPlaying(true);
-      // Mark as listened on first play
-      if (episode && !episode.listened_at) {
-        markAsListened();
-      }
-    } else if (audioRef.current) {
-      // No intro, start main audio directly
+    // Start main audio directly (no intro music)
+    if (audioRef.current) {
       setPlaybackPhase('main');
       audioRef.current.play();
       setIsPlaying(true);

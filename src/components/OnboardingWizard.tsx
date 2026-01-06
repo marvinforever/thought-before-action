@@ -218,8 +218,8 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
         throw new Error(scriptResult?.error || 'Failed to generate welcome podcast');
       }
 
-      // Generate music in parallel with TTS if needed
-      const [ttsResult, introResult, outroResult] = await Promise.all([
+      // Generate TTS and outro music in parallel (no intro)
+      const [ttsResult, outroResult] = await Promise.all([
         supabase.functions.invoke('elevenlabs-tts', {
           body: {
             script: scriptResult.script,
@@ -228,9 +228,6 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
             voice: 'jericho',
             storeAudio: true
           }
-        }),
-        supabase.functions.invoke('generate-podcast-music', {
-          body: { type: 'intro' }
         }),
         supabase.functions.invoke('generate-podcast-music', {
           body: { type: 'outro' }
@@ -258,7 +255,7 @@ export function OnboardingWizard({ onComplete, onOpenPlayer, forceOpenKey }: Onb
             title: scriptResult.title || "Your Welcome Episode",
             script: scriptResult.script,
             audio_url: ttsResult.data.audioUrl,
-            intro_music_url: introResult.data?.audioUrl || null,
+            intro_music_url: null,
             outro_music_url: outroResult.data?.audioUrl || null,
             duration_seconds: ttsResult.data.durationSeconds,
             content_type: 'welcome',
