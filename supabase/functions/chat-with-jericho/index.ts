@@ -189,6 +189,15 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     const isManager = managerAssignments && managerAssignments.length > 0;
     const teamMembers = isManager ? managerAssignments.map(m => m.profiles).filter(Boolean) : [];
 
+    // Fetch the user's manager (who manages this user)
+    const { data: myManagerAssignment } = await supabase
+      .from('manager_assignments')
+      .select('manager_id, profiles!manager_assignments_manager_id_fkey(id, full_name, email)')
+      .eq('employee_id', user.id)
+      .single();
+
+    const myManager = myManagerAssignment?.profiles || null;
+
     // Fetch user context for Jericho (including onboarding data and coaching memory)
     // Fetch ALL historical targets for pattern analysis (no limit)
     // Also fetch company knowledge base for HR/policy questions
@@ -550,6 +559,13 @@ YOUR CORE MISSION:
 - Prevent burnout, stagnation, and skill gaps BEFORE they become crises
 - Create a "ripple effect"—developing people who impact their families, communities, and workplace
 - Build leaders who others want to follow
+
+${myManager ? `\n**YOUR MANAGER:**
+${(myManager as any).full_name} is your manager (${(myManager as any).email}).
+- You can reference this when they ask about escalation, feedback, or career discussions
+- Encourage them to have regular 1-on-1s with their manager
+- If they mention manager-related challenges, you know who they're talking about
+` : ''}
 
 ${isManager ? `\n**MANAGER CONTEXT:**
 You are coaching a MANAGER with ${teamMembers.length} direct reports:
