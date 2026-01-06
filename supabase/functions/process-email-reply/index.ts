@@ -580,7 +580,13 @@ function buildEnhancedContext(userContext: any, intent: EmailIntent, actions: Ac
   // Add active goals
   if (userContext.goals.length > 0) {
     const goalSummary = userContext.goals.slice(0, 5).map((g: any) => {
-      const benchmarks = g.benchmarks ? (typeof g.benchmarks === 'string' ? JSON.parse(g.benchmarks) : g.benchmarks) : [];
+      let benchmarks: any[] = [];
+      try {
+        const parsed = g.benchmarks ? (typeof g.benchmarks === 'string' ? JSON.parse(g.benchmarks) : g.benchmarks) : [];
+        benchmarks = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        benchmarks = [];
+      }
       const completedBenchmarks = benchmarks.filter((b: any) => b.completed).length;
       return `- ${g.goal_text.substring(0, 60)}${g.goal_text.length > 60 ? '...' : ''} [${completedBenchmarks}/${benchmarks.length} benchmarks]`;
     }).join('\n');
