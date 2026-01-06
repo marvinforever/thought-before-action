@@ -181,6 +181,11 @@ export default function MyResources() {
       }));
       
       setResources(formattedData as GrowthPlanResource[]);
+      
+      // Trigger onboarding refresh when user has resources (indicates they've "received" resources)
+      if (data && data.length > 0) {
+        window.dispatchEvent(new Event('onboardingProgressRefresh'));
+      }
     } catch (error: any) {
       toast({
         title: "Error loading resources",
@@ -268,6 +273,9 @@ export default function MyResources() {
         description: "Jericho has found new resources for your growth plan!",
       });
 
+      // Trigger onboarding refresh after getting new recommendations
+      window.dispatchEvent(new Event('onboardingProgressRefresh'));
+      
       loadResources();
     } catch (error: any) {
       toast({

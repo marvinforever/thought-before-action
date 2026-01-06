@@ -234,6 +234,10 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
       }
 
       toast.success("Self-assessment completed successfully!");
+      
+      // Trigger onboarding progress refresh
+      window.dispatchEvent(new Event('onboardingProgressRefresh'));
+      
       onOpenChange(false);
     } catch (error) {
       console.error("Error submitting self-assessment:", error);
