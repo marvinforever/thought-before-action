@@ -553,27 +553,20 @@ serve(async (req) => {
     const totalBenchmarks = goalBenchmarks.length;
     const completedBenchmarks = goalBenchmarks.filter(b => b.completed).length;
 
-    // Fetch both personal and professional visions
-    const { data: professionalGoals } = await supabase
+    // Fetch both personal and professional visions from personal_goals table
+    // Note: The table uses separate columns for professional vs personal visions (not goal_type)
+    const { data: goalsData } = await supabase
       .from('personal_goals')
-      .select('one_year_vision, three_year_vision')
+      .select('one_year_vision, three_year_vision, personal_one_year_vision, personal_three_year_vision')
       .eq('profile_id', profileId)
-      .eq('goal_type', 'professional')
       .order('created_at', { ascending: false })
       .limit(1);
 
-    const { data: personalGoalsData } = await supabase
-      .from('personal_goals')
-      .select('one_year_vision, three_year_vision')
-      .eq('profile_id', profileId)
-      .eq('goal_type', 'personal')
-      .order('created_at', { ascending: false })
-      .limit(1);
+    const goalsRow = goalsData?.[0];
+    const professionalVision = goalsRow?.one_year_vision || goalsRow?.three_year_vision || null;
+    const personalVision = goalsRow?.personal_one_year_vision || goalsRow?.personal_three_year_vision || null;
 
-    const professionalVision = professionalGoals?.[0]?.one_year_vision ||
-      professionalGoals?.[0]?.three_year_vision || null;
-    const personalVision = personalGoalsData?.[0]?.one_year_vision ||
-      personalGoalsData?.[0]?.three_year_vision || null;
+    console.log('Vision data:', { professionalVision: !!professionalVision, personalVision: !!personalVision });
 
     // Fetch diagnostic insights (strengths and growth areas)
     const { data: diagnostic } = await supabase
