@@ -215,11 +215,18 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
     // Start main audio directly (no intro music)
     if (audioRef.current) {
       setPlaybackPhase('main');
-      audioRef.current.play();
-      setIsPlaying(true);
-      if (episode && !episode.listened_at) {
-        markAsListened();
-      }
+      // Reset to beginning to ensure we don't miss the start
+      audioRef.current.currentTime = 0;
+      // Use a promise to ensure playback starts properly
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+        if (episode && !episode.listened_at) {
+          markAsListened();
+        }
+      }).catch((err) => {
+        console.error('Playback failed:', err);
+        setIsPlaying(false);
+      });
     }
   };
 
@@ -497,6 +504,7 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
           <audio
             ref={audioRef}
             src={`${episode.audio_url}?v=${audioVersion}`}
+            preload="auto"
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={handleMainEnded}
