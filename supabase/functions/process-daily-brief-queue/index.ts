@@ -6,22 +6,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Timezone offsets from UTC (approximate)
+// Timezone offsets from UTC - Updated for January 2026 (winter time / standard time)
+// Note: These are approximate. For DST-observing zones, offsets change in spring/fall.
 const TIMEZONE_OFFSETS: Record<string, number> = {
-  'America/New_York': -5,
-  'America/Chicago': -6,
-  'America/Denver': -7,
-  'America/Los_Angeles': -8,
-  'America/Phoenix': -7,
+  'America/New_York': -5,     // EST (Eastern Standard Time)
+  'America/Chicago': -6,      // CST (Central Standard Time)
+  'America/Denver': -7,       // MST (Mountain Standard Time)
+  'America/Los_Angeles': -8,  // PST (Pacific Standard Time)
+  'America/Phoenix': -7,      // No DST in Arizona
   'America/Anchorage': -9,
   'Pacific/Honolulu': -10,
   'UTC': 0,
-  'Europe/London': 0,
-  'Europe/Paris': 1,
+  'Europe/London': 0,         // GMT in winter
+  'Europe/Paris': 1,          // CET in winter
   'Europe/Berlin': 1,
   'Asia/Tokyo': 9,
   'Asia/Shanghai': 8,
-  'Australia/Sydney': 11,
+  'Australia/Sydney': 11,     // AEDT in January (summer)
 };
 
 function getUserLocalHour(utcHour: number, timezone: string): number {
@@ -29,6 +30,7 @@ function getUserLocalHour(utcHour: number, timezone: string): number {
   let localHour = utcHour + offset;
   if (localHour < 0) localHour += 24;
   if (localHour >= 24) localHour -= 24;
+  console.log(`Timezone calc: UTC hour ${utcHour}, timezone ${timezone}, offset ${offset}, local hour ${localHour}`);
   return localHour;
 }
 
@@ -83,9 +85,13 @@ serve(async (req) => {
     for (const pref of preferences) {
       if (!pref.profile?.id) continue;
 
-      const [prefHour] = pref.preferred_time.split(':').map(Number);
-      const userLocalHour = getUserLocalHour(utcHour, pref.timezone || 'America/Chicago');
-      const userLocalDay = getLocalDayOfWeek(now, pref.timezone || 'America/Chicago');
+      const preferredTimeStr = pref.preferred_time || '07:00:00';
+      const [prefHour] = preferredTimeStr.split(':').map(Number);
+      const userTimezone = pref.timezone || 'America/Chicago';
+      const userLocalHour = getUserLocalHour(utcHour, userTimezone);
+      const userLocalDay = getLocalDayOfWeek(now, userTimezone);
+
+      console.log(`Checking ${pref.profile.email}: preferred=${prefHour}:00, local=${userLocalHour}:00, timezone=${userTimezone}, frequency=${pref.frequency}`);
 
       // Check if this is the right time for this user
       let shouldSend = false;
@@ -97,6 +103,8 @@ serve(async (req) => {
         shouldSend = userLocalHour === prefHour && 
                      userLocalDay.toLowerCase() === prefDay.toLowerCase();
       }
+
+      console.log(`  -> shouldSend=${shouldSend}`);
 
       if (shouldSend) {
         // Check if already sent today
@@ -113,8 +121,9 @@ serve(async (req) => {
             includePodcast: pref.include_podcast !== false,
             briefFormat: pref.brief_format || 'both'
           });
+          console.log(`  -> Added to eligible users`);
         } else {
-          console.log(`Skipping ${pref.profile.email} - already sent today`);
+          console.log(`  -> Skipping ${pref.profile.email} - already sent today`);
         }
       }
     }

@@ -179,6 +179,21 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      // Track capabilities that were newly marked as not relevant
+      const newlyNotRelevant: { capabilityId: string; capabilityName: string; reason: string }[] = [];
+      
+      capabilities.forEach((cap) => {
+        const assessment = assessments[cap.id];
+        // If marked as not relevant and wasn't already marked before
+        if (assessment?.notRelevant && !cap.marked_not_relevant) {
+          newlyNotRelevant.push({
+            capabilityId: cap.capability_id,
+            capabilityName: cap.capability_name,
+            reason: assessment.notRelevantReason || ''
+          });
+        }
+      });
+
       // Update each capability individually
       const updatePromises = Object.entries(assessments).map(([id, assessment]) => 
         supabase
@@ -201,6 +216,21 @@ export function SelfAssessCapabilitiesDialog({ open, onOpenChange, profileId }: 
       if (errors.length > 0) {
         console.error("Update errors:", errors);
         throw new Error("Failed to update some capabilities");
+      }
+
+      // Notify manager about capabilities marked as not relevant
+      if (newlyNotRelevant.length > 0) {
+        try {
+          await supabase.functions.invoke('notify-capability-not-relevant', {
+            body: {
+              employeeId: profileId,
+              capabilities: newlyNotRelevant
+            }
+          });
+        } catch (notifyError) {
+          console.error("Failed to notify manager:", notifyError);
+          // Don't fail the whole submission if notification fails
+        }
       }
 
       toast.success("Self-assessment completed successfully!");

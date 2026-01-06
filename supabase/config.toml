@@ -164,3 +164,6 @@ verify_jwt = false
 
 [functions.process-daily-brief-queue]
 verify_jwt = false
+
+[functions.notify-capability-not-relevant]
+verify_jwt = true
