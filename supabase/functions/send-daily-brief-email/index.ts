@@ -45,6 +45,8 @@ interface UserContext {
   completedBenchmarks: number;
   capabilityScore: number | null;
   totalCapabilities: number;
+  focusCapability: string | null;
+  appUrl: string;
 }
 
 async function fetchProfileWithRetry(
@@ -102,23 +104,27 @@ You structure emails like a personal daily briefing:
 1. A warm, personalized greeting
 2. A quick status update on their 90-day goals (celebrate progress or gently nudge)
 3. Habit tracker summary (which ones are on fire, which need attention)
-4. Today's learning focus (the podcast episode content)
+4. Today's learning focus - mention the SPECIFIC CAPABILITY by name (provided as "Focus Capability")
 5. The daily challenge
 6. A motivating sign-off
 
-CRITICAL RULES:
-- Do NOT include any URLs, links, or <a> tags in your response. The email template already has buttons for accessing the app.
-- Do NOT mention clicking links or visiting websites - just reference "your dashboard" or "the app" generically.
+IMPORTANT RULES:
+- When including links, ONLY use the app URL provided: ${context.appUrl}
+- Reference the SPECIFIC capability name provided, never say "general" capability
+- You CAN include <a> tags linking to resources, but ONLY use ${context.appUrl} as the base URL
+- Example: <a href="${context.appUrl}/dashboard/my-resources">your learning resources</a>
 
 Format your response as JSON with two fields:
 - "subject": A short, personal email subject line (max 60 chars, no emojis, make it about THEM not the podcast)
-- "body": The email body in HTML format. Use <p> tags for paragraphs, <strong> for emphasis. Keep it scannable but personal. NO LINKS.`;
+- "body": The email body in HTML format. Use <p> tags for paragraphs, <strong> for emphasis. Keep it scannable but personal.`;
 
   const userPrompt = `Write today's personalized growth email for ${context.firstName}.
 
 === THEIR CURRENT STATUS ===
 
 ${context.personalVision ? `Personal Vision: "${context.personalVision}"` : ''}
+
+Focus Capability for Today: ${context.focusCapability || 'Their top priority capability'}
 
 90-Day Targets (${context.ninetyDayTargets.length} active):
 ${context.ninetyDayTargets.length > 0 
@@ -150,6 +156,7 @@ ${context.recentAchievements.length > 0 ? `Recent Wins: ${context.recentAchievem
 
 === TODAY'S EPISODE ===
 Title: "${context.episodeTitle}"
+Focus Capability: ${context.focusCapability || 'Growth & Development'}
 Topics: ${context.topics.join(', ')}
 ${context.dailyChallenge ? `Today's Challenge: ${context.dailyChallenge}` : ''}
 
@@ -161,9 +168,11 @@ Write a personalized daily briefing email that:
 1. Opens with a warm greeting that acknowledges where they are in their journey
 2. Gives a quick, encouraging update on their 90-day targets (if any are close to deadline or behind, gently nudge)
 3. Celebrates habit streaks or encourages consistency where needed
-4. Introduces today's episode and how it connects to their growth goals
+4. Introduces today's episode focusing on "${context.focusCapability}" - mention this SPECIFIC capability by name
 5. Mentions the daily challenge as something specific to try today
 6. Signs off warmly as Jericho
+
+APP URL for any links: ${context.appUrl}
 
 Keep it around 250-300 words. Make it feel like a personal check-in from a coach who knows them well.`;
 
@@ -260,6 +269,7 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
     const today = episodeDate || new Date().toISOString().split('T')[0];
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const appUrl = `https://askjericho.com`;
 
     // Fetch all user data in parallel
     const [
@@ -464,7 +474,9 @@ serve(async (req) => {
       totalBenchmarks,
       completedBenchmarks,
       capabilityScore,
-      totalCapabilities
+      totalCapabilities,
+      focusCapability: episode.capability_name || topCapabilities[0]?.name || null,
+      appUrl
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {
@@ -477,7 +489,7 @@ serve(async (req) => {
     const { subject, body: personalizedBody } = await generatePersonalizedEmail(userContext);
 
     // Build the app URL
-    const appUrl = `https://askjericho.com/dashboard/my-growth-plan`;
+    const dashboardUrl = `${appUrl}/dashboard/my-growth-plan`;
 
     // Build stats for the email footer
     const totalHabitCompletions = habits.reduce((sum, h) => sum + h.completionsThisWeek, 0);
@@ -515,7 +527,7 @@ serve(async (req) => {
       <!-- Listen button - Navy/Gold gradient -->
       ${briefFormat !== 'text' ? `
       <div style="padding: 0 32px 32px 32px;">
-        <a href="${appUrl}" style="display: block; background: linear-gradient(135deg, #1e3a5f 0%, #2a4a6f 50%, #d4a855 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; text-align: center;">
+        <a href="${dashboardUrl}" style="display: block; background: linear-gradient(135deg, #1e3a5f 0%, #2a4a6f 50%, #d4a855 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; text-align: center;">
           🎧 Listen to Today's Episode
         </a>
       </div>
@@ -525,7 +537,7 @@ serve(async (req) => {
       <div style="display: flex; flex-wrap: wrap; border-top: 1px solid #1e3a5f;">
         ${capabilityScore !== null ? `
         <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
-          <div style="color: #a855f7; font-size: 24px; font-weight: 700;">${capabilityScore}%</div>
+          <div style="color: #d4a855; font-size: 24px; font-weight: 700;">${capabilityScore}%</div>
           <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Capability Score</div>
         </div>
         ` : ''}
@@ -567,7 +579,7 @@ serve(async (req) => {
       <p style="color: #8892a8; font-size: 13px; margin: 0 0 16px 0;">
         Reply to this email anytime — I read every message.
       </p>
-      <a href="${appUrl}" style="color: #d4a855; font-size: 13px; text-decoration: none;">Update Preferences</a>
+      <a href="${appUrl}/dashboard/settings" style="color: #d4a855; font-size: 13px; text-decoration: none;">Update Preferences</a>
     </div>
   </div>
 </body>
