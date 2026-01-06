@@ -7,6 +7,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to detect if target level is lower than current (data entry error)
+function detectLevelRegression(currentLevel: string | null, targetLevel: string | null): boolean {
+  if (!currentLevel || !targetLevel) return false;
+  
+  const levelOrder: Record<string, number> = {
+    'Level 1': 1, 'foundational': 1,
+    'Level 2': 2, 'advancing': 2,
+    'Level 3': 3, 'independent': 3,
+    'Level 4': 4, 'mastery': 4,
+  };
+  
+  const currentNum = levelOrder[currentLevel] || levelOrder[currentLevel.toLowerCase()] || 0;
+  const targetNum = levelOrder[targetLevel] || levelOrder[targetLevel.toLowerCase()] || 0;
+  
+  return targetNum > 0 && currentNum > 0 && targetNum < currentNum;
+}
+
 // Curated inspirational quotes for growth mindset
 const INSPIRATIONAL_QUOTES = [
   { quote: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
@@ -868,8 +885,9 @@ ${context.managerWins && context.managerWins.length > 0
   : ''}
 
 TODAY'S Capability Focus:
-- Primary: ${context.priorityCapability || 'Not set'} (${context.capabilityLevel || 'unassessed'} → ${context.targetLevel || 'growth'})
+- Primary: ${context.priorityCapability || 'Not set'} (Currently at ${context.capabilityLevel || 'unassessed'}, Target: ${context.targetLevel || 'growth'})
 ${context.capabilityLevel === context.targetLevel ? `⚠️ SAME LEVEL - needs to stretch higher!` : ''}
+${detectLevelRegression(context.capabilityLevel, context.targetLevel) ? `⚠️ TARGET IS LOWER THAN CURRENT - This looks like a data entry mistake! Encourage them to go to My Capabilities, click Self-Assess, and update their target to Level 4 or at least match their current level. Don't suggest they should be working "toward" a lower level.` : ''}
 - Description: ${context.capabilityDescription || 'A key skill for their role'}
 
 ALL Their Capabilities (feel free to reference ANY of these casually in conversation):
