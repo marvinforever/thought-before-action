@@ -533,45 +533,49 @@ serve(async (req) => {
       </div>
       ` : ''}
 
-      <!-- Enhanced Stats bar -->
-      <div style="display: flex; flex-wrap: wrap; border-top: 1px solid #1e3a5f;">
-        ${capabilityScore !== null ? `
-        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
-          <div style="color: #d4a855; font-size: 24px; font-weight: 700;">${capabilityScore}%</div>
-          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Capability Score</div>
-        </div>
-        ` : ''}
-        ${ninetyDayTargets.length > 0 ? `
-        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
-          <div style="color: #d4a855; font-size: 24px; font-weight: 700;">${ninetyDayTargets.length}</div>
-          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">90-Day Goals</div>
-        </div>
-        ` : ''}
-        ${totalBenchmarks > 0 ? `
-        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
-          <div style="color: #22c55e; font-size: 24px; font-weight: 700;">${completedBenchmarks}/${totalBenchmarks}</div>
-          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Benchmarks</div>
-        </div>
-        ` : ''}
-        ${totalHabitCompletions > 0 ? `
-        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
-          <div style="color: #3b82f6; font-size: 24px; font-weight: 700;">${totalHabitCompletions}</div>
-          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Habits This Week</div>
-        </div>
-        ` : ''}
-        ${recognitionsSent > 0 ? `
-        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center; border-bottom: 1px solid #1e3a5f;">
-          <div style="color: #f59e0b; font-size: 24px; font-weight: 700;">${recognitionsSent}</div>
-          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Recognitions Sent</div>
-        </div>
-        ` : ''}
-        ${avgTargetProgress !== null ? `
-        <div style="flex: 1; min-width: 100px; padding: 16px; text-align: center;">
-          <div style="color: #22c55e; font-size: 24px; font-weight: 700;">${avgTargetProgress}%</div>
-          <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Avg Goal Progress</div>
-        </div>
-        ` : ''}
-      </div>
+      <!-- Enhanced Stats bar - 3 columns grid for better email client support -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #1e3a5f; border-collapse: collapse;">
+        <tr>
+          ${capabilityScore !== null ? `
+          <td style="width: 33.33%; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
+            <div style="color: #d4a855; font-size: 24px; font-weight: 700;">${capabilityScore}%</div>
+            <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Capability Score</div>
+          </td>
+          ` : ''}
+          ${ninetyDayTargets.length > 0 ? `
+          <td style="width: 33.33%; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;">
+            <div style="color: #d4a855; font-size: 24px; font-weight: 700;">${ninetyDayTargets.length}</div>
+            <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">90-Day Goals</div>
+          </td>
+          ` : ''}
+          ${totalBenchmarks > 0 ? `
+          <td style="width: 33.33%; padding: 16px; text-align: center; border-bottom: 1px solid #1e3a5f;">
+            <div style="color: #22c55e; font-size: 24px; font-weight: 700;">${completedBenchmarks}/${totalBenchmarks}</div>
+            <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Benchmarks</div>
+          </td>
+          ` : ''}
+        </tr>
+        <tr>
+          ${totalHabitCompletions > 0 ? `
+          <td style="width: 33.33%; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f;">
+            <div style="color: #3b82f6; font-size: 24px; font-weight: 700;">${totalHabitCompletions}</div>
+            <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Habits This Week</div>
+          </td>
+          ` : ''}
+          ${recognitionsSent > 0 ? `
+          <td style="width: 33.33%; padding: 16px; text-align: center; border-right: 1px solid #1e3a5f;">
+            <div style="color: #f59e0b; font-size: 24px; font-weight: 700;">${recognitionsSent}</div>
+            <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Recognitions</div>
+          </td>
+          ` : ''}
+          ${avgTargetProgress !== null ? `
+          <td style="width: 33.33%; padding: 16px; text-align: center;">
+            <div style="color: #22c55e; font-size: 24px; font-weight: 700;">${avgTargetProgress}%</div>
+            <div style="color: #8892a8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Goal Progress</div>
+          </td>
+          ` : ''}
+        </tr>
+      </table>
     </div>
 
     <!-- Footer -->
