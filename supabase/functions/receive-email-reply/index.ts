@@ -43,20 +43,35 @@ serve(async (req) => {
     
     // Handle Resend's nested structure
     const emailData = rawPayload.data || rawPayload;
+    console.log("Email data keys:", Object.keys(emailData || {}));
+    
+    // Log the full payload for debugging (truncated)
+    const payloadStr = JSON.stringify(rawPayload);
+    console.log("Full payload (first 2000 chars):", payloadStr.substring(0, 2000));
     
     const from = emailData.from || rawPayload.from;
     const to = Array.isArray(emailData.to) ? emailData.to[0] : (emailData.to || rawPayload.to);
     const subject = emailData.subject || rawPayload.subject;
-    const text = emailData.text || rawPayload.text || "";
+    
+    // Try multiple possible locations for email body
+    let text = emailData.text || emailData.body || emailData.plain || rawPayload.text || "";
+    const html = emailData.html || rawPayload.html || "";
     
     console.log("Email from:", from);
     console.log("Email to:", to);
     console.log("Subject:", subject);
     console.log("Text length:", text?.length || 0);
+    console.log("HTML length:", html?.length || 0);
+
+    // If no text but we have HTML, extract text from HTML
+    if (!text && html) {
+      console.log("Extracting text from HTML");
+      text = extractTextFromHtml(html);
+      console.log("Extracted text length:", text.length);
+    }
 
     if (!from) {
       console.error("No 'from' field found in payload");
-      console.log("Full payload:", JSON.stringify(rawPayload, null, 2));
       return new Response(
         JSON.stringify({ error: "Invalid payload - missing 'from' field", receivedKeys: Object.keys(rawPayload || {}) }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -128,6 +143,34 @@ serve(async (req) => {
     );
   }
 });
+
+function extractTextFromHtml(html: string): string {
+  if (!html) return "";
+  
+  // Remove script and style tags and their content
+  let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "");
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+  
+  // Replace common block elements with newlines
+  text = text.replace(/<\/?(p|div|br|hr|li|tr)[^>]*>/gi, "\n");
+  
+  // Remove all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, "");
+  
+  // Decode common HTML entities
+  text = text.replace(/&nbsp;/g, " ");
+  text = text.replace(/&amp;/g, "&");
+  text = text.replace(/&lt;/g, "<");
+  text = text.replace(/&gt;/g, ">");
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+  
+  // Clean up whitespace
+  text = text.replace(/\n{3,}/g, "\n\n");
+  text = text.trim();
+  
+  return text;
+}
 
 function cleanEmailBody(text: string): string {
   if (!text) return "";
