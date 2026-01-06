@@ -92,12 +92,36 @@ const Sales = () => {
   const [email, setEmail] = useState("");
   const [searchParams] = useSearchParams();
 
-  // Capture referral code on page load (no anonymous click tracking - just store the code)
+  // Track referral click on page load
   useEffect(() => {
     const refCode = searchParams.get('ref');
     if (refCode) {
       localStorage.setItem('referral_code', refCode);
       localStorage.setItem('referral_timestamp', Date.now().toString());
+      
+      // Track the click in the database
+      const trackClick = async () => {
+        try {
+          const { data: partnerId } = await supabase
+            .rpc('get_partner_id_by_referral_code', { p_referral_code: refCode });
+          
+          if (partnerId) {
+            await supabase.from('referral_leads').insert({
+              partner_id: partnerId,
+              status: 'clicked',
+            });
+          }
+        } catch (error) {
+          console.log('Click tracking error:', error);
+        }
+      };
+      
+      // Only track once per session to avoid duplicate clicks
+      const sessionKey = `referral_click_${refCode}`;
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, 'true');
+        trackClick();
+      }
     }
   }, [searchParams]);
 
