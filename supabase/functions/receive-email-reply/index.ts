@@ -6,14 +6,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface InboundEmailPayload {
-  from: string;
-  to: string;
-  subject: string;
-  text: string;
-  html?: string;
-  date: string;
-  headers?: Record<string, string>;
+// Resend webhook payload structure
+interface ResendWebhookPayload {
+  type: string;
+  created_at: string;
+  data: {
+    from: string;
+    to: string | string[];
+    subject: string;
+    text?: string;
+    html?: string;
+    created_at?: string;
+    email_id?: string;
+    headers?: Array<{ name: string; value: string }>;
+  };
 }
 
 serve(async (req) => {
@@ -28,17 +34,37 @@ serve(async (req) => {
     const webhookSecret = Deno.env.get("RESEND_WEBHOOK_SECRET");
     if (webhookSecret) {
       const signature = req.headers.get("svix-signature");
-      // Note: Full verification would use Svix library, simplified for now
       console.log("Webhook signature present:", !!signature);
     }
 
-    const payload: InboundEmailPayload = await req.json();
-    console.log("Email from:", payload.from);
-    console.log("Email to:", payload.to);
-    console.log("Subject:", payload.subject);
+    const rawPayload = await req.json();
+    console.log("Raw payload type:", rawPayload?.type);
+    console.log("Raw payload keys:", Object.keys(rawPayload || {}));
+    
+    // Handle Resend's nested structure
+    const emailData = rawPayload.data || rawPayload;
+    
+    const from = emailData.from || rawPayload.from;
+    const to = Array.isArray(emailData.to) ? emailData.to[0] : (emailData.to || rawPayload.to);
+    const subject = emailData.subject || rawPayload.subject;
+    const text = emailData.text || rawPayload.text || "";
+    
+    console.log("Email from:", from);
+    console.log("Email to:", to);
+    console.log("Subject:", subject);
+    console.log("Text length:", text?.length || 0);
+
+    if (!from) {
+      console.error("No 'from' field found in payload");
+      console.log("Full payload:", JSON.stringify(rawPayload, null, 2));
+      return new Response(
+        JSON.stringify({ error: "Invalid payload - missing 'from' field", receivedKeys: Object.keys(rawPayload || {}) }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Clean the email body - strip signatures and quoted text
-    const cleanedBody = cleanEmailBody(payload.text);
+    const cleanedBody = cleanEmailBody(text);
     console.log("Cleaned body length:", cleanedBody.length);
 
     // Store in email_reply_logs with pending status
@@ -49,14 +75,15 @@ serve(async (req) => {
     const { data: logEntry, error: logError } = await supabase
       .from("email_reply_logs")
       .insert({
-        email_from: payload.from,
-        email_subject: payload.subject,
+        email_from: from,
+        email_subject: subject,
         email_body: cleanedBody,
         processing_status: "pending",
         parsed_data: {
-          original_to: payload.to,
-          received_at: payload.date,
-          has_html: !!payload.html,
+          original_to: to,
+          received_at: emailData.created_at || new Date().toISOString(),
+          webhook_type: rawPayload.type,
+          has_html: !!emailData.html,
         },
       })
       .select()
@@ -103,6 +130,8 @@ serve(async (req) => {
 });
 
 function cleanEmailBody(text: string): string {
+  if (!text) return "";
+  
   // Remove common email signatures
   const signaturePatterns = [
     /Sent from my iPhone/i,
