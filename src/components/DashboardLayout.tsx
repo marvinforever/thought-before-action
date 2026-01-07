@@ -15,7 +15,8 @@ import {
   Shield,
   GraduationCap,
   Map,
-  Handshake
+  Handshake,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -145,6 +146,7 @@ const DashboardLayout = () => {
         { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
         { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
         { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
+        { icon: TrendingUp, label: "Sales Trainer", path: "/sales-trainer" },
         ...(isManager ? [{ icon: Users, label: "My Team", path: "/dashboard/manager" }] : []),
         { icon: Users, label: "Employees", path: "/dashboard/employees" },
         { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
@@ -157,6 +159,7 @@ const DashboardLayout = () => {
         { icon: GraduationCap, label: "My Growth Plan", path: "/dashboard/my-growth-plan" },
         { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
         { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
+        { icon: TrendingUp, label: "Sales Trainer", path: "/sales-trainer" },
         { icon: Handshake, label: "Partner Portal", path: "/partner" },
         { icon: Settings, label: "Settings", path: "/dashboard/settings" },
       ];
