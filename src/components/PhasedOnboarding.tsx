@@ -37,7 +37,14 @@ const phases: Phase[] = [
     name: "Build Momentum",
     tagline: "Take action",
     icon: <Trophy className="h-4 w-4" />,
-    milestoneIds: ["first_daily_brief", "jericho_chat", "habit", "achievement", "capability", "resource"],
+    milestoneIds: ["habit", "achievement", "resource"],
+  },
+  {
+    id: "engage",
+    name: "Go Deeper",
+    tagline: "Unlock your potential",
+    icon: <Rocket className="h-4 w-4" />,
+    milestoneIds: ["capability", "first_daily_brief", "jericho_chat"],
   },
 ];
 
