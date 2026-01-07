@@ -1010,7 +1010,7 @@ Be specific and tactical—generic advice doesn't help. Tailor everything to the
         type: "function",
         function: {
           name: "update_90_day_target",
-          description: "Update an existing 90-day target. Use to modify text, mark complete, or change goal type.",
+          description: "Update an existing 90-day target. Use to modify goal text, benchmarks, sprints, mark complete, or change goal type. IMPORTANT: Update goal_text, benchmarks, and sprints separately - do NOT combine them into goal_text.",
           parameters: {
             type: "object",
             properties: {
@@ -1020,11 +1020,35 @@ Be specific and tactical—generic advice doesn't help. Tailor everything to the
               },
               goal_text: {
                 type: "string",
-                description: "Updated goal text (if changing)"
+                description: "Updated goal text ONLY - do not include benchmarks or sprints here"
+              },
+              benchmarks: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    text: { type: "string", description: "The benchmark text" },
+                    completed: { type: "boolean", description: "Whether this benchmark is completed" }
+                  },
+                  required: ["text"]
+                },
+                description: "Array of 30-day benchmarks/milestones. Each has text and optional completed status."
+              },
+              sprints: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    text: { type: "string", description: "The sprint/action text" },
+                    completed: { type: "boolean", description: "Whether this sprint is completed" }
+                  },
+                  required: ["text"]
+                },
+                description: "Array of 7-day sprints/actions. Each has text and optional completed status."
               },
               completed: {
                 type: "boolean",
-                description: "Set to true to mark as complete"
+                description: "Set to true to mark the entire goal as complete"
               },
               goal_type: {
                 type: "string",
@@ -1520,6 +1544,25 @@ Be specific and tactical—generic advice doesn't help. Tailor everything to the
             if (functionArgs.goal_text) updateData.goal_text = functionArgs.goal_text;
             if (functionArgs.completed !== undefined) updateData.completed = functionArgs.completed;
             if (functionArgs.category) updateData.category = functionArgs.category;
+            if (functionArgs.goal_type) updateData.goal_type = functionArgs.goal_type;
+            
+            // Handle benchmarks - array of { text, completed }
+            if (functionArgs.benchmarks && Array.isArray(functionArgs.benchmarks)) {
+              updateData.benchmarks = functionArgs.benchmarks.map((b: any) => ({
+                text: b.text,
+                completed: b.completed || false
+              }));
+            }
+            
+            // Handle sprints - array of { text, completed }
+            if (functionArgs.sprints && Array.isArray(functionArgs.sprints)) {
+              updateData.sprints = functionArgs.sprints.map((s: any) => ({
+                text: s.text,
+                completed: s.completed || false
+              }));
+            }
+            
+            console.log('Updating 90-day target with data:', JSON.stringify(updateData));
             
             const { error: updateError } = await supabase
               .from('ninety_day_targets')
@@ -1535,10 +1578,16 @@ Be specific and tactical—generic advice doesn't help. Tailor everything to the
                 content: `Failed to update goal: ${updateError.message}`
               });
             } else {
+              const updatedFields = [];
+              if (functionArgs.goal_text) updatedFields.push('goal text');
+              if (functionArgs.benchmarks) updatedFields.push(`${functionArgs.benchmarks.length} benchmarks`);
+              if (functionArgs.sprints) updatedFields.push(`${functionArgs.sprints.length} sprints`);
+              if (functionArgs.completed) updatedFields.push('marked complete');
+              
               toolResults.push({
                 tool_call_id: toolCall.id,
                 role: 'tool',
-                content: `Successfully updated the 90-day target. ${functionArgs.completed ? 'Marked as complete!' : ''}`
+                content: `Successfully updated the 90-day target: ${updatedFields.join(', ') || 'no changes'}`
               });
             }
           } else if (functionName === 'add_achievement') {
