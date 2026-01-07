@@ -27,6 +27,10 @@ type SprintItem = {
   completedAt?: string;
 };
 
+type BenchmarksJson = any;
+
+type SprintsJson = any;
+
 type NinetyDayTarget = {
   id: string;
   quarter: string;
@@ -37,8 +41,8 @@ type NinetyDayTarget = {
   by_when: string | null;
   support_needed: string | null;
   completed: boolean;
-  benchmarks: { text?: string; items?: BenchmarkItem[] } | null;
-  sprints: { text?: string; items?: SprintItem[] } | null;
+  benchmarks: BenchmarksJson;
+  sprints: SprintsJson;
 };
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 
@@ -112,23 +116,58 @@ export default function NinetyDayTracker() {
   useEffect(() => {
     loadTargets();
   }, [selectedYear]);
+
+  const normalizeTarget = (t: any): NinetyDayTarget => {
+    const normalizeJsonList = (
+      value: any,
+      prefix: 'b' | 's'
+    ): { items: (BenchmarkItem | SprintItem)[] } | null => {
+      if (!Array.isArray(value)) return null;
+      const items = value
+        .map((it: any, idx: number) => ({
+          id: `legacy-${prefix}-${idx}`,
+          text: String(it?.text ?? '').trim(),
+          completed: Boolean(it?.completed),
+        }))
+        .filter((it: any) => it.text.length > 0);
+      return items.length ? { items: items as any } : null;
+    };
+
+    const normalizedBenchmarks = Array.isArray(t?.benchmarks)
+      ? normalizeJsonList(t.benchmarks, 'b')
+      : t?.benchmarks ?? null;
+
+    const normalizedSprints = Array.isArray(t?.sprints)
+      ? normalizeJsonList(t.sprints, 's')
+      : t?.sprints ?? null;
+
+    return {
+      ...(t as NinetyDayTarget),
+      benchmarks: normalizedBenchmarks,
+      sprints: normalizedSprints,
+    };
+  };
+
   const loadTargets = async () => {
     try {
       const {
-        data: {
-          user
-        }
+        data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const {
-        data,
-        error
-      } = await supabase.from("ninety_day_targets").select("*").eq("profile_id", user.id).eq("year", selectedYear).order("goal_number", {
-        ascending: true
-      });
+
+      const { data, error } = await supabase
+        .from("ninety_day_targets")
+        .select("*")
+        .eq("profile_id", user.id)
+        .eq("year", selectedYear)
+        .order("goal_number", {
+          ascending: true,
+        });
+
       if (error) throw error;
-      // Cast to NinetyDayTarget[] to handle JSON type from Supabase
-      setTargets((data || []) as unknown as NinetyDayTarget[]);
+
+      const normalized = (data || []).map(normalizeTarget);
+      setTargets(normalized);
     } catch (error: any) {
       console.error("Error loading targets:", error);
     }
@@ -419,15 +458,33 @@ export default function NinetyDayTracker() {
     setEditingGoal({
       quarter,
       category,
-      number: goalNumber
+      number: goalNumber,
     });
+
+    const listToText = (v: any) => {
+      if (Array.isArray(v)) {
+        return v
+          .map((x: any) => String(x?.text ?? '').trim())
+          .filter(Boolean)
+          .join("\n");
+      }
+      const items = v?.items;
+      if (Array.isArray(items)) {
+        return items
+          .map((x: any) => String(x?.text ?? '').trim())
+          .filter(Boolean)
+          .join("\n");
+      }
+      return String(v?.text ?? '');
+    };
+
     if (existing && existing.goal_text) {
       setFormData({
         goalText: existing.goal_text || "",
         byWhen: existing.by_when || "",
         supportNeeded: existing.support_needed || "",
-        benchmarks: existing.benchmarks?.text || "",
-        sprints: existing.sprints?.text || ""
+        benchmarks: listToText(existing.benchmarks),
+        sprints: listToText(existing.sprints),
       });
     } else {
       setFormData({
@@ -435,7 +492,7 @@ export default function NinetyDayTracker() {
         byWhen: "",
         supportNeeded: "",
         benchmarks: "",
-        sprints: ""
+        sprints: "",
       });
     }
     setAiSuggestion("");
