@@ -31,6 +31,7 @@ import ManagerDashboard from "./pages/ManagerDashboard";
 import MomentumAcademy from "./pages/MomentumAcademy";
 import AcademyBlog from "./pages/AcademyBlog";
 import Sales from "./pages/Sales";
+import SalesTrainer from "./pages/SalesTrainer";
 import DashboardLayout from "./components/DashboardLayout";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -142,6 +143,8 @@ const App = () => (
             {/* Public Academy Blog */}
             <Route path="/academy" element={<AcademyBlog />} />
             <Route path="/academy/:slug" element={<AcademyBlog />} />
+            {/* Sales Trainer - Public with auth */}
+            <Route path="/sales-trainer" element={<SalesTrainer />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
