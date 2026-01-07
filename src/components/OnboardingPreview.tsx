@@ -2,15 +2,19 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, RotateCcw } from "lucide-react";
+import { Eye, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { PhasedOnboarding } from "./PhasedOnboarding";
+
+const phaseNames = ["Define Your Path", "Get Acquainted", "Build Momentum"];
 
 export function OnboardingPreview() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
+  const [previewPhaseIndex, setPreviewPhaseIndex] = useState(0);
 
   const resetPreview = () => {
     setPreviewKey(prev => prev + 1);
+    setPreviewPhaseIndex(0);
   };
 
   return (
@@ -48,10 +52,35 @@ export function OnboardingPreview() {
               </Button>
             </div>
           </DialogHeader>
+          
+          {/* Phase Navigation */}
+          <div className="flex items-center justify-center gap-4 py-2 border-b">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setPreviewPhaseIndex(i => Math.max(0, i - 1))}
+              disabled={previewPhaseIndex === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[140px] text-center">
+              Phase {previewPhaseIndex + 1}: {phaseNames[previewPhaseIndex]}
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setPreviewPhaseIndex(i => Math.min(phaseNames.length - 1, i + 1))}
+              disabled={previewPhaseIndex === phaseNames.length - 1}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
           <div className="py-4">
             <PhasedOnboarding 
               key={previewKey}
               isPreview={true}
+              previewPhaseIndex={previewPhaseIndex}
             />
           </div>
         </DialogContent>

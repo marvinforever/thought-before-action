@@ -13,6 +13,7 @@ interface PhasedOnboardingProps {
   onStartFirstDailyBrief?: () => void;
   className?: string;
   isPreview?: boolean;
+  previewPhaseIndex?: number;
 }
 
 interface Phase {
@@ -59,7 +60,7 @@ const milestoneIcons: Record<string, React.ReactNode> = {
   resource: <BookOpen className="h-4 w-4" />,
 };
 
-export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, className, isPreview = false }: PhasedOnboardingProps) {
+export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, className, isPreview = false, previewPhaseIndex }: PhasedOnboardingProps) {
   const progressData = useOnboardingProgress();
   const [previewCompletedIds, setPreviewCompletedIds] = useState<Set<string>>(new Set());
   
@@ -91,7 +92,10 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
     return phases.length - 1; // All complete, show last phase
   };
 
-  const currentPhaseIndex = getCurrentPhase();
+  // In preview mode, allow overriding the current phase
+  const currentPhaseIndex = isPreview && previewPhaseIndex !== undefined 
+    ? previewPhaseIndex 
+    : getCurrentPhase();
   const currentPhase = phases[currentPhaseIndex];
 
   // Get milestones for current phase
