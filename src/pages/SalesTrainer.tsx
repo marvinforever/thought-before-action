@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +40,7 @@ interface Message {
 const SalesTrainer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isEnabled: hasAccess, loading: flagLoading } = useFeatureFlag('sales_trainer');
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -194,10 +196,30 @@ const SalesTrainer = () => {
     navigate("/");
   };
 
-  if (loading) {
+  if (loading || flagLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center space-y-4">
+            <Target className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h2 className="text-xl font-semibold">Feature Not Available</h2>
+            <p className="text-muted-foreground">
+              The Sales Trainer feature is not enabled for your account. Contact your administrator for access.
+            </p>
+            <Button onClick={() => navigate("/dashboard")}>
+              <LayoutDashboard className="h-4 w-4 mr-2" />
+              Go to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
