@@ -51,6 +51,36 @@ serve(async (req) => {
       senderEmail = emailMatch[1].toLowerCase();
     }
 
+    // If we didn't receive message content, don't hallucinate a response.
+    // This happens when the email provider webhook doesn't include body content.
+    if (!logEntry.email_body || String(logEntry.email_body).trim().length === 0) {
+      console.log("Email body empty - sending clarification request");
+
+      await supabase.functions.invoke("send-email-reply", {
+        body: {
+          toEmail: senderEmail,
+          subject: `Re: ${logEntry.email_subject}`,
+          bodyText:
+            "I got your reply, but I didn’t receive any message content (it arrived blank on my side).\n\n" +
+            "Quick fix: hit reply again and type your message above the quoted text, then send.\n\n" +
+            "If it still comes through blank, paste your message into the Jericho chat in the app and I’ll take action from there.",
+        },
+      });
+
+      await supabase
+        .from("email_reply_logs")
+        .update({
+          processing_status: "no_content",
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", logId);
+
+      return new Response(
+        JSON.stringify({ success: true, message: "No content" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("id, email, full_name, company_id")
