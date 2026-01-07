@@ -92,23 +92,24 @@ Return ONLY the JSON array, no other text.`;
     
     console.log(`Generating episode ${chunkIndex + 1}/${chunks.length}: ${chunk.title}`);
 
-    const scriptPrompt = `Create a 60-90 second audio coaching moment. This is ONE bite-sized lesson - quick, punchy, memorable.
+    const scriptPrompt = `You're recording a quick, energetic sales tip - like a friend texting you the ONE thing that'll help you crush your next call.
 
 LESSON: ${chunk.title}
 KEY POINT: ${chunk.key_point}
 CONTENT: ${chunk.content}
 
 RULES:
-1. Start with an attention hook (question or bold statement)
-2. Teach the ONE concept simply
-3. Give ONE specific example or quick scenario
-4. End with ONE thing they can try in their next call
-5. Keep it under 150 words (about 60-90 seconds spoken)
-6. Sound like a coach giving a quick tip, not a lecture
-7. Use "you" language - make it personal
-8. No stage directions, just the words to speak
+1. Start with energy - a punchy hook or bold statement
+2. Keep it conversational - talk TO them, not AT them
+3. ONE concept, ONE example, ONE action they can try NOW
+4. Be encouraging and upbeat - you believe in them!
+5. Under 120 words (60-75 seconds spoken)
+6. Use "you" and "your" constantly
+7. Short punchy sentences. Questions to engage.
+8. NO stage directions, NO "intro music", NO host names
+9. Just write the words to speak - nothing else
 
-Write the script:`;
+Write it now, make it fire:`;
 
     const scriptResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -119,7 +120,7 @@ Write the script:`;
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: scriptPrompt }],
-        temperature: 0.8,
+        temperature: 0.85,
       }),
     });
 
@@ -132,8 +133,9 @@ Write the script:`;
 
     console.log('Synthesizing audio...');
 
-    // Generate audio - short and punchy
-    const voiceId = 'nPczCjzI2devNBz1zQrb'; // Brian
+    // Generate audio - energetic and fast
+    // Using "Chris" voice - friendly, energetic male voice
+    const voiceId = 'iP95p4xoKVk53GoZ742B'; // Chris - friendly/energetic
     
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -147,11 +149,11 @@ Write the script:`;
           text: script,
           model_id: 'eleven_turbo_v2_5',
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.4,
+            stability: 0.35,
+            similarity_boost: 0.8,
+            style: 0.6,
             use_speaker_boost: true,
-            speed: 1.05, // Slightly faster for energy
+            speed: 1.15, // Faster, more energy
           },
         }),
       }
