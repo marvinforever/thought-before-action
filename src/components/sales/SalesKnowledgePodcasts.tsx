@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,11 +10,12 @@ import {
   Loader2, 
   Sparkles, 
   BookOpen,
-  Volume2,
-  Clock,
-  RefreshCw
+  ChevronDown,
+  ChevronUp,
+  Headphones
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface SalesKnowledgePodcastsProps {
   userId: string;
@@ -29,14 +30,30 @@ interface KnowledgeItem {
   tags: string[] | null;
 }
 
+interface Episode {
+  index: number;
+  title: string;
+  keyPoint: string;
+  script?: string;
+  audioUrl?: string;
+  audioBase64?: string;
+}
+
+interface PodcastData {
+  episodes: Episode[];
+  generatedEpisodes: Record<number, { script: string; audioUrl?: string; audioBase64?: string }>;
+}
+
 export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) => {
   const { toast } = useToast();
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [generatingEpisode, setGeneratingEpisode] = useState<number | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const [audioElements, setAudioElements] = useState<Record<string, HTMLAudioElement>>({});
-  const [generatedPodcasts, setGeneratedPodcasts] = useState<Record<string, { audioUrl?: string; audioBase64?: string; script: string }>>({});
+  const [podcastData, setPodcastData] = useState<Record<string, PodcastData>>({});
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   useEffect(() => {
     fetchKnowledge();
@@ -55,67 +72,79 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
     setLoading(false);
   };
 
-  const generatePodcast = async (item: KnowledgeItem) => {
+  const generateEpisode = async (item: KnowledgeItem, episodeIndex: number) => {
     setGenerating(item.id);
+    setGeneratingEpisode(episodeIndex);
     
     try {
       const response = await supabase.functions.invoke("generate-sales-podcast", {
-        body: { knowledgeId: item.id },
+        body: { knowledgeId: item.id, chunkIndex: episodeIndex },
       });
 
       if (response.error) throw response.error;
 
-      const { audioUrl, audioBase64, script } = response.data;
+      const { allEpisodes, episodeNumber, script, audioUrl, audioBase64, episodeTitle, keyPoint } = response.data;
       
-      setGeneratedPodcasts(prev => ({
-        ...prev,
-        [item.id]: { audioUrl, audioBase64, script }
-      }));
+      setPodcastData(prev => {
+        const existing = prev[item.id] || { episodes: [], generatedEpisodes: {} };
+        return {
+          ...prev,
+          [item.id]: {
+            episodes: allEpisodes || existing.episodes,
+            generatedEpisodes: {
+              ...existing.generatedEpisodes,
+              [episodeIndex]: { script, audioUrl, audioBase64 }
+            }
+          }
+        };
+      });
 
-      toast({ title: "Podcast generated!", description: `"${item.title}" is ready to play.` });
+      toast({ 
+        title: `Episode ${episodeNumber} ready!`, 
+        description: episodeTitle 
+      });
     } catch (error) {
       console.error("Podcast generation error:", error);
       toast({ 
         title: "Generation failed", 
-        description: "Couldn't create podcast. Try again.",
+        description: "Couldn't create episode. Try again.",
         variant: "destructive" 
       });
     } finally {
       setGenerating(null);
+      setGeneratingEpisode(null);
     }
   };
 
-  const playPodcast = (itemId: string) => {
-    const podcast = generatedPodcasts[itemId];
-    if (!podcast) return;
+  const playEpisode = (itemId: string, episodeIndex: number) => {
+    const data = podcastData[itemId]?.generatedEpisodes[episodeIndex];
+    if (!data) return;
+
+    const key = `${itemId}-${episodeIndex}`;
 
     // Stop any currently playing
     if (playing && audioElements[playing]) {
       audioElements[playing].pause();
     }
 
-    // Create or get audio element
-    let audio = audioElements[itemId];
+    let audio = audioElements[key];
     if (!audio) {
-      const audioSrc = podcast.audioUrl || `data:audio/mpeg;base64,${podcast.audioBase64}`;
+      const audioSrc = data.audioUrl || `data:audio/mpeg;base64,${data.audioBase64}`;
       audio = new Audio(audioSrc);
       audio.onended = () => setPlaying(null);
-      setAudioElements(prev => ({ ...prev, [itemId]: audio }));
+      setAudioElements(prev => ({ ...prev, [key]: audio }));
     }
 
     audio.play();
-    setPlaying(itemId);
+    setPlaying(key);
   };
 
-  const pausePodcast = (itemId: string) => {
-    if (audioElements[itemId]) {
-      audioElements[itemId].pause();
+  const pauseEpisode = (itemId: string, episodeIndex: number) => {
+    const key = `${itemId}-${episodeIndex}`;
+    if (audioElements[key]) {
+      audioElements[key].pause();
       setPlaying(null);
     }
-  };
-
-  const hasPodcast = (item: KnowledgeItem) => {
-    return generatedPodcasts[item.id] || item.tags?.includes('has_podcast');
   };
 
   const stageLabels: Record<string, string> = {
@@ -140,36 +169,38 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
         <div>
           <h3 className="font-semibold flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
-            Sales Training Library
+            Bite-Sized Training
           </h3>
           <p className="text-sm text-muted-foreground">
-            {knowledge.length} training modules • Click to generate audio podcasts
+            {knowledge.length} modules • Each breaks into 3-5 quick lessons
           </p>
         </div>
       </div>
 
       <ScrollArea className="h-[500px]">
-        <div className="grid gap-3">
+        <div className="space-y-3">
           {knowledge.map((item) => {
-            const podcast = generatedPodcasts[item.id];
-            const isGenerating = generating === item.id;
-            const isPlaying = playing === item.id;
+            const data = podcastData[item.id];
+            const hasEpisodes = data?.episodes && data.episodes.length > 0;
+            const isExpanded = expandedItem === item.id;
+            const isGeneratingThis = generating === item.id;
             
             return (
               <Card key={item.id} className="overflow-hidden">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium truncate">{item.title}</h4>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h4 className="font-medium">{item.title}</h4>
                         {item.stage && (
-                          <Badge variant="secondary" className="text-xs shrink-0">
+                          <Badge variant="secondary" className="text-xs">
                             {stageLabels[item.stage] || item.stage}
                           </Badge>
                         )}
-                        {item.category && (
-                          <Badge variant="outline" className="text-xs shrink-0">
-                            {item.category}
+                        {hasEpisodes && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Headphones className="h-3 w-3" />
+                            {data.episodes.length} episodes
                           </Badge>
                         )}
                       </div>
@@ -179,51 +210,31 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      {podcast ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant={isPlaying ? "secondary" : "default"}
-                            onClick={() => isPlaying ? pausePodcast(item.id) : playPodcast(item.id)}
-                            className="gap-1"
-                          >
-                            {isPlaying ? (
-                              <>
-                                <Pause className="h-4 w-4" />
-                                Pause
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4" />
-                                Play
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => generatePodcast(item)}
-                            disabled={isGenerating}
-                          >
-                            <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-                          </Button>
-                        </>
+                      {hasEpisodes ? (
+                        <Collapsible open={isExpanded} onOpenChange={() => setExpandedItem(isExpanded ? null : item.id)}>
+                          <CollapsibleTrigger asChild>
+                            <Button size="sm" variant="outline" className="gap-1">
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              Episodes
+                            </Button>
+                          </CollapsibleTrigger>
+                        </Collapsible>
                       ) : (
                         <Button
                           size="sm"
-                          onClick={() => generatePodcast(item)}
-                          disabled={isGenerating}
+                          onClick={() => generateEpisode(item, 0)}
+                          disabled={isGeneratingThis}
                           className="gap-1"
                         >
-                          {isGenerating ? (
+                          {isGeneratingThis ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Generating...
+                              Creating...
                             </>
                           ) : (
                             <>
                               <Sparkles className="h-4 w-4" />
-                              Create Podcast
+                              Create Episodes
                             </>
                           )}
                         </Button>
@@ -231,18 +242,77 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
                     </div>
                   </div>
 
-                  {/* Show script preview if generated */}
-                  {podcast?.script && (
-                    <div className="mt-3 pt-3 border-t">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                        <Volume2 className="h-3 w-3" />
-                        <span>Podcast Script</span>
-                        <Clock className="h-3 w-3 ml-2" />
-                        <span>~{Math.round(podcast.script.split(' ').length / 150)} min</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-3 italic">
-                        "{podcast.script.substring(0, 200)}..."
-                      </p>
+                  {/* Episodes List */}
+                  {hasEpisodes && isExpanded && (
+                    <div className="mt-4 pt-4 border-t space-y-2">
+                      {data.episodes.map((episode, idx) => {
+                        const generated = data.generatedEpisodes[episode.index];
+                        const key = `${item.id}-${episode.index}`;
+                        const isPlaying = playing === key;
+                        const isGeneratingEp = isGeneratingThis && generatingEpisode === episode.index;
+
+                        return (
+                          <div 
+                            key={idx} 
+                            className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  {episode.index + 1}.
+                                </span>
+                                <span className="text-sm font-medium truncate">
+                                  {episode.title}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                {episode.keyPoint}
+                              </p>
+                            </div>
+
+                            <div className="shrink-0 ml-3">
+                              {generated ? (
+                                <Button
+                                  size="sm"
+                                  variant={isPlaying ? "secondary" : "default"}
+                                  onClick={() => isPlaying 
+                                    ? pauseEpisode(item.id, episode.index) 
+                                    : playEpisode(item.id, episode.index)
+                                  }
+                                  className="gap-1"
+                                >
+                                  {isPlaying ? (
+                                    <>
+                                      <Pause className="h-3 w-3" />
+                                      Pause
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play className="h-3 w-3" />
+                                      Play
+                                    </>
+                                  )}
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => generateEpisode(item, episode.index)}
+                                  disabled={isGeneratingThis}
+                                  className="gap-1"
+                                >
+                                  {isGeneratingEp ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="h-3 w-3" />
+                                  )}
+                                  Generate
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>

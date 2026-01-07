@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Send, Loader2, Target, Lightbulb, TrendingUp } from "lucide-react";
+import { Send, Loader2, MessageCircle, Sparkles, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface SalesCoachChatProps {
@@ -18,10 +17,11 @@ interface Message {
   content: string;
 }
 
-const quickPrompts = [
-  { icon: Target, label: "Review my pipeline", prompt: "Can you review my current pipeline and suggest priorities for this week?" },
-  { icon: Lightbulb, label: "Prospecting ideas", prompt: "Give me 3 creative prospecting strategies for agricultural sales." },
-  { icon: TrendingUp, label: "Closing tips", prompt: "I have deals in closing stage - what are best practices to get them across the finish line?" },
+// Welcoming conversation starters - just ONE question each
+const conversationStarters = [
+  { label: "I'm working a deal", prompt: "I've got a deal I'm working on..." },
+  { label: "New prospect", prompt: "I just met a potential new customer..." },
+  { label: "Stuck on something", prompt: "I'm stuck on something and need help..." },
 ];
 
 export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
@@ -30,6 +30,7 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pipelineContext, setPipelineContext] = useState<string>("");
+  const [hasStarted, setHasStarted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,61 +62,104 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
     }
   };
 
+  // Parse deal info from AI response and auto-create
+  const extractAndCreateDeal = async (response: string) => {
+    const dealMatch = response.match(/\[DEAL_DETECTED\]([\s\S]*?)\[\/DEAL_DETECTED\]/);
+    if (!dealMatch) return response;
+
+    const dealBlock = dealMatch[1];
+    const getField = (field: string) => {
+      const match = dealBlock.match(new RegExp(`${field}:\\s*(.+)`, 'i'));
+      return match ? match[1].trim() : null;
+    };
+
+    const companyName = getField('company_name');
+    const contactName = getField('contact_name');
+    const stage = getField('stage') || 'prospecting';
+    const valueStr = getField('value');
+    const notes = getField('notes');
+
+    if (companyName && companyName !== 'null') {
+      try {
+        // Create or find company
+        let companyId: string | null = null;
+        const { data: existingCompany } = await supabase
+          .from('sales_companies')
+          .select('id')
+          .eq('profile_id', userId)
+          .ilike('name', companyName)
+          .maybeSingle();
+
+        if (existingCompany) {
+          companyId = existingCompany.id;
+        } else {
+          const { data: newCompany } = await supabase
+            .from('sales_companies')
+            .insert({ name: companyName, profile_id: userId })
+            .select('id')
+            .single();
+          companyId = newCompany?.id || null;
+        }
+
+        // Create deal
+        const value = valueStr && valueStr !== 'null' ? parseInt(valueStr.replace(/[^0-9]/g, '')) : null;
+        
+        const { error: dealError } = await supabase
+          .from('sales_deals')
+          .insert({
+            deal_name: `${companyName} Opportunity`,
+            company_id: companyId,
+            profile_id: userId,
+            stage: stage as any,
+            value: value,
+            notes: notes,
+            priority: 3,
+          });
+
+        if (!dealError) {
+          toast({
+            title: "Deal added to your pipeline!",
+            description: `${companyName} - ${stage}`,
+          });
+          fetchPipelineContext(); // Refresh context
+        }
+      } catch (e) {
+        console.error('Auto-create deal error:', e);
+      }
+    }
+
+    // Remove the deal block from visible message
+    return response.replace(/\[DEAL_DETECTED\][\s\S]*?\[\/DEAL_DETECTED\]/g, '').trim();
+  };
+
   const sendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text) return;
 
     setInput("");
+    setHasStarted(true);
     setMessages(prev => [...prev, { role: "user", content: text }]);
     setLoading(true);
 
+    // Build conversation history for context
+    const conversationHistory = messages
+      .map(m => `${m.role === 'user' ? 'User' : 'Jericho'}: ${m.content}`)
+      .join('\n');
+
     try {
-      // Fetch sales knowledge
-      const { data: knowledge } = await supabase
-        .from("sales_knowledge")
-        .select("title, content, category, stage")
-        .eq("is_active", true)
-        .limit(10);
-
-      const knowledgeContext = knowledge?.map(k => 
-        `[${k.category || k.stage || 'General'}] ${k.title}: ${k.content}`
-      ).join("\n\n") || "";
-
-      const systemPrompt = `You are Jericho, an expert AI sales coach specializing in agricultural sales for cooperatives and ag retailers. You practice consultative selling principles.
-
-USER'S CURRENT PIPELINE:
-${pipelineContext || "No deals in pipeline yet."}
-
-SALES KNOWLEDGE BASE:
-${knowledgeContext || "No specific training content loaded yet."}
-
-YOUR COACHING APPROACH:
-1. Be direct and actionable - salespeople need concrete next steps
-2. Reference their specific deals when relevant
-3. Use consultative selling frameworks: discovery questions, value selling, objection handling
-4. Understand ag industry cycles (planting season, harvest, budget planning)
-5. Help them prioritize based on deal stage and close dates
-6. Encourage relationship building and understanding customer operations
-7. Be encouraging but honest - push them to take action
-
-Keep responses focused and practical. If they ask about a specific deal, pull context from their pipeline.`;
-
-      const response = await supabase.functions.invoke("chat-with-jericho", {
+      const response = await supabase.functions.invoke("sales-coach", {
         body: {
           message: text,
-          systemPrompt,
-          context: {
-            mode: "sales_coach",
-            userName,
-            pipeline: pipelineContext,
-          },
+          conversationHistory,
         },
       });
 
       if (response.error) throw response.error;
 
-      // Handle streaming or direct response
-      const assistantMessage = response.data?.message || response.data?.response || "I'm having trouble responding right now. Please try again.";
+      let assistantMessage = response.data?.message || "I'm having trouble responding right now. Please try again.";
+      
+      // Extract and auto-create any detected deals
+      assistantMessage = await extractAndCreateDeal(assistantMessage);
       
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
     } catch (error) {
@@ -135,96 +179,94 @@ Keep responses focused and practical. If they ask about a specific deal, pull co
   };
 
   return (
-    <Card className="h-[600px] flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-primary" />
-          Jericho Sales Coach
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Get AI-powered coaching on your deals, prospecting strategies, and closing techniques
-        </p>
-      </CardHeader>
+    <Card className="h-full flex flex-col border-0 shadow-none bg-transparent">
+      {!hasStarted ? (
+        // Welcome state - warm, inviting
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+            <Sparkles className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Hey{userName ? `, ${userName.split(' ')[0]}` : ''}!</h2>
+          <p className="text-muted-foreground mb-8 max-w-md">
+            I'm Jericho, your sales coach. Tell me what you're working on and I'll help you move it forward.
+          </p>
+          
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
+            {conversationStarters.map((starter, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                className="gap-2"
+                onClick={() => sendMessage(starter.prompt)}
+              >
+                <MessageCircle className="h-4 w-4" />
+                {starter.label}
+              </Button>
+            ))}
+          </div>
 
-      <CardContent className="flex-1 flex flex-col overflow-hidden">
-        {/* Quick Prompts */}
-        {messages.length === 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-2">Quick actions:</p>
-            <div className="flex flex-wrap gap-2">
-              {quickPrompts.map((qp, idx) => (
-                <Button
+          <p className="text-xs text-muted-foreground">
+            Pro tip: When you tell me about deals, I'll automatically add them to your pipeline ✨
+          </p>
+        </div>
+      ) : (
+        // Chat state
+        <>
+          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+            <div className="space-y-4 max-w-2xl mx-auto">
+              {messages.map((msg, idx) => (
+                <div
                   key={idx}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => sendMessage(qp.prompt)}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  <qp.icon className="h-3 w-3" />
-                  {qp.label}
-                </Button>
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  </div>
+                </div>
               ))}
+
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-muted rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-muted-foreground">Thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          {/* Input - clean, simple */}
+          <div className="p-4 border-t">
+            <div className="flex gap-2 max-w-2xl mx-auto">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your response..."
+                className="resize-none rounded-xl"
+                rows={1}
+              />
+              <Button
+                onClick={() => sendMessage()}
+                disabled={loading || !input.trim()}
+                size="icon"
+                className="rounded-xl shrink-0"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
-        )}
-
-        {/* Messages */}
-        <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                <Target className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p>Ask me about your deals, prospecting strategies, or closing techniques.</p>
-                <p className="text-xs mt-2">I have context on your pipeline and can give specific advice.</p>
-              </div>
-            )}
-            
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-lg px-4 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-
-        {/* Input */}
-        <div className="flex gap-2 mt-4 pt-4 border-t">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about your deals, get prospecting ideas, or request coaching..."
-            className="resize-none"
-            rows={2}
-          />
-          <Button
-            onClick={() => sendMessage()}
-            disabled={loading || !input.trim()}
-            className="px-4"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
-      </CardContent>
+        </>
+      )}
     </Card>
   );
 };
