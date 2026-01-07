@@ -76,11 +76,16 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     if (emailId) {
-      const { data: existingLog } = await supabase
+      // Use RPC or raw SQL for proper JSONB query - filter syntax for jsonb
+      const { data: existingLogs } = await supabase
         .from("email_reply_logs")
-        .select("id")
-        .eq("parsed_data->>email_id", emailId)
-        .maybeSingle();
+        .select("id, parsed_data")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      const existingLog = existingLogs?.find(
+        (log: any) => log.parsed_data?.email_id === emailId
+      );
 
       if (existingLog) {
         console.log("Duplicate webhook detected for email_id:", emailId, "- skipping");
