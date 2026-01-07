@@ -3799,6 +3799,306 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_activities: {
+        Row: {
+          activity_type: Database["public"]["Enums"]["sales_activity_type"]
+          completed_at: string | null
+          contact_id: string | null
+          created_at: string
+          deal_id: string | null
+          id: string
+          notes: string | null
+          outcome: string | null
+          profile_id: string
+          scheduled_for: string | null
+          subject: string | null
+        }
+        Insert: {
+          activity_type: Database["public"]["Enums"]["sales_activity_type"]
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          profile_id: string
+          scheduled_for?: string | null
+          subject?: string | null
+        }
+        Update: {
+          activity_type?: Database["public"]["Enums"]["sales_activity_type"]
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          profile_id?: string
+          scheduled_for?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "sales_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "sales_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_activities_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_companies: {
+        Row: {
+          annual_revenue: string | null
+          created_at: string
+          employee_count: string | null
+          id: string
+          industry: string | null
+          location: string | null
+          name: string
+          notes: string | null
+          profile_id: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          annual_revenue?: string | null
+          created_at?: string
+          employee_count?: string | null
+          id?: string
+          industry?: string | null
+          location?: string | null
+          name: string
+          notes?: string | null
+          profile_id: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          annual_revenue?: string | null
+          created_at?: string
+          employee_count?: string | null
+          id?: string
+          industry?: string | null
+          location?: string | null
+          name?: string
+          notes?: string | null
+          profile_id?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_companies_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_contacts: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_decision_maker: boolean | null
+          is_primary: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          profile_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_decision_maker?: boolean | null
+          is_primary?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          profile_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_decision_maker?: boolean | null
+          is_primary?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          profile_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_contacts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_deals: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          deal_name: string
+          expected_close_date: string | null
+          id: string
+          last_activity_at: string | null
+          loss_reason: string | null
+          notes: string | null
+          primary_contact_id: string | null
+          priority: number | null
+          probability: number | null
+          profile_id: string
+          stage: Database["public"]["Enums"]["deal_stage"]
+          updated_at: string
+          value: number | null
+          win_notes: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          deal_name: string
+          expected_close_date?: string | null
+          id?: string
+          last_activity_at?: string | null
+          loss_reason?: string | null
+          notes?: string | null
+          primary_contact_id?: string | null
+          priority?: number | null
+          probability?: number | null
+          profile_id: string
+          stage?: Database["public"]["Enums"]["deal_stage"]
+          updated_at?: string
+          value?: number | null
+          win_notes?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          deal_name?: string
+          expected_close_date?: string | null
+          id?: string
+          last_activity_at?: string | null
+          loss_reason?: string | null
+          notes?: string | null
+          primary_contact_id?: string | null
+          priority?: number | null
+          probability?: number | null
+          profile_id?: string
+          stage?: Database["public"]["Enums"]["deal_stage"]
+          updated_at?: string
+          value?: number | null
+          win_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_deals_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "sales_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_deals_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_knowledge: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          stage: Database["public"]["Enums"]["deal_stage"] | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          stage?: Database["public"]["Enums"]["deal_stage"] | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          stage?: Database["public"]["Enums"]["deal_stage"] | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_knowledge_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_messages: {
         Row: {
           company_id: string | null
@@ -4406,6 +4706,12 @@ export type Database = {
         | "course"
         | "tool"
         | "template"
+      deal_stage:
+        | "prospecting"
+        | "discovery"
+        | "proposal"
+        | "closing"
+        | "follow_up"
       engagement_level:
         | "very_engaged"
         | "engaged"
@@ -4418,6 +4724,7 @@ export type Database = {
         | "hands_on"
         | "auditory"
         | "mixed"
+      sales_activity_type: "call" | "email" | "meeting" | "note" | "task"
       workload_status:
         | "very_manageable"
         | "manageable"
@@ -4563,6 +4870,13 @@ export const Constants = {
         "tool",
         "template",
       ],
+      deal_stage: [
+        "prospecting",
+        "discovery",
+        "proposal",
+        "closing",
+        "follow_up",
+      ],
       engagement_level: [
         "very_engaged",
         "engaged",
@@ -4577,6 +4891,7 @@ export const Constants = {
         "auditory",
         "mixed",
       ],
+      sales_activity_type: ["call", "email", "meeting", "note", "task"],
       workload_status: [
         "very_manageable",
         "manageable",
