@@ -130,7 +130,11 @@ serve(async (req) => {
           original_to: to,
           received_at: emailData.created_at || new Date().toISOString(),
           webhook_type: rawPayload.type,
-          has_html: !!emailData.html,
+          has_html: !!html,
+          direct_text_length: text?.length || 0,
+          direct_html_length: html?.length || 0,
+          // Store the raw payload for debugging
+          raw_payload: rawPayload,
         },
       })
       .select()
