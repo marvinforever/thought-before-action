@@ -61,6 +61,15 @@ export default function MyGrowthPlan() {
     });
   };
 
+  // Listen for openJericho events from navigation
+  useEffect(() => {
+    const handleOpenJerichoEvent = () => {
+      setJerichoOpen(true);
+    };
+    window.addEventListener('openJericho', handleOpenJerichoEvent);
+    return () => window.removeEventListener('openJericho', handleOpenJerichoEvent);
+  }, []);
+
   useEffect(() => {
     loadJobDescriptions();
   }, [viewAsCompanyId]);
@@ -174,27 +183,33 @@ export default function MyGrowthPlan() {
 
       {/* Personal Vision and Greatness/Badges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PersonalVisionCard />
-        <Tabs defaultValue="greatness" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="greatness">Habits</TabsTrigger>
-            <TabsTrigger value="badges">Badges</TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-          </TabsList>
-          <TabsContent value="greatness" className="mt-4">
-            <GreatnessTracker />
-          </TabsContent>
-          <TabsContent value="badges" className="mt-4">
-            <BadgeShowcase onNewBadge={handleNewBadge} />
-          </TabsContent>
-          <TabsContent value="leaderboard" className="mt-4">
-            <CompanyLeaderboard />
-          </TabsContent>
-        </Tabs>
+        <div data-onboarding="vision">
+          <PersonalVisionCard />
+        </div>
+        <div data-onboarding="habits">
+          <Tabs defaultValue="greatness" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="greatness">Habits</TabsTrigger>
+              <TabsTrigger value="badges">Badges</TabsTrigger>
+              <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            </TabsList>
+            <TabsContent value="greatness" className="mt-4">
+              <GreatnessTracker />
+            </TabsContent>
+            <TabsContent value="badges" className="mt-4">
+              <BadgeShowcase onNewBadge={handleNewBadge} />
+            </TabsContent>
+            <TabsContent value="leaderboard" className="mt-4">
+              <CompanyLeaderboard />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
       {/* 90 Day Tracker */}
-      <NinetyDayTracker />
+      <div data-onboarding="goals">
+        <NinetyDayTracker />
+      </div>
 
       {/* Job Description Section */}
       {jobDescriptions.length > 0 && (() => {
@@ -281,7 +296,9 @@ export default function MyGrowthPlan() {
       />
 
       {/* Achievements */}
-      <AchievementsCard />
+      <div data-onboarding="achievements">
+        <AchievementsCard />
+      </div>
 
       {/* Badge Celebration Overlay */}
       <CelebrationOverlay 

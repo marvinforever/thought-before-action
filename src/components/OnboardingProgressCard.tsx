@@ -1,11 +1,12 @@
 import { useOnboardingProgress, OnboardingMilestone } from "@/hooks/useOnboardingProgress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck, Play, Video } from "lucide-react";
+import { Check, Circle, Sparkles, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck, Play, Video, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { TutorialVideoDialog } from "./TutorialVideoDialog";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface OnboardingProgressCardProps {
   onOpenJericho?: () => void;
@@ -32,6 +33,8 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
     open: boolean;
     milestone: OnboardingMilestone | null;
   }>({ open: false, milestone: null });
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleMilestoneClick = (milestone: OnboardingMilestone) => {
     // For first daily brief, use the special action if not completed
@@ -39,8 +42,60 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
       onStartFirstDailyBrief();
       return;
     }
-    
-    // For incomplete items, show tutorial video
+
+    // For jericho_chat and diagnostic, open Jericho chat
+    if ((milestone.id === 'jericho_chat' || milestone.id === 'diagnostic') && onOpenJericho) {
+      // If we're not on my-growth-plan, navigate there first
+      if (location.pathname !== '/my-growth-plan') {
+        navigate('/my-growth-plan');
+        // Give time for navigation, then trigger Jericho
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('openJericho'));
+        }, 100);
+      } else {
+        onOpenJericho();
+      }
+      return;
+    }
+
+    // For items with routes, navigate to that route
+    if (milestone.route) {
+      const [path, hash] = milestone.route.split('#');
+      
+      // If we're already on the same page, just scroll to the element
+      if (location.pathname === path && hash) {
+        const element = document.querySelector(`[data-onboarding="${hash}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add a brief highlight effect
+          element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+          }, 2000);
+        }
+        return;
+      }
+      
+      // Navigate to the route
+      navigate(path);
+      
+      // If there's a hash, scroll to it after navigation
+      if (hash) {
+        setTimeout(() => {
+          const element = document.querySelector(`[data-onboarding="${hash}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+            setTimeout(() => {
+              element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+            }, 2000);
+          }
+        }, 300);
+      }
+      return;
+    }
+
+    // For incomplete items without special handling, show tutorial video
     if (!milestone.completed) {
       setVideoDialog({ open: true, milestone });
     }
@@ -133,27 +188,25 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
           <div className="space-y-2 pt-2 border-t">
             {milestones.map((milestone) => {
               const isFirstBrief = milestone.id === 'first_daily_brief';
-              const isActionable = !milestone.completed;
 
               return (
                 <div
                   key={milestone.id}
                   className={cn(
-                    "flex items-center gap-3 p-2 rounded-lg transition-colors",
+                    "flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer",
                     milestone.completed
-                      ? "bg-primary/10"
-                      : "bg-muted/50 hover:bg-muted cursor-pointer"
+                      ? "bg-primary/10 hover:bg-primary/15"
+                      : "bg-muted/50 hover:bg-muted"
                   )}
-                  role={isActionable ? "button" : undefined}
-                  tabIndex={isActionable ? 0 : undefined}
-                  onClick={isActionable ? () => handleMilestoneClick(milestone) : undefined}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleMilestoneClick(milestone)}
                   onKeyDown={(e) => {
-                    if (!isActionable) return;
                     if (e.key === 'Enter' || e.key === ' ') handleMilestoneClick(milestone);
                   }}
                 >
                   <div className={cn(
-                    "flex items-center justify-center w-8 h-8 rounded-full",
+                    "flex items-center justify-center w-8 h-8 rounded-full shrink-0",
                     milestone.completed
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted-foreground/20 text-muted-foreground"
@@ -167,7 +220,7 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
                   <div className="flex-1 min-w-0">
                     <p className={cn(
                       "text-sm font-medium",
-                      milestone.completed && "line-through text-muted-foreground"
+                      milestone.completed && "text-muted-foreground"
                     )}>
                       {milestone.label}
                     </p>
@@ -183,12 +236,15 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
                     }}>
                       Start
                     </Button>
-                  ) : !milestone.completed ? (
-                    <Video className="h-4 w-4 text-muted-foreground" />
+                  ) : milestone.completed ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-medium text-primary">
+                        +{milestone.points}%
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   ) : (
-                    <span className="text-xs font-medium text-primary">
-                      +{milestone.points}%
-                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   )}
                 </div>
               );
