@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { knowledgeId } = await req.json();
+    const { knowledgeId, chunkIndex = 0 } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -33,31 +33,82 @@ serve(async (req) => {
       throw new Error('Knowledge article not found');
     }
 
-    console.log(`Generating podcast for: ${knowledge.title}`);
+    console.log(`Chunking content for: ${knowledge.title}`);
 
-    // Generate podcast script using AI
-    const scriptPrompt = `You are creating a short, engaging audio training podcast episode (2-3 minutes when spoken). 
+    // First, break content into bite-sized chunks using AI
+    const chunkPrompt = `Break this sales training content into 3-5 SHORT, bite-sized lessons. Each lesson should be ONE focused concept that can be taught in 60-90 seconds.
 
-TRAINING CONTENT:
-Title: ${knowledge.title}
-Category: ${knowledge.category || 'General Sales'}
-Stage: ${knowledge.stage || 'All Stages'}
-
-Content:
+CONTENT:
 ${knowledge.content}
 
-INSTRUCTIONS:
-1. Write a conversational, spoken-word script for a solo host named "Coach Mark"
-2. Start with a punchy hook that grabs attention
-3. Teach the key concepts in a memorable, story-driven way
-4. Include ONE specific example or scenario
-5. End with ONE clear action item the listener can do TODAY
-6. Keep it under 400 words (about 2-3 minutes spoken)
-7. Use natural speech patterns - contractions, short sentences, occasional pauses marked with "..."
-8. Do NOT include stage directions, just the words to be spoken
-9. Sound like a real coach talking to a salesperson, not a lecture
+Return a JSON array of lesson objects. Each lesson should have:
+- title: A catchy, specific title (5-8 words)
+- key_point: The ONE main takeaway (1 sentence)
+- content: The teaching content for this specific lesson only (100-150 words max)
 
-Write the script now:`;
+Example format:
+[
+  {"title": "Why Farmers Buy on Trust", "key_point": "Trust beats price every time in ag sales.", "content": "..."},
+  {"title": "The 3-Second Opener", "key_point": "Your first words set the tone.", "content": "..."}
+]
+
+Return ONLY the JSON array, no other text.`;
+
+    const chunkResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: chunkPrompt }],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!chunkResponse.ok) {
+      throw new Error('Failed to chunk content');
+    }
+
+    const chunkData = await chunkResponse.json();
+    let chunks;
+    try {
+      const raw = chunkData.choices?.[0]?.message?.content || '[]';
+      // Clean up any markdown code blocks
+      const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
+      chunks = JSON.parse(cleaned);
+    } catch (e) {
+      console.error('Failed to parse chunks:', e);
+      throw new Error('Failed to parse lesson chunks');
+    }
+
+    if (!chunks || chunks.length === 0) {
+      throw new Error('No lessons generated');
+    }
+
+    // Generate podcast for specific chunk (or first one)
+    const chunk = chunks[Math.min(chunkIndex, chunks.length - 1)];
+    
+    console.log(`Generating episode ${chunkIndex + 1}/${chunks.length}: ${chunk.title}`);
+
+    const scriptPrompt = `Create a 60-90 second audio coaching moment. This is ONE bite-sized lesson - quick, punchy, memorable.
+
+LESSON: ${chunk.title}
+KEY POINT: ${chunk.key_point}
+CONTENT: ${chunk.content}
+
+RULES:
+1. Start with an attention hook (question or bold statement)
+2. Teach the ONE concept simply
+3. Give ONE specific example or quick scenario
+4. End with ONE thing they can try in their next call
+5. Keep it under 150 words (about 60-90 seconds spoken)
+6. Sound like a coach giving a quick tip, not a lecture
+7. Use "you" language - make it personal
+8. No stage directions, just the words to speak
+
+Write the script:`;
 
     const scriptResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -67,26 +118,21 @@ Write the script now:`;
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'user', content: scriptPrompt }
-        ],
+        messages: [{ role: 'user', content: scriptPrompt }],
         temperature: 0.8,
       }),
     });
 
     if (!scriptResponse.ok) {
-      const errorText = await scriptResponse.text();
-      console.error('AI script generation failed:', errorText);
-      throw new Error('Failed to generate podcast script');
+      throw new Error('Failed to generate script');
     }
 
     const scriptData = await scriptResponse.json();
     const script = scriptData.choices?.[0]?.message?.content || '';
 
-    console.log('Generated script, now synthesizing audio...');
+    console.log('Synthesizing audio...');
 
-    // Generate audio using ElevenLabs TTS
-    // Using "Brian" voice - professional male voice good for coaching
+    // Generate audio - short and punchy
     const voiceId = 'nPczCjzI2devNBz1zQrb'; // Brian
     
     const ttsResponse = await fetch(
@@ -103,9 +149,9 @@ Write the script now:`;
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
-            style: 0.3,
+            style: 0.4,
             use_speaker_boost: true,
-            speed: 1.0,
+            speed: 1.05, // Slightly faster for energy
           },
         }),
       }
@@ -120,10 +166,8 @@ Write the script now:`;
     const audioBuffer = await ttsResponse.arrayBuffer();
     const audioBase64 = base64Encode(audioBuffer);
 
-    console.log('Audio generated, storing...');
-
     // Upload to storage
-    const fileName = `sales-podcasts/${knowledgeId}-${Date.now()}.mp3`;
+    const fileName = `sales-podcasts/${knowledgeId}-ep${chunkIndex + 1}-${Date.now()}.mp3`;
     
     const { error: uploadError } = await supabase.storage
       .from('podcast-audio')
@@ -132,12 +176,6 @@ Write the script now:`;
         upsert: true,
       });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      // Continue without storage - return base64 directly
-    }
-
-    // Get public URL if upload succeeded
     let audioUrl = null;
     if (!uploadError) {
       const { data: urlData } = supabase.storage
@@ -146,22 +184,24 @@ Write the script now:`;
       audioUrl = urlData?.publicUrl;
     }
 
-    // Update the knowledge record with podcast info
-    await supabase
-      .from('sales_knowledge')
-      .update({
-        tags: [...(knowledge.tags || []), 'has_podcast'],
-      })
-      .eq('id', knowledgeId);
-
     return new Response(
       JSON.stringify({
         success: true,
-        title: knowledge.title,
+        parentTitle: knowledge.title,
+        episodeTitle: chunk.title,
+        episodeNumber: chunkIndex + 1,
+        totalEpisodes: chunks.length,
+        keyPoint: chunk.key_point,
         script,
         audioUrl,
-        audioBase64: audioUrl ? null : audioBase64, // Only include base64 if no URL
-        duration: Math.round(script.split(' ').length / 150 * 60), // Estimate duration in seconds
+        audioBase64: audioUrl ? null : audioBase64,
+        duration: Math.round(script.split(' ').length / 150 * 60),
+        // Return all chunk titles so UI can show episode list
+        allEpisodes: chunks.map((c: any, i: number) => ({
+          index: i,
+          title: c.title,
+          keyPoint: c.key_point,
+        })),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
