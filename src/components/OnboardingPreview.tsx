@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Eye, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { PhasedOnboarding } from "./PhasedOnboarding";
 
-const phaseNames = ["Foundations", "Build Momentum", "Go Deeper"];
+const phaseNames = ["Foundations", "Build Momentum", "Personalize"];
 
 export function OnboardingPreview() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
