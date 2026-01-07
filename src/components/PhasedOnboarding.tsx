@@ -30,7 +30,7 @@ const phases: Phase[] = [
     name: "Foundations",
     tagline: "Set your direction",
     icon: <Map className="h-4 w-4" />,
-    milestoneIds: ["diagnostic", "vision", "goal"],
+    milestoneIds: ["vision", "goal", "jericho_chat"],
   },
   {
     id: "momentum",
@@ -44,7 +44,7 @@ const phases: Phase[] = [
     name: "Personalize",
     tagline: "Unlock your potential",
     icon: <Rocket className="h-4 w-4" />,
-    milestoneIds: ["capability", "first_daily_brief", "jericho_chat"],
+    milestoneIds: ["capability", "first_daily_brief", "diagnostic"],
   },
 ];
 
