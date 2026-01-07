@@ -40,6 +40,8 @@ serve(async (req) => {
     const rawPayload = await req.json();
     console.log("Raw payload type:", rawPayload?.type);
     console.log("Raw payload keys:", Object.keys(rawPayload || {}));
+    console.log("Raw payload.data keys:", Object.keys(rawPayload?.data || {}));
+    console.log("Full payload:", JSON.stringify(rawPayload, null, 2));
     
     // Handle Resend's nested structure
     const emailData = rawPayload.data || rawPayload;
