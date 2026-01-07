@@ -240,7 +240,7 @@ const SalesTrainer = () => {
                   <span className="hidden sm:inline">Pipeline</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-2xl flex flex-col h-full p-0">
+              <SheetContent className="w-[95vw] max-w-2xl flex flex-col h-full p-0" style={{ maxWidth: 'min(95vw, 42rem)' }}>
                 <SheetHeader className="p-6 pb-4 shrink-0">
                   <SheetTitle className="flex items-center justify-between">
                     Your Pipeline
