@@ -26,8 +26,8 @@ interface Phase {
 
 const phases: Phase[] = [
   {
-    id: "define",
-    name: "Define Your Path",
+    id: "foundations",
+    name: "Foundations",
     tagline: "Set your direction",
     icon: <Map className="h-4 w-4" />,
     milestoneIds: ["diagnostic", "vision", "goal"],
