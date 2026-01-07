@@ -80,32 +80,47 @@ serve(async (req) => {
       ? `email:${emailId}`
       : `hash:${await sha256(`${from}|${to}|${subject}|${text || ''}|${html ? 'html' : ''}|${emailData.created_at || rawPayload.created_at || ''}`)}`;
 
-    // If no text/html from payload and we have emailId, try fetching from Resend API
+    // If no text/html from payload and we have emailId, try fetching from Resend API with retries
     if (!text && !html && emailId) {
-      console.log("No content in payload, trying Resend API...");
+      console.log("No content in payload, trying Resend API with retries...");
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       
-      try {
-        const emailContentResponse = await fetch(`https://api.resend.com/emails/${emailId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-          },
-        });
+      // Retry up to 3 times with increasing delays (Resend may need time to index the email)
+      const delays = [1000, 2000, 3000]; // 1s, 2s, 3s
+      
+      for (let attempt = 0; attempt < delays.length; attempt++) {
+        // Wait before fetching
+        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+        console.log(`Attempt ${attempt + 1}: Fetching email after ${delays[attempt]}ms delay`);
         
-        if (emailContentResponse.ok) {
-          const emailContent = await emailContentResponse.json();
-          console.log("Resend API response keys:", Object.keys(emailContent || {}));
-          text = emailContent.text || "";
-          html = emailContent.html || "";
-          console.log("Fetched text length:", text.length);
-          console.log("Fetched html length:", html.length);
-        } else {
-          const errorText = await emailContentResponse.text();
-          console.error("Failed to fetch email content:", emailContentResponse.status, errorText);
+        try {
+          const emailContentResponse = await fetch(`https://api.resend.com/emails/${emailId}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${resendApiKey}`,
+            },
+          });
+          
+          if (emailContentResponse.ok) {
+            const emailContent = await emailContentResponse.json();
+            console.log("Resend API response keys:", Object.keys(emailContent || {}));
+            text = emailContent.text || "";
+            html = emailContent.html || "";
+            console.log("Fetched text length:", text.length);
+            console.log("Fetched html length:", html.length);
+            
+            // If we got content, break out of retry loop
+            if (text || html) {
+              console.log("Successfully retrieved email content on attempt", attempt + 1);
+              break;
+            }
+          } else {
+            const errorText = await emailContentResponse.text();
+            console.error(`Attempt ${attempt + 1} failed:`, emailContentResponse.status, errorText);
+          }
+        } catch (fetchError) {
+          console.error(`Attempt ${attempt + 1} error:`, fetchError);
         }
-      } catch (fetchError) {
-        console.error("Error fetching email content:", fetchError);
       }
     }
 
