@@ -3485,6 +3485,42 @@ export type Database = {
           },
         ]
       }
+      resend_emails: {
+        Row: {
+          created_at: string | null
+          email_id: string
+          from_email: string
+          html: string | null
+          id: string
+          processed_at: string | null
+          subject: string | null
+          text: string | null
+          to_email: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_id: string
+          from_email: string
+          html?: string | null
+          id?: string
+          processed_at?: string | null
+          subject?: string | null
+          text?: string | null
+          to_email?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_id?: string
+          from_email?: string
+          html?: string | null
+          id?: string
+          processed_at?: string | null
+          subject?: string | null
+          text?: string | null
+          to_email?: string | null
+        }
+        Relationships: []
+      }
       resource_capabilities: {
         Row: {
           capability_id: string
