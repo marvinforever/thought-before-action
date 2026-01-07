@@ -40,8 +40,8 @@ const phases: Phase[] = [
     milestoneIds: ["habit", "achievement", "resource"],
   },
   {
-    id: "engage",
-    name: "Go Deeper",
+    id: "personalize",
+    name: "Personalize",
     tagline: "Unlock your potential",
     icon: <Rocket className="h-4 w-4" />,
     milestoneIds: ["capability", "first_daily_brief", "jericho_chat"],
