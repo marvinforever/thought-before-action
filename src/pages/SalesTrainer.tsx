@@ -240,8 +240,8 @@ const SalesTrainer = () => {
                   <span className="hidden sm:inline">Pipeline</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-                <SheetHeader>
+              <SheetContent className="w-full sm:max-w-2xl flex flex-col h-full p-0">
+                <SheetHeader className="p-6 pb-4 shrink-0">
                   <SheetTitle className="flex items-center justify-between">
                     Your Pipeline
                     <Button size="sm" onClick={() => setShowAddDeal(true)} className="gap-1">
@@ -250,24 +250,26 @@ const SalesTrainer = () => {
                     </Button>
                   </SheetTitle>
                 </SheetHeader>
-                <Tabs defaultValue="pipeline" className="mt-4">
-                  <TabsList className="grid grid-cols-5 w-full">
+                <Tabs defaultValue="pipeline" className="flex-1 flex flex-col min-h-0 px-6">
+                  <TabsList className="grid grid-cols-5 w-full shrink-0">
                     <TabsTrigger value="pipeline"><Target className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="deals"><TrendingUp className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="companies"><Building2 className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="contacts"><Users className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="podcasts"><Headphones className="h-4 w-4" /></TabsTrigger>
                   </TabsList>
-                  <TabsContent value="pipeline" className="mt-4">
-                    <PipelineView 
-                      userId={user?.id} 
-                      stages={stages} 
-                    />
-                  </TabsContent>
-                  <TabsContent value="deals"><DealsTable userId={user?.id} /></TabsContent>
-                  <TabsContent value="companies"><CompaniesManager userId={user?.id} /></TabsContent>
-                  <TabsContent value="contacts"><ContactsManager userId={user?.id} /></TabsContent>
-                  <TabsContent value="podcasts"><SalesKnowledgePodcasts userId={user?.id} /></TabsContent>
+                  <div className="flex-1 overflow-auto mt-4 pb-6">
+                    <TabsContent value="pipeline" className="mt-0 h-full">
+                      <PipelineView 
+                        userId={user?.id} 
+                        stages={stages} 
+                      />
+                    </TabsContent>
+                    <TabsContent value="deals" className="mt-0"><DealsTable userId={user?.id} /></TabsContent>
+                    <TabsContent value="companies" className="mt-0"><CompaniesManager userId={user?.id} /></TabsContent>
+                    <TabsContent value="contacts" className="mt-0"><ContactsManager userId={user?.id} /></TabsContent>
+                    <TabsContent value="podcasts" className="mt-0"><SalesKnowledgePodcasts userId={user?.id} /></TabsContent>
+                  </div>
                 </Tabs>
               </SheetContent>
             </Sheet>
