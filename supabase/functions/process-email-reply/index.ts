@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailIntent {
-  type: 'habit_checkin' | 'goal_update' | 'benchmark_update' | 'challenge_help' | 'sales_prep' | 'general_question' | 'update_report';
+  type: 'habit_checkin' | 'goal_update' | 'benchmark_update' | 'challenge_help' | 'sales_prep' | 'general_question' | 'update_report' | 'recognition';
   confidence: number;
   details: Record<string, any>;
 }
@@ -149,6 +149,12 @@ serve(async (req) => {
     if (emailIntent.type === 'benchmark_update' && emailIntent.details.benchmarkUpdates) {
       const benchmarkResults = await processBenchmarkUpdates(supabase, profile.id, emailIntent.details.benchmarkUpdates, userContext.goals);
       actionsPerformed.push(...benchmarkResults);
+    }
+
+    // NEW: Process recognition requests
+    if ((emailIntent.type === 'recognition' || emailIntent.details.recognitions) && emailIntent.details.recognitions?.length > 0) {
+      const recognitionResults = await processRecognitions(supabase, profile.id, profile.company_id, emailIntent.details.recognitions, userContext);
+      actionsPerformed.push(...recognitionResults);
     }
 
     // Log updates to growth journal
@@ -330,6 +336,14 @@ async function fetchUserContext(supabase: any, profileId: string, companyId: str
     .eq("profile_id", profileId)
     .single();
 
+  // Fetch team members in the same company (for recognition)
+  const { data: teamMembers } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .eq("company_id", companyId)
+    .neq("id", profileId)
+    .limit(100);
+
   return {
     habits: habits || [],
     todayCompletions: todayCompletions?.map((c: any) => c.habit_id) || [],
@@ -337,6 +351,7 @@ async function fetchUserContext(supabase: any, profileId: string, companyId: str
     companyKnowledge: companyKnowledge || [],
     achievements: achievements || [],
     diagnosticScores: diagnosticScores || null,
+    teamMembers: teamMembers || [],
   };
 }
 
@@ -345,18 +360,20 @@ async function parseEmailIntent(emailBody: string, userContext: any): Promise<Em
   
   const habitNames = userContext.habits.map((h: any) => h.habit_name).join(', ');
   const goalTexts = userContext.goals.map((g: any) => g.goal_text).slice(0, 5).join('; ');
+  const teamMemberNames = userContext.teamMembers?.map((m: any) => m.full_name).join(', ') || 'Unknown team members';
 
   const prompt = `Analyze this email and determine the user's intent. The user is replying to their AI coach Jericho.
 
 User's current habits: ${habitNames || 'None defined'}
 User's current 90-day goals: ${goalTexts || 'None defined'}
+Team members they might recognize: ${teamMemberNames}
 
 Email content:
 "${emailBody}"
 
 Respond with a JSON object (no markdown, just pure JSON):
 {
-  "type": "habit_checkin" | "goal_update" | "benchmark_update" | "challenge_help" | "sales_prep" | "general_question" | "update_report",
+  "type": "habit_checkin" | "goal_update" | "benchmark_update" | "challenge_help" | "sales_prep" | "general_question" | "update_report" | "recognition",
   "confidence": 0.0-1.0,
   "details": {
     // For habit_checkin:
@@ -365,6 +382,8 @@ Respond with a JSON object (no markdown, just pure JSON):
     "goalUpdates": [{"goalText": "partial match...", "progress": "description of progress", "completed": true/false}],
     // For benchmark_update:
     "benchmarkUpdates": [{"goalText": "partial match...", "benchmarkText": "...", "completed": true/false}],
+    // For recognition:
+    "recognitions": [{"personName": "...", "reason": "why they're being recognized", "category": "leadership|teamwork|innovation|excellence|growth"}],
     // For sales_prep:
     "companyName": "...", "contactName": "...", "meetingContext": "...",
     // For challenge_help:
@@ -373,12 +392,13 @@ Respond with a JSON object (no markdown, just pure JSON):
 }
 
 Rules:
+- If they mention recognizing someone, giving kudos, shoutout, thanking a colleague, acknowledging someone's work → recognition
 - If they mention completing habits, checking off habits, or daily routines → habit_checkin
 - If they mention making progress on goals, completing goals, or goal updates → goal_update
 - If they mention completing benchmarks, milestones, or specific steps → benchmark_update
 - If they mention a sales call, meeting prep, or pre-call plan → sales_prep
 - If they mention struggling with something, need help, or facing a challenge → challenge_help
-- If they provide multiple types of updates → update_report (combine all details)
+- If they provide multiple types of updates → update_report (combine all details in the details object)
 - Otherwise → general_question`;
 
   try {
@@ -546,6 +566,73 @@ async function processBenchmarkUpdates(supabase: any, profileId: string, benchma
           results.push({ success: true, message: `Updated benchmark on goal: ${matchingGoal.goal_text.substring(0, 40)}...` });
         }
       }
+    }
+  }
+
+  return results;
+}
+
+async function processRecognitions(supabase: any, senderId: string, companyId: string, recognitions: any[], userContext: any): Promise<ActionResult[]> {
+  const results: ActionResult[] = [];
+
+  for (const recognition of recognitions) {
+    // Find matching team member by name (fuzzy match)
+    const matchingMember = userContext.teamMembers?.find((m: any) => {
+      const memberName = (m.full_name || '').toLowerCase();
+      const searchName = (recognition.personName || '').toLowerCase();
+      return memberName.includes(searchName) || searchName.includes(memberName.split(' ')[0]);
+    });
+
+    if (matchingMember) {
+      // Check if we have the recognitions table (it might be called something else)
+      try {
+        const { error } = await supabase.from("recognitions").insert({
+          sender_id: senderId,
+          recipient_id: matchingMember.id,
+          company_id: companyId,
+          message: recognition.reason,
+          category: recognition.category || 'excellence',
+          source: 'email',
+        });
+
+        if (!error) {
+          results.push({ 
+            success: true, 
+            message: `Sent recognition to ${matchingMember.full_name}: "${recognition.reason}"` 
+          });
+
+          // Try to send notification to the recipient
+          try {
+            await supabase.functions.invoke("send-recognition-notification", {
+              body: {
+                recipientId: matchingMember.id,
+                senderId: senderId,
+                message: recognition.reason,
+                category: recognition.category,
+              },
+            });
+          } catch (notifyError) {
+            console.log("Recognition notification skipped:", notifyError);
+          }
+        } else {
+          console.error("Error inserting recognition:", error);
+          results.push({ 
+            success: false, 
+            message: `Could not save recognition for ${matchingMember.full_name}: ${error.message}` 
+          });
+        }
+      } catch (err: any) {
+        console.error("Error processing recognition:", err);
+        results.push({ 
+          success: false, 
+          message: `Recognition system error for ${recognition.personName}` 
+        });
+      }
+    } else {
+      results.push({ 
+        success: false, 
+        message: `Could not find team member matching: "${recognition.personName}"` 
+      });
     }
   }
 
