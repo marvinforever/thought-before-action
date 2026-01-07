@@ -30,7 +30,11 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   const [streamBuffer, setStreamBuffer] = useState(''); // Full content from server
   const [displayedChars, setDisplayedChars] = useState(0); // Characters revealed so far
   const [hasSummarized, setHasSummarized] = useState(false); // Track if we've summarized this session
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
+
   const initialMessageSentRef = useRef(false); // Use ref to prevent race conditions
+  const activeAssistantIndexRef = useRef<number | null>(null);
+
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -159,17 +163,20 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   // Load conversation history on mount
   useEffect(() => {
     if (isOpen) {
-      loadConversationHistory();
+      setIsHistoryLoaded(false);
+      loadConversationHistory().finally(() => setIsHistoryLoaded(true));
     }
   }, [isOpen]);
 
-  // Send initial message if provided (only once)
+  // Send initial message if provided (only once, and only after history load finishes)
   useEffect(() => {
+    if (!isHistoryLoaded) return;
+
     if (isOpen && initialMessage && messages.length === 0 && !initialMessageSentRef.current && !isLoading) {
       initialMessageSentRef.current = true;
       handleSendMessage(initialMessage);
     }
-  }, [isOpen, initialMessage, messages.length, isLoading]);
+  }, [isOpen, initialMessage, messages.length, isLoading, isHistoryLoaded]);
 
   const loadConversationHistory = async () => {
     try {
@@ -220,19 +227,25 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Add user message + placeholder assistant message in a single state update
+    setMessages(prev => {
+      const next: Message[] = [
+        ...prev,
+        userMessage,
+        {
+          role: 'assistant',
+          content: '',
+          timestamp: new Date(),
+        },
+      ];
+      activeAssistantIndexRef.current = next.length - 1;
+      return next;
+    });
+
     setInput('');
     setIsLoading(true);
     setStreamBuffer(''); // Reset buffer for new message
     setDisplayedChars(0); // Reset displayed chars
-
-    // Add placeholder assistant message that will be updated
-    const placeholderIndex = messages.length + 1;
-    setMessages(prev => [...prev, {
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-    }]);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -305,16 +318,21 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
               }
               
                if (data.done) {
+                 const assistantIndex = activeAssistantIndexRef.current;
+
                  // Update the actual message with final content before exiting
-                 setMessages(prev => {
-                   const newMessages = [...prev];
-                   newMessages[placeholderIndex] = {
-                     role: 'assistant',
-                     content: accumulatedContent,
-                     timestamp: new Date(),
-                   };
-                   return newMessages;
-                 });
+                 if (assistantIndex !== null) {
+                   setMessages(prev => {
+                     if (!prev[assistantIndex]) return prev;
+                     const next = [...prev];
+                     next[assistantIndex] = {
+                       role: 'assistant',
+                       content: accumulatedContent,
+                       timestamp: new Date(),
+                     };
+                     return next;
+                   });
+                 }
 
                  // Nudge onboarding UI to refresh (used for "Chat with Jericho" milestone)
                  window.dispatchEvent(new Event('onboardingProgressRefresh'));
