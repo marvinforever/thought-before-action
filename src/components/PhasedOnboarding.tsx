@@ -113,17 +113,18 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
   }, [completedInPhase, totalInPhase, currentPhaseIndex, currentPhase.id]);
 
   const handleMilestoneClick = (milestone: OnboardingMilestone) => {
-    // In preview mode, toggle completion instead of navigating
+    // For milestones with videos, show the video dialog (works in both preview and normal mode)
+    if (milestone.videoUrl && !milestone.completed) {
+      setVideoDialog({ open: true, milestone });
+      return;
+    }
+
+    // In preview mode, navigate to routes but don't trigger special actions
     if (isPreview) {
-      setPreviewCompletedIds(prev => {
-        const next = new Set(prev);
-        if (next.has(milestone.id)) {
-          next.delete(milestone.id);
-        } else {
-          next.add(milestone.id);
-        }
-        return next;
-      });
+      if (milestone.route) {
+        const [path] = milestone.route.split('#');
+        navigate(path);
+      }
       return;
     }
 
@@ -174,10 +175,6 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
         }, 300);
       }
       return;
-    }
-
-    if (!milestone.completed) {
-      setVideoDialog({ open: true, milestone });
     }
   };
 
