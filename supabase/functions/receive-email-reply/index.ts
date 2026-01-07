@@ -41,18 +41,13 @@ serve(async (req) => {
     console.log("Raw payload type:", rawPayload?.type);
     console.log("Raw payload keys:", Object.keys(rawPayload || {}));
     
-    // Log the FULL payload to see what Resend is sending
-    console.log("FULL RAW PAYLOAD:", JSON.stringify(rawPayload, null, 2));
-    
     // Handle Resend's nested structure
     const emailData = rawPayload.data || rawPayload;
-    console.log("Email data keys:", Object.keys(emailData || {}));
-    console.log("FULL EMAIL DATA:", JSON.stringify(emailData, null, 2));
     
     const from = emailData.from || rawPayload.from;
     const to = Array.isArray(emailData.to) ? emailData.to[0] : (emailData.to || rawPayload.to);
     const subject = emailData.subject || rawPayload.subject;
-    const emailId = emailData.email_id;
+    const emailId = emailData.email_id || emailData.id || rawPayload.email_id;
     
     // Try ALL possible field names for body content directly from payload
     let text = emailData.text || emailData.body || emailData.plain || emailData.plain_body || 
@@ -72,6 +67,28 @@ serve(async (req) => {
         JSON.stringify({ error: "Invalid payload - missing 'from' field", receivedKeys: Object.keys(rawPayload || {}) }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ============ IDEMPOTENCY CHECK ============
+    // Prevent duplicate processing of the same email
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    if (emailId) {
+      const { data: existingLog } = await supabase
+        .from("email_reply_logs")
+        .select("id")
+        .eq("parsed_data->>email_id", emailId)
+        .maybeSingle();
+
+      if (existingLog) {
+        console.log("Duplicate webhook detected for email_id:", emailId, "- skipping");
+        return new Response(
+          JSON.stringify({ success: true, message: "Duplicate webhook ignored", existingLogId: existingLog.id }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // If no text/html from payload and we have emailId, try fetching from Resend API
@@ -114,10 +131,7 @@ serve(async (req) => {
     const cleanedBody = cleanEmailBody(text);
     console.log("Cleaned body length:", cleanedBody.length);
 
-    // Store in email_reply_logs with pending status
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Store in email_reply_logs with pending status (supabase client created above)
 
     const { data: logEntry, error: logError } = await supabase
       .from("email_reply_logs")
@@ -127,14 +141,13 @@ serve(async (req) => {
         email_body: cleanedBody,
         processing_status: "pending",
         parsed_data: {
+          email_id: emailId, // Store for idempotency checking
           original_to: to,
           received_at: emailData.created_at || new Date().toISOString(),
           webhook_type: rawPayload.type,
           has_html: !!html,
           direct_text_length: text?.length || 0,
           direct_html_length: html?.length || 0,
-          // Store the raw payload for debugging
-          raw_payload: rawPayload,
         },
       })
       .select()
