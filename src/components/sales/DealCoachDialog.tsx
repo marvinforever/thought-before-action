@@ -79,54 +79,24 @@ export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogPro
   const generateInitialAnalysis = async () => {
     setLoading(true);
     try {
-      const dealContext = `
-Deal: ${deal.deal_name}
-Company: ${deal.sales_companies?.name || "Unknown"}
-Stage: ${stageLabels[deal.stage]}
-Value: $${deal.value?.toLocaleString() || "Not specified"}
-Expected Close: ${deal.expected_close_date ? format(new Date(deal.expected_close_date), "MMM d, yyyy") : "Not set"}
-Priority: ${deal.priority}/5
-Probability: ${deal.probability}%
-Notes: ${deal.notes || "None"}
-`;
-
-      // Get stage-specific knowledge
-      const { data: knowledge } = await supabase
-        .from("sales_knowledge")
-        .select("title, content")
-        .or(`stage.eq.${deal.stage},category.eq.general`)
-        .eq("is_active", true)
-        .limit(5);
-
-      const knowledgeContext = knowledge?.map(k => `${k.title}: ${k.content}`).join("\n\n") || "";
-
-      const response = await supabase.functions.invoke("chat-with-jericho", {
+      const response = await supabase.functions.invoke("sales-coach", {
         body: {
           message: `Analyze this deal and give me 3-4 specific, actionable recommendations for moving it forward. Consider the current stage (${stageLabels[deal.stage]}) and any notes provided.`,
-          systemPrompt: `You are Jericho, an expert agricultural sales coach. Analyze this deal and provide specific, actionable coaching.
-
-DEAL DETAILS:
-${dealContext}
-
-SALES KNOWLEDGE:
-${knowledgeContext}
-
-Provide your analysis in this format:
-1. Quick assessment (1-2 sentences)
-2. 3-4 specific action items for this stage
-3. One thing to watch out for
-
-Be direct and practical. Reference specific details from the deal.`,
-          context: { mode: "deal_coach", deal },
+          deal,
         },
       });
 
       if (response.error) throw response.error;
 
-      const assistantMessage = response.data?.message || response.data?.response || "Let me analyze this deal for you...";
+      const assistantMessage = response.data?.message || "Let me analyze this deal for you...";
       setMessages([{ role: "assistant", content: assistantMessage }]);
     } catch (error) {
       console.error("Initial analysis error:", error);
+      toast({ 
+        title: "Coach unavailable", 
+        description: "Couldn't connect to the sales coach. Please try again.",
+        variant: "destructive" 
+      });
       setMessages([{ role: "assistant", content: "I'm ready to help you with this deal. What would you like to know?" }]);
     } finally {
       setLoading(false);
@@ -142,35 +112,19 @@ Be direct and practical. Reference specific details from the deal.`,
     setLoading(true);
 
     try {
-      const dealContext = `
-Deal: ${deal.deal_name}
-Company: ${deal.sales_companies?.name || "Unknown"}
-Stage: ${stageLabels[deal.stage]}
-Value: $${deal.value?.toLocaleString() || "Not specified"}
-Notes: ${deal.notes || "None"}
-`;
-
       const conversationHistory = messages.map(m => `${m.role}: ${m.content}`).join("\n\n");
 
-      const response = await supabase.functions.invoke("chat-with-jericho", {
+      const response = await supabase.functions.invoke("sales-coach", {
         body: {
           message: text,
-          systemPrompt: `You are Jericho, an expert agricultural sales coach helping with a specific deal.
-
-DEAL CONTEXT:
-${dealContext}
-
-CONVERSATION SO FAR:
-${conversationHistory}
-
-Provide specific, actionable advice for this deal. Be direct and practical.`,
-          context: { mode: "deal_coach", deal },
+          deal,
+          conversationHistory,
         },
       });
 
       if (response.error) throw response.error;
 
-      const assistantMessage = response.data?.message || response.data?.response || "I'm having trouble responding. Please try again.";
+      const assistantMessage = response.data?.message || "I'm having trouble responding. Please try again.";
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
     } catch (error) {
       console.error("Chat error:", error);
