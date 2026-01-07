@@ -12,7 +12,8 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
-  Headphones
+  Headphones,
+  RefreshCw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -270,29 +271,40 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
                               </p>
                             </div>
 
-                            <div className="shrink-0 ml-3">
+                            <div className="shrink-0 ml-3 flex gap-1">
                               {generated ? (
-                                <Button
-                                  size="sm"
-                                  variant={isPlaying ? "secondary" : "default"}
-                                  onClick={() => isPlaying 
-                                    ? pauseEpisode(item.id, episode.index) 
-                                    : playEpisode(item.id, episode.index)
-                                  }
-                                  className="gap-1"
-                                >
-                                  {isPlaying ? (
-                                    <>
-                                      <Pause className="h-3 w-3" />
-                                      Pause
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Play className="h-3 w-3" />
-                                      Play
-                                    </>
-                                  )}
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant={isPlaying ? "secondary" : "default"}
+                                    onClick={() => isPlaying 
+                                      ? pauseEpisode(item.id, episode.index) 
+                                      : playEpisode(item.id, episode.index)
+                                    }
+                                    className="gap-1"
+                                  >
+                                    {isPlaying ? (
+                                      <>
+                                        <Pause className="h-3 w-3" />
+                                        Pause
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Play className="h-3 w-3" />
+                                        Play
+                                      </>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => generateEpisode(item, episode.index)}
+                                    disabled={isGeneratingThis}
+                                    title="Regenerate episode"
+                                  >
+                                    <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? 'animate-spin' : ''}`} />
+                                  </Button>
+                                </>
                               ) : (
                                 <Button
                                   size="sm"
