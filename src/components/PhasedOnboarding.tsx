@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useOnboardingProgress, OnboardingMilestone } from "@/hooks/useOnboardingProgress";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronRight, Sparkles, Play, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck, Rocket, Map, Trophy } from "lucide-react";
+import { Check, ChevronRight, Sparkles, Play, MessageCircle, Target, Zap, Award, Brain, BookOpen, ClipboardCheck, Rocket, Map, Trophy, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TutorialVideoDialog } from "./TutorialVideoDialog";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -294,6 +294,74 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
               const isFirstBrief = milestone.id === 'first_daily_brief';
               const isNext = milestone === nextMilestone;
 
+              const handleStartTask = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                
+                // In preview mode, navigate to routes
+                if (isPreview) {
+                  if (milestone.route) {
+                    const [path] = milestone.route.split('#');
+                    navigate(path);
+                  }
+                  return;
+                }
+
+                if (milestone.id === 'first_daily_brief' && !milestone.completed && onStartFirstDailyBrief) {
+                  onStartFirstDailyBrief();
+                  return;
+                }
+
+                if ((milestone.id === 'jericho_chat' || milestone.id === 'diagnostic') && onOpenJericho) {
+                  if (location.pathname !== '/my-growth-plan') {
+                    navigate('/my-growth-plan');
+                    setTimeout(() => {
+                      window.dispatchEvent(new CustomEvent('openJericho'));
+                    }, 100);
+                  } else {
+                    onOpenJericho();
+                  }
+                  return;
+                }
+
+                if (milestone.route) {
+                  const [path, hash] = milestone.route.split('#');
+                  
+                  if (location.pathname === path && hash) {
+                    const element = document.querySelector(`[data-onboarding="${hash}"]`);
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+                      setTimeout(() => {
+                        element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+                      }, 2000);
+                    }
+                    return;
+                  }
+                  
+                  navigate(path);
+                  
+                  if (hash) {
+                    setTimeout(() => {
+                      const element = document.querySelector(`[data-onboarding="${hash}"]`);
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+                        setTimeout(() => {
+                          element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+                        }, 2000);
+                      }
+                    }, 300);
+                  }
+                }
+              };
+
+              const handleShowVideo = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (milestone.videoUrl) {
+                  setVideoDialog({ open: true, milestone });
+                }
+              };
+
               return (
                 <motion.div
                   key={milestone.id}
@@ -302,63 +370,84 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: index * 0.05 }}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
+                    "flex items-center rounded-xl transition-all overflow-hidden",
                     milestone.completed
                       ? "bg-primary/10"
                       : isNext
                         ? "bg-accent/50 ring-1 ring-primary/30"
-                        : "bg-muted/30 hover:bg-muted/50"
+                        : "bg-muted/30"
                   )}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleMilestoneClick(milestone)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') handleMilestoneClick(milestone);
-                  }}
                 >
-                  <div className={cn(
-                    "flex items-center justify-center w-9 h-9 rounded-full shrink-0 transition-all",
-                    milestone.completed
-                      ? "bg-primary text-primary-foreground"
-                      : isNext
-                        ? "bg-primary/20 text-primary ring-2 ring-primary/30"
-                        : "bg-muted text-muted-foreground"
-                  )}>
-                    {milestone.completed ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      milestoneIcons[milestone.id]
+                  {/* Left side - Start Task */}
+                  <div 
+                    className={cn(
+                      "flex items-center gap-3 p-3 flex-1 cursor-pointer transition-colors",
+                      !milestone.completed && "hover:bg-primary/5"
                     )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className={cn(
-                      "text-sm font-medium",
-                      milestone.completed && "text-muted-foreground line-through"
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleStartTask}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') handleStartTask(e as unknown as React.MouseEvent);
+                    }}
+                  >
+                    <div className={cn(
+                      "flex items-center justify-center w-9 h-9 rounded-full shrink-0 transition-all",
+                      milestone.completed
+                        ? "bg-primary text-primary-foreground"
+                        : isNext
+                          ? "bg-primary/20 text-primary ring-2 ring-primary/30"
+                          : "bg-muted text-muted-foreground"
                     )}>
-                      {milestone.label}
-                    </p>
-                    {isNext && !milestone.completed && (
-                      <p className="text-xs text-primary font-medium">← Start here</p>
+                      {milestone.completed ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        milestoneIcons[milestone.id]
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "text-sm font-medium",
+                        milestone.completed && "text-muted-foreground line-through"
+                      )}>
+                        {milestone.label}
+                      </p>
+                      {isNext && !milestone.completed && (
+                        <p className="text-xs text-primary font-medium">← Start here</p>
+                      )}
+                    </div>
+
+                    {isFirstBrief && !milestone.completed && onStartFirstDailyBrief ? (
+                      <Button 
+                        size="sm" 
+                        onClick={handleStartTask}
+                        className="shrink-0"
+                      >
+                        <Play className="h-3 w-3 mr-1" />
+                        Start
+                      </Button>
+                    ) : milestone.completed ? (
+                      <Check className="h-4 w-4 text-primary shrink-0" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     )}
                   </div>
 
-                  {isFirstBrief && !milestone.completed && onStartFirstDailyBrief ? (
-                    <Button 
-                      size="sm" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onStartFirstDailyBrief();
+                  {/* Right side - How to do this (Video) */}
+                  {milestone.videoUrl && !milestone.completed && (
+                    <div 
+                      className="flex items-center gap-1.5 px-3 py-3 border-l border-border/50 cursor-pointer hover:bg-primary/10 transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      onClick={handleShowVideo}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') handleShowVideo(e as unknown as React.MouseEvent);
                       }}
-                      className="shrink-0"
                     >
-                      <Play className="h-3 w-3 mr-1" />
-                      Start
-                    </Button>
-                  ) : milestone.completed ? (
-                    <Check className="h-4 w-4 text-primary shrink-0" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Video className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-medium text-primary hidden sm:inline">How to</span>
+                    </div>
                   )}
                 </motion.div>
               );
