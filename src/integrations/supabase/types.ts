@@ -1739,9 +1739,11 @@ export type Database = {
           created_at: string
           email_body: string
           email_from: string
+          email_id: string | null
           email_subject: string | null
           error_message: string | null
           id: string
+          idempotency_key: string | null
           parsed_data: Json | null
           processed_at: string | null
           processing_status: string
@@ -1751,9 +1753,11 @@ export type Database = {
           created_at?: string
           email_body: string
           email_from: string
+          email_id?: string | null
           email_subject?: string | null
           error_message?: string | null
           id?: string
+          idempotency_key?: string | null
           parsed_data?: Json | null
           processed_at?: string | null
           processing_status?: string
@@ -1763,9 +1767,11 @@ export type Database = {
           created_at?: string
           email_body?: string
           email_from?: string
+          email_id?: string | null
           email_subject?: string | null
           error_message?: string | null
           id?: string
+          idempotency_key?: string | null
           parsed_data?: Json | null
           processed_at?: string | null
           processing_status?: string

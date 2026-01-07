@@ -70,31 +70,15 @@ serve(async (req) => {
     }
 
     // ============ IDEMPOTENCY CHECK ============
-    // Prevent duplicate processing of the same email
+    // Prevent duplicate processing of the same inbound email.
+    // IMPORTANT: This must be race-condition safe (webhooks can arrive concurrently).
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (emailId) {
-      // Use RPC or raw SQL for proper JSONB query - filter syntax for jsonb
-      const { data: existingLogs } = await supabase
-        .from("email_reply_logs")
-        .select("id, parsed_data")
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      const existingLog = existingLogs?.find(
-        (log: any) => log.parsed_data?.email_id === emailId
-      );
-
-      if (existingLog) {
-        console.log("Duplicate webhook detected for email_id:", emailId, "- skipping");
-        return new Response(
-          JSON.stringify({ success: true, message: "Duplicate webhook ignored", existingLogId: existingLog.id }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
+    const idempotencyKey = emailId
+      ? `email:${emailId}`
+      : `hash:${await sha256(`${from}|${to}|${subject}|${text || ''}|${html ? 'html' : ''}|${emailData.created_at || rawPayload.created_at || ''}`)}`;
 
     // If no text/html from payload and we have emailId, try fetching from Resend API
     if (!text && !html && emailId) {
@@ -136,33 +120,52 @@ serve(async (req) => {
     const cleanedBody = cleanEmailBody(text);
     console.log("Cleaned body length:", cleanedBody.length);
 
-    // Store in email_reply_logs with pending status (supabase client created above)
+    // Store in email_reply_logs with pending status
+    // Use DB-level uniqueness (idempotency_key) so concurrent webhooks can't double-insert.
+    const insertPayload = {
+      email_from: from,
+      email_subject: subject,
+      email_body: cleanedBody,
+      processing_status: "pending",
+      email_id: emailId || null,
+      idempotency_key: idempotencyKey,
+      parsed_data: {
+        email_id: emailId, // keep for legacy/debug
+        original_to: to,
+        received_at: emailData.created_at || new Date().toISOString(),
+        webhook_type: rawPayload.type,
+        has_html: !!html,
+        direct_text_length: text?.length || 0,
+        direct_html_length: html?.length || 0,
+      },
+    };
 
-    const { data: logEntry, error: logError } = await supabase
+    const { data: insertedRows, error: logError } = await supabase
       .from("email_reply_logs")
-      .insert({
-        email_from: from,
-        email_subject: subject,
-        email_body: cleanedBody,
-        processing_status: "pending",
-        parsed_data: {
-          email_id: emailId, // Store for idempotency checking
-          original_to: to,
-          received_at: emailData.created_at || new Date().toISOString(),
-          webhook_type: rawPayload.type,
-          has_html: !!html,
-          direct_text_length: text?.length || 0,
-          direct_html_length: html?.length || 0,
-        },
-      })
-      .select()
-      .single();
+      .upsert(insertPayload, { onConflict: "idempotency_key", ignoreDuplicates: true })
+      .select();
 
     if (logError) {
       console.error("Error storing email log:", logError);
       throw logError;
     }
 
+    // If this was a duplicate, we will not get an inserted row back.
+    if (!insertedRows || insertedRows.length === 0) {
+      const { data: existing } = await supabase
+        .from("email_reply_logs")
+        .select("id")
+        .eq("idempotency_key", idempotencyKey)
+        .single();
+
+      console.log("Duplicate webhook ignored (idempotency_key)", idempotencyKey);
+      return new Response(
+        JSON.stringify({ success: true, message: "Duplicate webhook ignored", existingLogId: existing?.id }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const logEntry = insertedRows[0];
     console.log("Email logged with ID:", logEntry.id);
 
     // Invoke process-email-reply function asynchronously (fire and forget)
@@ -178,7 +181,7 @@ serve(async (req) => {
 
     console.log("Triggered process-email-reply function");
 
-    // Return 200 immediately to Resend
+    // Return 200 immediately to the webhook sender
     return new Response(
       JSON.stringify({ success: true, logId: logEntry.id }),
       {
@@ -197,6 +200,13 @@ serve(async (req) => {
     );
   }
 });
+
+async function sha256(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 function extractTextFromHtml(html: string): string {
   if (!html) return "";
