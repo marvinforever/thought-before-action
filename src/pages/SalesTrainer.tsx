@@ -19,7 +19,8 @@ import {
   Building2,
   Users,
   TrendingUp,
-  Plus
+  Plus,
+  Headphones
 } from "lucide-react";
 import { PipelineView } from "@/components/sales/PipelineView";
 import { DealsTable } from "@/components/sales/DealsTable";
@@ -27,6 +28,7 @@ import { CompaniesManager } from "@/components/sales/CompaniesManager";
 import { ContactsManager } from "@/components/sales/ContactsManager";
 import { AddDealDialog } from "@/components/sales/AddDealDialog";
 import { DealCoachDialog } from "@/components/sales/DealCoachDialog";
+import { SalesKnowledgePodcasts } from "@/components/sales/SalesKnowledgePodcasts";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -249,11 +251,12 @@ const SalesTrainer = () => {
                   </SheetTitle>
                 </SheetHeader>
                 <Tabs defaultValue="pipeline" className="mt-4">
-                  <TabsList className="grid grid-cols-4 w-full">
+                  <TabsList className="grid grid-cols-5 w-full">
                     <TabsTrigger value="pipeline"><Target className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="deals"><TrendingUp className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="companies"><Building2 className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="contacts"><Users className="h-4 w-4" /></TabsTrigger>
+                    <TabsTrigger value="podcasts"><Headphones className="h-4 w-4" /></TabsTrigger>
                   </TabsList>
                   <TabsContent value="pipeline" className="mt-4">
                     <PipelineView 
@@ -264,6 +267,7 @@ const SalesTrainer = () => {
                   <TabsContent value="deals"><DealsTable userId={user?.id} /></TabsContent>
                   <TabsContent value="companies"><CompaniesManager userId={user?.id} /></TabsContent>
                   <TabsContent value="contacts"><ContactsManager userId={user?.id} /></TabsContent>
+                  <TabsContent value="podcasts"><SalesKnowledgePodcasts userId={user?.id} /></TabsContent>
                 </Tabs>
               </SheetContent>
             </Sheet>
