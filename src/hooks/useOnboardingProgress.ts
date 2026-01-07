@@ -8,6 +8,7 @@ export interface OnboardingMilestone {
   points: number;
   completed: boolean;
   videoUrl?: string;
+  route?: string; // Navigation route for this milestone
   action?: () => void;
 }
 
@@ -150,6 +151,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 20,
       completed: completeness.has_first_daily_brief,
       videoUrl: tutorialVideos.first_daily_brief,
+      route: "/my-growth-plan", // Scroll to podcast player
     },
     {
       id: "jericho_chat",
@@ -158,6 +160,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 10,
       completed: completeness.has_chatted_with_jericho,
       videoUrl: tutorialVideos.jericho_chat,
+      route: "/my-growth-plan#jericho", // Opens Jericho chat
     },
     {
       id: "diagnostic",
@@ -166,6 +169,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 16,
       completed: completeness.has_completed_diagnostic,
       videoUrl: tutorialVideos.diagnostic,
+      route: "/my-growth-plan#jericho", // Opens Jericho for diagnostic
     },
     {
       id: "vision",
@@ -174,6 +178,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 12,
       completed: completeness.has_personal_vision,
       videoUrl: tutorialVideos.vision,
+      route: "/my-growth-plan#vision", // Scroll to vision card
     },
     {
       id: "habit",
@@ -182,6 +187,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 12,
       completed: completeness.has_active_habits,
       videoUrl: tutorialVideos.habit,
+      route: "/my-growth-plan#habits", // Scroll to greatness tracker
     },
     {
       id: "goal",
@@ -190,6 +196,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 15,
       completed: completeness.has_90_day_goals,
       videoUrl: tutorialVideos.goal,
+      route: "/my-growth-plan#goals", // Scroll to 90-day tracker
     },
     {
       id: "achievement",
@@ -198,6 +205,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 10,
       completed: completeness.has_recent_achievements,
       videoUrl: tutorialVideos.achievement,
+      route: "/my-growth-plan#achievements", // Scroll to achievements
     },
     {
       id: "capability",
@@ -206,6 +214,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 15,
       completed: completeness.has_self_assessed_capabilities,
       videoUrl: tutorialVideos.capability,
+      route: "/my-capabilities", // Navigate to capabilities page
     },
     {
       id: "resource",
@@ -214,6 +223,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 10,
       completed: completeness.has_received_resource,
       videoUrl: tutorialVideos.resource,
+      route: "/my-resources", // Navigate to resources page
     },
   ];
 
