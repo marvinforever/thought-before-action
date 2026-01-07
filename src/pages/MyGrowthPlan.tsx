@@ -14,7 +14,7 @@ import AchievementsCard from "@/components/AchievementsCard";
 import GreatnessTracker from "@/components/GreatnessTracker";
 import { ViewJobDescriptionDialog } from "@/components/ViewJobDescriptionDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
-import { OnboardingProgressCard } from "@/components/OnboardingProgressCard";
+import { PhasedOnboarding } from "@/components/PhasedOnboarding";
 import { StreakBadge } from "@/components/StreakBadge";
 import { BadgeShowcase } from "@/components/BadgeShowcase";
 import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
@@ -161,12 +161,12 @@ export default function MyGrowthPlan() {
       {/* Welcome Modal for incomplete onboarding */}
       <WelcomeModal onStartChat={handleOpenJericho} />
 
-      {/* Onboarding Progress */}
-      <OnboardingProgressCard
+      {/* Phased Onboarding */}
+      <PhasedOnboarding
         key={onboardingProgressKey}
         onOpenJericho={handleOpenJericho}
         onStartFirstDailyBrief={() => {
-          toast({ title: "Opening onboarding…", description: "Let’s create your first Daily Brief." });
+          toast({ title: "Opening onboarding...", description: "Let's create your first Daily Brief." });
           setOnboardingWizardForceKey((v) => v + 1);
         }}
       />
