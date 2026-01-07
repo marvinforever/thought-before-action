@@ -29,14 +29,21 @@ const phases: Phase[] = [
     name: "Define Your Path",
     tagline: "Set your direction",
     icon: <Map className="h-4 w-4" />,
-    milestoneIds: ["diagnostic", "vision", "habit"],
+    milestoneIds: ["diagnostic", "vision"],
+  },
+  {
+    id: "acquainted",
+    name: "Get Acquainted",
+    tagline: "Meet your AI coach",
+    icon: <Rocket className="h-4 w-4" />,
+    milestoneIds: ["first_daily_brief", "jericho_chat"],
   },
   {
     id: "momentum",
     name: "Build Momentum",
     tagline: "Take action",
     icon: <Trophy className="h-4 w-4" />,
-    milestoneIds: ["first_daily_brief", "jericho_chat", "goal", "achievement", "capability", "resource"],
+    milestoneIds: ["goal", "habit", "achievement", "capability", "resource"],
   },
 ];
 
