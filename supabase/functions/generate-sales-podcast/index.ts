@@ -133,9 +133,9 @@ Write it now, make it fire:`;
 
     console.log('Synthesizing audio...');
 
-    // Generate audio - energetic and fast
-    // Using "Chris" voice - friendly, energetic male voice
-    const voiceId = 'iP95p4xoKVk53GoZ742B'; // Chris - friendly/energetic
+    // Generate audio - deep, commanding, epic energy
+    // Using "George" voice - deep, authoritative, dramatic
+    const voiceId = 'JBFqnCBsd6RMkjVDRZzb'; // George - deep/commanding
     
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -149,11 +149,11 @@ Write it now, make it fire:`;
           text: script,
           model_id: 'eleven_turbo_v2_5',
           voice_settings: {
-            stability: 0.35,
-            similarity_boost: 0.8,
-            style: 0.6,
+            stability: 0.25, // Lower = more expressive/dramatic
+            similarity_boost: 0.85,
+            style: 0.75, // High style for drama
             use_speaker_boost: true,
-            speed: 1.15, // Faster, more energy
+            speed: 1.1,
           },
         }),
       }
