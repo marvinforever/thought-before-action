@@ -12,6 +12,7 @@ interface PhasedOnboardingProps {
   onOpenJericho?: () => void;
   onStartFirstDailyBrief?: () => void;
   className?: string;
+  isPreview?: boolean;
 }
 
 interface Phase {
@@ -58,8 +59,19 @@ const milestoneIcons: Record<string, React.ReactNode> = {
   resource: <BookOpen className="h-4 w-4" />,
 };
 
-export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, className }: PhasedOnboardingProps) {
-  const { score, milestones, loading } = useOnboardingProgress();
+export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, className, isPreview = false }: PhasedOnboardingProps) {
+  const progressData = useOnboardingProgress();
+  const [previewCompletedIds, setPreviewCompletedIds] = useState<Set<string>>(new Set());
+  
+  // In preview mode, use local state for milestone completion
+  const milestones = isPreview 
+    ? progressData.milestones.map(m => ({ ...m, completed: previewCompletedIds.has(m.id) }))
+    : progressData.milestones;
+  const score = isPreview 
+    ? milestones.filter(m => m.completed).reduce((sum, m) => sum + m.points, 0)
+    : progressData.score;
+  const loading = isPreview ? false : progressData.loading;
+
   const [videoDialog, setVideoDialog] = useState<{
     open: boolean;
     milestone: OnboardingMilestone | null;
@@ -101,6 +113,20 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
   }, [completedInPhase, totalInPhase, currentPhaseIndex, currentPhase.id]);
 
   const handleMilestoneClick = (milestone: OnboardingMilestone) => {
+    // In preview mode, toggle completion instead of navigating
+    if (isPreview) {
+      setPreviewCompletedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(milestone.id)) {
+          next.delete(milestone.id);
+        } else {
+          next.add(milestone.id);
+        }
+        return next;
+      });
+      return;
+    }
+
     if (milestone.id === 'first_daily_brief' && !milestone.completed && onStartFirstDailyBrief) {
       onStartFirstDailyBrief();
       return;
