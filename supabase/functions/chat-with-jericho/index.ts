@@ -1541,11 +1541,67 @@ Be specific and tactical—generic advice doesn't help. Tailor everything to the
             }
           } else if (functionName === 'update_90_day_target') {
             const updateData: any = {};
+
+            // Fallback parsing: if the model dumps benchmarks/sprints into goal_text,
+            // try to extract them so the UI doesn't end up blank.
+            const maybeExtractFromGoalText = () => {
+              const raw = String(functionArgs.goal_text || '').trim();
+              if (!raw) return { cleanedGoalText: raw, benchmarks: undefined, sprints: undefined };
+
+              // Look for common section headers.
+              const headerRegex = /(\n|^)(benchmarks?|milestones?)\s*:?\s*(\n|$)|(\n|^)(sprints?|actions?|steps?)\s*:?\s*(\n|$)/i;
+              if (!headerRegex.test(raw)) {
+                return { cleanedGoalText: raw, benchmarks: undefined, sprints: undefined };
+              }
+
+              const lines = raw.split(/\r?\n/);
+              const collected = {
+                goalLines: [] as string[],
+                benchmarks: [] as { text: string; completed: boolean }[],
+                sprints: [] as { text: string; completed: boolean }[],
+              };
+
+              let section: 'goal' | 'benchmarks' | 'sprints' = 'goal';
+              const isHeader = (l: string, type: 'benchmarks' | 'sprints') => {
+                const t = l.trim().toLowerCase().replace(/:$/, '');
+                if (type === 'benchmarks') return ['benchmark', 'benchmarks', 'milestone', 'milestones'].includes(t);
+                return ['sprint', 'sprints', 'action', 'actions', 'step', 'steps'].includes(t);
+              };
+              const parseItem = (l: string) => l
+                .trim()
+                .replace(/^[-*•]\s+/, '')
+                .replace(/^\d+[\).]\s+/, '')
+                .trim();
+
+              for (const line of lines) {
+                if (isHeader(line, 'benchmarks')) { section = 'benchmarks'; continue; }
+                if (isHeader(line, 'sprints')) { section = 'sprints'; continue; }
+
+                const itemText = parseItem(line);
+                const looksLikeItem = /^\s*([-*•]|\d+[\).])\s+/.test(line) || (section !== 'goal' && itemText.length > 0);
+
+                if (section === 'goal') {
+                  collected.goalLines.push(line);
+                } else if (looksLikeItem && itemText) {
+                  if (section === 'benchmarks') collected.benchmarks.push({ text: itemText, completed: false });
+                  if (section === 'sprints') collected.sprints.push({ text: itemText, completed: false });
+                }
+              }
+
+              const cleanedGoalText = collected.goalLines.join('\n').trim();
+              return {
+                cleanedGoalText: cleanedGoalText || raw.split(/\r?\n/)[0].trim(),
+                benchmarks: collected.benchmarks.length ? collected.benchmarks : undefined,
+                sprints: collected.sprints.length ? collected.sprints : undefined,
+              };
+            };
+
+            // Prefer explicit fields
             if (functionArgs.goal_text) updateData.goal_text = functionArgs.goal_text;
             if (functionArgs.completed !== undefined) updateData.completed = functionArgs.completed;
             if (functionArgs.category) updateData.category = functionArgs.category;
             if (functionArgs.goal_type) updateData.goal_type = functionArgs.goal_type;
-            
+
             // Handle benchmarks - array of { text, completed }
             if (functionArgs.benchmarks && Array.isArray(functionArgs.benchmarks)) {
               updateData.benchmarks = functionArgs.benchmarks.map((b: any) => ({
@@ -1553,7 +1609,7 @@ Be specific and tactical—generic advice doesn't help. Tailor everything to the
                 completed: b.completed || false
               }));
             }
-            
+
             // Handle sprints - array of { text, completed }
             if (functionArgs.sprints && Array.isArray(functionArgs.sprints)) {
               updateData.sprints = functionArgs.sprints.map((s: any) => ({
@@ -1561,7 +1617,17 @@ Be specific and tactical—generic advice doesn't help. Tailor everything to the
                 completed: s.completed || false
               }));
             }
-            
+
+            // Fallback: if model didn't pass benchmarks/sprints, attempt extraction from goal_text
+            if ((!updateData.benchmarks && !updateData.sprints) && functionArgs.goal_text) {
+              const extracted = maybeExtractFromGoalText();
+              if (extracted.cleanedGoalText && extracted.cleanedGoalText !== functionArgs.goal_text) {
+                updateData.goal_text = extracted.cleanedGoalText;
+              }
+              if (!updateData.benchmarks && extracted.benchmarks) updateData.benchmarks = extracted.benchmarks;
+              if (!updateData.sprints && extracted.sprints) updateData.sprints = extracted.sprints;
+            }
+
             console.log('Updating 90-day target with data:', JSON.stringify(updateData));
             
             const { error: updateError } = await supabase
