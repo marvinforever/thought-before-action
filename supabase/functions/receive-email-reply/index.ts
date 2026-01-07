@@ -41,19 +41,30 @@ serve(async (req) => {
     console.log("Raw payload type:", rawPayload?.type);
     console.log("Raw payload keys:", Object.keys(rawPayload || {}));
     
+    // Log the FULL payload to see what Resend is sending
+    console.log("FULL RAW PAYLOAD:", JSON.stringify(rawPayload, null, 2));
+    
     // Handle Resend's nested structure
     const emailData = rawPayload.data || rawPayload;
     console.log("Email data keys:", Object.keys(emailData || {}));
+    console.log("FULL EMAIL DATA:", JSON.stringify(emailData, null, 2));
     
     const from = emailData.from || rawPayload.from;
     const to = Array.isArray(emailData.to) ? emailData.to[0] : (emailData.to || rawPayload.to);
     const subject = emailData.subject || rawPayload.subject;
     const emailId = emailData.email_id;
     
+    // Try ALL possible field names for body content directly from payload
+    let text = emailData.text || emailData.body || emailData.plain || emailData.plain_body || 
+               emailData.text_body || emailData.content || rawPayload.text || rawPayload.body || "";
+    let html = emailData.html || emailData.html_body || rawPayload.html || "";
+    
     console.log("Email from:", from);
     console.log("Email to:", to);
     console.log("Subject:", subject);
     console.log("Email ID:", emailId);
+    console.log("Direct text length:", text?.length || 0);
+    console.log("Direct html length:", html?.length || 0);
 
     if (!from) {
       console.error("No 'from' field found in payload");
@@ -63,12 +74,9 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the full email content from Resend API
-    let text = "";
-    let html = "";
-    
-    if (emailId) {
-      console.log("Fetching email content from Resend API...");
+    // If no text/html from payload and we have emailId, try fetching from Resend API
+    if (!text && !html && emailId) {
+      console.log("No content in payload, trying Resend API...");
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       
       try {
@@ -81,7 +89,7 @@ serve(async (req) => {
         
         if (emailContentResponse.ok) {
           const emailContent = await emailContentResponse.json();
-          console.log("Email content keys:", Object.keys(emailContent || {}));
+          console.log("Resend API response keys:", Object.keys(emailContent || {}));
           text = emailContent.text || "";
           html = emailContent.html || "";
           console.log("Fetched text length:", text.length);
