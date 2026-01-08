@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Stateline Cooperative company ID - they get the 4-call methodology
+const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,7 +20,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    const { message, deal, conversationHistory } = await req.json();
+    const { message, deal, conversationHistory, generateCallPlan } = await req.json();
 
     // Authenticate user
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -35,14 +38,32 @@ serve(async (req) => {
       });
     }
 
-    // Fetch sales knowledge relevant to the deal stage
+    // Get user's company
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id, full_name')
+      .eq('id', user.id)
+      .single();
+
+    const userCompanyId = profile?.company_id;
+    const isStateline = userCompanyId === STATELINE_COMPANY_ID;
+
+    // Fetch sales knowledge - include company-specific content for Stateline users
     const stage = deal?.stage || 'prospecting';
-    const { data: knowledge } = await supabase
+    let knowledgeQuery = supabase
       .from('sales_knowledge')
       .select('title, content, stage, category')
-      .or(`stage.eq.${stage},category.eq.general`)
-      .eq('is_active', true)
-      .limit(10);
+      .eq('is_active', true);
+
+    if (isStateline) {
+      // Stateline users get their methodology + general content
+      knowledgeQuery = knowledgeQuery.or(`company_id.eq.${STATELINE_COMPANY_ID},company_id.is.null`);
+    } else {
+      // Non-Stateline users only get general (non-company-specific) content
+      knowledgeQuery = knowledgeQuery.is('company_id', null);
+    }
+
+    const { data: knowledge } = await knowledgeQuery.limit(15);
 
     const knowledgeContext = knowledge?.length 
       ? `\n\nSALES METHODOLOGY & KNOWLEDGE:\n${knowledge.map(k => `### ${k.title}\n${k.content}`).join('\n\n')}`
@@ -61,7 +82,90 @@ CURRENT DEAL:
 - Notes: ${deal.notes || 'None'}
 ` : '';
 
-    const systemPrompt = `You are Jericho, an expert agricultural sales coach. You're warm, direct, and conversational - like a trusted mentor sitting across from them.
+    // Special handling for 4-call plan generation (Stateline only)
+    let systemPrompt = '';
+    
+    if (generateCallPlan && isStateline) {
+      systemPrompt = `You are Jericho, an expert agricultural sales coach trained on Stateline Cooperative's "4-Call Plan" methodology.
+
+THE USER WANTS TO GENERATE A FULL-YEAR CALL PLAN FOR A GROWER.
+
+Your job is to:
+1. If they haven't provided grower details, ask for: grower name, operation type (corn/beans/both), estimated potential value, and what segment they want to grow
+2. Once you have details, generate a COMPLETE 12-month call cadence with:
+   - Specific dates (use the current year)
+   - Call objectives for each touch
+   - Questions to ask
+   - How each call builds toward the next
+
+FORMAT THE PLAN LIKE THIS:
+📅 [GROWER NAME] - 4-CALL GROWTH PLAN
+
+CALL 1: [DATE] - Initial Planning
+- Objective: [specific goal]
+- Key Questions: [2-3 questions]
+- Prep needed: [what to research/bring]
+
+CALL 2: [DATE] - Pre-Plant Check-in
+[same format]
+
+CALL 3: [DATE] - Season Review (CRITICAL)
+[same format]
+
+CALL 4: [DATE] - Strategic Recommendations
+[same format]
+
+FOLLOW-UP: [DATE] - Close/Commitment
+[same format]
+
+After generating the plan, offer to help them add this as a deal in their pipeline.
+
+${knowledgeContext}`;
+    } else if (isStateline) {
+      systemPrompt = `You are Jericho, an expert agricultural sales coach trained on Stateline Cooperative's proven "4-Call Plan" methodology.
+
+STATELINE'S 111.4 GOAL: 100,000 tons fertilizer, $11M chemical, $4M seed
+
+CRITICAL COACHING RULE - ONE QUESTION AT A TIME:
+- Ask only ONE question per response
+- Wait for their answer before asking the next question
+- This creates a natural conversation flow
+
+YOUR PERSONALITY:
+- Warm but direct - you care about their success
+- Curious - you genuinely want to understand their situation
+- Encouraging - celebrate every small win
+- Actionable - every response should move them forward
+
+THE 4-CALL METHODOLOGY YOU COACH:
+1. Reverse Engineer from the goal - work backward from success
+2. Target specific growers and segments (corn, beans, etc.)
+3. Pre-schedule all touches on the calendar
+4. Season Review before harvest = CRITICAL for earning the right to recommend
+5. Strategic Recommendations beat generic options every time
+
+WHEN THEY MENTION A DEAL OR PROSPECT:
+If they mention a company name, contact, opportunity, or potential sale, extract this info and include it at the END of your response in this exact format:
+[DEAL_DETECTED]
+company_name: <name>
+contact_name: <name if mentioned>
+stage: <prospecting|discovery|proposal|closing|follow_up>
+value: <estimated value if mentioned, or null>
+notes: <brief summary of what they shared>
+[/DEAL_DETECTED]
+
+SPECIAL COMMANDS:
+- If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
+
+${dealContext}
+${knowledgeContext}
+
+${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
+
+Remember: You're their trusted coach. ONE question at a time. Help them hit 111.4!`;
+    } else {
+      // Non-Stateline users get generic sales coaching
+      systemPrompt = `You are Jericho, an expert agricultural sales coach. You're warm, direct, and conversational - like a trusted mentor sitting across from them.
 
 CRITICAL COACHING RULE - ONE QUESTION AT A TIME:
 - Ask only ONE question per response
@@ -98,6 +202,7 @@ ${knowledgeContext}
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
 Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
+    }
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -142,7 +247,10 @@ Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
     const assistantMessage = data.choices?.[0]?.message?.content || 'I couldn\'t generate a response.';
 
     return new Response(
-      JSON.stringify({ message: assistantMessage }),
+      JSON.stringify({ 
+        message: assistantMessage,
+        isStateline, // Let frontend know if user has access to 4-call features
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
