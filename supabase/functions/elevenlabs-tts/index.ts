@@ -8,6 +8,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Convert numbers to spoken words for better TTS pronunciation
+ */
+function numberToWords(num: number): string {
+  if (num === 0) return 'zero';
+  
+  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+                'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 
+                'seventeen', 'eighteen', 'nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  
+  if (num < 0) return 'negative ' + numberToWords(-num);
+  if (num < 20) return ones[num];
+  if (num < 100) {
+    const remainder = num % 10;
+    return tens[Math.floor(num / 10)] + (remainder ? ' ' + ones[remainder] : '');
+  }
+  if (num < 1000) {
+    const remainder = num % 100;
+    return ones[Math.floor(num / 100)] + ' hundred' + (remainder ? ' ' + numberToWords(remainder) : '');
+  }
+  if (num < 1000000) {
+    const remainder = num % 1000;
+    return numberToWords(Math.floor(num / 1000)) + ' thousand' + (remainder ? ' ' + numberToWords(remainder) : '');
+  }
+  // For very large numbers, just return digits spoken individually
+  return num.toString().split('').map(d => ones[parseInt(d)] || d).join(' ');
+}
+
 // ElevenLabs voice IDs - using dynamic, engaging voices
 const VOICES = {
   // Primary voice
@@ -185,7 +214,7 @@ async function generateSegmentAudio(
   nextText?: string
 ): Promise<ArrayBuffer> {
   // Clean text for TTS - remove AI-sounding pauses and artifacts
-  const cleanedText = text
+  let cleanedText = text
     // Remove explicit pause markers
     .replace(/\[pause\]/gi, '')
     // Replace multiple periods with single pause (sounds more natural)
@@ -198,6 +227,16 @@ async function generateSegmentAudio(
     // Remove newlines (cause unnatural breaks)
     .replace(/\n+/g, ' ')
     .trim();
+  
+  // Fix number pronunciation - spell out percentages and common patterns
+  cleanedText = cleanedText
+    // "20%" → "twenty percent"
+    .replace(/\b(\d+)%/g, (_, num) => numberToWords(parseInt(num)) + ' percent')
+    // "111.4" goal style numbers → spoken form
+    .replace(/\b(\d+)\.(\d+)\b/g, (_, whole, decimal) => `${numberToWords(parseInt(whole))} point ${decimal}`)
+    // Large numbers like "1000" → "one thousand"
+    .replace(/\b(\d{4,})\b/g, (_, num) => numberToWords(parseInt(num)));
+
   
   // If text is short enough, generate directly
   if (cleanedText.length <= 800) {
