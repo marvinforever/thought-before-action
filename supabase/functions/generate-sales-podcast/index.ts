@@ -187,7 +187,7 @@ Write it now - thoughtful and inviting:`;
       },
       body: JSON.stringify({
         model: 'tts-1-hd', // Higher quality model
-        voice: 'nova', // Trying nova for comparison
+        voice: 'shimmer', // Trying shimmer for comparison
         input: script,
         response_format: 'mp3',
         speed: 1.0, // Natural pace
