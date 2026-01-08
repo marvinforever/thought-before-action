@@ -231,7 +231,7 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
         </div>
       )}
 
-      <ScrollArea className="h-[500px]">
+      <ScrollArea className="h-[500px] pr-4">
         <div className="space-y-3">
           {knowledge.map((item) => {
             const data = podcastData[item.id];
@@ -307,9 +307,9 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
                         const isGeneratingEp = isGeneratingThis && generatingEpisode === episode.index;
 
                         return (
-                          <div 
-                            key={idx} 
-                            className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                          <div
+                            key={idx}
+                            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg bg-muted/50"
                           >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
@@ -325,15 +325,16 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
                               </p>
                             </div>
 
-                            <div className="shrink-0 ml-3 flex gap-1">
+                            <div className="w-full sm:w-auto shrink-0 sm:ml-3 flex gap-1 justify-end">
                               {generated ? (
                                 <>
                                   <Button
                                     size="sm"
                                     variant={isPlaying ? "secondary" : "default"}
-                                    onClick={() => isPlaying 
-                                      ? pauseEpisode(item.id, episode.index) 
-                                      : playEpisode(item.id, episode.index)
+                                    onClick={() =>
+                                      isPlaying
+                                        ? pauseEpisode(item.id, episode.index)
+                                        : playEpisode(item.id, episode.index)
                                     }
                                     className="gap-1"
                                   >
@@ -356,7 +357,7 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
                                     disabled={isGeneratingThis}
                                     title="Regenerate episode"
                                   >
-                                    <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? 'animate-spin' : ''}`} />
+                                    <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? "animate-spin" : ""}`} />
                                   </Button>
                                 </>
                               ) : (
