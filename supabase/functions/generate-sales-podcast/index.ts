@@ -187,7 +187,7 @@ Write it now - thoughtful and inviting:`;
       },
       body: JSON.stringify({
         model: 'tts-1-hd', // Higher quality model
-        voice: 'onyx', // Warm, thoughtful male voice - good for advisor tone
+        voice: 'nova', // Trying nova for comparison
         input: script,
         response_format: 'mp3',
         speed: 1.0, // Natural pace
