@@ -123,25 +123,37 @@ APPLY THIS TO THE USER'S REAL DEAL:
 Customize your examples and advice to help with THIS specific deal. Mention the company name naturally. Make it feel like a personal coaching session for this exact situation.
 ` : '';
 
-    const scriptPrompt = `You're recording a quick, energetic sales tip - like a friend texting you the ONE thing that'll help you crush your next call.
+    const scriptPrompt = `You're recording a thoughtful sales insight - like a trusted advisor sharing something that might help them see their next opportunity differently.
 
 LESSON: ${chunk.title}
 KEY POINT: ${chunk.key_point}
 CONTENT: ${chunk.content}
 ${dealContextText}
 RULES:
-1. Start with energy - a punchy hook or bold statement
-2. Keep it conversational - talk TO them, not AT them
-3. ONE concept, ONE example, ONE action they can try NOW
-4. Be encouraging and upbeat - you believe in them!
+1. Start with curiosity - a question or observation that makes them think
+2. Keep it conversational and warm - like a mentor over coffee
+3. ONE concept explored thoughtfully, with a real-world example
+4. Ask questions that provoke reflection: "Have you thought about...?", "What if...?", "I wonder..."
 5. Under 120 words (60-75 seconds spoken)
-6. Use "you" and "your" constantly
-7. Short punchy sentences. Questions to engage.
+6. Use "you" and "your" - make it personal
+7. Varied sentence length. Questions to engage. Moments to pause and think.
 8. NO stage directions, NO "intro music", NO host names
 9. Just write the words to speak - nothing else
-${dealInfo ? '10. Reference their specific deal/company naturally throughout!' : ''}
+10. Tone: Warm advisor, NOT drill sergeant. Curious, NOT commanding.
+${dealInfo ? '11. Reference their specific deal/company naturally throughout!' : ''}
 
-Write it now, make it fire:`;
+AVOID phrases like:
+- "Listen up" / "Here's the deal" / "Let me tell you"
+- "You need to..." / "You must..." / "Do this now"
+- Anything that sounds like barking orders
+
+INSTEAD use:
+- "Have you ever noticed...?" / "What if you tried...?"
+- "I'm curious..." / "Something worth considering..."
+- "Here's what I've seen work..." / "One thing that might help..."
+
+Write it now - thoughtful and inviting:`;
+
 
     const scriptResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -181,11 +193,11 @@ Write it now, make it fire:`;
           text: script,
           model_id: 'eleven_turbo_v2_5',
           voice_settings: {
-            stability: 0.35, // Lower = more expressive/energetic
-            similarity_boost: 0.80,
-            style: 0.65, // High style for energy
+            stability: 0.25, // Lower = more expressive, natural variation
+            similarity_boost: 0.75, // More natural variation
+            style: 0.50, // Moderate - warm not aggressive
             use_speaker_boost: true,
-            speed: 1.15, // Slightly faster for energy
+            speed: 1.08, // Slightly slower - more thoughtful pace
           },
         }),
       }
