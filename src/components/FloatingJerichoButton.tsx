@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { MessageSquare, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JerichoChat } from "@/components/JerichoChat";
-import { JerichoVoiceChat } from "@/components/JerichoVoiceChat";
+import { JerichoVoiceChatOpenAI } from "@/components/JerichoVoiceChatOpenAI";
 import { supabase } from "@/integrations/supabase/client";
 
 const MOMENTUM_COMPANY_ID = "00000000-0000-0000-0000-000000000001";
@@ -111,7 +111,7 @@ export function FloatingJerichoButton({ isOpen: controlledIsOpen, onOpenChange }
       )}
 
       {isVoiceOpen && (
-        <JerichoVoiceChat
+        <JerichoVoiceChatOpenAI
           isOpen={isVoiceOpen}
           onClose={() => setIsVoiceOpen(false)}
         />
