@@ -192,6 +192,11 @@ const SalesTrainer = () => {
 
       const assistantMessage = response.data?.message || "Let me think on that...";
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
+      
+      // Silently refresh deals if one was created
+      if (response.data?.dealCreated && user?.id) {
+        fetchDeals(user.id);
+      }
     } catch (error) {
       console.error("Chat error:", error);
       toast({ title: "Coach unavailable", description: "Try again in a moment.", variant: "destructive" });
