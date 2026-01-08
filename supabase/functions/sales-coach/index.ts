@@ -246,12 +246,82 @@ Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
     }
 
     const data = await response.json();
-    const assistantMessage = data.choices?.[0]?.message?.content || 'I couldn\'t generate a response.';
+    let assistantMessage = data.choices?.[0]?.message?.content || 'I couldn\'t generate a response.';
+
+    // Check for deal detection and auto-create it silently
+    const dealMatch = assistantMessage.match(/\[DEAL_DETECTED\]([\s\S]*?)\[\/DEAL_DETECTED\]/);
+    let dealCreated = false;
+    
+    if (dealMatch) {
+      // Remove the deal block from the message shown to user
+      assistantMessage = assistantMessage.replace(/\[DEAL_DETECTED\][\s\S]*?\[\/DEAL_DETECTED\]/, '').trim();
+      
+      // Parse deal info
+      const dealBlock = dealMatch[1];
+      const companyName = dealBlock.match(/company_name:\s*(.+)/)?.[1]?.trim();
+      const contactName = dealBlock.match(/contact_name:\s*(.+)/)?.[1]?.trim();
+      const stage = dealBlock.match(/stage:\s*(.+)/)?.[1]?.trim() || 'prospecting';
+      const valueStr = dealBlock.match(/value:\s*(.+)/)?.[1]?.trim();
+      const notes = dealBlock.match(/notes:\s*(.+)/)?.[1]?.trim();
+      
+      if (companyName && companyName !== 'null' && companyName !== '<name>') {
+        try {
+          // Check if company exists, if not create it
+          let { data: existingCompany } = await supabase
+            .from('sales_companies')
+            .select('id')
+            .eq('profile_id', user.id)
+            .ilike('name', companyName)
+            .single();
+          
+          let companyId = existingCompany?.id;
+          
+          if (!companyId) {
+            const { data: newCompany } = await supabase
+              .from('sales_companies')
+              .insert({ name: companyName, profile_id: user.id })
+              .select('id')
+              .single();
+            companyId = newCompany?.id;
+          }
+          
+          // Parse value
+          const value = valueStr && valueStr !== 'null' 
+            ? parseInt(valueStr.replace(/[^0-9]/g, '')) || null 
+            : null;
+          
+          // Create the deal
+          const dealName = contactName && contactName !== 'null' 
+            ? `${contactName} - ${companyName}` 
+            : companyName;
+          
+          await supabase
+            .from('sales_deals')
+            .insert({
+              deal_name: dealName,
+              company_id: companyId,
+              stage: stage,
+              value: value,
+              notes: notes || null,
+              profile_id: user.id,
+              priority: 3,
+              probability: stage === 'prospecting' ? 20 : stage === 'discovery' ? 40 : 60,
+            });
+          
+          dealCreated = true;
+          console.log(`Auto-created deal: ${dealName}`);
+        } catch (dealError) {
+          console.error('Error auto-creating deal:', dealError);
+          // Don't fail the whole request, just log the error
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({ 
         message: assistantMessage,
-        hasMethodologyAccess, // Let frontend know if user has access to 4-call features
+        hasMethodologyAccess,
+        dealCreated, // Let frontend know a deal was created (for refreshing pipeline)
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
