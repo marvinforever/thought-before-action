@@ -38,8 +38,10 @@ interface Message {
   content: string;
 }
 
-// Stateline Cooperative company ID
+// Companies with access to 4-call methodology
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
+const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID, MOMENTUM_COMPANY_ID];
 
 const SalesTrainer = () => {
   const navigate = useNavigate();
@@ -56,7 +58,7 @@ const SalesTrainer = () => {
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
   const [deals, setDeals] = useState<any[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
-  const [isStateline, setIsStateline] = useState(false);
+  const [hasMethodologyAccess, setHasMethodologyAccess] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,8 +80,8 @@ const SalesTrainer = () => {
       
       setProfile(profileData);
       
-      // Check if user is from Stateline Cooperative
-      setIsStateline(profileData?.company_id === STATELINE_COMPANY_ID);
+      // Check if user has access to 4-call methodology
+      setHasMethodologyAccess(FOUR_CALL_COMPANIES.includes(profileData?.company_id));
       
       await fetchDeals(session.user.id);
       setLoading(false);
@@ -182,7 +184,7 @@ const SalesTrainer = () => {
           message: text,
           deal: null,
           conversationHistory,
-          generateCallPlan: isCallPlanRequest && isStateline,
+          generateCallPlan: isCallPlanRequest && hasMethodologyAccess,
         },
       });
 
@@ -400,7 +402,7 @@ const SalesTrainer = () => {
             {/* Quick Actions */}
             {messages.length <= 2 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {isStateline && (
+                {hasMethodologyAccess && (
                   <Button 
                     variant="default" 
                     size="sm"
@@ -422,7 +424,7 @@ const SalesTrainer = () => {
                     Add my first deal
                   </Button>
                 )}
-                {isStateline ? (
+                {hasMethodologyAccess ? (
                   <>
                     <Button 
                       variant="outline" 
