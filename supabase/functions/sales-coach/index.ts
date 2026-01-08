@@ -249,71 +249,100 @@ Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
     let assistantMessage = data.choices?.[0]?.message?.content || 'I couldn\'t generate a response.';
 
     // Check for deal detection and auto-create it silently
-    const dealMatch = assistantMessage.match(/\[DEAL_DETECTED\]([\s\S]*?)\[\/DEAL_DETECTED\]/);
+    // Support multiple formats the AI might use
+    const dealMatch = assistantMessage.match(/\[DEAL_DETECTED\]([\s\S]*?)\[\/DEAL_DETECTED\]/i) ||
+                      assistantMessage.match(/\*\*DEAL_DETECTED\*\*([\s\S]*?)\*\*\/DEAL_DETECTED\*\*/i);
     let dealCreated = false;
+    
+    console.log('Checking for deal in response, found:', !!dealMatch);
     
     if (dealMatch) {
       // Remove the deal block from the message shown to user
-      assistantMessage = assistantMessage.replace(/\[DEAL_DETECTED\][\s\S]*?\[\/DEAL_DETECTED\]/, '').trim();
+      assistantMessage = assistantMessage
+        .replace(/\[DEAL_DETECTED\][\s\S]*?\[\/DEAL_DETECTED\]/gi, '')
+        .replace(/\*\*DEAL_DETECTED\*\*[\s\S]*?\*\*\/DEAL_DETECTED\*\*/gi, '')
+        .trim();
       
-      // Parse deal info
+      // Parse deal info - be flexible with formats
       const dealBlock = dealMatch[1];
-      const companyName = dealBlock.match(/company_name:\s*(.+)/)?.[1]?.trim();
-      const contactName = dealBlock.match(/contact_name:\s*(.+)/)?.[1]?.trim();
-      const stage = dealBlock.match(/stage:\s*(.+)/)?.[1]?.trim() || 'prospecting';
-      const valueStr = dealBlock.match(/value:\s*(.+)/)?.[1]?.trim();
-      const notes = dealBlock.match(/notes:\s*(.+)/)?.[1]?.trim();
+      console.log('Deal block parsed:', dealBlock);
       
-      if (companyName && companyName !== 'null' && companyName !== '<name>') {
+      const companyName = dealBlock.match(/company[_\s]*name:\s*(.+)/i)?.[1]?.trim();
+      const contactName = dealBlock.match(/contact[_\s]*name:\s*(.+)/i)?.[1]?.trim();
+      const stage = dealBlock.match(/stage:\s*(.+)/i)?.[1]?.trim()?.toLowerCase() || 'prospecting';
+      const valueStr = dealBlock.match(/value:\s*(.+)/i)?.[1]?.trim();
+      const notes = dealBlock.match(/notes:\s*(.+)/i)?.[1]?.trim();
+      
+      console.log('Parsed deal info:', { companyName, contactName, stage, valueStr, notes });
+      
+      if (companyName && companyName !== 'null' && companyName !== '<name>' && !companyName.includes('<')) {
         try {
           // Check if company exists, if not create it
-          let { data: existingCompany } = await supabase
+          let { data: existingCompany, error: companyError } = await supabase
             .from('sales_companies')
             .select('id')
             .eq('profile_id', user.id)
             .ilike('name', companyName)
-            .single();
+            .maybeSingle();
+          
+          console.log('Existing company lookup:', { existingCompany, companyError });
           
           let companyId = existingCompany?.id;
           
           if (!companyId) {
-            const { data: newCompany } = await supabase
+            const { data: newCompany, error: createCompanyError } = await supabase
               .from('sales_companies')
               .insert({ name: companyName, profile_id: user.id })
               .select('id')
               .single();
+            
+            console.log('Created new company:', { newCompany, createCompanyError });
             companyId = newCompany?.id;
           }
           
-          // Parse value
-          const value = valueStr && valueStr !== 'null' 
-            ? parseInt(valueStr.replace(/[^0-9]/g, '')) || null 
-            : null;
+          if (!companyId) {
+            console.error('Failed to get or create company ID');
+            throw new Error('Failed to get company ID');
+          }
+          
+          // Parse value - handle various formats like "$50,000" or "50000"
+          let value = null;
+          if (valueStr && valueStr !== 'null' && !valueStr.includes('<')) {
+            const numericValue = valueStr.replace(/[^0-9.]/g, '');
+            value = numericValue ? parseInt(numericValue) || null : null;
+          }
           
           // Create the deal
-          const dealName = contactName && contactName !== 'null' 
+          const dealName = contactName && contactName !== 'null' && !contactName.includes('<')
             ? `${contactName} - ${companyName}` 
             : companyName;
           
-          await supabase
+          const { data: newDeal, error: dealError } = await supabase
             .from('sales_deals')
             .insert({
               deal_name: dealName,
               company_id: companyId,
-              stage: stage,
+              stage: ['prospecting', 'discovery', 'proposal', 'closing', 'follow_up'].includes(stage) ? stage : 'prospecting',
               value: value,
-              notes: notes || null,
+              notes: notes && !notes.includes('<') ? notes : null,
               profile_id: user.id,
               priority: 3,
-              probability: stage === 'prospecting' ? 20 : stage === 'discovery' ? 40 : 60,
-            });
+              probability: stage === 'prospecting' ? 20 : stage === 'discovery' ? 40 : stage === 'proposal' ? 60 : 80,
+            })
+            .select('id')
+            .single();
           
-          dealCreated = true;
-          console.log(`Auto-created deal: ${dealName}`);
+          if (dealError) {
+            console.error('Error creating deal:', dealError);
+          } else {
+            dealCreated = true;
+            console.log(`Auto-created deal: ${dealName} (ID: ${newDeal?.id})`);
+          }
         } catch (dealError) {
           console.error('Error auto-creating deal:', dealError);
-          // Don't fail the whole request, just log the error
         }
+      } else {
+        console.log('Skipping deal creation - invalid company name:', companyName);
       }
     }
 

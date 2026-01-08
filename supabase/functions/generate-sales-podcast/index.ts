@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { knowledgeId, chunkIndex = 0 } = await req.json();
+    const { knowledgeId, chunkIndex = 0, dealId, dealContext } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -33,7 +33,27 @@ serve(async (req) => {
       throw new Error('Knowledge article not found');
     }
 
-    console.log(`Chunking content for: ${knowledge.title}`);
+    // Optional: Fetch deal info if dealId provided
+    let dealInfo = dealContext || null;
+    if (dealId && !dealInfo) {
+      const { data: deal } = await supabase
+        .from('sales_deals')
+        .select('*, sales_companies(name), sales_contacts(name)')
+        .eq('id', dealId)
+        .single();
+      
+      if (deal) {
+        dealInfo = {
+          dealName: deal.deal_name,
+          companyName: deal.sales_companies?.name,
+          stage: deal.stage,
+          value: deal.value,
+          notes: deal.notes,
+        };
+      }
+    }
+
+    console.log(`Chunking content for: ${knowledge.title}${dealInfo ? ` (Deal: ${dealInfo.dealName})` : ''}`);
 
     // First, break content into bite-sized chunks using AI
     const chunkPrompt = `Break this sales training content into 3-5 SHORT, bite-sized lessons. Each lesson should be ONE focused concept that can be taught in 60-90 seconds.
@@ -92,12 +112,23 @@ Return ONLY the JSON array, no other text.`;
     
     console.log(`Generating episode ${chunkIndex + 1}/${chunks.length}: ${chunk.title}`);
 
+    // Add deal context to the script prompt if available
+    const dealContextText = dealInfo ? `
+APPLY THIS TO THE USER'S REAL DEAL:
+- Company: ${dealInfo.companyName || 'Unknown'}
+- Deal: ${dealInfo.dealName}
+- Stage: ${dealInfo.stage}
+- Notes: ${dealInfo.notes || 'None'}
+
+Customize your examples and advice to help with THIS specific deal. Mention the company name naturally. Make it feel like a personal coaching session for this exact situation.
+` : '';
+
     const scriptPrompt = `You're recording a quick, energetic sales tip - like a friend texting you the ONE thing that'll help you crush your next call.
 
 LESSON: ${chunk.title}
 KEY POINT: ${chunk.key_point}
 CONTENT: ${chunk.content}
-
+${dealContextText}
 RULES:
 1. Start with energy - a punchy hook or bold statement
 2. Keep it conversational - talk TO them, not AT them
@@ -108,6 +139,7 @@ RULES:
 7. Short punchy sentences. Questions to engage.
 8. NO stage directions, NO "intro music", NO host names
 9. Just write the words to speak - nothing else
+${dealInfo ? '10. Reference their specific deal/company naturally throughout!' : ''}
 
 Write it now, make it fire:`;
 
@@ -133,9 +165,9 @@ Write it now, make it fire:`;
 
     console.log('Synthesizing audio...');
 
-    // Generate audio - deep, commanding, epic energy
-    // Using "George" voice - deep, authoritative, dramatic
-    const voiceId = 'JBFqnCBsd6RMkjVDRZzb'; // George - deep/commanding
+    // Generate audio with energetic midwestern American voice
+    // Using "Chris" - friendly, energetic American male
+    const voiceId = 'iP95p4xoKVk53GoZ742B'; // Chris - energetic American male
     
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -149,11 +181,11 @@ Write it now, make it fire:`;
           text: script,
           model_id: 'eleven_turbo_v2_5',
           voice_settings: {
-            stability: 0.25, // Lower = more expressive/dramatic
-            similarity_boost: 0.85,
-            style: 0.75, // High style for drama
+            stability: 0.35, // Lower = more expressive/energetic
+            similarity_boost: 0.80,
+            style: 0.65, // High style for energy
             use_speaker_boost: true,
-            speed: 1.1,
+            speed: 1.15, // Slightly faster for energy
           },
         }),
       }
