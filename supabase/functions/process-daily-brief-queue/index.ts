@@ -40,6 +40,12 @@ function getLocalDayOfWeek(utcDate: Date, timezone: string): string {
   return localDate.toLocaleDateString('en-US', { weekday: 'long' });
 }
 
+function getLocalDateString(utcDate: Date, timezone: string): string {
+  const offset = TIMEZONE_OFFSETS[timezone] || -6;
+  const localDate = new Date(utcDate.getTime() + offset * 60 * 60 * 1000);
+  return localDate.toISOString().split('T')[0]; // Returns YYYY-MM-DD in local time
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -107,12 +113,20 @@ serve(async (req) => {
       console.log(`  -> shouldSend=${shouldSend}`);
 
       if (shouldSend) {
-        // Check if already sent today
+        // Check if already sent today in USER'S LOCAL timezone
+        // This prevents test emails sent late at night from blocking morning emails
+        const userLocalDate = getLocalDateString(now, userTimezone);
+        const offset = TIMEZONE_OFFSETS[userTimezone] || -6;
+        
+        // Calculate the UTC start of the user's local day
+        const localDayStartUTC = new Date(`${userLocalDate}T00:00:00Z`);
+        localDayStartUTC.setHours(localDayStartUTC.getHours() - offset);
+        
         const { data: todayDeliveries } = await supabase
           .from("email_deliveries")
           .select("id")
           .eq("profile_id", pref.profile_id)
-          .gte("sent_at", `${today}T00:00:00Z`)
+          .gte("sent_at", localDayStartUTC.toISOString())
           .limit(1);
 
         if (!todayDeliveries || todayDeliveries.length === 0) {
@@ -121,9 +135,9 @@ serve(async (req) => {
             includePodcast: pref.include_podcast !== false,
             briefFormat: pref.brief_format || 'both'
           });
-          console.log(`  -> Added to eligible users`);
+          console.log(`  -> Added to eligible users (local date: ${userLocalDate})`);
         } else {
-          console.log(`  -> Skipping ${pref.profile.email} - already sent today`);
+          console.log(`  -> Skipping ${pref.profile.email} - already sent on ${userLocalDate}`);
         }
       }
     }
