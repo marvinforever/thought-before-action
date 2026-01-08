@@ -21,7 +21,8 @@ import {
   Users,
   TrendingUp,
   Plus,
-  Headphones
+  Headphones,
+  CalendarDays
 } from "lucide-react";
 import { PipelineView } from "@/components/sales/PipelineView";
 import { DealsTable } from "@/components/sales/DealsTable";
@@ -36,6 +37,9 @@ interface Message {
   role: "user" | "assistant";
   content: string;
 }
+
+// Stateline Cooperative company ID
+const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 
 const SalesTrainer = () => {
   const navigate = useNavigate();
@@ -52,6 +56,7 @@ const SalesTrainer = () => {
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
   const [deals, setDeals] = useState<any[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isStateline, setIsStateline] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,6 +77,10 @@ const SalesTrainer = () => {
         .single();
       
       setProfile(profileData);
+      
+      // Check if user is from Stateline Cooperative
+      setIsStateline(profileData?.company_id === STATELINE_COMPANY_ID);
+      
       await fetchDeals(session.user.id);
       setLoading(false);
     };
@@ -163,11 +172,17 @@ const SalesTrainer = () => {
 
       const conversationHistory = messages.map(m => `${m.role}: ${m.content}`).join("\n\n");
 
+      // Check if this is a 4-call plan request
+      const isCallPlanRequest = text.toLowerCase().includes('4-call') || 
+                                text.toLowerCase().includes('generate') && text.toLowerCase().includes('plan') ||
+                                text.toLowerCase().includes('call plan');
+
       const response = await supabase.functions.invoke("sales-coach", {
         body: {
           message: text,
           deal: null,
           conversationHistory,
+          generateCallPlan: isCallPlanRequest && isStateline,
         },
       });
 
@@ -383,31 +398,65 @@ const SalesTrainer = () => {
             </ScrollArea>
 
             {/* Quick Actions */}
-            {messages.length <= 2 && deals.length === 0 && (
+            {messages.length <= 2 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowAddDeal(true)}
-                  className="gap-1"
-                >
-                  <Plus className="h-3 w-3" />
-                  Add my first deal
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => sendMessage("Walk me through your 5-step sales process")}
-                >
-                  Teach me the process
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => sendMessage("How do I set appointments effectively?")}
-                >
-                  Appointment setting tips
-                </Button>
+                {isStateline && (
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => sendMessage("Generate a 4-call plan for a grower I'm working with")}
+                    className="gap-1 bg-amber-600 hover:bg-amber-700"
+                  >
+                    <CalendarDays className="h-3 w-3" />
+                    Generate 4-Call Plan
+                  </Button>
+                )}
+                {deals.length === 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAddDeal(true)}
+                    className="gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add my first deal
+                  </Button>
+                )}
+                {isStateline ? (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => sendMessage("Walk me through the Season Review process")}
+                    >
+                      Season Review tips
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => sendMessage("How do we hit the 111.4 goal?")}
+                    >
+                      111.4 Strategy
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => sendMessage("Walk me through your 5-step sales process")}
+                    >
+                      Teach me the process
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => sendMessage("How do I set appointments effectively?")}
+                    >
+                      Appointment setting tips
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 

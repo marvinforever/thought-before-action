@@ -4055,6 +4055,7 @@ export type Database = {
       sales_knowledge: {
         Row: {
           category: string | null
+          company_id: string | null
           content: string
           created_at: string
           created_by: string | null
@@ -4067,6 +4068,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          company_id?: string | null
           content: string
           created_at?: string
           created_by?: string | null
@@ -4079,6 +4081,7 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          company_id?: string | null
           content?: string
           created_at?: string
           created_by?: string | null
@@ -4090,6 +4093,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_knowledge_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_knowledge_created_by_fkey"
             columns: ["created_by"]
