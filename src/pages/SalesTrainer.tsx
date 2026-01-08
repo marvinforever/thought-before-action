@@ -24,6 +24,7 @@ import {
   Headphones,
   CalendarDays
 } from "lucide-react";
+import { VoiceRecorder } from "@/components/sales/VoiceRecorder";
 import { PipelineView } from "@/components/sales/PipelineView";
 import { DealsTable } from "@/components/sales/DealsTable";
 import { CompaniesManager } from "@/components/sales/CompaniesManager";
@@ -476,6 +477,10 @@ const SalesTrainer = () => {
                 placeholder="Ask me anything about sales..."
                 className="resize-none min-h-[52px]"
                 rows={2}
+              />
+              <VoiceRecorder 
+                onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
+                disabled={chatLoading}
               />
               <Button
                 onClick={() => sendMessage()}
