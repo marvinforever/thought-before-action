@@ -434,8 +434,8 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
                     )}
                   </div>
 
-                  {/* Right side - How to do this (Video) */}
-                  {milestone.videoUrl && !milestone.completed && (
+                  {/* Right side - How to do this (Video) - TEMPORARILY HIDDEN until real videos are ready */}
+                  {/* {milestone.videoUrl && !milestone.completed && (
                     <div 
                       className="flex items-center gap-1.5 px-3 py-3 border-l border-border/50 cursor-pointer hover:bg-primary/10 transition-colors"
                       role="button"
@@ -448,7 +448,7 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
                       <Video className="h-4 w-4 text-primary" />
                       <span className="text-xs font-medium text-primary hidden sm:inline">How to</span>
                     </div>
-                  )}
+                  )} */}
                 </motion.div>
               );
             })}
