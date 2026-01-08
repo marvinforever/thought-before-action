@@ -6,45 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Timezone offsets from UTC - Updated for January 2026 (winter time / standard time)
-// Note: These are approximate. For DST-observing zones, offsets change in spring/fall.
-const TIMEZONE_OFFSETS: Record<string, number> = {
-  'America/New_York': -5,     // EST (Eastern Standard Time)
-  'America/Chicago': -6,      // CST (Central Standard Time)
-  'America/Denver': -7,       // MST (Mountain Standard Time)
-  'America/Los_Angeles': -8,  // PST (Pacific Standard Time)
-  'America/Phoenix': -7,      // No DST in Arizona
-  'America/Anchorage': -9,
-  'Pacific/Honolulu': -10,
-  'UTC': 0,
-  'Europe/London': 0,         // GMT in winter
-  'Europe/Paris': 1,          // CET in winter
-  'Europe/Berlin': 1,
-  'Asia/Tokyo': 9,
-  'Asia/Shanghai': 8,
-  'Australia/Sydney': 11,     // AEDT in January (summer)
-};
-
-function getUserLocalHour(utcHour: number, timezone: string): number {
-  const offset = TIMEZONE_OFFSETS[timezone] || -6; // Default to Central
-  let localHour = utcHour + offset;
-  if (localHour < 0) localHour += 24;
-  if (localHour >= 24) localHour -= 24;
-  console.log(`Timezone calc: UTC hour ${utcHour}, timezone ${timezone}, offset ${offset}, local hour ${localHour}`);
-  return localHour;
-}
-
-function getLocalDayOfWeek(utcDate: Date, timezone: string): string {
-  const offset = TIMEZONE_OFFSETS[timezone] || -6;
-  const localDate = new Date(utcDate.getTime() + offset * 60 * 60 * 1000);
-  return localDate.toLocaleDateString('en-US', { weekday: 'long' });
-}
-
-function getLocalDateString(utcDate: Date, timezone: string): string {
-  const offset = TIMEZONE_OFFSETS[timezone] || -6;
-  const localDate = new Date(utcDate.getTime() + offset * 60 * 60 * 1000);
-  return localDate.toISOString().split('T')[0]; // Returns YYYY-MM-DD in local time
-}
+// Daily podcast feature flag ID
+const DAILY_PODCAST_FLAG_ID = '5a91c49d-3789-4544-82f7-174509d7d2fe';
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -57,112 +20,107 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const now = new Date();
-    const utcHour = now.getUTCHours();
     const today = now.toISOString().split('T')[0];
 
-    console.log(`Processing daily brief queue at ${now.toISOString()} (UTC hour: ${utcHour})`);
+    console.log(`Processing daily brief queue at ${now.toISOString()}`);
+    console.log(`SENDING TO ALL USERS with daily_podcast flag enabled`);
 
-    // Fetch all users with email preferences enabled
-    const { data: preferences, error: prefError } = await supabase
-      .from("email_preferences")
-      .select(`
-        *,
-        profile:profiles(id, email, full_name, company_id)
-      `)
-      .eq("email_enabled", true);
+    // Get all companies with daily_podcast flag enabled
+    const { data: enabledCompanies, error: flagError } = await supabase
+      .from("company_feature_flags")
+      .select("company_id")
+      .eq("flag_id", DAILY_PODCAST_FLAG_ID)
+      .eq("is_enabled", true);
 
-    if (prefError) {
-      throw new Error(`Failed to fetch preferences: ${prefError.message}`);
+    if (flagError) {
+      throw new Error(`Failed to fetch feature flags: ${flagError.message}`);
     }
 
-    if (!preferences || preferences.length === 0) {
-      console.log("No users with email enabled");
+    if (!enabledCompanies || enabledCompanies.length === 0) {
+      console.log("No companies have the daily_podcast feature enabled");
+      return new Response(
+        JSON.stringify({ message: "No companies with feature enabled" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const companyIds = enabledCompanies.map(c => c.company_id);
+    console.log(`Found ${companyIds.length} companies with daily_podcast enabled`);
+
+    // Get ALL users in those companies
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, company_id")
+      .in("company_id", companyIds)
+      .not("email", "is", null);
+
+    if (profileError) {
+      throw new Error(`Failed to fetch profiles: ${profileError.message}`);
+    }
+
+    if (!profiles || profiles.length === 0) {
+      console.log("No users found in enabled companies");
       return new Response(
         JSON.stringify({ message: "No users to process" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Found ${preferences.length} users with email enabled`);
+    console.log(`Found ${profiles.length} total users in enabled companies`);
 
-    // Filter users whose preferred time matches current hour in their timezone
+    // Get auth info to check last sign in - need to check each user
     const eligibleUsers: any[] = [];
+    const neverLoggedInUsers: any[] = [];
 
-    for (const pref of preferences) {
-      if (!pref.profile?.id) continue;
-
-      const preferredTimeStr = pref.preferred_time || '07:00:00';
-      const [prefHour] = preferredTimeStr.split(':').map(Number);
-      const userTimezone = pref.timezone || 'America/Chicago';
-      const userLocalHour = getUserLocalHour(utcHour, userTimezone);
-      const userLocalDay = getLocalDayOfWeek(now, userTimezone);
-
-      console.log(`Checking ${pref.profile.email}: preferred=${prefHour}:00, local=${userLocalHour}:00, timezone=${userTimezone}, frequency=${pref.frequency}`);
-
-      // Check if this is the right time for this user
-      let shouldSend = false;
-
-      if (pref.frequency === 'daily') {
-        shouldSend = userLocalHour === prefHour;
-      } else if (pref.frequency === 'weekly') {
-        const prefDay = pref.preferred_day || 'Monday';
-        shouldSend = userLocalHour === prefHour && 
-                     userLocalDay.toLowerCase() === prefDay.toLowerCase();
+    for (const profile of profiles) {
+      // Skip demo emails
+      if (profile.email?.includes('@jerichodemo.com')) {
+        console.log(`Skipping demo email: ${profile.email}`);
+        continue;
       }
 
-      console.log(`  -> shouldSend=${shouldSend}`);
+      // Check if already sent today
+      const { data: todayDeliveries } = await supabase
+        .from("email_deliveries")
+        .select("id")
+        .eq("profile_id", profile.id)
+        .gte("sent_at", `${today}T00:00:00Z`)
+        .limit(1);
 
-      if (shouldSend) {
-        // Check if already sent today in USER'S LOCAL timezone
-        // This prevents test emails sent late at night from blocking morning emails
-        const userLocalDate = getLocalDateString(now, userTimezone);
-        const offset = TIMEZONE_OFFSETS[userTimezone] || -6;
-        
-        // Calculate the UTC start of the user's local day
-        const localDayStartUTC = new Date(`${userLocalDate}T00:00:00Z`);
-        localDayStartUTC.setHours(localDayStartUTC.getHours() - offset);
-        
-        const { data: todayDeliveries } = await supabase
-          .from("email_deliveries")
-          .select("id")
-          .eq("profile_id", pref.profile_id)
-          .gte("sent_at", localDayStartUTC.toISOString())
-          .limit(1);
+      if (todayDeliveries && todayDeliveries.length > 0) {
+        console.log(`Skipping ${profile.email} - already sent today`);
+        continue;
+      }
 
-        if (!todayDeliveries || todayDeliveries.length === 0) {
-          eligibleUsers.push({
-            ...pref.profile,
-            includePodcast: pref.include_podcast !== false,
-            briefFormat: pref.brief_format || 'both'
-          });
-          console.log(`  -> Added to eligible users (local date: ${userLocalDate})`);
-        } else {
-          console.log(`  -> Skipping ${pref.profile.email} - already sent on ${userLocalDate}`);
-        }
+      // Check last sign in via auth
+      const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
+      const lastSignIn = authUser?.user?.last_sign_in_at;
+      
+      if (!lastSignIn) {
+        neverLoggedInUsers.push(profile);
+        console.log(`${profile.email} - NEVER LOGGED IN - will send welcome email`);
+      } else {
+        eligibleUsers.push(profile);
+        console.log(`${profile.email} - last login: ${lastSignIn} - will send daily brief`);
       }
     }
 
-    console.log(`${eligibleUsers.length} users eligible for daily brief this hour`);
+    console.log(`${eligibleUsers.length} active users, ${neverLoggedInUsers.length} never-logged-in users`);
 
-    if (eligibleUsers.length === 0) {
-      return new Response(
-        JSON.stringify({ message: "No users eligible at this time", processed: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const allResults: any[] = [];
 
-    // Process users in batches
-    const results: any[] = [];
-    const batchSize = 2; // Small batches due to TTS generation time
+    // Process active users - send regular daily brief
+    if (eligibleUsers.length > 0) {
+      console.log(`\n=== Processing ${eligibleUsers.length} active users ===`);
+      const batchSize = 2;
 
-    for (let i = 0; i < eligibleUsers.length; i += batchSize) {
-      const batch = eligibleUsers.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}: ${batch.length} users`);
+      for (let i = 0; i < eligibleUsers.length; i += batchSize) {
+        const batch = eligibleUsers.slice(i, i + batchSize);
+        console.log(`Processing active batch ${Math.floor(i / batchSize) + 1}`);
 
-      const batchPromises = batch.map(async (user) => {
-        try {
-          // Step 1: Check if podcast exists for today, generate if needed
-          if (user.includePodcast) {
+        const batchPromises = batch.map(async (user) => {
+          try {
+            // Generate podcast if needed
             const { data: existingEpisode } = await supabase
               .from("podcast_episodes")
               .select("id, audio_url")
@@ -172,62 +130,94 @@ serve(async (req) => {
 
             if (!existingEpisode || !existingEpisode.audio_url) {
               console.log(`Generating podcast for ${user.email}`);
-              const genResult = await supabase.functions.invoke("auto-generate-podcasts", {
+              await supabase.functions.invoke("auto-generate-podcasts", {
                 body: { profileIds: [user.id], batchSize: 1 }
               });
-
-              if (genResult.error) {
-                console.error(`Podcast generation failed for ${user.email}:`, genResult.error);
-              }
             }
+
+            // Send daily brief
+            console.log(`Sending daily brief to ${user.email}`);
+            const emailResult = await supabase.functions.invoke("send-daily-brief-email", {
+              body: { profileId: user.id, episodeDate: today }
+            });
+
+            if (emailResult.error) {
+              console.error(`Email failed for ${user.email}:`, emailResult.error);
+              return { userId: user.id, email: user.email, type: 'brief', success: false, error: emailResult.error.message };
+            }
+
+            console.log(`Successfully sent daily brief to ${user.email}`);
+            return { userId: user.id, email: user.email, type: 'brief', success: true };
+          } catch (err) {
+            console.error(`Exception for ${user.email}:`, err);
+            return { userId: user.id, email: user.email, type: 'brief', success: false, error: String(err) };
           }
+        });
 
-          // Step 2: Send the daily brief email
-          console.log(`Sending daily brief email to ${user.email}`);
-          const emailResult = await supabase.functions.invoke("send-daily-brief-email", {
-            body: { profileId: user.id, episodeDate: today }
-          });
+        const results = await Promise.all(batchPromises);
+        allResults.push(...results);
 
-          if (emailResult.error) {
-            console.error(`Email failed for ${user.email}:`, emailResult.error);
-            return { userId: user.id, email: user.email, success: false, error: emailResult.error.message };
-          }
-
-          console.log(`Successfully sent daily brief to ${user.email}`);
-          return { userId: user.id, email: user.email, success: true };
-        } catch (err) {
-          console.error(`Exception processing ${user.email}:`, err);
-          return { 
-            userId: user.id, 
-            email: user.email, 
-            success: false, 
-            error: err instanceof Error ? err.message : String(err) 
-          };
+        if (i + batchSize < eligibleUsers.length) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
-
-      // Wait between batches to respect rate limits
-      if (i + batchSize < eligibleUsers.length) {
-        console.log("Waiting 10 seconds before next batch...");
-        await new Promise(resolve => setTimeout(resolve, 10000));
       }
     }
 
-    const successCount = results.filter(r => r.success).length;
-    const failCount = results.filter(r => !r.success).length;
+    // Process never-logged-in users - send welcome email
+    if (neverLoggedInUsers.length > 0) {
+      console.log(`\n=== Processing ${neverLoggedInUsers.length} never-logged-in users ===`);
+      const batchSize = 5; // Larger batches for simpler emails
 
-    console.log(`Daily brief processing complete: ${successCount} sent, ${failCount} failed`);
+      for (let i = 0; i < neverLoggedInUsers.length; i += batchSize) {
+        const batch = neverLoggedInUsers.slice(i, i + batchSize);
+        console.log(`Processing welcome batch ${Math.floor(i / batchSize) + 1}`);
+
+        const batchPromises = batch.map(async (user) => {
+          try {
+            console.log(`Sending welcome email to ${user.email}`);
+            const emailResult = await supabase.functions.invoke("send-daily-brief-email", {
+              body: { profileId: user.id, episodeDate: today, isWelcome: true }
+            });
+
+            if (emailResult.error) {
+              console.error(`Welcome email failed for ${user.email}:`, emailResult.error);
+              return { userId: user.id, email: user.email, type: 'welcome', success: false, error: emailResult.error.message };
+            }
+
+            console.log(`Successfully sent welcome email to ${user.email}`);
+            return { userId: user.id, email: user.email, type: 'welcome', success: true };
+          } catch (err) {
+            console.error(`Exception for ${user.email}:`, err);
+            return { userId: user.id, email: user.email, type: 'welcome', success: false, error: String(err) };
+          }
+        });
+
+        const results = await Promise.all(batchPromises);
+        allResults.push(...results);
+
+        if (i + batchSize < neverLoggedInUsers.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+
+    const successCount = allResults.filter(r => r.success).length;
+    const failCount = allResults.filter(r => !r.success).length;
+
+    console.log(`\n=== COMPLETE ===`);
+    console.log(`Daily briefs: ${allResults.filter(r => r.type === 'brief' && r.success).length} sent`);
+    console.log(`Welcome emails: ${allResults.filter(r => r.type === 'welcome' && r.success).length} sent`);
+    console.log(`Failed: ${failCount}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        processed: eligibleUsers.length,
+        processed: eligibleUsers.length + neverLoggedInUsers.length,
         sent: successCount,
         failed: failCount,
-        results
+        briefsSent: allResults.filter(r => r.type === 'brief' && r.success).length,
+        welcomesSent: allResults.filter(r => r.type === 'welcome' && r.success).length,
+        results: allResults
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -256,7 +256,7 @@ serve(async (req) => {
   }
 
   try {
-    const { profileId, episodeDate } = await req.json();
+    const { profileId, episodeDate, isWelcome } = await req.json();
 
     if (!profileId) {
       throw new Error("profileId is required");
@@ -379,12 +379,118 @@ serve(async (req) => {
       );
     }
 
+    const firstName = profile?.full_name?.split(' ')[0] || email.split('@')[0] || 'there';
+    
+    // Handle welcome email for users who have never logged in
+    if (isWelcome) {
+      console.log(`Sending WELCOME email to ${email} (never logged in)`);
+      
+      const welcomeSubject = `${firstName}, your growth coach is ready`;
+      const welcomeHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a1628; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #0a1628;">
+    
+    <!-- Header -->
+    <div style="padding: 40px 32px 24px 32px; text-align: center;">
+      <h1 style="font-size: 28px; font-weight: 700; margin: 0; color: #d4a855;">Jericho</h1>
+      <p style="color: #8892a8; font-size: 13px; margin: 8px 0 0 0; letter-spacing: 0.5px;">YOUR AI GROWTH COACH</p>
+    </div>
+
+    <!-- Main content card -->
+    <div style="margin: 0 16px; background: linear-gradient(180deg, #132238 0%, #0e1a2d 100%); border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;">
+      
+      <div style="padding: 32px; color: #e2e8f0; font-size: 16px; line-height: 1.7;">
+        <p style="margin: 0 0 20px 0;">Hey ${firstName},</p>
+        
+        <p style="margin: 0 0 20px 0;">Your account is set up and ready to change your life.</p>
+        
+        <p style="margin: 0 0 20px 0;">I'm Jericho — your AI-powered growth coach. Here's what I can help you with:</p>
+        
+        <ul style="margin: 0 0 20px 0; padding-left: 20px; color: #d4a855;">
+          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">Daily Podcasts</strong> — Personalized 5-minute episodes based on your goals</li>
+          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">90-Day Goals</strong> — Set and track meaningful quarterly targets</li>
+          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">Habit Tracking</strong> — Build the behaviors that drive results</li>
+          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">Skill Development</strong> — Level up your professional capabilities</li>
+        </ul>
+        
+        <p style="margin: 0 0 20px 0;">Click below to log in and let's get started. You'll set your first goal and I'll start creating personalized content just for you.</p>
+        
+        <p style="margin: 0; color: #8892a8;">Your growth journey starts now.</p>
+      </div>
+
+      <!-- CTA Button -->
+      <div style="padding: 0 32px 32px 32px;">
+        <a href="${appUrl}/auth" style="display: block; background: linear-gradient(135deg, #d4a855 0%, #c49545 100%); color: #0a1628; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; text-align: center;">
+          Log In & Get Started
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding: 32px; text-align: center;">
+      <p style="color: #8892a8; font-size: 13px; margin: 0;">
+        Questions? Just reply to this email.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+      `;
+
+      // Send welcome email
+      const rawFrom = Deno.env.get("RESEND_FROM");
+      const cleanedFrom = (rawFrom || "").trim().replace(/^"|"$/g, "");
+      const isBareEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedFrom);
+      const fromAddress = cleanedFrom
+        ? (isBareEmail ? `Jericho <${cleanedFrom}>` : cleanedFrom)
+        : "Jericho <onboarding@resend.dev>";
+
+      const emailResponse = await resend.emails.send({
+        from: fromAddress,
+        to: [email],
+        subject: welcomeSubject,
+        html: welcomeHtml,
+      });
+
+      const resendError = (emailResponse as any)?.error;
+      if (resendError) {
+        console.error(`Resend error sending welcome to ${email}:`, resendError);
+        return new Response(
+          JSON.stringify({ success: false, error: resendError?.message }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Record delivery
+      await supabase.from("email_deliveries").insert({
+        profile_id: profileId,
+        company_id: profile?.company_id,
+        subject: welcomeSubject,
+        body: welcomeHtml,
+        sent_at: new Date().toISOString(),
+        status: 'sent',
+        resources_included: { type: 'welcome', isWelcome: true },
+      });
+
+      console.log(`Welcome email sent to ${email}`);
+      return new Response(
+        JSON.stringify({ success: true, to: email, type: 'welcome' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Regular daily brief flow continues below...
     if (!episode) {
       throw new Error(`No podcast episode found for ${today}`);
     }
 
     const briefFormat = prefsResult.data?.brief_format || 'both';
-    const firstName = profile?.full_name?.split(' ')[0] || email.split('@')[0] || 'there';
 
     // Process habits with completion counts
     const habits = (habitsResult.data || []).map((h: any) => {
