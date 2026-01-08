@@ -6,8 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Stateline Cooperative company ID - they get the 4-call methodology
+// Companies with access to 4-call methodology
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
+const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID, MOMENTUM_COMPANY_ID];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -46,7 +48,7 @@ serve(async (req) => {
       .single();
 
     const userCompanyId = profile?.company_id;
-    const isStateline = userCompanyId === STATELINE_COMPANY_ID;
+    const hasMethodologyAccess = FOUR_CALL_COMPANIES.includes(userCompanyId);
 
     // Fetch sales knowledge - include company-specific content for Stateline users
     const stage = deal?.stage || 'prospecting';
@@ -55,11 +57,11 @@ serve(async (req) => {
       .select('title, content, stage, category')
       .eq('is_active', true);
 
-    if (isStateline) {
-      // Stateline users get their methodology + general content
+    if (hasMethodologyAccess) {
+      // Users with access get Stateline methodology + general content
       knowledgeQuery = knowledgeQuery.or(`company_id.eq.${STATELINE_COMPANY_ID},company_id.is.null`);
     } else {
-      // Non-Stateline users only get general (non-company-specific) content
+      // Other users only get general (non-company-specific) content
       knowledgeQuery = knowledgeQuery.is('company_id', null);
     }
 
@@ -82,10 +84,10 @@ CURRENT DEAL:
 - Notes: ${deal.notes || 'None'}
 ` : '';
 
-    // Special handling for 4-call plan generation (Stateline only)
+    // Special handling for 4-call plan generation
     let systemPrompt = '';
     
-    if (generateCallPlan && isStateline) {
+    if (generateCallPlan && hasMethodologyAccess) {
       systemPrompt = `You are Jericho, an expert agricultural sales coach trained on Stateline Cooperative's "4-Call Plan" methodology.
 
 THE USER WANTS TO GENERATE A FULL-YEAR CALL PLAN FOR A GROWER.
@@ -121,7 +123,7 @@ FOLLOW-UP: [DATE] - Close/Commitment
 After generating the plan, offer to help them add this as a deal in their pipeline.
 
 ${knowledgeContext}`;
-    } else if (isStateline) {
+    } else if (hasMethodologyAccess) {
       systemPrompt = `You are Jericho, an expert agricultural sales coach trained on Stateline Cooperative's proven "4-Call Plan" methodology.
 
 STATELINE'S 111.4 GOAL: 100,000 tons fertilizer, $11M chemical, $4M seed
@@ -249,7 +251,7 @@ Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
     return new Response(
       JSON.stringify({ 
         message: assistantMessage,
-        isStateline, // Let frontend know if user has access to 4-call features
+        hasMethodologyAccess, // Let frontend know if user has access to 4-call features
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
