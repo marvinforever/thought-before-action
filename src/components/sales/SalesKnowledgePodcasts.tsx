@@ -18,7 +18,7 @@ import {
   Target
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 interface SalesKnowledgePodcastsProps {
   userId: string;
@@ -208,12 +208,12 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
         {deals.length > 0 && (
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedDealId || ""} onValueChange={(v) => setSelectedDealId(v || null)}>
+            <Select value={selectedDealId || "general"} onValueChange={(v) => setSelectedDealId(v === "general" ? null : v)}>
               <SelectTrigger className="w-[200px] h-9">
                 <SelectValue placeholder="Apply to deal..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">General training</SelectItem>
+                <SelectItem value="general">General training</SelectItem>
                 {deals.map((deal) => (
                   <SelectItem key={deal.id} value={deal.id}>
                     {deal.deal_name}
@@ -265,14 +265,15 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
 
                     <div className="flex items-center gap-2 shrink-0">
                       {hasEpisodes ? (
-                        <Collapsible open={isExpanded} onOpenChange={() => setExpandedItem(isExpanded ? null : item.id)}>
-                          <CollapsibleTrigger asChild>
-                            <Button size="sm" variant="outline" className="gap-1">
-                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                              Episodes
-                            </Button>
-                          </CollapsibleTrigger>
-                        </Collapsible>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="gap-1"
+                          onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                        >
+                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          Episodes
+                        </Button>
                       ) : (
                         <Button
                           size="sm"
