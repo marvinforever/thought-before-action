@@ -18,7 +18,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY')!;
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -175,37 +175,28 @@ Write it now - thoughtful and inviting:`;
     const scriptData = await scriptResponse.json();
     const script = scriptData.choices?.[0]?.message?.content || '';
 
-    console.log('Synthesizing audio...');
+    console.log('Synthesizing audio with OpenAI TTS...');
 
-    // Generate audio with energetic midwestern American voice
-    // Using "Chris" - friendly, energetic American male
-    const voiceId = 'iP95p4xoKVk53GoZ742B'; // Chris - energetic American male
-    
-    const ttsResponse = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
-      {
-        method: 'POST',
-        headers: {
-          'xi-api-key': elevenLabsApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: script,
-          model_id: 'eleven_turbo_v2_5',
-          voice_settings: {
-            stability: 0.25, // Lower = more expressive, natural variation
-            similarity_boost: 0.75, // More natural variation
-            style: 0.50, // Moderate - warm not aggressive
-            use_speaker_boost: true,
-            speed: 1.08, // Slightly slower - more thoughtful pace
-          },
-        }),
-      }
-    );
+    // Generate audio with OpenAI TTS - using "onyx" voice (warm, thoughtful male)
+    // Other options: alloy, echo, fable, nova, shimmer
+    const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tts-1-hd', // Higher quality model
+        voice: 'onyx', // Warm, thoughtful male voice - good for advisor tone
+        input: script,
+        response_format: 'mp3',
+        speed: 1.0, // Natural pace
+      }),
+    });
 
     if (!ttsResponse.ok) {
       const errorText = await ttsResponse.text();
-      console.error('ElevenLabs TTS failed:', errorText);
+      console.error('OpenAI TTS failed:', errorText);
       throw new Error('Failed to generate audio');
     }
 
