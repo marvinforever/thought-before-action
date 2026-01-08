@@ -109,10 +109,15 @@ You structure emails like a personal daily briefing:
 6. A motivating sign-off
 
 IMPORTANT RULES:
-- When including links, ONLY use the app URL provided: ${context.appUrl}
+- When including links, ONLY use these VALID app routes (do NOT invent other pages):
+  * ${context.appUrl}/dashboard/my-growth-plan - Main growth plan page with goals, habits, vision
+  * ${context.appUrl}/dashboard/my-resources - Learning resources and recommendations
+  * ${context.appUrl}/dashboard/my-capabilities - Skill assessments and capability tracking
+  * ${context.appUrl}/dashboard/settings - Email and account settings
 - Reference the SPECIFIC capability name provided, never say "general" capability
-- You CAN include <a> tags linking to resources, but ONLY use ${context.appUrl} as the base URL
-- Example: <a href="${context.appUrl}/dashboard/my-resources">your learning resources</a>
+- You CAN include <a> tags linking to resources, but ONLY use the exact routes listed above
+- NEVER link to /dashboard/challenges or any route not in the list above - those pages do not exist
+- Example: <a href="${context.appUrl}/dashboard/my-growth-plan">your growth plan</a>
 
 Format your response as JSON with two fields:
 - "subject": A short, personal email subject line (max 60 chars, no emojis, make it about THEM not the podcast)
