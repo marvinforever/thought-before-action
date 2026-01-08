@@ -7,10 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Target,
   Send,
@@ -63,7 +61,6 @@ const SalesTrainer = () => {
   const [hasStarted, setHasStarted] = useState(false);
   const [hasMethodologyAccess, setHasMethodologyAccess] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -281,86 +278,43 @@ const SalesTrainer = () => {
                 {deals.length} deals · ${totalValue.toLocaleString()}
               </Badge>
             )}
-            {isMobile ? (
-              <Dialog open={showDataPanel} onOpenChange={setShowDataPanel}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <PanelRightOpen className="h-4 w-4" />
-                    <span className="hidden sm:inline">Pipeline</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[calc(100vw-1.5rem)] max-w-none h-[85vh] flex flex-col p-0 overflow-hidden">
-                  <DialogHeader className="p-6 pb-4 shrink-0">
-                    <DialogTitle className="flex items-center justify-between">
-                      Your Pipeline
-                      <Button size="sm" onClick={() => setShowAddDeal(true)} className="gap-1">
-                        <Plus className="h-4 w-4" />
-                        Add Deal
-                      </Button>
-                    </DialogTitle>
-                  </DialogHeader>
-                  <Tabs defaultValue="pipeline" className="flex-1 flex flex-col min-h-0 px-6">
-                    <TabsList className="grid grid-cols-5 w-full shrink-0">
-                      <TabsTrigger value="pipeline"><Target className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="deals"><TrendingUp className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="companies"><Building2 className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="contacts"><Users className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="podcasts"><Headphones className="h-4 w-4" /></TabsTrigger>
-                    </TabsList>
-                    <div className="flex-1 overflow-auto mt-4 pb-6">
-                      <TabsContent value="pipeline" className="mt-0 h-full">
-                        <PipelineView userId={user?.id} stages={stages} />
-                      </TabsContent>
-                      <TabsContent value="deals" className="mt-0"><DealsTable userId={user?.id} /></TabsContent>
-                      <TabsContent value="companies" className="mt-0"><CompaniesManager userId={user?.id} /></TabsContent>
-                      <TabsContent value="contacts" className="mt-0"><ContactsManager userId={user?.id} /></TabsContent>
-                      <TabsContent value="podcasts" className="mt-0"><SalesKnowledgePodcasts userId={user?.id} /></TabsContent>
-                    </div>
-                  </Tabs>
-                </DialogContent>
-              </Dialog>
-            ) : (
-              <Sheet open={showDataPanel} onOpenChange={setShowDataPanel}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <PanelRightOpen className="h-4 w-4" />
-                    <span className="hidden sm:inline">Pipeline</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  side="right"
-                  className="h-full w-[100vw] max-w-none sm:w-[520px] sm:max-w-[520px] flex flex-col p-0 overflow-hidden overflow-x-hidden"
-                >
-                  <SheetHeader className="p-6 pb-4 shrink-0">
-                    <SheetTitle className="flex items-center justify-between">
-                      Your Pipeline
-                      <Button size="sm" onClick={() => setShowAddDeal(true)} className="gap-1">
-                        <Plus className="h-4 w-4" />
-                        Add Deal
-                      </Button>
-                    </SheetTitle>
-                  </SheetHeader>
-                  <Tabs defaultValue="pipeline" className="flex-1 flex flex-col min-h-0 px-6">
-                    <TabsList className="grid grid-cols-5 w-full shrink-0">
-                      <TabsTrigger value="pipeline"><Target className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="deals"><TrendingUp className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="companies"><Building2 className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="contacts"><Users className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="podcasts"><Headphones className="h-4 w-4" /></TabsTrigger>
-                    </TabsList>
-                    <div className="flex-1 overflow-auto mt-4 pb-6">
-                      <TabsContent value="pipeline" className="mt-0 h-full">
-                        <PipelineView userId={user?.id} stages={stages} />
-                      </TabsContent>
-                      <TabsContent value="deals" className="mt-0"><DealsTable userId={user?.id} /></TabsContent>
-                      <TabsContent value="companies" className="mt-0"><CompaniesManager userId={user?.id} /></TabsContent>
-                      <TabsContent value="contacts" className="mt-0"><ContactsManager userId={user?.id} /></TabsContent>
-                      <TabsContent value="podcasts" className="mt-0"><SalesKnowledgePodcasts userId={user?.id} /></TabsContent>
-                    </div>
-                  </Tabs>
-                </SheetContent>
-              </Sheet>
-            )}
+            <Dialog open={showDataPanel} onOpenChange={setShowDataPanel}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <PanelRightOpen className="h-4 w-4" />
+                  <span className="hidden sm:inline">Pipeline</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[900px] h-[85vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="p-6 pb-4 shrink-0">
+                  <DialogTitle className="flex items-center justify-between">
+                    Your Pipeline
+                    <Button size="sm" onClick={() => setShowAddDeal(true)} className="gap-1">
+                      <Plus className="h-4 w-4" />
+                      Add Deal
+                    </Button>
+                  </DialogTitle>
+                </DialogHeader>
+                <Tabs defaultValue="pipeline" className="flex-1 flex flex-col min-h-0 px-6">
+                  <TabsList className="grid grid-cols-5 w-full shrink-0">
+                    <TabsTrigger value="pipeline"><Target className="h-4 w-4" /></TabsTrigger>
+                    <TabsTrigger value="deals"><TrendingUp className="h-4 w-4" /></TabsTrigger>
+                    <TabsTrigger value="companies"><Building2 className="h-4 w-4" /></TabsTrigger>
+                    <TabsTrigger value="contacts"><Users className="h-4 w-4" /></TabsTrigger>
+                    <TabsTrigger value="podcasts"><Headphones className="h-4 w-4" /></TabsTrigger>
+                  </TabsList>
+                  <div className="flex-1 overflow-auto mt-4 pb-6">
+                    <TabsContent value="pipeline" className="mt-0 h-full">
+                      <PipelineView userId={user?.id} stages={stages} />
+                    </TabsContent>
+                    <TabsContent value="deals" className="mt-0"><DealsTable userId={user?.id} /></TabsContent>
+                    <TabsContent value="companies" className="mt-0"><CompaniesManager userId={user?.id} /></TabsContent>
+                    <TabsContent value="contacts" className="mt-0"><ContactsManager userId={user?.id} /></TabsContent>
+                    <TabsContent value="podcasts" className="mt-0"><SalesKnowledgePodcasts userId={user?.id} /></TabsContent>
+                  </div>
+                </Tabs>
+              </DialogContent>
+            </Dialog>
             {profile?.company_id && (
               <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
                 <LayoutDashboard className="h-4 w-4" />
