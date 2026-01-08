@@ -285,7 +285,10 @@ const SalesTrainer = () => {
                   <span className="hidden sm:inline">Pipeline</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:w-[540px] sm:max-w-[90vw] flex flex-col h-full p-0 overflow-hidden">
+              <SheetContent
+                side="right"
+                className="h-full w-screen max-w-[100vw] sm:w-[520px] sm:max-w-[100vw] flex flex-col p-0 overflow-hidden"
+              >
                 <SheetHeader className="p-6 pb-4 shrink-0">
                   <SheetTitle className="flex items-center justify-between">
                     Your Pipeline
