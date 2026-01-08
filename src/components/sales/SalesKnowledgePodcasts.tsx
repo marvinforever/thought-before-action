@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Play, 
   Pause, 
@@ -13,7 +14,8 @@ import {
   ChevronDown,
   ChevronUp,
   Headphones,
-  RefreshCw
+  RefreshCw,
+  Target
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -45,9 +47,18 @@ interface PodcastData {
   generatedEpisodes: Record<number, { script: string; audioUrl?: string; audioBase64?: string }>;
 }
 
+interface Deal {
+  id: string;
+  deal_name: string;
+  stage: string;
+  sales_companies: { name: string } | null;
+}
+
 export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) => {
   const { toast } = useToast();
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
   const [generatingEpisode, setGeneratingEpisode] = useState<number | null>(null);
@@ -58,7 +69,8 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
 
   useEffect(() => {
     fetchKnowledge();
-  }, []);
+    fetchDeals();
+  }, [userId]);
 
   const fetchKnowledge = async () => {
     const { data, error } = await supabase
@@ -73,13 +85,29 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
     setLoading(false);
   };
 
+  const fetchDeals = async () => {
+    const { data } = await supabase
+      .from("sales_deals")
+      .select("id, deal_name, stage, sales_companies(name)")
+      .eq("profile_id", userId)
+      .order("priority");
+    
+    if (data) {
+      setDeals(data);
+    }
+  };
+
   const generateEpisode = async (item: KnowledgeItem, episodeIndex: number) => {
     setGenerating(item.id);
     setGeneratingEpisode(episodeIndex);
     
     try {
       const response = await supabase.functions.invoke("generate-sales-podcast", {
-        body: { knowledgeId: item.id, chunkIndex: episodeIndex },
+        body: { 
+          knowledgeId: item.id, 
+          chunkIndex: episodeIndex,
+          dealId: selectedDealId,
+        },
       });
 
       if (response.error) throw response.error;
@@ -166,7 +194,7 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h3 className="font-semibold flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
@@ -176,7 +204,32 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
             {knowledge.length} modules • Each breaks into 3-5 quick lessons
           </p>
         </div>
+        
+        {deals.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedDealId || ""} onValueChange={(v) => setSelectedDealId(v || null)}>
+              <SelectTrigger className="w-[200px] h-9">
+                <SelectValue placeholder="Apply to deal..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">General training</SelectItem>
+                {deals.map((deal) => (
+                  <SelectItem key={deal.id} value={deal.id}>
+                    {deal.deal_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
+
+      {selectedDealId && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-sm">
+          <span className="font-medium">🎯 Deal Mode:</span> Episodes will be customized with examples for your selected deal
+        </div>
+      )}
 
       <ScrollArea className="h-[500px]">
         <div className="space-y-3">
