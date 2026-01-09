@@ -405,7 +405,7 @@ serve(async (req) => {
     <!-- Main content card -->
     <div style="margin: 0 16px; background: linear-gradient(180deg, #132238 0%, #0e1a2d 100%); border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;">
       
-      <div style="padding: 32px; color: #e2e8f0; font-size: 16px; line-height: 1.7;">
+      <div style="padding: 32px; color: #ffffff; font-size: 16px; line-height: 1.7;">
         <p style="margin: 0 0 20px 0;">Hey ${firstName},</p>
         
         <p style="margin: 0 0 20px 0;">Your account is set up and ready to change your life.</p>
@@ -413,15 +413,15 @@ serve(async (req) => {
         <p style="margin: 0 0 20px 0;">I'm Jericho — your AI-powered growth coach. Here's what I can help you with:</p>
         
         <ul style="margin: 0 0 20px 0; padding-left: 20px; color: #d4a855;">
-          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">Daily Podcasts</strong> — Personalized 5-minute episodes based on your goals</li>
-          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">90-Day Goals</strong> — Set and track meaningful quarterly targets</li>
-          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">Habit Tracking</strong> — Build the behaviors that drive results</li>
-          <li style="margin-bottom: 12px; color: #e2e8f0;"><strong style="color: #d4a855;">Skill Development</strong> — Level up your professional capabilities</li>
+          <li style="margin-bottom: 12px; color: #ffffff;"><strong style="color: #d4a855;">Daily Podcasts</strong> — Personalized 5-minute episodes based on your goals</li>
+          <li style="margin-bottom: 12px; color: #ffffff;"><strong style="color: #d4a855;">90-Day Goals</strong> — Set and track meaningful quarterly targets</li>
+          <li style="margin-bottom: 12px; color: #ffffff;"><strong style="color: #d4a855;">Habit Tracking</strong> — Build the behaviors that drive results</li>
+          <li style="margin-bottom: 12px; color: #ffffff;"><strong style="color: #d4a855;">Skill Development</strong> — Level up your professional capabilities</li>
         </ul>
         
         <p style="margin: 0 0 20px 0;">Click below to log in and let's get started. You'll set your first goal and I'll start creating personalized content just for you.</p>
         
-        <p style="margin: 0; color: #8892a8;">Your growth journey starts now.</p>
+        <p style="margin: 0; color: #d4a855;">Your growth journey starts now.</p>
       </div>
 
       <!-- CTA Button -->
@@ -631,7 +631,7 @@ serve(async (req) => {
     <div style="margin: 0 16px; background: linear-gradient(180deg, #132238 0%, #0e1a2d 100%); border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;">
       
       <!-- AI-generated personalized content -->
-      <div style="padding: 32px; color: #e2e8f0; font-size: 16px; line-height: 1.7;">
+      <div style="padding: 32px; color: #ffffff; font-size: 16px; line-height: 1.7;">
         ${personalizedBody}
       </div>
 
