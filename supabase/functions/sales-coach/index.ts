@@ -6,9 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Companies with access to 4-call methodology
+// Companies with access to special methodologies
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
 const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID, MOMENTUM_COMPANY_ID];
 
 serve(async (req) => {
@@ -22,7 +23,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    const { message, deal, conversationHistory, generateCallPlan } = await req.json();
+    const { message, deal, conversationHistory, generateCallPlan, customerContext } = await req.json();
 
     // Authenticate user
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -49,8 +50,9 @@ serve(async (req) => {
 
     const userCompanyId = profile?.company_id;
     const hasMethodologyAccess = FOUR_CALL_COMPANIES.includes(userCompanyId);
+    const isStreamlineAg = userCompanyId === STREAMLINE_AG_COMPANY_ID;
 
-    // Fetch sales knowledge - include company-specific content for Stateline users
+    // Fetch sales knowledge - include company-specific content
     const stage = deal?.stage || 'prospecting';
     let knowledgeQuery = supabase
       .from('sales_knowledge')
@@ -67,6 +69,22 @@ serve(async (req) => {
 
     const { data: knowledge } = await knowledgeQuery.limit(15);
 
+    // Fetch company-specific product knowledge from company_knowledge table
+    let productKnowledge = '';
+    if (userCompanyId) {
+      const { data: companyDocs } = await supabase
+        .from('company_knowledge')
+        .select('title, content, category, document_type')
+        .eq('company_id', userCompanyId)
+        .eq('is_active', true)
+        .eq('document_type', 'product_sheet')
+        .limit(50);
+
+      if (companyDocs && companyDocs.length > 0) {
+        productKnowledge = `\n\n=== YOUR COMPANY'S PRODUCT CATALOG ===\nYou have access to ${companyDocs.length} products. Use these to make targeted recommendations based on the customer's situation:\n\n${companyDocs.map(doc => `### ${doc.title}\nCategory: ${doc.category}\n${doc.content}`).join('\n\n---\n\n')}`;
+      }
+    }
+
     const knowledgeContext = knowledge?.length 
       ? `\n\nSALES METHODOLOGY & KNOWLEDGE:\n${knowledge.map(k => `### ${k.title}\n${k.content}`).join('\n\n')}`
       : '';
@@ -82,6 +100,14 @@ CURRENT DEAL:
 - Priority: ${deal.priority || 3}/5
 - Probability: ${deal.probability || 50}%
 - Notes: ${deal.notes || 'None'}
+` : '';
+
+    // Build customer context if provided (farm info, challenges, etc.)
+    const customerInfo = customerContext ? `
+CUSTOMER/FARM DETAILS PROVIDED BY SALESPERSON:
+${customerContext}
+
+Use this information to make SPECIFIC product recommendations from your catalog that address their exact situation.
 ` : '';
 
     // Special handling for 4-call plan generation
@@ -122,7 +148,57 @@ FOLLOW-UP: [DATE] - Close/Commitment
 
 After generating the plan, offer to help them add this as a deal in their pipeline.
 
-${knowledgeContext}`;
+${knowledgeContext}${productKnowledge}`;
+    } else if (isStreamlineAg) {
+      // Streamline Ag specific prompt - agronomy sales with product recommendations
+      systemPrompt = `You are Jericho, an expert agricultural sales coach for Streamline Ag. You have deep knowledge of Streamline's product line and help salespeople position the right products for each customer's situation.
+
+YOUR CORE PURPOSE:
+Help Streamline Ag salespeople have better conversations with growers by:
+1. Understanding the customer's farm operation, challenges, and goals
+2. Recommending the RIGHT Streamline products that solve their specific problems
+3. Preparing them for objections and competitive situations
+4. Building a compelling value story that justifies the investment
+
+CRITICAL COACHING RULE - GATHER BEFORE YOU RECOMMEND:
+- Ask about the customer situation FIRST
+- What crops? What challenges? What are they currently using?
+- Once you understand, make SPECIFIC product recommendations with reasoning
+
+YOUR PERSONALITY:
+- You're a seasoned agronomist who LOVES helping growers succeed
+- Warm, knowledgeable, practical - never pushy or salesy
+- You think in terms of ROI and yield impact
+- You anticipate objections and prepare responses
+- You help the salesperson BELIEVE in the recommendation
+
+WHEN MAKING PRODUCT RECOMMENDATIONS:
+1. Name the specific Streamline product
+2. Explain WHY it fits this customer's situation
+3. Give the application timing and rate
+4. Quantify the expected benefit (yield, stress protection, etc.)
+5. Anticipate the objection and provide the response
+6. Suggest complementary products that work together
+
+EXAMPLE RECOMMENDATION FORMAT:
+"For [Customer]'s situation with [challenge], I'd recommend:
+
+🌾 **[Product Name]**
+- Why: [specific reason tied to their challenge]
+- Apply: [timing] at [rate]
+- Expected benefit: [quantified if possible]
+- Common objection: "[what they might say]"
+- Your response: "[how to handle it]"
+
+This pairs well with [complementary product] because..."
+
+${customerInfo}
+${dealContext}
+${productKnowledge}
+
+${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
+
+Remember: You're their trusted agronomic advisor. Help them help their customers succeed!`;
     } else if (hasMethodologyAccess) {
       systemPrompt = `You are Jericho, an expert agricultural sales coach trained on Stateline Cooperative's proven "4-Call Plan" methodology.
 
@@ -161,7 +237,7 @@ SPECIAL COMMANDS:
 - If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
 
 ${dealContext}
-${knowledgeContext}
+${knowledgeContext}${productKnowledge}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -200,8 +276,9 @@ CONVERSATION APPROACH:
 4. When you have enough context, give ONE clear next action
 5. If they seem stuck, offer to role-play or give them exact words to say
 
+${customerInfo}
 ${dealContext}
-${knowledgeContext}
+${knowledgeContext}${productKnowledge}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -376,6 +453,7 @@ Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
       JSON.stringify({ 
         message: assistantMessage,
         hasMethodologyAccess,
+        isStreamlineAg,
         dealCreated, // Let frontend know a deal was created (for refreshing pipeline)
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
