@@ -2250,25 +2250,55 @@ Share these results with empathy and offer 2-3 specific coaching suggestions for
     // No tool calls - stream the response directly
     console.log('No tool calls, streaming response...');
     
-    // Make a streaming request
-    const streamingResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: aiMessages,
-        stream: true,
-        temperature: 0.95,
-      }),
-    });
+    // Make a streaming request (model fallback)
+    const models = ['google/gemini-3-flash-preview', 'google/gemini-2.5-flash'];
+    let streamingResponse: Response | null = null;
+    let lastErrorText = '';
 
-    if (!streamingResponse.ok) {
-      const errorText = await streamingResponse.text();
-      console.error('Streaming AI error:', streamingResponse.status, errorText);
-      throw new Error(`AI request failed: ${streamingResponse.status}`);
+    for (const model of models) {
+      try {
+        streamingResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: aiMessages,
+            stream: true,
+            temperature: 0.95,
+          }),
+        });
+
+        if (streamingResponse.ok) break;
+
+        if (streamingResponse.status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limits exceeded. Please try again in a moment.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (streamingResponse.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'AI credits exhausted. Please contact your administrator.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        lastErrorText = await streamingResponse.text();
+        console.error('Streaming AI error:', { model, status: streamingResponse.status, lastErrorText });
+        streamingResponse = null;
+      } catch (e) {
+        lastErrorText = e instanceof Error ? e.message : 'Unknown fetch error';
+        console.error('Streaming AI fetch error:', { model, lastErrorText });
+        streamingResponse = null;
+      }
+    }
+
+    if (!streamingResponse || !streamingResponse.ok) {
+      throw new Error(`AI service temporarily unavailable${lastErrorText ? `: ${lastErrorText}` : ''}`);
     }
 
     return streamResponse(streamingResponse, conversation.id, supabase, corsHeaders);
