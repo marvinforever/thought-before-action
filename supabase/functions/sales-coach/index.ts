@@ -23,7 +23,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    const { message, deal, conversationHistory, generateCallPlan, customerContext, viewAsCompanyId } = await req.json();
+    const { message, deal, conversationHistory, generateCallPlan, customerContext, viewAsCompanyId, chatMode = 'rec' } = await req.json();
 
     // Authenticate user
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -124,6 +124,46 @@ Use this information to make SPECIFIC product recommendations from your catalog 
 
     // Special handling for 4-call plan generation
     let systemPrompt = '';
+    const isRecMode = chatMode === 'rec';
+    
+    // REC MODE PROMPT PREFIX - used across all company types when in rec mode
+    const recModePrefix = `You are Jericho, a sales preparation assistant. The user wants DIRECT ANSWERS, not coaching questions.
+
+YOUR JOB:
+- Give them the pre-call plan immediately
+- List specific questions they should ask the customer
+- Provide product recommendations with exact talking points
+- Anticipate objections and give word-for-word responses
+- Format everything as copy-paste ready bullets
+
+DO NOT:
+- Ask clarifying questions (work with what you have)
+- Use the Socratic method
+- Say "tell me more about..." or "what do you think..."
+- Hold back information to "coach" them
+
+FORMAT YOUR RESPONSES LIKE THIS:
+
+📋 PRE-CALL CHECKLIST:
+□ [specific action]
+□ [specific action]
+
+🎯 QUESTIONS TO ASK:
+1. "[exact question to ask customer]"
+2. "[exact question]"
+3. "[exact question]"
+
+💡 PRODUCT RECOMMENDATIONS:
+[Product] - "[one-liner pitch]"
+- Key benefit: [specific]
+- Objection: "[what they'll say]" → Response: "[what you say]"
+
+📞 OPENING LINE:
+"[Exact words to say when they answer]"
+
+Be direct. Be specific. Give them everything they need.
+
+`;
     
     if (generateCallPlan && hasMethodologyAccess) {
       systemPrompt = `You are Jericho, an expert agricultural sales coach trained on Stateline Cooperative's "4-Call Plan" methodology.
@@ -161,6 +201,17 @@ FOLLOW-UP: [DATE] - Close/Commitment
 After generating the plan, offer to help them add this as a deal in their pipeline.
 
 ${knowledgeContext}${productKnowledge}`;
+    } else if (isRecMode) {
+      // REC MODE - Direct answers, no coaching questions
+      systemPrompt = `${recModePrefix}
+=== YOUR CONTEXT ===
+${customerInfo}
+${dealContext}
+${knowledgeContext}${productKnowledge}
+
+${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
+
+Now give them exactly what they need - no questions, just answers.`;
     } else if (isStreamlineAg) {
       // Streamline Ag specific prompt - agronomy sales with product recommendations
       systemPrompt = `You are Jericho, an expert agricultural sales coach for Streamline Ag. You have deep knowledge of Streamline's product line and help salespeople position the right products for each customer's situation.
