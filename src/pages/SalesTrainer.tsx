@@ -31,6 +31,7 @@ import {
   Headphones,
   CalendarDays,
   Eye,
+  RotateCcw,
 } from "lucide-react";
 import { VoiceRecorder } from "@/components/sales/VoiceRecorder";
 import { PipelineView } from "@/components/sales/PipelineView";
@@ -78,7 +79,116 @@ const SalesTrainer = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [viewAsCompanyId, setViewAsCompanyId] = useState<string | null>(null);
   const [viewAsCompanyName, setViewAsCompanyName] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [userContext, setUserContext] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load existing conversation
+  const loadConversation = async (userId: string, companyId: string | null) => {
+    if (!companyId) return;
+    
+    try {
+      const { data: conversations } = await supabase
+        .from("sales_coach_conversations")
+        .select("id")
+        .eq("profile_id", userId)
+        .eq("company_id", companyId)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+
+      if (conversations && conversations.length > 0) {
+        const conv = conversations[0];
+        setConversationId(conv.id);
+
+        const { data: msgs } = await supabase
+          .from("sales_coach_messages")
+          .select("role, content")
+          .eq("conversation_id", conv.id)
+          .order("created_at", { ascending: true });
+
+        if (msgs && msgs.length > 0) {
+          setMessages(msgs.map(m => ({ role: m.role as "user" | "assistant", content: m.content })));
+          setHasStarted(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading conversation:", error);
+    }
+  };
+
+  // Fetch user context for richer AI responses
+  const fetchUserContext = async (userId: string) => {
+    try {
+      const { data: diagnostic } = await supabase
+        .from("diagnostic_responses")
+        .select("twelve_month_growth_goal, three_year_goal, one_year_vision, skill_to_master")
+        .eq("profile_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const { data: habits } = await supabase
+        .from("leading_indicators")
+        .select("habit_name, target_frequency, habit_description")
+        .eq("profile_id", userId)
+        .eq("is_active", true)
+        .limit(10);
+
+      let context = "";
+      if (diagnostic) {
+        if (diagnostic.twelve_month_growth_goal) context += `12-Month Goal: ${diagnostic.twelve_month_growth_goal}\n`;
+        if (diagnostic.three_year_goal) context += `3-Year Goal: ${diagnostic.three_year_goal}\n`;
+        if (diagnostic.skill_to_master) context += `Skill Focus: ${diagnostic.skill_to_master}\n`;
+      }
+      if (habits && habits.length > 0) {
+        context += `\n90-Day Habits:\n${habits.map(h => `- ${h.habit_name}`).join("\n")}`;
+      }
+      setUserContext(context);
+    } catch (error) {
+      console.error("Error fetching user context:", error);
+    }
+  };
+
+  // Create new conversation
+  const createConversation = async () => {
+    if (!user?.id || !profile?.company_id) return null;
+    
+    const { data, error } = await supabase
+      .from("sales_coach_conversations")
+      .insert({
+        profile_id: user.id,
+        company_id: profile.company_id,
+        title: "Sales Coaching Session"
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error creating conversation:", error);
+      return null;
+    }
+    return data.id;
+  };
+
+  // Save message to database
+  const saveMessage = async (convId: string, role: "user" | "assistant", content: string) => {
+    await supabase
+      .from("sales_coach_messages")
+      .insert({ conversation_id: convId, role, content });
+
+    await supabase
+      .from("sales_coach_conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", convId);
+  };
+
+  // Start fresh conversation
+  const startNewConversation = async () => {
+    setMessages([]);
+    setConversationId(null);
+    setHasStarted(false);
+    toast({ title: "Started fresh conversation" });
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -119,6 +229,8 @@ const SalesTrainer = () => {
       }
       
       await fetchDeals(session.user.id);
+      await loadConversation(session.user.id, profileData?.company_id);
+      await fetchUserContext(session.user.id);
       setLoading(false);
     };
 
@@ -177,10 +289,20 @@ const SalesTrainer = () => {
         openingMessage = `You've got ${dealCount} deal${dealCount > 1 ? 's' : ''} cooking. Most are in ${topStage?.[0] || 'your pipeline'}. ${topDeal ? `I see "${topDeal.deal_name}" is high priority - want to game plan that one? Or tell me what's on your mind today.` : `What's the one deal you need to move forward this week?`}`;
       }
 
-      setMessages([{
-        role: "assistant",
-        content: `Hey ${firstName}! 👋 Ready to get some deals moving?\n\n${openingMessage}`
-      }]);
+      const welcomeMsg = `Hey ${firstName}! 👋 Ready to get some deals moving?\n\n${openingMessage}`;
+      
+      // Create conversation and save opening message
+      let currentConvId = conversationId;
+      if (!currentConvId) {
+        currentConvId = await createConversation();
+        if (currentConvId) setConversationId(currentConvId);
+      }
+      
+      if (currentConvId) {
+        await saveMessage(currentConvId, "assistant", welcomeMsg);
+      }
+      
+      setMessages([{ role: "assistant", content: welcomeMsg }]);
     } catch (error) {
       console.error("Error starting coaching:", error);
       setMessages([{
@@ -200,6 +322,18 @@ const SalesTrainer = () => {
     setMessages(prev => [...prev, { role: "user", content: text }]);
     setChatLoading(true);
 
+    // Ensure we have a conversation
+    let currentConvId = conversationId;
+    if (!currentConvId) {
+      currentConvId = await createConversation();
+      if (currentConvId) setConversationId(currentConvId);
+    }
+
+    // Save user message
+    if (currentConvId) {
+      await saveMessage(currentConvId, "user", text);
+    }
+
     try {
       const pipelineContext = deals.length > 0 
         ? deals.map(d => 
@@ -209,7 +343,6 @@ const SalesTrainer = () => {
 
       const conversationHistory = messages.map(m => `${m.role}: ${m.content}`).join("\n\n");
 
-      // Check if this is a 4-call plan request
       const isCallPlanRequest = text.toLowerCase().includes('4-call') || 
                                 text.toLowerCase().includes('generate') && text.toLowerCase().includes('plan') ||
                                 text.toLowerCase().includes('call plan');
@@ -219,8 +352,9 @@ const SalesTrainer = () => {
           message: text,
           deal: null,
           conversationHistory,
+          userContext,
           generateCallPlan: isCallPlanRequest && hasMethodologyAccess,
-          viewAsCompanyId: viewAsCompanyId || undefined, // Pass override for super admin testing
+          viewAsCompanyId: viewAsCompanyId || undefined,
         },
       });
 
@@ -229,7 +363,11 @@ const SalesTrainer = () => {
       const assistantMessage = response.data?.message || "Let me think on that...";
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
       
-      // Silently refresh deals if one was created
+      // Save assistant message
+      if (currentConvId) {
+        await saveMessage(currentConvId, "assistant", assistantMessage);
+      }
+      
       if (response.data?.dealCreated && user?.id) {
         fetchDeals(user.id);
       }
