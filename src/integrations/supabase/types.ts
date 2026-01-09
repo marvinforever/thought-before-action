@@ -4183,6 +4183,94 @@ export type Database = {
           },
         ]
       }
+      sales_prep_documents: {
+        Row: {
+          call_objective: string | null
+          call_type: string | null
+          company_id: string
+          created_at: string
+          deal_id: string | null
+          discovery_questions: Json | null
+          id: string
+          is_public: boolean
+          next_steps: string | null
+          objection_handlers: Json | null
+          product_recommendations: Json | null
+          profile_id: string
+          prospect_company: string | null
+          prospect_name: string | null
+          prospect_role: string | null
+          share_token: string
+          talking_points: Json | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          call_objective?: string | null
+          call_type?: string | null
+          company_id: string
+          created_at?: string
+          deal_id?: string | null
+          discovery_questions?: Json | null
+          id?: string
+          is_public?: boolean
+          next_steps?: string | null
+          objection_handlers?: Json | null
+          product_recommendations?: Json | null
+          profile_id: string
+          prospect_company?: string | null
+          prospect_name?: string | null
+          prospect_role?: string | null
+          share_token?: string
+          talking_points?: Json | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          call_objective?: string | null
+          call_type?: string | null
+          company_id?: string
+          created_at?: string
+          deal_id?: string | null
+          discovery_questions?: Json | null
+          id?: string
+          is_public?: boolean
+          next_steps?: string | null
+          objection_handlers?: Json | null
+          product_recommendations?: Json | null
+          profile_id?: string
+          prospect_company?: string | null
+          prospect_name?: string | null
+          prospect_role?: string | null
+          share_token?: string
+          talking_points?: Json | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_prep_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_prep_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "sales_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_prep_documents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_messages: {
         Row: {
           company_id: string | null
