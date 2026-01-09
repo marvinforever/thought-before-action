@@ -61,6 +61,8 @@ const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
 const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID];
 
+type ChatMode = "coach" | "rec";
+
 const SalesTrainer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -84,6 +86,10 @@ const SalesTrainer = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<string>("");
   const [showPrepGenerator, setShowPrepGenerator] = useState(false);
+  const [chatMode, setChatMode] = useState<ChatMode>(() => {
+    const saved = localStorage.getItem('salesTrainerChatMode');
+    return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load existing conversation
@@ -358,6 +364,7 @@ const SalesTrainer = () => {
           userContext,
           generateCallPlan: isCallPlanRequest && hasMethodologyAccess,
           viewAsCompanyId: viewAsCompanyId || undefined,
+          chatMode,
         },
       });
 
@@ -442,9 +449,39 @@ const SalesTrainer = () => {
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div>
+          <div>
               <h1 className="font-bold text-lg tracking-tight">Jericho</h1>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Sales Coach</p>
+            </div>
+            
+            {/* Chat Mode Toggle */}
+            <div className="flex items-center bg-muted rounded-lg p-0.5 ml-4">
+              <button
+                onClick={() => {
+                  setChatMode('coach');
+                  localStorage.setItem('salesTrainerChatMode', 'coach');
+                }}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  chatMode === 'coach' 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                🎓 Coach
+              </button>
+              <button
+                onClick={() => {
+                  setChatMode('rec');
+                  localStorage.setItem('salesTrainerChatMode', 'rec');
+                }}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  chatMode === 'rec' 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                ⚡ Rec
+              </button>
             </div>
           </div>
           
