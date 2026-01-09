@@ -32,6 +32,7 @@ import {
   CalendarDays,
   Eye,
   RotateCcw,
+  FileText,
 } from "lucide-react";
 import { VoiceRecorder } from "@/components/sales/VoiceRecorder";
 import { PipelineView } from "@/components/sales/PipelineView";
@@ -41,6 +42,7 @@ import { ContactsManager } from "@/components/sales/ContactsManager";
 import { AddDealDialog } from "@/components/sales/AddDealDialog";
 import { DealCoachDialog } from "@/components/sales/DealCoachDialog";
 import { SalesKnowledgePodcasts } from "@/components/sales/SalesKnowledgePodcasts";
+import { PrepDocumentGenerator } from "@/components/sales/PrepDocumentGenerator";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -81,6 +83,7 @@ const SalesTrainer = () => {
   const [viewAsCompanyName, setViewAsCompanyName] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<string>("");
+  const [showPrepGenerator, setShowPrepGenerator] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load existing conversation
@@ -694,8 +697,17 @@ const SalesTrainer = () => {
                     >
                       Appointment setting tips
                     </Button>
-                  </>
+                    </>
                 )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowPrepGenerator(true)}
+                  className="gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  Create Prep Doc
+                </Button>
               </div>
             )}
 
@@ -745,6 +757,12 @@ const SalesTrainer = () => {
           onOpenChange={(open) => !open && setSelectedDeal(null)}
         />
       )}
+
+      <PrepDocumentGenerator
+        open={showPrepGenerator}
+        onOpenChange={setShowPrepGenerator}
+        conversationContext={messages.slice(-6).map(m => `${m.role}: ${m.content}`).join("\n")}
+      />
     </div>
   );
 };

@@ -32,6 +32,7 @@ import MomentumAcademy from "./pages/MomentumAcademy";
 import AcademyBlog from "./pages/AcademyBlog";
 import Sales from "./pages/Sales";
 import SalesTrainer from "./pages/SalesTrainer";
+import PublicPrepDocument from "./pages/PublicPrepDocument";
 import DashboardLayout from "./components/DashboardLayout";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -145,6 +146,8 @@ const App = () => (
             <Route path="/academy/:slug" element={<AcademyBlog />} />
             {/* Sales Trainer - Public with auth */}
             <Route path="/sales-trainer" element={<SalesTrainer />} />
+            {/* Public Prep Document */}
+            <Route path="/prep/:shareToken" element={<PublicPrepDocument />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
