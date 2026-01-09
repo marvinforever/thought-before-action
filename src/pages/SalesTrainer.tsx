@@ -59,7 +59,7 @@ interface Company {
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
-const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID, MOMENTUM_COMPANY_ID];
+const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID];
 
 const SalesTrainer = () => {
   const navigate = useNavigate();
