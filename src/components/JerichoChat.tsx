@@ -295,52 +295,106 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
       let accumulatedContent = '';
       let newConversationId = conversationId;
 
-      while (true) {
+      // Robust SSE parsing (handles partial JSON across chunks)
+      let textBuffer = '';
+      let streamDone = false;
+
+      while (!streamDone) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        textBuffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (data.conversationId && !newConversationId) {
-                newConversationId = data.conversationId;
-                setConversationId(data.conversationId);
-              }
-              
-              if (data.content) {
-                accumulatedContent += data.content;
-                setStreamBuffer(accumulatedContent); // Update buffer, typing effect will reveal it
-              }
-              
-               if (data.done) {
-                 const assistantIndex = activeAssistantIndexRef.current;
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
 
-                 // Update the actual message with final content before exiting
-                 if (assistantIndex !== null) {
-                   setMessages(prev => {
-                     if (!prev[assistantIndex]) return prev;
-                     const next = [...prev];
-                     next[assistantIndex] = {
-                       role: 'assistant',
-                       content: accumulatedContent,
-                       timestamp: new Date(),
-                     };
-                     return next;
-                   });
-                 }
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue; // keepalive/blank
+          if (!line.startsWith('data: ')) continue;
 
-                 // Nudge onboarding UI to refresh (used for "Chat with Jericho" milestone)
-                 window.dispatchEvent(new Event('onboardingProgressRefresh'));
-                 break;
-               }
-            } catch (e) {
-              console.error('Failed to parse SSE data:', e);
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+          if (jsonStr === '[DONE]') {
+            streamDone = true;
+            break;
+          }
+
+          try {
+            const data = JSON.parse(jsonStr);
+
+            if (data.conversationId && !newConversationId) {
+              newConversationId = data.conversationId;
+              setConversationId(data.conversationId);
             }
+
+            if (typeof data.content === 'string' && data.content.length) {
+              accumulatedContent += data.content;
+              setStreamBuffer(accumulatedContent);
+            }
+
+            if (data.done) {
+              const assistantIndex = activeAssistantIndexRef.current;
+
+              if (assistantIndex !== null) {
+                setMessages(prev => {
+                  if (!prev[assistantIndex]) return prev;
+                  const next = [...prev];
+                  next[assistantIndex] = {
+                    role: 'assistant',
+                    content: accumulatedContent,
+                    timestamp: new Date(),
+                  };
+                  return next;
+                });
+              }
+
+              window.dispatchEvent(new Event('onboardingProgressRefresh'));
+              streamDone = true;
+              break;
+            }
+          } catch {
+            // Incomplete JSON split across chunks — put it back and wait for more data
+            textBuffer = line + '\n' + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush (in case stream ended without trailing newline)
+      if (!streamDone && textBuffer.trim()) {
+        for (let raw of textBuffer.split('\n')) {
+          if (!raw) continue;
+          if (raw.endsWith('\r')) raw = raw.slice(0, -1);
+          if (raw.startsWith(':') || raw.trim() === '') continue;
+          if (!raw.startsWith('data: ')) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (!jsonStr || jsonStr === '[DONE]') continue;
+          try {
+            const data = JSON.parse(jsonStr);
+            if (typeof data.content === 'string' && data.content.length) {
+              accumulatedContent += data.content;
+              setStreamBuffer(accumulatedContent);
+            }
+            if (data.done) {
+              const assistantIndex = activeAssistantIndexRef.current;
+              if (assistantIndex !== null) {
+                setMessages(prev => {
+                  if (!prev[assistantIndex]) return prev;
+                  const next = [...prev];
+                  next[assistantIndex] = {
+                    role: 'assistant',
+                    content: accumulatedContent,
+                    timestamp: new Date(),
+                  };
+                  return next;
+                });
+              }
+              window.dispatchEvent(new Event('onboardingProgressRefresh'));
+            }
+          } catch {
+            // ignore leftovers
           }
         }
       }
