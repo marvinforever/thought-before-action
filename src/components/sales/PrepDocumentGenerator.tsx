@@ -1,35 +1,45 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, FileText, Link2, Download, Check, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { PrepDocumentPDF } from "./PrepDocumentPDF";
+import jsPDF from "jspdf";
 
 interface PrepDocumentGeneratorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  conversationContext: string;
   deal?: any;
-  conversationContext?: string;
 }
 
-export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationContext }: PrepDocumentGeneratorProps) {
+interface PrepDocument {
+  id: string;
+  title: string;
+  company_name?: string;
+  company_logo?: string;
+  seller_name?: string;
+  seller_title?: string;
+  prospect_name?: string;
+  prospect_company?: string;
+  prospect_role?: string;
+  call_type?: string;
+  call_objective?: string;
+  talking_points?: Array<{ point: string; detail: string }>;
+  discovery_questions?: Array<{ question: string; purpose: string }>;
+  product_recommendations?: Array<{ product: string; value_prop: string }>;
+  objection_handlers?: Array<{ objection: string; response: string }>;
+  next_steps?: string;
+  share_token: string;
+  is_public: boolean;
+  created_at: string;
+}
+
+export function PrepDocumentGenerator({ open, onOpenChange, conversationContext, deal }: PrepDocumentGeneratorProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [document, setDocument] = useState<any>(null);
+  const [document, setDocument] = useState<PrepDocument | null>(null);
   const [copied, setCopied] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    callType: deal?.stage === "discovery" ? "Discovery Call" : deal?.stage === "demo" ? "Product Demo" : "Follow-up Call",
-    callObjective: "",
-    prospectName: deal?.sales_contacts?.[0]?.name || "",
-    prospectCompany: deal?.sales_companies?.name || "",
-    prospectRole: deal?.sales_contacts?.[0]?.role || "",
-  });
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -37,7 +47,6 @@ export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationCo
       const { data, error } = await supabase.functions.invoke("generate-prep-document", {
         body: {
           dealId: deal?.id,
-          ...formData,
           conversationContext,
         },
       });
@@ -50,15 +59,186 @@ export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationCo
         title: "Document Generated!",
         description: "Your sales prep document is ready.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate document";
       toast({
         title: "Generation Failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const generatePDF = () => {
+    if (!document) return;
+    
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    const addWrappedText = (text: string, x: number, maxWidth: number, lineHeight: number = 6) => {
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      lines.forEach((line: string) => {
+        if (y > 270) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(line, x, y);
+        y += lineHeight;
+      });
+    };
+
+    // Header
+    pdf.setFillColor(30, 41, 59);
+    pdf.rect(0, 0, pageWidth, 40, "F");
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(20);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(document.title || "Sales Prep Document", margin, 25);
+    
+    if (document.company_name) {
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(document.company_name, margin, 35);
+    }
+
+    y = 55;
+    pdf.setTextColor(0, 0, 0);
+
+    // Meeting Overview
+    pdf.setFillColor(248, 250, 252);
+    pdf.roundedRect(margin, y, contentWidth, 30, 3, 3, "F");
+    
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("MEETING OVERVIEW", margin + 5, y + 8);
+    
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    y += 15;
+    
+    pdf.text(`Prospect: ${document.prospect_name || "TBD"}`, margin + 5, y);
+    pdf.text(`Company: ${document.prospect_company || "TBD"}`, pageWidth / 2 + 5, y);
+    y += 7;
+    pdf.text(`Prepared by: ${document.seller_name || "Sales Rep"}`, margin + 5, y);
+    
+    y += 20;
+
+    // Talking Points
+    if (document.talking_points?.length) {
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 64, 175);
+      pdf.text("KEY TALKING POINTS", margin, y);
+      y += 7;
+      
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(10);
+      
+      document.talking_points.forEach((tp, i) => {
+        if (y > 260) { pdf.addPage(); y = 20; }
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`${i + 1}.`, margin, y);
+        pdf.setFont("helvetica", "normal");
+        addWrappedText(tp.point, margin + 8, contentWidth - 8);
+        if (tp.detail) {
+          pdf.setTextColor(100, 100, 100);
+          pdf.setFontSize(9);
+          addWrappedText(`→ ${tp.detail}`, margin + 12, contentWidth - 12, 5);
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFontSize(10);
+        }
+        y += 3;
+      });
+      y += 5;
+    }
+
+    // Discovery Questions
+    if (document.discovery_questions?.length) {
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 64, 175);
+      pdf.text("DISCOVERY QUESTIONS", margin, y);
+      y += 7;
+      
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(10);
+      
+      document.discovery_questions.forEach((q, i) => {
+        if (y > 260) { pdf.addPage(); y = 20; }
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Q${i + 1}:`, margin, y);
+        pdf.setFont("helvetica", "normal");
+        addWrappedText(q.question, margin + 12, contentWidth - 12);
+        y += 3;
+      });
+      y += 5;
+    }
+
+    // Product Recommendations
+    if (document.product_recommendations?.length) {
+      if (y > 240) { pdf.addPage(); y = 20; }
+      
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 64, 175);
+      pdf.text("RECOMMENDED SOLUTIONS", margin, y);
+      y += 7;
+      
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(10);
+      
+      document.product_recommendations.forEach((pr) => {
+        if (y > 260) { pdf.addPage(); y = 20; }
+        pdf.setFont("helvetica", "bold");
+        addWrappedText(`• ${pr.product}`, margin, contentWidth);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(100, 100, 100);
+        pdf.setFontSize(9);
+        addWrappedText(pr.value_prop, margin + 8, contentWidth - 8, 5);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(10);
+        y += 2;
+      });
+      y += 5;
+    }
+
+    // Next Steps
+    if (document.next_steps) {
+      if (y > 250) { pdf.addPage(); y = 20; }
+      
+      pdf.setFillColor(236, 253, 245);
+      pdf.roundedRect(margin, y, contentWidth, 25, 3, 3, "F");
+      
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(22, 101, 52);
+      pdf.text("NEXT STEPS", margin + 5, y + 8);
+      
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(10);
+      y += 15;
+      addWrappedText(document.next_steps, margin + 5, contentWidth - 10);
+    }
+
+    // Footer
+    const footerY = pdf.internal.pageSize.getHeight() - 10;
+    pdf.setFontSize(8);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(
+      `Generated ${new Date(document.created_at || Date.now()).toLocaleDateString()} | ${document.company_name || "Sales Prep"}`,
+      margin,
+      footerY
+    );
+
+    const filename = `${document.prospect_company || "Prospect"}_Prep.pdf`.replace(/\s+/g, "_");
+    pdf.save(filename);
   };
 
   const handleMakePublic = async () => {
@@ -77,10 +257,11 @@ export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationCo
         title: "Link Created",
         description: "Your document is now shareable.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to create link";
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -100,128 +281,65 @@ export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationCo
 
   const handleClose = () => {
     setDocument(null);
-    setFormData({
-      callType: "Discovery Call",
-      callObjective: "",
-      prospectName: "",
-      prospectCompany: "",
-      prospectRole: "",
-    });
     onOpenChange(false);
   };
 
+  // Auto-generate when dialog opens
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && !document && !loading) {
+      handleGenerate();
+    }
+    if (!isOpen) {
+      handleClose();
+    } else {
+      onOpenChange(isOpen);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            {document ? "Your Prep Document" : "Generate Sales Prep Document"}
+            {loading ? "Generating Prep Document..." : document ? "Your Prep Document" : "Generate Prep Document"}
           </DialogTitle>
           <DialogDescription>
-            {document 
-              ? "Download as PDF or create a shareable link for your prospect."
-              : "Create a professional, branded prep document you can download or share."
+            {loading 
+              ? "Analyzing your conversation and creating a professional prep document..."
+              : document 
+                ? "Download as PDF or create a shareable link for your prospect."
+                : "Create a document from your conversation."
             }
           </DialogDescription>
         </DialogHeader>
 
-        {!document ? (
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="callType">Call Type</Label>
-                <Select
-                  value={formData.callType}
-                  onValueChange={(v) => setFormData({ ...formData, callType: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Discovery Call">Discovery Call</SelectItem>
-                    <SelectItem value="Product Demo">Product Demo</SelectItem>
-                    <SelectItem value="Follow-up Call">Follow-up Call</SelectItem>
-                    <SelectItem value="Negotiation">Negotiation</SelectItem>
-                    <SelectItem value="Closing Call">Closing Call</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="prospectRole">Prospect Role</Label>
-                <Input
-                  id="prospectRole"
-                  placeholder="e.g., VP of Operations"
-                  value={formData.prospectRole}
-                  onChange={(e) => setFormData({ ...formData, prospectRole: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="prospectName">Prospect Name</Label>
-                <Input
-                  id="prospectName"
-                  placeholder="e.g., John Smith"
-                  value={formData.prospectName}
-                  onChange={(e) => setFormData({ ...formData, prospectName: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="prospectCompany">Prospect Company</Label>
-                <Input
-                  id="prospectCompany"
-                  placeholder="e.g., Acme Corp"
-                  value={formData.prospectCompany}
-                  onChange={(e) => setFormData({ ...formData, prospectCompany: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="callObjective">Call Objective</Label>
-              <Textarea
-                id="callObjective"
-                placeholder="What do you want to accomplish in this call?"
-                value={formData.callObjective}
-                onChange={(e) => setFormData({ ...formData, callObjective: e.target.value })}
-                rows={2}
-              />
-            </div>
-
-            <Button onClick={handleGenerate} disabled={loading} className="w-full">
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Document...
-                </>
-              ) : (
-                <>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Generate Prep Document
-                </>
-              )}
-            </Button>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground">Extracting recommendations from your conversation...</p>
           </div>
-        ) : (
+        ) : document ? (
           <div className="space-y-4 py-4">
             {/* Document Preview */}
             <div className="border rounded-lg p-4 bg-muted/50 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-semibold text-lg">{document.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {formData.prospectName} at {formData.prospectCompany}
-                  </p>
+                  {(document.prospect_name || document.prospect_company) && (
+                    <p className="text-sm text-muted-foreground">
+                      {document.prospect_name && `${document.prospect_name} `}
+                      {document.prospect_company && `at ${document.prospect_company}`}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {document.talking_points?.length > 0 && (
+              {document.talking_points && document.talking_points.length > 0 && (
                 <div>
                   <h4 className="font-medium text-sm mb-2">Key Talking Points</h4>
                   <ul className="space-y-1 text-sm">
-                    {document.talking_points.slice(0, 3).map((tp: any, i: number) => (
+                    {document.talking_points.slice(0, 3).map((tp, i) => (
                       <li key={i} className="flex items-start gap-2">
                         <span className="text-primary">•</span>
                         <span>{tp.point}</span>
@@ -231,14 +349,14 @@ export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationCo
                 </div>
               )}
 
-              {document.discovery_questions?.length > 0 && (
+              {document.product_recommendations && document.product_recommendations.length > 0 && (
                 <div>
-                  <h4 className="font-medium text-sm mb-2">Discovery Questions</h4>
+                  <h4 className="font-medium text-sm mb-2">Recommendations</h4>
                   <ul className="space-y-1 text-sm">
-                    {document.discovery_questions.slice(0, 3).map((q: any, i: number) => (
+                    {document.product_recommendations.slice(0, 3).map((pr, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-primary">{i + 1}.</span>
-                        <span>{q.question}</span>
+                        <span className="text-primary">✓</span>
+                        <span><strong>{pr.product}:</strong> {pr.value_prop}</span>
                       </li>
                     ))}
                   </ul>
@@ -252,7 +370,10 @@ export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationCo
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-2">
-              <PrepDocumentPDF document={document} />
+              <Button onClick={generatePDF} className="flex-1">
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
+              </Button>
               
               {!document.is_public ? (
                 <Button variant="outline" onClick={handleMakePublic} className="flex-1">
@@ -278,6 +399,13 @@ export function PrepDocumentGenerator({ open, onOpenChange, deal, conversationCo
 
             <Button variant="ghost" onClick={handleClose} className="w-full">
               Done
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 gap-4">
+            <Button onClick={handleGenerate}>
+              <FileText className="mr-2 h-4 w-4" />
+              Generate Document
             </Button>
           </div>
         )}

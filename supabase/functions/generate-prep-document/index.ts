@@ -28,7 +28,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { dealId, callType, callObjective, prospectName, prospectCompany, prospectRole, conversationContext } = await req.json();
+    const { dealId, conversationContext } = await req.json();
+
+    if (!conversationContext) {
+      return new Response(JSON.stringify({ error: "No conversation context provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get user profile
     const { data: profile } = await supabase
@@ -69,53 +76,63 @@ Deno.serve(async (req) => {
       .eq("company_id", profile.company_id)
       .limit(10);
 
-    // Build prompt for AI
-    const systemPrompt = `You are a sales preparation document generator. Create professional, actionable sales prep content.
+    // Build prompt for AI - the AI will extract prospect info from the conversation
+    const systemPrompt = `You are a sales preparation document generator. Analyze the conversation and create a professional, actionable sales prep document.
 
 Company: ${company?.name || "Unknown"}
 Seller: ${profile.full_name || "Sales Rep"} (${profile.job_title || "Account Executive"})
 
 ${companyKnowledge?.length ? `
-Company Products/Knowledge:
-${companyKnowledge.map(k => `- ${k.title}: ${k.content?.substring(0, 200)}`).join("\n")}
+Available Products/Knowledge:
+${companyKnowledge.map(k => `- ${k.title}: ${k.content?.substring(0, 300)}`).join("\n")}
 ` : ""}
 
 ${dealInfo ? `
-Deal Context:
+Related Deal:
 - Deal: ${dealInfo.name}
 - Stage: ${dealInfo.stage}
 - Value: $${dealInfo.value?.toLocaleString() || "TBD"}
 - Notes: ${dealInfo.notes || "None"}
 ` : ""}
 
+Analyze the conversation to:
+1. Extract who the prospect is (name, company, role if mentioned)
+2. Identify the key challenges/needs discussed
+3. Pull out any product recommendations that were made
+4. Determine what the call objective should be
+
 Generate a structured sales prep document with the following JSON format:
 {
-  "title": "Call prep title",
+  "title": "Descriptive prep title based on the situation",
+  "prospect_name": "Name if mentioned, or null",
+  "prospect_company": "Company if mentioned, or null", 
+  "prospect_role": "Role if mentioned, or null",
+  "call_type": "Discovery Call, Product Demo, Follow-up, etc.",
+  "call_objective": "What to accomplish based on the conversation",
   "talking_points": [
-    {"point": "Key talking point", "detail": "Supporting detail or stat"}
+    {"point": "Key talking point from the conversation", "detail": "Supporting detail or stat"}
   ],
   "discovery_questions": [
-    {"question": "Question to ask", "purpose": "Why this matters"}
+    {"question": "Question to ask based on their situation", "purpose": "Why this matters"}
   ],
   "product_recommendations": [
-    {"product": "Product name", "value_prop": "Why it fits their needs"}
+    {"product": "Product name that was recommended", "value_prop": "Why it fits their specific needs"}
   ],
   "objection_handlers": [
-    {"objection": "Common objection", "response": "How to handle it"}
+    {"objection": "Potential concern they might have", "response": "How to address it"}
   ],
-  "next_steps": "Recommended next steps after the call"
+  "next_steps": "Recommended next steps based on the conversation"
 }
 
-Generate 3-5 items for each array. Be specific and actionable. Focus on the prospect's perspective and business value.`;
+Generate 3-5 items for talking_points, discovery_questions, and product_recommendations.
+Generate 2-3 objection_handlers.
+Be SPECIFIC to what was discussed - don't be generic!`;
 
-    const userPrompt = `Generate a sales prep document for:
-- Call Type: ${callType || "Discovery Call"}
-- Objective: ${callObjective || "Understand their needs and qualify the opportunity"}
-- Prospect: ${prospectName || "Unknown"} at ${prospectCompany || "Unknown Company"} (${prospectRole || "Decision Maker"})
+    const userPrompt = `Here is the conversation to analyze and turn into a sales prep document:
 
-${conversationContext ? `Recent conversation context:\n${conversationContext}` : ""}
+${conversationContext}
 
-Return ONLY valid JSON, no markdown or explanation.`;
+Extract all relevant details and create a comprehensive prep document. Return ONLY valid JSON, no markdown or explanation.`;
 
     // Call AI API
     const aiResponse = await fetch("https://api.lovable.dev/v1/chat/completions", {
@@ -151,12 +168,17 @@ Return ONLY valid JSON, no markdown or explanation.`;
     } catch (e) {
       console.error("Failed to parse AI response:", content);
       parsedContent = {
-        title: `${callType || "Sales"} Prep - ${prospectCompany || "Prospect"}`,
-        talking_points: [{ point: "Unable to generate", detail: "Please try again" }],
-        discovery_questions: [{ question: "What are your main priorities?", purpose: "Understand their needs" }],
+        title: "Sales Prep Document",
+        prospect_name: null,
+        prospect_company: null,
+        prospect_role: null,
+        call_type: "Follow-up Call",
+        call_objective: "Review recommendations and address questions",
+        talking_points: [{ point: "Review the recommendations discussed", detail: "Based on the conversation" }],
+        discovery_questions: [{ question: "What are your main priorities for this season?", purpose: "Understand their needs" }],
         product_recommendations: [],
         objection_handlers: [],
-        next_steps: "Schedule a follow-up call",
+        next_steps: "Schedule a follow-up call to finalize the plan",
       };
     }
 
@@ -167,12 +189,12 @@ Return ONLY valid JSON, no markdown or explanation.`;
         profile_id: profile.id,
         company_id: profile.company_id,
         deal_id: dealId || null,
-        title: parsedContent.title || `${callType || "Sales"} Prep - ${prospectCompany || "Prospect"}`,
-        prospect_name: prospectName,
-        prospect_company: prospectCompany,
-        prospect_role: prospectRole,
-        call_type: callType,
-        call_objective: callObjective,
+        title: parsedContent.title || "Sales Prep Document",
+        prospect_name: parsedContent.prospect_name,
+        prospect_company: parsedContent.prospect_company,
+        prospect_role: parsedContent.prospect_role,
+        call_type: parsedContent.call_type,
+        call_objective: parsedContent.call_objective,
         talking_points: parsedContent.talking_points,
         discovery_questions: parsedContent.discovery_questions,
         product_recommendations: parsedContent.product_recommendations,
