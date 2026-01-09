@@ -485,6 +485,12 @@ const SalesTrainer = () => {
                 {deals.length} deals · ${totalValue.toLocaleString()}
               </Badge>
             )}
+            {hasStarted && (
+              <Button variant="ghost" size="sm" onClick={startNewConversation} className="gap-1">
+                <RotateCcw className="h-4 w-4" />
+                <span className="hidden sm:inline">New Chat</span>
+              </Button>
+            )}
             <Dialog open={showDataPanel} onOpenChange={setShowDataPanel}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
