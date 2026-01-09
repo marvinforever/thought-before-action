@@ -10,6 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Target,
   Send,
   Loader2,
@@ -23,6 +30,7 @@ import {
   Plus,
   Headphones,
   CalendarDays,
+  Eye,
 } from "lucide-react";
 import { VoiceRecorder } from "@/components/sales/VoiceRecorder";
 import { PipelineView } from "@/components/sales/PipelineView";
@@ -39,9 +47,15 @@ interface Message {
   content: string;
 }
 
+interface Company {
+  id: string;
+  name: string;
+}
+
 // Companies with access to 4-call methodology
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
 const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID, MOMENTUM_COMPANY_ID];
 
 const SalesTrainer = () => {
@@ -60,6 +74,10 @@ const SalesTrainer = () => {
   const [deals, setDeals] = useState<any[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
   const [hasMethodologyAccess, setHasMethodologyAccess] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [viewAsCompanyId, setViewAsCompanyId] = useState<string | null>(null);
+  const [viewAsCompanyName, setViewAsCompanyName] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,6 +101,22 @@ const SalesTrainer = () => {
       
       // Check if user has access to 4-call methodology
       setHasMethodologyAccess(FOUR_CALL_COMPANIES.includes(profileData?.company_id));
+      
+      // Check if super admin
+      const { data: superAdminRole } = await supabase.rpc('has_role', { 
+        _user_id: session.user.id, 
+        _role: 'super_admin' 
+      });
+      setIsSuperAdmin(!!superAdminRole);
+      
+      // Load companies for super admin view-as selector
+      if (superAdminRole) {
+        const { data: companiesData } = await supabase
+          .from('companies')
+          .select('id, name')
+          .order('name');
+        setCompanies(companiesData || []);
+      }
       
       await fetchDeals(session.user.id);
       setLoading(false);
@@ -186,6 +220,7 @@ const SalesTrainer = () => {
           deal: null,
           conversationHistory,
           generateCallPlan: isCallPlanRequest && hasMethodologyAccess,
+          viewAsCompanyId: viewAsCompanyId || undefined, // Pass override for super admin testing
         },
       });
 
@@ -273,6 +308,40 @@ const SalesTrainer = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            {/* Super Admin View As Selector */}
+            {isSuperAdmin && (
+              <div className="flex items-center gap-2 border-r pr-3 mr-1">
+                <Eye className="h-4 w-4 text-amber-500" />
+                <Select 
+                  value={viewAsCompanyId || "none"} 
+                  onValueChange={(val) => {
+                    if (val === "none") {
+                      setViewAsCompanyId(null);
+                      setViewAsCompanyName(null);
+                    } else {
+                      const company = companies.find(c => c.id === val);
+                      setViewAsCompanyId(val);
+                      setViewAsCompanyName(company?.name || null);
+                    }
+                    // Reset chat when switching companies
+                    setMessages([]);
+                    setHasStarted(false);
+                  }}
+                >
+                  <SelectTrigger className="w-[160px] h-8 text-xs">
+                    <SelectValue placeholder="View as company..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">My Account</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {deals.length > 0 && (
               <Badge variant="secondary" className="hidden sm:flex">
                 {deals.length} deals · ${totalValue.toLocaleString()}
@@ -326,6 +395,27 @@ const SalesTrainer = () => {
           </div>
         </div>
       </header>
+
+      {/* View As Banner */}
+      {viewAsCompanyId && viewAsCompanyName && (
+        <div className="bg-amber-500 text-amber-950 px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
+          <Eye className="h-4 w-4" />
+          Viewing as: <strong>{viewAsCompanyName}</strong>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 px-2 text-amber-950 hover:text-amber-900 hover:bg-amber-400"
+            onClick={() => {
+              setViewAsCompanyId(null);
+              setViewAsCompanyName(null);
+              setMessages([]);
+              setHasStarted(false);
+            }}
+          >
+            Exit
+          </Button>
+        </div>
+      )}
 
       {/* Main Chat Area */}
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col max-w-3xl">

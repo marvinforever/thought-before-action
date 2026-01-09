@@ -23,7 +23,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    const { message, deal, conversationHistory, generateCallPlan, customerContext } = await req.json();
+    const { message, deal, conversationHistory, generateCallPlan, customerContext, viewAsCompanyId } = await req.json();
 
     // Authenticate user
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -48,9 +48,21 @@ serve(async (req) => {
       .eq('id', user.id)
       .single();
 
-    const userCompanyId = profile?.company_id;
-    const hasMethodologyAccess = FOUR_CALL_COMPANIES.includes(userCompanyId);
-    const isStreamlineAg = userCompanyId === STREAMLINE_AG_COMPANY_ID;
+    // Check if super admin for view-as functionality
+    let effectiveCompanyId = profile?.company_id;
+    if (viewAsCompanyId) {
+      const { data: isSuperAdmin } = await supabase.rpc('has_role', { 
+        _user_id: user.id, 
+        _role: 'super_admin' 
+      });
+      if (isSuperAdmin) {
+        effectiveCompanyId = viewAsCompanyId;
+        console.log(`Super admin viewing as company: ${viewAsCompanyId}`);
+      }
+    }
+
+    const hasMethodologyAccess = FOUR_CALL_COMPANIES.includes(effectiveCompanyId);
+    const isStreamlineAg = effectiveCompanyId === STREAMLINE_AG_COMPANY_ID;
 
     // Fetch sales knowledge - include company-specific content
     const stage = deal?.stage || 'prospecting';
@@ -71,11 +83,11 @@ serve(async (req) => {
 
     // Fetch company-specific product knowledge from company_knowledge table
     let productKnowledge = '';
-    if (userCompanyId) {
+    if (effectiveCompanyId) {
       const { data: companyDocs } = await supabase
         .from('company_knowledge')
         .select('title, content, category, document_type')
-        .eq('company_id', userCompanyId)
+        .eq('company_id', effectiveCompanyId)
         .eq('is_active', true)
         .eq('document_type', 'product_sheet')
         .limit(50);
