@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, MessageCircle, Sparkles, Plus } from "lucide-react";
+import { Send, Loader2, MessageCircle, Sparkles, Plus, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface SalesCoachChatProps {
   userId: string;
   userName?: string;
+  companyId?: string;
 }
 
 interface Message {
@@ -24,18 +25,25 @@ const conversationStarters = [
   { label: "Stuck on something", prompt: "I'm stuck on something and need help..." },
 ];
 
-export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
+export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatProps) => {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [pipelineContext, setPipelineContext] = useState<string>("");
-  const [hasStarted, setHasStarted] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [userContext, setUserContext] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Load existing conversation and user context on mount
   useEffect(() => {
-    fetchPipelineContext();
-  }, [userId]);
+    if (userId && companyId) {
+      Promise.all([
+        loadConversation(),
+        fetchUserContext()
+      ]).finally(() => setInitialLoading(false));
+    }
+  }, [userId, companyId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -43,93 +51,158 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
     }
   }, [messages]);
 
-  const fetchPipelineContext = async () => {
-    const { data: deals } = await supabase
-      .from("sales_deals")
-      .select(`
-        deal_name, stage, value, expected_close_date, priority, notes,
-        sales_companies(name),
-        sales_contacts(name, title)
-      `)
-      .eq("profile_id", userId)
-      .order("priority");
+  const fetchUserContext = async () => {
+    try {
+      // Fetch deals
+      const { data: deals } = await supabase
+        .from("sales_deals")
+        .select(`
+          deal_name, stage, value, expected_close_date, priority, notes,
+          sales_companies(name),
+          sales_contacts(name, title)
+        `)
+        .eq("profile_id", userId)
+        .order("priority")
+        .limit(20);
 
-    if (deals && deals.length > 0) {
-      const context = deals.map(d => 
-        `- ${d.deal_name} (${d.stage}): $${d.value || 0} at ${d.sales_companies?.name || 'Unknown company'}. Priority: ${d.priority}. Close: ${d.expected_close_date || 'TBD'}. ${d.notes ? `Notes: ${d.notes}` : ''}`
-      ).join("\n");
-      setPipelineContext(context);
+      // Fetch 90-day goals / leading indicators (habits)
+      const { data: habits } = await supabase
+        .from("leading_indicators")
+        .select("habit_name, target_frequency, habit_description")
+        .eq("profile_id", userId)
+        .eq("is_active", true)
+        .limit(10);
+
+      // Fetch user profile with job title
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("job_title, full_name")
+        .eq("id", userId)
+        .single();
+
+      // Fetch diagnostic responses for goals
+      const { data: diagnostic } = await supabase
+        .from("diagnostic_responses")
+        .select("twelve_month_growth_goal, three_year_goal, one_year_vision, skill_to_master")
+        .eq("profile_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Fetch recent growth journal entries
+      const { data: journal } = await supabase
+        .from("growth_journal")
+        .select("entry_text, entry_date")
+        .eq("profile_id", userId)
+        .order("entry_date", { ascending: false })
+        .limit(5);
+
+      // Build context string
+      let context = "";
+
+      if (profile) {
+        if (profile.job_title) context += `Role: ${profile.job_title}\n`;
+      }
+
+      if (diagnostic) {
+        if (diagnostic.twelve_month_growth_goal) context += `12-Month Goal: ${diagnostic.twelve_month_growth_goal}\n`;
+        if (diagnostic.three_year_goal) context += `3-Year Goal: ${diagnostic.three_year_goal}\n`;
+        if (diagnostic.one_year_vision) context += `Vision: ${diagnostic.one_year_vision}\n`;
+        if (diagnostic.skill_to_master) context += `Skill Focus: ${diagnostic.skill_to_master}\n`;
+      }
+
+      if (deals && deals.length > 0) {
+        context += `\nCurrent Pipeline (${deals.length} deals):\n`;
+        context += deals.map(d => 
+          `- ${d.deal_name} (${d.stage}): $${d.value || 0} at ${d.sales_companies?.name || 'Unknown'}. Priority: ${d.priority}. Close: ${d.expected_close_date || 'TBD'}.`
+        ).join("\n");
+      }
+
+      if (habits && habits.length > 0) {
+        context += `\n\n90-Day Habits/Goals:\n`;
+        context += habits.map(h => `- ${h.habit_name} (${h.target_frequency}): ${h.habit_description || ''}`).join("\n");
+      }
+
+      if (journal && journal.length > 0) {
+        context += `\n\nRecent Growth Journal:\n`;
+        context += journal.map(j => `- ${j.entry_date}: ${j.entry_text.substring(0, 100)}...`).join("\n");
+      }
+
+      setUserContext(context);
+    } catch (error) {
+      console.error("Error fetching user context:", error);
     }
   };
 
-  // Parse deal info from AI response and auto-create
-  const extractAndCreateDeal = async (response: string) => {
-    const dealMatch = response.match(/\[DEAL_DETECTED\]([\s\S]*?)\[\/DEAL_DETECTED\]/);
-    if (!dealMatch) return response;
+  const loadConversation = async () => {
+    try {
+      // Get the most recent conversation for this user
+      const { data: conversations } = await supabase
+        .from("sales_coach_conversations")
+        .select("id, created_at")
+        .eq("profile_id", userId)
+        .eq("company_id", companyId)
+        .order("updated_at", { ascending: false })
+        .limit(1);
 
-    const dealBlock = dealMatch[1];
-    const getField = (field: string) => {
-      const match = dealBlock.match(new RegExp(`${field}:\\s*(.+)`, 'i'));
-      return match ? match[1].trim() : null;
-    };
+      if (conversations && conversations.length > 0) {
+        const conv = conversations[0];
+        setConversationId(conv.id);
 
-    const companyName = getField('company_name');
-    const contactName = getField('contact_name');
-    const stage = getField('stage') || 'prospecting';
-    const valueStr = getField('value');
-    const notes = getField('notes');
+        // Load messages
+        const { data: msgs } = await supabase
+          .from("sales_coach_messages")
+          .select("role, content")
+          .eq("conversation_id", conv.id)
+          .order("created_at", { ascending: true });
 
-    if (companyName && companyName !== 'null') {
-      try {
-        // Create or find company
-        let companyId: string | null = null;
-        const { data: existingCompany } = await supabase
-          .from('sales_companies')
-          .select('id')
-          .eq('profile_id', userId)
-          .ilike('name', companyName)
-          .maybeSingle();
-
-        if (existingCompany) {
-          companyId = existingCompany.id;
-        } else {
-          const { data: newCompany } = await supabase
-            .from('sales_companies')
-            .insert({ name: companyName, profile_id: userId })
-            .select('id')
-            .single();
-          companyId = newCompany?.id || null;
+        if (msgs && msgs.length > 0) {
+          setMessages(msgs.map(m => ({ role: m.role as "user" | "assistant", content: m.content })));
         }
-
-        // Create deal
-        const value = valueStr && valueStr !== 'null' ? parseInt(valueStr.replace(/[^0-9]/g, '')) : null;
-        
-        const { error: dealError } = await supabase
-          .from('sales_deals')
-          .insert({
-            deal_name: `${companyName} Opportunity`,
-            company_id: companyId,
-            profile_id: userId,
-            stage: stage as any,
-            value: value,
-            notes: notes,
-            priority: 3,
-          });
-
-        if (!dealError) {
-          toast({
-            title: "Deal added to your pipeline!",
-            description: `${companyName} - ${stage}`,
-          });
-          fetchPipelineContext(); // Refresh context
-        }
-      } catch (e) {
-        console.error('Auto-create deal error:', e);
       }
+    } catch (error) {
+      console.error("Error loading conversation:", error);
     }
+  };
 
-    // Remove the deal block from visible message
-    return response.replace(/\[DEAL_DETECTED\][\s\S]*?\[\/DEAL_DETECTED\]/g, '').trim();
+  const createConversation = async () => {
+    const { data, error } = await supabase
+      .from("sales_coach_conversations")
+      .insert({
+        profile_id: userId,
+        company_id: companyId,
+        title: "Sales Coaching Session"
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error creating conversation:", error);
+      return null;
+    }
+    return data.id;
+  };
+
+  const saveMessage = async (convId: string, role: "user" | "assistant", content: string) => {
+    await supabase
+      .from("sales_coach_messages")
+      .insert({
+        conversation_id: convId,
+        role,
+        content
+      });
+
+    // Update conversation timestamp
+    await supabase
+      .from("sales_coach_conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", convId);
+  };
+
+  const startNewConversation = async () => {
+    setMessages([]);
+    setConversationId(null);
+    toast({ title: "Started fresh conversation" });
   };
 
   const sendMessage = async (messageText?: string) => {
@@ -137,9 +210,20 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
     if (!text) return;
 
     setInput("");
-    setHasStarted(true);
     setMessages(prev => [...prev, { role: "user", content: text }]);
     setLoading(true);
+
+    // Ensure we have a conversation
+    let currentConvId = conversationId;
+    if (!currentConvId) {
+      currentConvId = await createConversation();
+      if (currentConvId) setConversationId(currentConvId);
+    }
+
+    // Save user message
+    if (currentConvId) {
+      await saveMessage(currentConvId, "user", text);
+    }
 
     // Build conversation history for context
     const conversationHistory = messages
@@ -151,6 +235,7 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
         body: {
           message: text,
           conversationHistory,
+          userContext, // Pass the rich user context
         },
       });
 
@@ -158,10 +243,20 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
 
       let assistantMessage = response.data?.message || "I'm having trouble responding right now. Please try again.";
       
-      // Extract and auto-create any detected deals
-      assistantMessage = await extractAndCreateDeal(assistantMessage);
+      // Clean up any deal detection blocks from the message
+      assistantMessage = assistantMessage
+        .replace(/\[DEAL_DETECTED\][\s\S]*?\[\/DEAL_DETECTED\]/g, '')
+        .trim();
       
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
+
+      // Save assistant message
+      if (currentConvId) {
+        await saveMessage(currentConvId, "assistant", assistantMessage);
+      }
+
+      // Refresh context in case a deal was auto-created
+      fetchUserContext();
     } catch (error) {
       console.error("Chat error:", error);
       toast({ title: "Error getting response", variant: "destructive" });
@@ -178,6 +273,21 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
     }
   };
 
+  if (initialLoading) {
+    return (
+      <Card className="h-full flex flex-col border-0 shadow-none bg-transparent">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading your conversation...</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  const hasStarted = messages.length > 0;
+
   return (
     <Card className="h-full flex flex-col border-0 shadow-none bg-transparent">
       {!hasStarted ? (
@@ -188,7 +298,7 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Hey{userName ? `, ${userName.split(' ')[0]}` : ''}!</h2>
           <p className="text-muted-foreground mb-8 max-w-md">
-            I'm Jericho, your sales coach. Tell me what you're working on and I'll help you move it forward.
+            I'm Jericho, your sales coach. I already know your pipeline, goals, and 90-day habits. Tell me what you're working on and I'll help you move it forward.
           </p>
           
           <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -212,6 +322,22 @@ export const SalesCoachChat = ({ userId, userName }: SalesCoachChatProps) => {
       ) : (
         // Chat state
         <>
+          {/* Header with new conversation button */}
+          <div className="px-4 py-2 border-b flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              {messages.length} messages in this session
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={startNewConversation}
+              className="gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              New Chat
+            </Button>
+          </div>
+
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
             <div className="space-y-4 max-w-2xl mx-auto">
               {messages.map((msg, idx) => (
