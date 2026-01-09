@@ -16,6 +16,7 @@ import { format } from "date-fns";
 interface PipelineViewProps {
   userId: string;
   stages: { key: string; label: string; color: string }[];
+  companyId?: string | null;
 }
 
 interface Deal {
@@ -29,20 +30,28 @@ interface Deal {
   sales_companies?: { name: string } | null;
 }
 
-export const PipelineView = ({ userId, stages }: PipelineViewProps) => {
+export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) => {
   const { toast } = useToast();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDeals = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("sales_deals")
       .select(`
         *,
         sales_companies(name)
       `)
-      .eq("profile_id", userId)
       .order("priority", { ascending: true });
+
+    // If viewing as a company, filter by company_id; otherwise filter by profile_id
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    } else {
+      query = query.eq("profile_id", userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({ title: "Error loading deals", variant: "destructive" });
@@ -53,8 +62,8 @@ export const PipelineView = ({ userId, stages }: PipelineViewProps) => {
   };
 
   useEffect(() => {
-    if (userId) fetchDeals();
-  }, [userId]);
+    if (userId || companyId) fetchDeals();
+  }, [userId, companyId]);
 
   const moveDeal = async (dealId: string, newStage: string) => {
     const { error } = await supabase
