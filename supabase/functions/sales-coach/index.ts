@@ -213,36 +213,60 @@ Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
       { role: 'user', content: message },
     ];
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages,
-        temperature: 0.8,
-      }),
-    });
+    // Try with primary model, fallback to secondary if it fails
+    const models = ['google/gemini-3-flash-preview', 'google/gemini-2.5-flash'];
+    let response: Response | null = null;
+    let lastError = '';
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limits exceeded. Please try again in a moment.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    for (const model of models) {
+      try {
+        console.log(`Trying model: ${model}`);
+        response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.8,
+          }),
+        });
+
+        if (response.ok) {
+          console.log(`Success with model: ${model}`);
+          break;
+        }
+
+        // Handle specific error codes
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limits exceeded. Please try again in a moment.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'AI credits exhausted. Please contact your administrator.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        lastError = await response.text();
+        console.error(`Model ${model} failed:`, response.status, lastError);
+        response = null; // Try next model
+      } catch (fetchError) {
+        console.error(`Fetch error with ${model}:`, fetchError);
+        lastError = fetchError instanceof Error ? fetchError.message : 'Fetch failed';
+        response = null;
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please contact your administrator.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+    }
+
+    if (!response || !response.ok) {
+      console.error('All models failed. Last error:', lastError);
       return new Response(
-        JSON.stringify({ error: 'AI service temporarily unavailable' }),
+        JSON.stringify({ error: 'AI service temporarily unavailable. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
