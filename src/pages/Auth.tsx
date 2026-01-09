@@ -34,17 +34,39 @@ const Auth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard/my-growth-plan", { replace: true });
+        // Check if user has completed registration
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('registration_complete')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.registration_complete === false) {
+          navigate("/register", { replace: true });
+        } else {
+          navigate("/dashboard/my-growth-plan", { replace: true });
+        }
       }
     };
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       // Don't redirect on password recovery events or during signup flow
       if (event === "PASSWORD_RECOVERY") return;
       if (isSigningUp) return; // Don't redirect while signup is in progress
       if (session) {
-        navigate("/dashboard/my-growth-plan", { replace: true });
+        // Check if user has completed registration
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('registration_complete')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.registration_complete === false) {
+          navigate("/register", { replace: true });
+        } else {
+          navigate("/dashboard/my-growth-plan", { replace: true });
+        }
       }
     });
 
