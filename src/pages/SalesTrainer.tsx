@@ -712,26 +712,42 @@ const SalesTrainer = () => {
             )}
 
             {/* Input */}
-            <div className="flex gap-2 pt-4 border-t bg-background/50 backdrop-blur-sm -mx-4 px-4 pb-2">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask me anything about sales..."
-                className="resize-none min-h-[52px]"
-                rows={2}
-              />
-              <VoiceRecorder 
-                onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
-                disabled={chatLoading}
-              />
-              <Button
-                onClick={() => sendMessage()}
-                disabled={chatLoading || !input.trim()}
-                className="px-4 self-end"
-              >
-                {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
+            <div className="pt-4 border-t bg-background/50 backdrop-blur-sm -mx-4 px-4 pb-2 space-y-2">
+              <div className="flex gap-2">
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask me anything about sales..."
+                  className="resize-none min-h-[52px]"
+                  rows={2}
+                />
+                <VoiceRecorder 
+                  onTranscript={(text) => setInput(prev => prev ? `${prev} ${text}` : text)}
+                  disabled={chatLoading}
+                />
+                <Button
+                  onClick={() => sendMessage()}
+                  disabled={chatLoading || !input.trim()}
+                  className="px-4 self-end"
+                >
+                  {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+              {/* Always-visible prep doc button */}
+              {messages.length >= 3 && (
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowPrepGenerator(true)}
+                    className="gap-1.5"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Create Prep Doc from Chat
+                  </Button>
+                </div>
+              )}
             </div>
           </>
         )}
