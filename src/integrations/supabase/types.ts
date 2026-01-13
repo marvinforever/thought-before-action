@@ -188,6 +188,62 @@ export type Database = {
           },
         ]
       }
+      ai_efficiency_reports: {
+        Row: {
+          company_id: string
+          created_at: string
+          department_analysis: Json
+          efficiency_score: number | null
+          executive_summary: Json
+          expires_at: string
+          generated_at: string
+          id: string
+          implementation_roadmap: Json
+          quick_wins: Json
+          role_analysis: Json
+          total_employees_analyzed: number | null
+          total_estimated_hours_saved: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          department_analysis?: Json
+          efficiency_score?: number | null
+          executive_summary?: Json
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          implementation_roadmap?: Json
+          quick_wins?: Json
+          role_analysis?: Json
+          total_employees_analyzed?: number | null
+          total_estimated_hours_saved?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          department_analysis?: Json
+          efficiency_score?: number | null
+          executive_summary?: Json
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          implementation_roadmap?: Json
+          quick_wins?: Json
+          role_analysis?: Json
+          total_employees_analyzed?: number | null
+          total_estimated_hours_saved?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_efficiency_reports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badges: {
         Row: {
           category: string
@@ -1813,6 +1869,69 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "email_reply_logs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_ai_recommendations: {
+        Row: {
+          ai_readiness_score: number | null
+          created_at: string
+          estimated_weekly_hours_saved: number | null
+          generated_at: string
+          id: string
+          job_description_id: string | null
+          last_podcast_mention: string | null
+          mentioned_in_podcast: boolean | null
+          priority_tasks: Json
+          profile_id: string
+          recommendations: Json
+          recommended_tools: Json
+          updated_at: string
+        }
+        Insert: {
+          ai_readiness_score?: number | null
+          created_at?: string
+          estimated_weekly_hours_saved?: number | null
+          generated_at?: string
+          id?: string
+          job_description_id?: string | null
+          last_podcast_mention?: string | null
+          mentioned_in_podcast?: boolean | null
+          priority_tasks?: Json
+          profile_id: string
+          recommendations?: Json
+          recommended_tools?: Json
+          updated_at?: string
+        }
+        Update: {
+          ai_readiness_score?: number | null
+          created_at?: string
+          estimated_weekly_hours_saved?: number | null
+          generated_at?: string
+          id?: string
+          job_description_id?: string | null
+          last_podcast_mention?: string | null
+          mentioned_in_podcast?: boolean | null
+          priority_tasks?: Json
+          profile_id?: string
+          recommendations?: Json
+          recommended_tools?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_ai_recommendations_job_description_id_fkey"
+            columns: ["job_description_id"]
+            isOneToOne: false
+            referencedRelation: "job_descriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_ai_recommendations_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
