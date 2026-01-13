@@ -167,3 +167,6 @@ verify_jwt = false
 
 [functions.notify-capability-not-relevant]
 verify_jwt = true
+
+[functions.fetch-industry-news]
+verify_jwt = false

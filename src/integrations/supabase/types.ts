@@ -838,18 +838,24 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          industry: string | null
+          industry_keywords: Json | null
           name: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          industry?: string | null
+          industry_keywords?: Json | null
           name: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          industry?: string | null
+          industry_keywords?: Json | null
           name?: string
           updated_at?: string | null
         }
@@ -1248,6 +1254,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      daily_industry_news: {
+        Row: {
+          capability_context: string | null
+          created_at: string
+          id: string
+          industry: string
+          news_date: string
+          news_items: Json
+        }
+        Insert: {
+          capability_context?: string | null
+          created_at?: string
+          id?: string
+          industry: string
+          news_date?: string
+          news_items: Json
+        }
+        Update: {
+          capability_context?: string | null
+          created_at?: string
+          id?: string
+          industry?: string
+          news_date?: string
+          news_items?: Json
+        }
+        Relationships: []
       }
       demo_requests: {
         Row: {
@@ -2801,6 +2834,47 @@ export type Database = {
             foreignKeyName: "personal_goals_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      podcast_content_usage: {
+        Row: {
+          content_hash: string | null
+          content_id: string | null
+          content_type: string
+          created_at: string
+          episode_date: string
+          id: string
+          mentioned_at: string
+          profile_id: string
+        }
+        Insert: {
+          content_hash?: string | null
+          content_id?: string | null
+          content_type: string
+          created_at?: string
+          episode_date: string
+          id?: string
+          mentioned_at?: string
+          profile_id: string
+        }
+        Update: {
+          content_hash?: string | null
+          content_id?: string | null
+          content_type?: string
+          created_at?: string
+          episode_date?: string
+          id?: string
+          mentioned_at?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_content_usage_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

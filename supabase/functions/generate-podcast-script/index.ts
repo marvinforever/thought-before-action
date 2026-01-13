@@ -677,7 +677,7 @@ serve(async (req) => {
     // Determine underutilized features based on missing data
     const underutilizedFeatures: string[] = [];
     if (!personalVision && !professionalVision) {
-      underutilizedFeatures.push('Set your personal and professional vision in Settings to help Jessica tailor your growth journey');
+      underutilizedFeatures.push('Set your personal and professional vision in Settings to help tailor your growth journey');
     }
     if (!topHabit) {
       underutilizedFeatures.push('Create a daily habit in the Habits section to build consistency and earn badges');
@@ -799,11 +799,11 @@ PACING: Keep it punchy! No rambling. Each section should feel tight and purposef
 
     const config = durationConfig[durationMinutes] || durationConfig[2];
 
-    // Generate script using Lovable AI with solo host format (Jessica)
-    const systemPrompt = `You are writing a ${durationMinutes}-minute personal growth podcast hosted by Jessica, who genuinely knows and cares about this person's growth journey.
+    // Generate script using Lovable AI with solo host format
+    const systemPrompt = `You are writing a ${durationMinutes}-minute personal growth podcast. You are the host - a warm, caring growth coach who genuinely knows and cares about this person's growth journey.
 
-THE HOST:
-- ${PODCAST_HOSTS.primary.name}: ${PODCAST_HOSTS.primary.role}
+THE HOST STYLE:
+${PODCAST_HOSTS.primary.role}
 
 ${CONVERSATION_FORMAT}
 
@@ -813,8 +813,9 @@ ${dayTheme.additionalInstructions}
 ${config.structure}
 
 CRITICAL FORMATTING RULES:
-- Write as a solo monologue with speaker label: "JESSICA: [text]"
-- Jessica speaks directly TO the listener throughout
+- Write as a solo monologue WITHOUT any speaker labels
+- Do NOT include "HOST:" or any prefix - just write the words to be spoken
+- Speak directly TO the listener throughout
 - Keep it conversational and warm, but direct and actionable
 - Natural pacing with brief pauses for emphasis
 
@@ -831,7 +832,7 @@ GENERAL RULES:
 - IMPORTANT: Do NOT include stage directions, audio cues, or production notes
 - CRITICAL: Do NOT use asterisks, markdown formatting, or text emphasis markers
 - CRITICAL: Do NOT use time-of-day greetings. Use timeless greetings like "Hey [name]"
-- Jessica opens, delivers all content, and closes with the daily challenge
+- Open warmly, deliver all content, and close with the daily challenge
 
 DAILY CHALLENGE RULES:
 - Keep challenges SHORT: 1-2 sentences max, under 20 words
@@ -839,7 +840,7 @@ DAILY CHALLENGE RULES:
 - Examples: "Have one 5-minute conversation with a peer about your progress" or "Send a quick thank-you message to someone who helped you this week"
 - NOT lengthy multi-part challenges or vague instructions`;
 
-    const userPrompt = `Create today's ${durationMinutes}-minute solo podcast script for JESSICA for this user:
+    const userPrompt = `Create today's ${durationMinutes}-minute solo podcast script for this user:
 
 User Context:
 - Name: ${context.userName}
@@ -905,7 +906,7 @@ ${context.goalSprints.length > 0
   : '⚠️ NO SPRINTS SET'}
 
 ${!context.activeGoal || context.goalBenchmarks.length === 0 || context.goalSprints.length === 0 
-  ? `MISSING PLAN - Jericho should call this out directly and tell them to set it up in My Growth Plan.` 
+  ? `MISSING PLAN - Call this out directly and tell them to set it up in My Growth Plan.` 
   : ''}
 
 ROTATION RULES:
@@ -953,16 +954,17 @@ Work this in casually, like "Hey, one thing I'd love you to try..." - don't lect
   : ''}
 
 SCRIPT FORMAT REQUIREMENTS:
-1. Jessica opens warmly: "JESSICA: Hey ${context.userName}!"
-2. Solo monologue format - Jessica speaks directly to the listener throughout
-3. Jessica delivers coaching insights with warmth and authority
-4. Jessica gives the daily challenge - KEEP IT SHORT (1 sentence, under 15 words)
-5. If diagnostic scores exist, mention 2-3 highlights - CELEBRATE the high ones!
-6. If no diagnostics, encourage completing the assessment
-7. Reference badges, leaderboard position, or vision when relevant (don't force all of them)
-8. If they gave recognition, acknowledge them for lifting up their teammates
-9. Optionally drop ONE system tip if there's something they're underutilizing
-10. Jessica closes with GENUINE WARMTH - make them feel seen, supported, and cheered on. NOT cold or abrupt.
+1. Open warmly with their name: "Hey ${context.userName}!"
+2. NO speaker labels - just write the words to be spoken
+3. Solo monologue format - speak directly to the listener throughout
+4. Deliver coaching insights with warmth and authority
+5. Give the daily challenge - KEEP IT SHORT (1 sentence, under 15 words)
+6. If diagnostic scores exist, mention 2-3 highlights - CELEBRATE the high ones!
+7. If no diagnostics, encourage completing the assessment
+8. Reference badges, leaderboard position, or vision when relevant (don't force all of them)
+9. If they gave recognition, acknowledge them for lifting up their teammates
+10. Optionally drop ONE system tip if there's something they're underutilizing
+11. Close with GENUINE WARMTH - make them feel seen, supported, and cheered on. NOT cold or abrupt.
 
 VARIETY: Don't hit everything every day! Rotate focus based on what's most relevant:
 - Some days focus on vision and purpose
@@ -972,7 +974,7 @@ VARIETY: Don't hit everything every day! Rotate focus based on what's most relev
 
 CLOSING ENERGY: End on a HIGH note. Something like "I'm so proud of you" or "You've got this and I'll be right here cheering you on" - genuine, warm, personal. NOT just "Have a great day!"
 
-Remember: Write as solo host with "JESSICA:" label only. Keep it warm, direct, and end with HEART!`;
+Remember: Write WITHOUT speaker labels. Just the words to be spoken. Keep it warm, direct, and end with HEART!`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
