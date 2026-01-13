@@ -170,3 +170,6 @@ verify_jwt = true
 
 [functions.fetch-industry-news]
 verify_jwt = false
+
+[functions.analyze-ai-efficiency]
+verify_jwt = true

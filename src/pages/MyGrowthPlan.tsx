@@ -24,6 +24,7 @@ import { WelcomeModal } from "@/components/WelcomeModal";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
+import { AIProductivityTips } from "@/components/AIProductivityTips";
 
 type JobDescription = {
   id: string;
@@ -49,6 +50,7 @@ export default function MyGrowthPlan() {
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
   const { isEnabled: isPodcastEnabled, loading: podcastFlagLoading } = useFeatureFlag('daily_podcast');
+  const { isEnabled: isAIEfficiencyEnabled, loading: aiEfficiencyFlagLoading } = useFeatureFlag('ai_efficiency_analysis');
 
   const handleOpenJericho = () => {
     setJerichoOpen(true);
@@ -179,6 +181,11 @@ export default function MyGrowthPlan() {
           companyId={userProfile.company_id}
           autoPlay={podcastRefreshKey > 0}
         />
+      )}
+
+      {/* AI Productivity Tips - Feature Flagged */}
+      {!aiEfficiencyFlagLoading && isAIEfficiencyEnabled && (
+        <AIProductivityTips />
       )}
 
       {/* Personal Vision and Greatness/Badges */}
