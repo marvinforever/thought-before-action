@@ -315,33 +315,59 @@ export default function AIReadinessLanding() {
                 >
                   <Badge variant="outline" className="mb-6 border-accent/50 text-accent bg-accent/10">
                     <Clock className="h-3 w-3 mr-1" />
-                    2-minute analysis • No signup required
+                    Free AI Readiness Score • 2 minutes • Online
                   </Badge>
                 </motion.div>
-                
-                <motion.h1 
+
+                {/* Person + Problem + Promise */}
+                <motion.h1
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                   className="text-4xl md:text-6xl font-bold mb-6 leading-tight"
                 >
-                  How Much Time Is Your Team{" "}
-                  <span className="text-accent">Wasting</span>{" "}
-                  On Tasks AI Could Handle?
+                  For leaders who feel their teams are{" "}
+                  <span className="text-accent">busy</span> — but not moving.
                 </motion.h1>
-                
-                <motion.p 
+
+                <motion.p
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="text-xl md:text-2xl text-primary-foreground/80 max-w-2xl mx-auto mb-10"
+                  className="text-xl md:text-2xl text-primary-foreground/80 max-w-3xl mx-auto mb-10"
                 >
-                  Get your free AI Readiness Score and discover exactly how many hours 
-                  your team could save each week with smart automation.
+                  Upload or paste 1–5 job descriptions and get a grounded, role-by-role AI Readiness Score.
+                  You’ll see where AI can remove low-value work (without disrupting what already works).
                 </motion.p>
 
-                {/* Stats */}
-                <motion.div 
+                {/* Process (high-level) */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="max-w-3xl mx-auto mb-10"
+                >
+                  <div className="grid gap-3 md:grid-cols-3 text-left">
+                    <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 p-4">
+                      <div className="text-xs uppercase tracking-wide text-primary-foreground/70">Process</div>
+                      <div className="mt-1 font-semibold">1) Drop roles</div>
+                      <div className="text-sm text-primary-foreground/70">PDF/Word/Text or paste</div>
+                    </div>
+                    <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 p-4">
+                      <div className="text-xs uppercase tracking-wide text-primary-foreground/70">Process</div>
+                      <div className="mt-1 font-semibold">2) Share context</div>
+                      <div className="text-sm text-primary-foreground/70">Current tools + workflows</div>
+                    </div>
+                    <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 p-4">
+                      <div className="text-xs uppercase tracking-wide text-primary-foreground/70">Process</div>
+                      <div className="mt-1 font-semibold">3) Get score</div>
+                      <div className="text-sm text-primary-foreground/70">Instant, role-by-role</div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Proof */}
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
@@ -355,8 +381,8 @@ export default function AIReadinessLanding() {
                   ))}
                 </motion.div>
 
-                {/* Trust indicators */}
-                <motion.div 
+                {/* Price + Place */}
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5 }}
@@ -364,15 +390,15 @@ export default function AIReadinessLanding() {
                 >
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-accent" />
-                    <span>No credit card required</span>
+                    <span>Free (no card)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-accent" />
-                    <span>Analyze up to 5 roles</span>
+                    <span>Up to 5 roles</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-accent" />
-                    <span>Instant results</span>
+                    <span>Online, instant</span>
                   </div>
                 </motion.div>
               </div>
@@ -586,24 +612,81 @@ export default function AIReadinessLanding() {
                   </CardContent>
                 </Card>
 
-                {/* Benefits section */}
-                <div className="mt-12 grid md:grid-cols-3 gap-6">
-                  {BENEFITS.map((benefit, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 + i * 0.1 }}
-                      className="text-center p-6"
-                    >
+                {/* 9P Framework (Proof • Product • Push) */}
+                <section className="mt-12 space-y-6">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-primary">Clarity before urgency</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Built on the Brand Builders 9 P’s: grounded, specific, and leader-friendly.
+                    </p>
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-6">
+                    <div className="text-center p-6 rounded-xl border bg-card">
                       <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
-                        <benefit.icon className="h-6 w-6 text-accent" />
+                        <Users className="h-6 w-6 text-accent" />
                       </div>
-                      <h3 className="font-semibold text-primary mb-2">{benefit.title}</h3>
-                      <p className="text-sm text-muted-foreground">{benefit.desc}</p>
-                    </motion.div>
-                  ))}
-                </div>
+                      <h4 className="font-semibold text-primary mb-2">Person</h4>
+                      <p className="text-sm text-muted-foreground">You lead a team. You’re responsible for output, quality, and morale.</p>
+                    </div>
+
+                    <div className="text-center p-6 rounded-xl border bg-card">
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <Clock className="h-6 w-6 text-accent" />
+                      </div>
+                      <h4 className="font-semibold text-primary mb-2">Problem</h4>
+                      <p className="text-sm text-muted-foreground">Work is expanding, attention is fragmented, and busy doesn’t equal progress.</p>
+                    </div>
+
+                    <div className="text-center p-6 rounded-xl border bg-card">
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <Target className="h-6 w-6 text-accent" />
+                      </div>
+                      <h4 className="font-semibold text-primary mb-2">Promise</h4>
+                      <p className="text-sm text-muted-foreground">A clear from → to map: where AI can remove drag and increase leverage.</p>
+                    </div>
+
+                    <div className="text-center p-6 rounded-xl border bg-card">
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <BarChart3 className="h-6 w-6 text-accent" />
+                      </div>
+                      <h4 className="font-semibold text-primary mb-2">Proof</h4>
+                      <p className="text-sm text-muted-foreground">Benchmarked patterns from hundreds of roles analyzed (see headline metrics above).</p>
+                    </div>
+
+                    <div className="text-center p-6 rounded-xl border bg-card">
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <Lightbulb className="h-6 w-6 text-accent" />
+                      </div>
+                      <h4 className="font-semibold text-primary mb-2">Product</h4>
+                      <p className="text-sm text-muted-foreground">A role-by-role AI Readiness Report with quick wins and tool recommendations.</p>
+                    </div>
+
+                    <div className="text-center p-6 rounded-xl border bg-card">
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <Shield className="h-6 w-6 text-accent" />
+                      </div>
+                      <h4 className="font-semibold text-primary mb-2">Price</h4>
+                      <p className="text-sm text-muted-foreground">Free to generate your score; register to unlock the full recommendations.</p>
+                    </div>
+
+                    <div className="text-center p-6 rounded-xl border bg-card">
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <Zap className="h-6 w-6 text-accent" />
+                      </div>
+                      <h4 className="font-semibold text-primary mb-2">Place</h4>
+                      <p className="text-sm text-muted-foreground">Delivered online, instantly, with a shareable report link.</p>
+                    </div>
+
+                    <div className="text-center p-6 rounded-xl border bg-card md:col-span-2">
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <ArrowRight className="h-6 w-6 text-accent" />
+                      </div>
+                      <h4 className="font-semibold text-primary mb-2">Push</h4>
+                      <p className="text-sm text-muted-foreground">Start with one role now—clarity compounds fast when you can see the work.</p>
+                    </div>
+                  </div>
+                </section>
               </motion.div>
             )}
 

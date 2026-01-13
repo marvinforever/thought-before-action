@@ -151,9 +151,8 @@ const App = () => (
             {/* Public Prep Document */}
             <Route path="/prep/:shareToken" element={<PublicPrepDocument />} />
             {/* AI Readiness Lead Gen Tool */}
-            <Route path="/ai-readiness" element={<AIReadinessLanding />} />
+            <Route path="/ai-readiness/*" element={<AIReadinessLanding />} />
             <Route path="/ai-readiness/report/:shareToken" element={<AIReadinessReport />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
