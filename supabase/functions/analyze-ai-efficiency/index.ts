@@ -53,22 +53,19 @@ serve(async (req) => {
         throw new Error('No job description found for this employee');
       }
       
-      // Store the recommendation
-      await supabase
-        .from('employee_ai_recommendations')
-        .upsert({
-          profile_id: profileId,
-          job_description_id: analysis.jobDescriptionId,
-          recommendations: analysis.ai_augmentable_tasks,
-          priority_tasks: analysis.priority_tasks,
-          recommended_tools: analysis.recommended_tools,
-          estimated_weekly_hours_saved: analysis.total_weekly_hours_saved,
-          ai_readiness_score: analysis.ai_readiness_score,
-          generated_at: new Date().toISOString(),
-          mentioned_in_podcast: false,
-        }, {
-          onConflict: 'profile_id',
-        });
+      // Store the recommendation (table does not have a UNIQUE constraint on profile_id,
+      // so we cannot use upsert(onConflict: 'profile_id') reliably).
+      await saveEmployeeRecommendation(supabase, {
+        profile_id: profileId,
+        job_description_id: analysis.jobDescriptionId,
+        recommendations: analysis.ai_augmentable_tasks,
+        priority_tasks: analysis.priority_tasks,
+        recommended_tools: analysis.recommended_tools,
+        estimated_weekly_hours_saved: analysis.total_weekly_hours_saved,
+        ai_readiness_score: analysis.ai_readiness_score,
+        generated_at: new Date().toISOString(),
+        mentioned_in_podcast: false,
+      });
 
       return new Response(JSON.stringify({ success: true, analysis }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -99,21 +96,17 @@ serve(async (req) => {
           });
 
           // Store individual recommendation
-          await supabase
-            .from('employee_ai_recommendations')
-            .upsert({
-              profile_id: employee.id,
-              job_description_id: analysis.jobDescriptionId,
-              recommendations: analysis.ai_augmentable_tasks,
-              priority_tasks: analysis.priority_tasks,
-              recommended_tools: analysis.recommended_tools,
-              estimated_weekly_hours_saved: analysis.total_weekly_hours_saved,
-              ai_readiness_score: analysis.ai_readiness_score,
-              generated_at: new Date().toISOString(),
-              mentioned_in_podcast: false,
-            }, {
-              onConflict: 'profile_id',
-            });
+          await saveEmployeeRecommendation(supabase, {
+            profile_id: employee.id,
+            job_description_id: analysis.jobDescriptionId,
+            recommendations: analysis.ai_augmentable_tasks,
+            priority_tasks: analysis.priority_tasks,
+            recommended_tools: analysis.recommended_tools,
+            estimated_weekly_hours_saved: analysis.total_weekly_hours_saved,
+            ai_readiness_score: analysis.ai_readiness_score,
+            generated_at: new Date().toISOString(),
+            mentioned_in_podcast: false,
+          });
         }
       } catch (e) {
         console.error(`Error analyzing employee ${employee.id}:`, e);
@@ -156,6 +149,73 @@ serve(async (req) => {
     });
   }
 });
+
+async function saveEmployeeRecommendation(supabase: any, payload: {
+  profile_id: string;
+  job_description_id?: string;
+  recommendations: any;
+  priority_tasks: any;
+  recommended_tools: any;
+  estimated_weekly_hours_saved: number;
+  ai_readiness_score: number;
+  generated_at: string;
+  mentioned_in_podcast?: boolean;
+}) {
+  // Update latest existing recommendation for this profile, or insert a new one.
+  const { data: existing, error: existingError } = await supabase
+    .from('employee_ai_recommendations')
+    .select('id')
+    .eq('profile_id', payload.profile_id)
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error('Error checking existing recommendations:', existingError);
+  }
+
+  if (existing?.id) {
+    const { error: updateError } = await supabase
+      .from('employee_ai_recommendations')
+      .update({
+        job_description_id: payload.job_description_id,
+        recommendations: payload.recommendations,
+        priority_tasks: payload.priority_tasks,
+        recommended_tools: payload.recommended_tools,
+        estimated_weekly_hours_saved: payload.estimated_weekly_hours_saved,
+        ai_readiness_score: payload.ai_readiness_score,
+        generated_at: payload.generated_at,
+        mentioned_in_podcast: payload.mentioned_in_podcast ?? false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id);
+
+    if (updateError) {
+      console.error('Error updating recommendation:', updateError);
+      throw updateError;
+    }
+    return;
+  }
+
+  const { error: insertError } = await supabase
+    .from('employee_ai_recommendations')
+    .insert({
+      profile_id: payload.profile_id,
+      job_description_id: payload.job_description_id,
+      recommendations: payload.recommendations,
+      priority_tasks: payload.priority_tasks,
+      recommended_tools: payload.recommended_tools,
+      estimated_weekly_hours_saved: payload.estimated_weekly_hours_saved,
+      ai_readiness_score: payload.ai_readiness_score,
+      generated_at: payload.generated_at,
+      mentioned_in_podcast: payload.mentioned_in_podcast ?? false,
+    });
+
+  if (insertError) {
+    console.error('Error inserting recommendation:', insertError);
+    throw insertError;
+  }
+}
 
 async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionId?: string) {
   // Get job description
