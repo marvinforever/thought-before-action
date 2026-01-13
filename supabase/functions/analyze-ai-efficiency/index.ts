@@ -75,15 +75,21 @@ serve(async (req) => {
     // If analyzing entire company (or selected employees)
     let employeesQuery = supabase
       .from('profiles')
-      .select('id, full_name, role, department')
-      .eq('company_id', companyId);
+      .select('id, full_name, role, job_title')
+      .eq('company_id', companyId)
+      .eq('is_active', true);
     
     // If specific employee IDs provided, filter to those
     if (employeeIds && Array.isArray(employeeIds) && employeeIds.length > 0) {
       employeesQuery = employeesQuery.in('id', employeeIds);
     }
     
-    const { data: employees } = await employeesQuery;
+    const { data: employees, error: employeesError } = await employeesQuery;
+
+    if (employeesError) {
+      console.error('Error loading employees:', employeesError);
+      throw new Error('Unable to load employees for analysis');
+    }
 
     if (!employees || employees.length === 0) {
       throw new Error('No employees found. Please select employees to analyze.');
@@ -108,8 +114,8 @@ serve(async (req) => {
         if (analysis) {
           analyses.push({
             profile_id: employee.id,
-            job_title: analysis.jobTitle || employee.role || 'Unknown',
-            department: employee.department || 'General',
+            job_title: analysis.jobTitle || employee.job_title || employee.role || 'Unknown',
+            department: 'General',
             ...analysis,
           });
 
