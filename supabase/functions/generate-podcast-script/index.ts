@@ -269,10 +269,10 @@ serve(async (req) => {
 
     const loginStreak = loginStreakData?.current_streak || 0;
 
-    // Fetch habit data with current streak
+    // Fetch habit data with current streak (include id for content tracking)
     const { data: habits } = await supabase
       .from('leading_indicators')
-      .select('habit_name, current_streak, longest_streak')
+      .select('id, habit_name, current_streak, longest_streak')
       .eq('profile_id', profileId)
       .eq('is_active', true)
       .order('current_streak', { ascending: false })
@@ -318,16 +318,18 @@ serve(async (req) => {
       (usedContent || []).filter(u => u.content_type === 'recognition_given').map(u => u.content_id)
     );
     
-    // Get habit milestone thresholds already mentioned
+    // Get habit milestone thresholds already mentioned (now uses content_hash format)
     const usedHabitMilestones = new Map<string, number[]>();
     (usedContent || [])
       .filter(u => u.content_type === 'habit_milestone')
       .forEach(u => {
-        // content_id format: "habitId:threshold"
-        const [habitId, thresholdStr] = (u.content_id || '').split(':');
-        if (habitId && thresholdStr) {
+        // New format: content_id = habitId (UUID), content_hash = "streak:threshold"
+        const habitId = u.content_id;
+        const hashMatch = ((u as any).content_hash || '').match(/streak:(\d+)/);
+        const threshold = hashMatch ? parseInt(hashMatch[1], 10) : null;
+        if (habitId && threshold) {
           const existing = usedHabitMilestones.get(habitId) || [];
-          existing.push(parseInt(thresholdStr, 10));
+          existing.push(threshold);
           usedHabitMilestones.set(habitId, existing);
         }
       });
@@ -540,9 +542,20 @@ serve(async (req) => {
       }
 
       if (typeof value === 'object') {
-        // Most common shape in our DB right now: { text: "..." }
+        // Handle { items: [...] } format (common in our DB)
+        if (Array.isArray(value.items)) {
+          return value.items.map((item: any) => ({
+            text: typeof item === 'string' ? item : (item?.text || item?.description || String(item)),
+            completed: typeof item === 'object' && item?.completed === true,
+          })).filter((i: any) => i.text);
+        }
+        // Handle { text: "..." } format
         if (typeof value.text === 'string') {
           return toItemsFromText(value.text).map(text => ({ text, completed: false }));
+        }
+        // Handle { content: "..." } format
+        if (typeof value.content === 'string') {
+          return toItemsFromText(value.content).map(text => ({ text, completed: false }));
         }
         return [{ text: String(value), completed: false }];
       }
@@ -1130,19 +1143,24 @@ Remember: Write WITHOUT speaker labels. Just the words to be spoken. Keep it war
     }
     
     // Record habit milestone if applicable (celebrate at 5, 10, 15, 30, 60, 90 day thresholds)
-    const habitMilestones = [5, 10, 15, 30, 60, 90];
-    if (topHabit && topHabit.current_streak > 0) {
-      const threshold = habitMilestones.find(m => topHabit.current_streak >= m);
+    // Use content_hash instead of content_id for string-based milestones
+    const habitMilestones = [5, 10, 15, 30, 60, 90, 100, 150, 200, 250, 300, 365];
+    if (topHabit && topHabit.current_streak > 0 && topHabit.id) {
+      // Find the highest milestone they've reached
+      const reachedMilestones = habitMilestones.filter(m => topHabit.current_streak >= m);
+      const threshold = reachedMilestones.length > 0 ? reachedMilestones[reachedMilestones.length - 1] : null;
       if (threshold) {
-        const habitId = (topHabit as any).id || 'unknown';
+        const habitId = topHabit.id;
         const existingThresholds = usedHabitMilestones.get(habitId) || [];
         if (!existingThresholds.includes(threshold)) {
+          // Use the habit UUID as content_id and threshold as hash
           contentUsageRecords.push({
             profile_id: profileId,
             content_type: 'habit_milestone',
-            content_id: `${habitId}:${threshold}`,
+            content_id: habitId, // Valid UUID
+            content_hash: `streak:${threshold}`, // Store threshold in hash
             episode_date: todayDate
-          });
+          } as any);
         }
       }
     }
