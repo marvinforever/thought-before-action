@@ -39,7 +39,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { profileId, jobDescriptionId, companyId } = await req.json();
+    const { profileId, jobDescriptionId, companyId, employeeIds } = await req.json();
 
     if (!profileId && !companyId) {
       throw new Error('Either profileId or companyId is required');
@@ -72,14 +72,21 @@ serve(async (req) => {
       });
     }
 
-    // If analyzing entire company
-    const { data: employees } = await supabase
+    // If analyzing entire company (or selected employees)
+    let employeesQuery = supabase
       .from('profiles')
       .select('id, full_name, role, department')
       .eq('company_id', companyId);
+    
+    // If specific employee IDs provided, filter to those
+    if (employeeIds && Array.isArray(employeeIds) && employeeIds.length > 0) {
+      employeesQuery = employeesQuery.in('id', employeeIds);
+    }
+    
+    const { data: employees } = await employeesQuery;
 
     if (!employees || employees.length === 0) {
-      throw new Error('No employees found for this company. Please add employees first.');
+      throw new Error('No employees found. Please select employees to analyze.');
     }
     
     // Check if any employees have job descriptions
@@ -90,7 +97,7 @@ serve(async (req) => {
       .eq('is_current', true);
     
     if (!jobDescriptions || jobDescriptions.length === 0) {
-      throw new Error('No job descriptions found. Employees need job descriptions to analyze AI efficiency opportunities.');
+      throw new Error('No job descriptions found for selected employees. Add job descriptions first.');
     }
 
     const analyses: EmployeeAnalysis[] = [];

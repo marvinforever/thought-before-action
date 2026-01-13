@@ -141,7 +141,20 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
     setSelectedIds(newSelected);
   };
 
+  // In view-as mode, we should not allow modifications
+  const isViewAsMode = !!viewAsCompanyId;
+
   const handleSave = async () => {
+    // Block saving in view-as mode to prevent polluting actual team
+    if (isViewAsMode) {
+      toast({
+        title: "Cannot modify team in View As mode",
+        description: "Exit View As mode to modify your actual team assignments.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -224,9 +237,18 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
             Manage My Team
           </DialogTitle>
           <DialogDescription>
-            Select employees to add to your direct reports
+            {isViewAsMode 
+              ? "Viewing team for another company (read-only mode)"
+              : "Select employees to add to your direct reports. Uncheck to remove from your team."
+            }
           </DialogDescription>
         </DialogHeader>
+
+        {isViewAsMode && (
+          <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-amber-800 dark:text-amber-200 text-sm">
+            ⚠️ You are in View As mode. Changes are disabled to prevent modifying your actual team.
+          </div>
+        )}
 
         <div className="space-y-4 flex-1 overflow-hidden">
           <div className="relative">
@@ -241,7 +263,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              {selectedCount} selected {changesCount > 0 && `(${changesCount} changes)`}
+              {selectedCount} selected {!isViewAsMode && changesCount > 0 && `(${changesCount} changes)`}
             </span>
           </div>
 
@@ -260,12 +282,13 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                   filteredEmployees.map((employee) => (
                     <div
                       key={employee.id}
-                      className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
-                      onClick={() => handleToggleEmployee(employee.id)}
+                      className={`flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 ${isViewAsMode ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+                      onClick={() => !isViewAsMode && handleToggleEmployee(employee.id)}
                     >
                       <Checkbox
                         checked={selectedIds.has(employee.id)}
-                        onCheckedChange={() => handleToggleEmployee(employee.id)}
+                        onCheckedChange={() => !isViewAsMode && handleToggleEmployee(employee.id)}
+                        disabled={isViewAsMode}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -273,6 +296,11 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                           {employee.role && (
                             <Badge variant="secondary" className="text-xs">
                               {employee.role}
+                            </Badge>
+                          )}
+                          {employee.is_assigned && (
+                            <Badge variant="default" className="text-xs">
+                              On Your Team
                             </Badge>
                           )}
                         </div>
@@ -288,11 +316,13 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {isViewAsMode ? 'Close' : 'Cancel'}
           </Button>
-          <Button onClick={handleSave} disabled={submitting || changesCount === 0}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Save Changes`}
-          </Button>
+          {!isViewAsMode && (
+            <Button onClick={handleSave} disabled={submitting || changesCount === 0}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Save Changes`}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
