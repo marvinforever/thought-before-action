@@ -289,10 +289,10 @@ serve(async (req) => {
       visionResult,
       recognitionsResult
     ] = await Promise.all([
-      // Profile (use maybeSingle to avoid hard failure on transient/missing row)
+      // Profile with company info for industry news
       supabase
         .from("profiles")
-        .select("id, email, full_name, company_id")
+        .select("id, email, full_name, company_id, companies(id, name, industry, industry_keywords)")
         .eq("id", profileId)
         .maybeSingle(),
       // Today's episode
@@ -568,6 +568,42 @@ serve(async (req) => {
     // Get recognitions count
     const recognitionsSent = (recognitionsResult as any).count || 0;
 
+    // Fetch industry news from the company
+    const company = (profile?.companies as any) || null;
+    const industry = company?.industry || 'general';
+    const industryKeywords = company?.industry_keywords || [];
+    const focusCapability = episode.capability_name || topCapabilities[0]?.name || null;
+    
+    let industryNews: { headline: string; summary: string; source: string; relevanceTag?: string }[] = [];
+    
+    if (industry && industry !== 'general') {
+      try {
+        console.log(`Fetching industry news for ${industry}...`);
+        const newsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-industry-news`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`
+          },
+          body: JSON.stringify({
+            industry,
+            keywords: industryKeywords,
+            capabilityFocus: focusCapability
+          })
+        });
+        
+        if (newsResponse.ok) {
+          const newsData = await newsResponse.json();
+          industryNews = newsData.newsItems || [];
+          console.log(`Got ${industryNews.length} industry news items`);
+        } else {
+          console.warn('Industry news fetch failed:', newsResponse.status);
+        }
+      } catch (newsError) {
+        console.error('Error fetching industry news:', newsError);
+      }
+    }
+
     // Build context for AI
     const userContext: UserContext = {
       firstName,
@@ -586,7 +622,7 @@ serve(async (req) => {
       completedBenchmarks,
       capabilityScore,
       totalCapabilities,
-      focusCapability: episode.capability_name || topCapabilities[0]?.name || null,
+      focusCapability,
       appUrl
     };
 
@@ -594,7 +630,8 @@ serve(async (req) => {
       habits: habits.length,
       targets: ninetyDayTargets.length,
       capabilities: topCapabilities.length,
-      hasVision: !!userContext.personalVision
+      hasVision: !!userContext.personalVision,
+      newsItems: industryNews.length
     });
 
     const { subject, body: personalizedBody } = await generatePersonalizedEmail(userContext);
@@ -607,6 +644,23 @@ serve(async (req) => {
     const avgTargetProgress = ninetyDayTargets.length > 0
       ? Math.round(ninetyDayTargets.reduce((sum, t) => sum + t.progress, 0) / ninetyDayTargets.length)
       : null;
+
+    // Build Industry Pulse section if we have news
+    const industryPulseHtml = industryNews.length > 0 ? `
+      <div style="margin: 24px 0; padding: 20px; background: linear-gradient(180deg, #1a2f47 0%, #0e1a2d 100%); border-radius: 12px; border: 1px solid #2a4a6f;">
+        <h3 style="color: #d4a855; font-size: 14px; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 1px;">📰 Industry Pulse</h3>
+        ${industryNews.slice(0, 3).map(news => `
+          <div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #1e3a5f;">
+            <p style="color: #ffffff; font-weight: 600; margin: 0 0 8px 0; font-size: 15px;">${news.headline}</p>
+            <p style="color: #a0aec0; margin: 0 0 8px 0; font-size: 14px; line-height: 1.5;">${news.summary}</p>
+            <p style="color: #8892a8; font-size: 12px; margin: 0;">
+              ${news.source ? `Source: ${news.source}` : ''}
+              ${news.relevanceTag ? ` · <span style="color: #d4a855;">${news.relevanceTag}</span>` : ''}
+            </p>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
 
     // Build the on-brand Jericho email HTML - Navy Blue (#0a1628, #1e3a5f) and Gold (#d4a855)
     const emailHtml = `
@@ -633,6 +687,8 @@ serve(async (req) => {
       <!-- AI-generated personalized content -->
       <div style="padding: 32px; color: #ffffff; font-size: 16px; line-height: 1.7;">
         ${personalizedBody}
+        
+        ${industryPulseHtml}
       </div>
 
       <!-- Listen button - Navy/Gold gradient -->

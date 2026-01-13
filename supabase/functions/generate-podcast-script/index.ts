@@ -286,28 +286,58 @@ serve(async (req) => {
     
     const { data: achievements } = await supabase
       .from('achievements')
-      .select('achievement_text, category')
+      .select('id, achievement_text, category')
       .eq('profile_id', profileId)
       .gte('achieved_date', sevenDaysAgo.toISOString().split('T')[0])
       .order('achieved_date', { ascending: false })
-      .limit(3);
+      .limit(10); // Fetch more to filter
 
-    const recentAchievements = (achievements || [])
-      .map(a => ({
-        text: a.achievement_text,
-        category: a.category || 'general'
-      }))
-      // Filter likely third-person achievements (often created when the user is praising someone else)
-      // This prevents mis-attributing actions like "he painted his office" to the user.
-      .filter(a => !/\b(his|her|their)\b/i.test(a.text));
+    // Note: usedAchievementIds will be populated after recognition query (line order matters)
+    // We'll filter achievements after we have the usage data
 
     // Fetch recent recognition notes (last 14 days)
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
     
+    // VARIETY SYSTEM: Fetch already-mentioned content to avoid repetition
+    const { data: usedContent } = await supabase
+      .from('podcast_content_usage')
+      .select('content_type, content_id')
+      .eq('profile_id', profileId);
+    
+    const usedRecognitionIds = new Set(
+      (usedContent || []).filter(u => u.content_type === 'recognition_received').map(u => u.content_id)
+    );
+    const usedAchievementIds = new Set(
+      (usedContent || []).filter(u => u.content_type === 'achievement').map(u => u.content_id)
+    );
+    const usedBadgeIds = new Set(
+      (usedContent || []).filter(u => u.content_type === 'badge').map(u => u.content_id)
+    );
+    const usedRecognitionGivenIds = new Set(
+      (usedContent || []).filter(u => u.content_type === 'recognition_given').map(u => u.content_id)
+    );
+    
+    // Get habit milestone thresholds already mentioned
+    const usedHabitMilestones = new Map<string, number[]>();
+    (usedContent || [])
+      .filter(u => u.content_type === 'habit_milestone')
+      .forEach(u => {
+        // content_id format: "habitId:threshold"
+        const [habitId, thresholdStr] = (u.content_id || '').split(':');
+        if (habitId && thresholdStr) {
+          const existing = usedHabitMilestones.get(habitId) || [];
+          existing.push(parseInt(thresholdStr, 10));
+          usedHabitMilestones.set(habitId, existing);
+        }
+      });
+    
+    console.log(`Content usage tracking: ${usedRecognitionIds.size} recognitions, ${usedAchievementIds.size} achievements, ${usedBadgeIds.size} badges already mentioned`);
+    
     const { data: recognitions } = await supabase
       .from('recognition_notes')
       .select(`
+        id,
         title,
         description,
         category,
@@ -318,9 +348,13 @@ serve(async (req) => {
       .eq('given_to', profileId)
       .gte('recognition_date', fourteenDaysAgo.toISOString().split('T')[0])
       .order('recognition_date', { ascending: false })
-      .limit(3);
+      .limit(10); // Fetch more to filter
 
-    const recentRecognitions = (recognitions || []).map(r => ({
+    // Filter out already-mentioned recognitions (ONCE EVER rule)
+    const freshRecognitions = (recognitions || []).filter(r => !usedRecognitionIds.has(r.id));
+    
+    const recentRecognitions = freshRecognitions.slice(0, 3).map(r => ({
+      id: r.id,
       title: r.title,
       description: r.description,
       category: r.category,
@@ -328,9 +362,21 @@ serve(async (req) => {
       recognitionDate: r.recognition_date
     }));
 
-    console.log(`Found ${recentRecognitions.length} recent recognitions`);
+    console.log(`Found ${recognitions?.length || 0} recognitions, ${recentRecognitions.length} fresh (not mentioned before)`);
 
-    // Fetch recent 1:1 notes with wins (last 30 days)
+    // Now filter achievements with the usage data we have
+    const freshAchievements = (achievements || []).filter(a => !usedAchievementIds.has(a.id));
+    const recentAchievements = freshAchievements
+      .slice(0, 3)
+      .map(a => ({
+        id: a.id,
+        text: a.achievement_text,
+        category: a.category || 'general'
+      }))
+      // Filter likely third-person achievements
+      .filter(a => !/\b(his|her|their)\b/i.test(a.text));
+    
+    console.log(`Found ${achievements?.length || 0} achievements, ${recentAchievements.length} fresh (not mentioned before)`);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
@@ -603,6 +649,7 @@ serve(async (req) => {
     const { data: recognitionGivenData } = await supabase
       .from('recognition_notes')
       .select(`
+        id,
         title,
         recognition_date,
         given_to,
@@ -611,33 +658,44 @@ serve(async (req) => {
       .eq('given_by', profileId)
       .gte('recognition_date', fourteenDaysAgo.toISOString().split('T')[0])
       .order('recognition_date', { ascending: false })
-      .limit(3);
+      .limit(10);
 
-    const recognitionGiven = (recognitionGivenData || []).map(r => ({
+    // Filter out already-mentioned recognitions given (ONCE EVER rule)
+    const freshRecognitionGiven = (recognitionGivenData || []).filter(r => !usedRecognitionGivenIds.has(r.id));
+    
+    const recognitionGiven = freshRecognitionGiven.slice(0, 3).map(r => ({
+      id: r.id,
       title: r.title,
       recipientName: (r.profiles as any)?.full_name?.split(' ')[0] || 'a teammate',
       recognitionDate: r.recognition_date
     }));
 
-    console.log(`Found ${recognitionGiven.length} recognitions given by user`);
+    console.log(`Found ${recognitionGivenData?.length || 0} recognitions given, ${recognitionGiven.length} fresh`);
 
     // Fetch user badges (last 30 days for recency, but show recent ones)
     const { data: userBadges } = await supabase
       .from('user_badges')
       .select(`
+        id,
         earned_at,
         badge_id,
         badges (name, description, requirement_type, requirement_value, tier)
       `)
       .eq('profile_id', profileId)
       .order('earned_at', { ascending: false })
-      .limit(5);
+      .limit(10);
 
-    const badges = (userBadges || []).map(ub => ({
+    // Filter out already-mentioned badges (ONCE EVER rule)
+    const freshBadges = (userBadges || []).filter(ub => !usedBadgeIds.has(ub.id));
+    
+    const badges = freshBadges.slice(0, 3).map(ub => ({
+      id: ub.id,
       name: (ub.badges as any)?.name || 'Badge',
       description: (ub.badges as any)?.description || '',
       earnedAt: ub.earned_at
     }));
+    
+    console.log(`Found ${userBadges?.length || 0} badges, ${badges.length} fresh`);
 
     // Determine next badge hint based on what they don't have
     const badgeTypes = (userBadges || []).map(ub => (ub.badges as any)?.requirement_type);
@@ -1026,6 +1084,81 @@ Remember: Write WITHOUT speaker labels. Just the words to be spoken. Keep it war
     if (context.activeGoal) topicsCovered.push('goals');
     if (context.yesterdayChallenge) topicsCovered.push('accountability');
     if (context.personalVision) topicsCovered.push('vision');
+
+    // RECORD CONTENT USAGE - prevents repetitive mentions in future episodes
+    const todayDate = new Date().toISOString().split('T')[0];
+    const contentUsageRecords: { profile_id: string; content_type: string; content_id: string; episode_date: string }[] = [];
+    
+    // Record achievements mentioned
+    for (const a of recentAchievements) {
+      contentUsageRecords.push({
+        profile_id: profileId,
+        content_type: 'achievement',
+        content_id: (a as any).id,
+        episode_date: todayDate
+      });
+    }
+    
+    // Record recognitions received mentioned
+    for (const r of recentRecognitions) {
+      contentUsageRecords.push({
+        profile_id: profileId,
+        content_type: 'recognition_received',
+        content_id: r.id,
+        episode_date: todayDate
+      });
+    }
+    
+    // Record recognition given mentioned
+    for (const r of recognitionGiven) {
+      contentUsageRecords.push({
+        profile_id: profileId,
+        content_type: 'recognition_given',
+        content_id: r.id,
+        episode_date: todayDate
+      });
+    }
+    
+    // Record badges mentioned
+    for (const b of badges) {
+      contentUsageRecords.push({
+        profile_id: profileId,
+        content_type: 'badge',
+        content_id: b.id,
+        episode_date: todayDate
+      });
+    }
+    
+    // Record habit milestone if applicable (celebrate at 5, 10, 15, 30, 60, 90 day thresholds)
+    const habitMilestones = [5, 10, 15, 30, 60, 90];
+    if (topHabit && topHabit.current_streak > 0) {
+      const threshold = habitMilestones.find(m => topHabit.current_streak >= m);
+      if (threshold) {
+        const habitId = (topHabit as any).id || 'unknown';
+        const existingThresholds = usedHabitMilestones.get(habitId) || [];
+        if (!existingThresholds.includes(threshold)) {
+          contentUsageRecords.push({
+            profile_id: profileId,
+            content_type: 'habit_milestone',
+            content_id: `${habitId}:${threshold}`,
+            episode_date: todayDate
+          });
+        }
+      }
+    }
+    
+    // Insert all usage records (ignore conflicts from reruns)
+    if (contentUsageRecords.length > 0) {
+      const { error: usageError } = await supabase
+        .from('podcast_content_usage')
+        .upsert(contentUsageRecords, { onConflict: 'profile_id,content_type,content_id,episode_date', ignoreDuplicates: true });
+      
+      if (usageError) {
+        console.error('Error recording content usage:', usageError);
+      } else {
+        console.log(`Recorded ${contentUsageRecords.length} content usage entries`);
+      }
+    }
 
     return new Response(
       JSON.stringify({
