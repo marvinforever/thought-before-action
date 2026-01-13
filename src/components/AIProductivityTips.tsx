@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Clock, Lightbulb, ExternalLink, RefreshCw, FileText } from "lucide-react";
+import { Loader2, Sparkles, Clock, Lightbulb, ExternalLink, RefreshCw, FileText, ChevronDown, ChevronUp, Bot, Copy, Check } from "lucide-react";
 import { AddMyJobDescriptionDialog } from "@/components/AddMyJobDescriptionDialog";
 
 interface AITask {
@@ -30,12 +31,17 @@ interface AIRecommendation {
   mentioned_in_podcast: boolean;
 }
 
-export function AIProductivityTips() {
+interface AIProductivityTipsProps {
+  onStartWithJericho?: (task: AITask) => void;
+}
+
+export function AIProductivityTips({ onStartWithJericho }: AIProductivityTipsProps) {
   const [recommendation, setRecommendation] = useState<AIRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [expandedTip, setExpandedTip] = useState<number | null>(null);
   const [addJdDialogOpen, setAddJdDialogOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -141,6 +147,13 @@ export function AIProductivityTips() {
     return links[tool] || '#';
   };
 
+  const handleStartWithJericho = (task: AITask, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onStartWithJericho) {
+      onStartWithJericho(task);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -201,6 +214,8 @@ export function AIProductivityTips() {
   }
 
   const priorityTasks = recommendation.priority_tasks || [];
+  const displayedTasks = showAll ? priorityTasks : priorityTasks.slice(0, 3);
+  const hasMoreTasks = priorityTasks.length > 3;
 
   return (
     <Card>
@@ -217,48 +232,97 @@ export function AIProductivityTips() {
         <CardDescription className="flex items-center gap-2">
           <Clock className="h-4 w-4" />
           Save up to {recommendation.estimated_weekly_hours_saved.toFixed(1)} hours/week
+          {priorityTasks.length > 0 && (
+            <Badge variant="secondary" className="text-xs ml-2">
+              {priorityTasks.length} {priorityTasks.length === 1 ? 'tip' : 'tips'}
+            </Badge>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {priorityTasks.slice(0, 3).map((task, idx) => (
-          <div 
-            key={idx} 
-            className="p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-            onClick={() => setExpandedTip(expandedTip === idx ? null : idx)}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium truncate">{task.task}</span>
-                  <Badge variant="outline" className={`text-xs shrink-0 ${getDifficultyColor(task.difficulty)}`}>
-                    {task.difficulty}
-                  </Badge>
+        <ScrollArea className={showAll && priorityTasks.length > 3 ? "h-[400px]" : undefined}>
+          <div className="space-y-3 pr-2">
+            {displayedTasks.map((task, idx) => (
+              <div 
+                key={idx} 
+                className="p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                onClick={() => setExpandedTip(expandedTip === idx ? null : idx)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{task.task}</span>
+                      <Badge variant="outline" className={`text-xs shrink-0 ${getDifficultyColor(task.difficulty)}`}>
+                        {task.difficulty}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <span className="text-green-600 font-medium">Save {task.hours_saved.toFixed(1)}h/week</span>
+                      <span>•</span>
+                      <span>{task.recommended_tool}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                  <span className="text-green-600 font-medium">Save {task.hours_saved.toFixed(1)}h/week</span>
-                  <span>•</span>
-                  <span>{task.recommended_tool}</span>
-                </div>
+                
+                {expandedTip === idx && (
+                  <div className="mt-3 pt-3 border-t space-y-3">
+                    <p className="text-sm text-muted-foreground">{task.ai_solution}</p>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {/* Do This With Jericho Button */}
+                      {onStartWithJericho && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={(e) => handleStartWithJericho(task, e)}
+                          className="gap-1.5"
+                        >
+                          <Bot className="h-3.5 w-3.5" />
+                          Do This With Jericho
+                        </Button>
+                      )}
+                      
+                      {/* Learn More Link */}
+                      <a 
+                        href={getToolLink(task.recommended_tool)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button size="sm" variant="outline" className="gap-1.5">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Try {task.recommended_tool}
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-            
-            {expandedTip === idx && (
-              <div className="mt-3 pt-3 border-t space-y-2">
-                <p className="text-sm">{task.ai_solution}</p>
-                <a 
-                  href={getToolLink(task.recommended_tool)} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Try {task.recommended_tool}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            )}
+            ))}
           </div>
-        ))}
+        </ScrollArea>
+
+        {/* Show All / Show Less Toggle */}
+        {hasMoreTasks && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAll(!showAll)}
+            className="w-full text-muted-foreground hover:text-foreground"
+          >
+            {showAll ? (
+              <>
+                <ChevronUp className="h-4 w-4 mr-1" />
+                Show Less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4 mr-1" />
+                Show All ({priorityTasks.length} tips)
+              </>
+            )}
+          </Button>
+        )}
 
         {recommendation.recommended_tools && recommendation.recommended_tools.length > 0 && (
           <div className="pt-2 border-t">

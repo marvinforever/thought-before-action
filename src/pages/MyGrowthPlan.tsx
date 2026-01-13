@@ -25,6 +25,14 @@ import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
 import { AIProductivityTips } from "@/components/AIProductivityTips";
+import { JerichoChat } from "@/components/JerichoChat";
+
+interface AITask {
+  task: string;
+  ai_solution: string;
+  recommended_tool?: string;
+  hours_saved?: number;
+}
 
 type JobDescription = {
   id: string;
@@ -42,6 +50,8 @@ export default function MyGrowthPlan() {
   const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
   const [userProfile, setUserProfile] = useState<{ id: string; company_id: string } | null>(null);
   const [jerichoOpen, setJerichoOpen] = useState(false);
+  const [jerichoContextType, setJerichoContextType] = useState<string | undefined>(undefined);
+  const [jerichoTaskDetails, setJerichoTaskDetails] = useState<AITask | undefined>(undefined);
   const [podcastRefreshKey, setPodcastRefreshKey] = useState(0);
   const [onboardingProgressKey, setOnboardingProgressKey] = useState(0);
   const [onboardingWizardForceKey, setOnboardingWizardForceKey] = useState(0);
@@ -53,6 +63,14 @@ export default function MyGrowthPlan() {
   const { isEnabled: isAIEfficiencyEnabled, loading: aiEfficiencyFlagLoading } = useFeatureFlag('ai_efficiency_analysis');
 
   const handleOpenJericho = () => {
+    setJerichoContextType(undefined);
+    setJerichoTaskDetails(undefined);
+    setJerichoOpen(true);
+  };
+
+  const handleStartWithJericho = (task: AITask) => {
+    setJerichoContextType('ai-task-agent');
+    setJerichoTaskDetails(task);
     setJerichoOpen(true);
   };
 
@@ -185,7 +203,7 @@ export default function MyGrowthPlan() {
 
       {/* AI Productivity Tips - Feature Flagged */}
       {!aiEfficiencyFlagLoading && isAIEfficiencyEnabled && (
-        <AIProductivityTips />
+        <AIProductivityTips onStartWithJericho={handleStartWithJericho} />
       )}
 
       {/* Personal Vision and Greatness/Badges */}
@@ -339,6 +357,18 @@ export default function MyGrowthPlan() {
       <FloatingJerichoButton 
         isOpen={jerichoOpen}
         onOpenChange={setJerichoOpen}
+      />
+
+      {/* Direct Jericho Chat for AI Task Agent Mode */}
+      <JerichoChat
+        isOpen={jerichoOpen && jerichoContextType === 'ai-task-agent'}
+        onClose={() => {
+          setJerichoOpen(false);
+          setJerichoContextType(undefined);
+          setJerichoTaskDetails(undefined);
+        }}
+        contextType={jerichoContextType}
+        taskDetails={jerichoTaskDetails}
       />
 
       {/* Request Meeting Dialog */}

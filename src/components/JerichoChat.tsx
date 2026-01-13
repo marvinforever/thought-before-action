@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Send, Loader2, Copy, Check, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,6 +11,14 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  hasGeneratedContent?: boolean; // Flag for messages with actionable content
+}
+
+interface AITaskDetails {
+  task: string;
+  ai_solution: string;
+  recommended_tool?: string;
+  hours_saved?: number;
 }
 
 interface JerichoChatProps {
@@ -18,11 +26,12 @@ interface JerichoChatProps {
   onClose: () => void;
   initialMessage?: string;
   contextType?: string;
+  taskDetails?: AITaskDetails; // New prop for AI task agent mode
 }
 
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: JerichoChatProps) {
+export function JerichoChat({ isOpen, onClose, initialMessage, contextType, taskDetails }: JerichoChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,9 +40,11 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   const [displayedChars, setDisplayedChars] = useState(0); // Characters revealed so far
   const [hasSummarized, setHasSummarized] = useState(false); // Track if we've summarized this session
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const initialMessageSentRef = useRef(false); // Use ref to prevent race conditions
   const activeAssistantIndexRef = useRef<number | null>(null);
+  const taskDetailsRef = useRef(taskDetails); // Track taskDetails for initial message
 
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
@@ -41,6 +52,11 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityRef = useRef<Date>(new Date());
+
+  // Update taskDetailsRef when taskDetails changes
+  useEffect(() => {
+    taskDetailsRef.current = taskDetails;
+  }, [taskDetails]);
 
   // Summarize conversation - call the edge function
   const summarizeConversation = useCallback(async (convId: string) => {
@@ -164,19 +180,35 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
   useEffect(() => {
     if (isOpen) {
       setIsHistoryLoaded(false);
-      loadConversationHistory().finally(() => setIsHistoryLoaded(true));
+      // For ai-task-agent mode, start fresh without loading history
+      if (contextType === 'ai-task-agent') {
+        setMessages([]);
+        setConversationId(null);
+        setIsHistoryLoaded(true);
+      } else {
+        loadConversationHistory().finally(() => setIsHistoryLoaded(true));
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, contextType]);
 
   // Send initial message if provided (only once, and only after history load finishes)
   useEffect(() => {
     if (!isHistoryLoaded) return;
 
+    // For ai-task-agent mode with taskDetails, send the task prompt
+    if (isOpen && contextType === 'ai-task-agent' && taskDetailsRef.current && !initialMessageSentRef.current && !isLoading) {
+      initialMessageSentRef.current = true;
+      const task = taskDetailsRef.current;
+      const taskPrompt = `Help me with this task: ${task.task}\n\nSuggested approach: ${task.ai_solution}`;
+      handleSendMessage(taskPrompt);
+      return;
+    }
+
     if (isOpen && initialMessage && messages.length === 0 && !initialMessageSentRef.current && !isLoading) {
       initialMessageSentRef.current = true;
       handleSendMessage(initialMessage);
     }
-  }, [isOpen, initialMessage, messages.length, isLoading, isHistoryLoaded]);
+  }, [isOpen, initialMessage, messages.length, isLoading, isHistoryLoaded, contextType]);
 
   const loadConversationHistory = async () => {
     try {
@@ -269,6 +301,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
             contextType,
             viewAsCompanyId,
             stream: true,
+            taskDetails: taskDetailsRef.current, // Pass task details to backend
           }),
         }
       );
@@ -345,6 +378,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
                     role: 'assistant',
                     content: accumulatedContent,
                     timestamp: new Date(),
+                    hasGeneratedContent: contextType === 'ai-task-agent', // Mark as having actionable content
                   };
                   return next;
                 });
@@ -387,6 +421,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
                     role: 'assistant',
                     content: accumulatedContent,
                     timestamp: new Date(),
+                    hasGeneratedContent: contextType === 'ai-task-agent',
                   };
                   return next;
                 });
@@ -418,6 +453,62 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
     }
   };
 
+  const handleCopyContent = async (content: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedIndex(index);
+      toast({
+        title: 'Copied!',
+        description: 'Content copied to clipboard',
+      });
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (error) {
+      toast({
+        title: 'Failed to copy',
+        description: 'Please try selecting and copying manually',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveAsAchievement = async (content: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not logged in');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.company_id) throw new Error('No company found');
+
+      // Extract a title from the content (first line or first 100 chars)
+      const title = content.split('\n')[0].slice(0, 100) || 'AI-generated content';
+
+      await supabase.from('achievements').insert({
+        profile_id: user.id,
+        company_id: profile.company_id,
+        achievement_text: `Completed AI task: ${title}`,
+        category: 'productivity',
+        achieved_date: new Date().toISOString().split('T')[0],
+      });
+
+      toast({
+        title: 'Saved!',
+        description: 'Added to your achievements',
+      });
+    } catch (error) {
+      console.error('Error saving achievement:', error);
+      toast({
+        title: 'Failed to save',
+        description: 'Please try again',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -430,7 +521,9 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
           </div>
           <div>
             <h2 className="text-lg font-semibold">Jericho</h2>
-            <p className="text-xs opacity-90">Your AI Career Coach</p>
+            <p className="text-xs opacity-90">
+              {contextType === 'ai-task-agent' ? 'AI Task Agent' : 'Your AI Career Coach'}
+            </p>
           </div>
         </div>
         <Button
@@ -447,11 +540,22 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         {messages.length === 0 && !isLoading && (
           <div className="text-center text-muted-foreground py-8">
-            <p className="text-sm mb-2">👋 Hey! I'm Jericho.</p>
-            <p className="text-xs">
-              I'm here to help you crush your goals, prep for reviews, and level up your career.
-              Let's get to work.
-            </p>
+            {contextType === 'ai-task-agent' ? (
+              <>
+                <p className="text-sm mb-2">🤖 AI Task Agent Mode</p>
+                <p className="text-xs">
+                  I'll help you complete this task step by step. Let's get started!
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm mb-2">👋 Hey! I'm Jericho.</p>
+                <p className="text-xs">
+                  I'm here to help you crush your goals, prep for reviews, and level up your career.
+                  Let's get to work.
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -479,7 +583,38 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType }: Je
                   <span className="inline-block w-2 h-4 ml-1 bg-foreground/70 animate-pulse" />
                 )}
               </p>
-              {(!isLoading || idx !== messages.length - 1 || msg.role === 'user') && (
+              
+              {/* Action buttons for assistant messages with generated content */}
+              {msg.role === 'assistant' && msg.content && !isLoading && (
+                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => handleCopyContent(msg.content, idx)}
+                  >
+                    {copiedIndex === idx ? (
+                      <Check className="h-3 w-3 mr-1" />
+                    ) : (
+                      <Copy className="h-3 w-3 mr-1" />
+                    )}
+                    Copy
+                  </Button>
+                  {contextType === 'ai-task-agent' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleSaveAsAchievement(msg.content)}
+                    >
+                      <Save className="h-3 w-3 mr-1" />
+                      Save
+                    </Button>
+                  )}
+                </div>
+              )}
+              
+              {(!isLoading || idx !== messages.length - 1 || msg.role === 'user') && !msg.content && (
                 <p className="text-xs opacity-70 mt-1">
                   {msg.timestamp.toLocaleTimeString([], {
                     hour: '2-digit',
