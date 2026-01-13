@@ -5,11 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Gauge } from "@/components/ui/gauge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useViewAs } from "@/contexts/ViewAsContext";
-import { Loader2, Zap, Clock, DollarSign, Users, TrendingUp, Download, RefreshCw, Lightbulb, Rocket } from "lucide-react";
+import { Loader2, Zap, Clock, DollarSign, Users, TrendingUp, Download, RefreshCw, Lightbulb, Rocket, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+interface Employee {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  department: string;
+  has_job_description: boolean;
+}
 
 interface ExecutiveSummary {
   headline: string;
@@ -70,6 +82,11 @@ export function AIEfficiencyReport() {
   const [report, setReport] = useState<AIEfficiencyReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [showEmployeeSelector, setShowEmployeeSelector] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
 
@@ -77,22 +94,71 @@ export function AIEfficiencyReport() {
     loadReport();
   }, [viewAsCompanyId]);
 
+  const getCompanyId = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    let companyId = viewAsCompanyId;
+    if (!companyId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+      companyId = profile?.company_id;
+    }
+    return companyId;
+  };
+
+  const loadEmployees = async () => {
+    setLoadingEmployees(true);
+    try {
+      const companyId = await getCompanyId();
+      if (!companyId) return;
+
+      // Get all employees
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .eq('company_id', companyId)
+        .eq('is_active', true)
+        .order('full_name');
+
+      // Get employees with job descriptions
+      const { data: jobDescs } = await supabase
+        .from('job_descriptions')
+        .select('profile_id')
+        .eq('is_current', true);
+
+      const profilesWithJD = new Set(jobDescs?.map((j: any) => j.profile_id) || []);
+
+      const employeeList: Employee[] = (profiles || []).map((p: any) => ({
+        id: p.id,
+        full_name: p.full_name || 'Unknown',
+        email: p.email || '',
+        role: p.role || '',
+        department: 'General',
+        has_job_description: profilesWithJD.has(p.id),
+      }));
+
+      setEmployees(employeeList);
+      
+      // Select all employees with job descriptions by default
+      const defaultSelected = new Set(
+        employeeList.filter(e => e.has_job_description).map(e => e.id)
+      );
+      setSelectedEmployeeIds(defaultSelected);
+    } catch (error) {
+      console.error('Error loading employees:', error);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
   const loadReport = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      let companyId = viewAsCompanyId;
-      if (!companyId) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('id', user.id)
-          .single();
-        companyId = profile?.company_id;
-      }
-
+      const companyId = await getCompanyId();
       if (!companyId) return;
 
       // Get the most recent report that hasn't expired
@@ -107,39 +173,44 @@ export function AIEfficiencyReport() {
 
       if (data) {
         setReport(data as unknown as AIEfficiencyReportData);
+      } else {
+        // Load employees for selection if no report exists
+        await loadEmployees();
       }
     } catch (error) {
       console.error('Error loading AI efficiency report:', error);
+      // Load employees for selection
+      await loadEmployees();
     } finally {
       setLoading(false);
     }
   };
 
   const generateReport = async () => {
+    if (selectedEmployeeIds.size === 0) {
+      toast({
+        title: "No employees selected",
+        description: "Please select at least one employee to analyze.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setGenerating(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      let companyId = viewAsCompanyId;
-      if (!companyId) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('id', user.id)
-          .single();
-        companyId = profile?.company_id;
-      }
-
+      const companyId = await getCompanyId();
       if (!companyId) throw new Error('No company ID');
 
       toast({
         title: "Analyzing AI opportunities...",
-        description: "This may take a few minutes for larger organizations.",
+        description: `Analyzing ${selectedEmployeeIds.size} employee${selectedEmployeeIds.size > 1 ? 's' : ''}. This may take a few minutes.`,
       });
 
       const { data, error } = await supabase.functions.invoke('analyze-ai-efficiency', {
-        body: { companyId },
+        body: { 
+          companyId,
+          employeeIds: Array.from(selectedEmployeeIds),
+        },
       });
 
       if (error) throw error;
@@ -162,6 +233,32 @@ export function AIEfficiencyReport() {
     }
   };
 
+  const toggleEmployee = (id: string) => {
+    const newSelected = new Set(selectedEmployeeIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedEmployeeIds(newSelected);
+  };
+
+  const selectAll = () => {
+    const eligibleIds = employees.filter(e => e.has_job_description).map(e => e.id);
+    setSelectedEmployeeIds(new Set(eligibleIds));
+  };
+
+  const selectNone = () => {
+    setSelectedEmployeeIds(new Set());
+  };
+
+  const filteredEmployees = employees.filter(emp =>
+    emp.full_name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+    emp.email.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+    emp.role.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+    emp.department.toLowerCase().includes(employeeSearch.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -171,6 +268,9 @@ export function AIEfficiencyReport() {
   }
 
   if (!report) {
+    const eligibleCount = employees.filter(e => e.has_job_description).length;
+    const selectedCount = selectedEmployeeIds.size;
+
     return (
       <Card>
         <CardHeader className="text-center">
@@ -180,26 +280,103 @@ export function AIEfficiencyReport() {
           <CardTitle>AI Efficiency Analysis</CardTitle>
           <CardDescription>
             Discover how AI can transform your organization's productivity. 
-            We'll analyze job descriptions to identify automation opportunities and estimate efficiency gains.
+            Select which employees to analyze below.
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-center">
-          <Button onClick={generateReport} disabled={generating} size="lg">
-            {generating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Rocket className="mr-2 h-4 w-4" />
-                Generate AI Efficiency Report
-              </>
-            )}
-          </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            This analysis requires employees to have job descriptions on file.
-          </p>
+        <CardContent className="space-y-4">
+          {/* Employee Selection */}
+          <Collapsible open={showEmployeeSelector} onOpenChange={setShowEmployeeSelector}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                <span className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  {selectedCount} of {eligibleCount} eligible employees selected
+                </span>
+                {showEmployeeSelector ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search employees..."
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={selectAll}>Select All</Button>
+                <Button variant="outline" size="sm" onClick={selectNone}>Clear</Button>
+              </div>
+
+              {loadingEmployees ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : (
+                <ScrollArea className="h-[300px] border rounded-lg p-2">
+                  <div className="space-y-1">
+                    {filteredEmployees.map((emp) => (
+                      <div
+                        key={emp.id}
+                        className={`flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer ${!emp.has_job_description ? 'opacity-50' : ''}`}
+                        onClick={() => emp.has_job_description && toggleEmployee(emp.id)}
+                      >
+                        <Checkbox
+                          checked={selectedEmployeeIds.has(emp.id)}
+                          onCheckedChange={() => emp.has_job_description && toggleEmployee(emp.id)}
+                          disabled={!emp.has_job_description}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate">{emp.full_name}</span>
+                            {emp.role && <Badge variant="secondary" className="text-xs">{emp.role}</Badge>}
+                            {!emp.has_job_description && (
+                              <Badge variant="outline" className="text-xs text-amber-600">No JD</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{emp.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredEmployees.length === 0 && (
+                      <p className="text-center text-muted-foreground py-4">No employees found</p>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
+              
+              {eligibleCount === 0 && (
+                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-amber-800 dark:text-amber-200 text-sm">
+                  ⚠️ No employees have job descriptions. Add job descriptions to enable AI efficiency analysis.
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <div className="text-center pt-4">
+            <Button 
+              onClick={generateReport} 
+              disabled={generating || selectedCount === 0} 
+              size="lg"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analyzing {selectedCount} employees...
+                </>
+              ) : (
+                <>
+                  <Rocket className="mr-2 h-4 w-4" />
+                  Analyze {selectedCount} Employee{selectedCount !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              Only employees with job descriptions can be analyzed.
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
