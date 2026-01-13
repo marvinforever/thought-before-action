@@ -173,3 +173,6 @@ verify_jwt = false
 
 [functions.analyze-ai-efficiency]
 verify_jwt = true
+
+[functions.analyze-public-ai-readiness]
+verify_jwt = false
