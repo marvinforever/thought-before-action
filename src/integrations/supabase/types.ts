@@ -244,6 +244,126 @@ export type Database = {
           },
         ]
       }
+      ai_readiness_assessments: {
+        Row: {
+          ai_readiness_score: number | null
+          analysis_results: Json | null
+          analyzed_at: string | null
+          company_name: string | null
+          created_at: string | null
+          current_ai_tools: string[] | null
+          current_ai_workflows: string | null
+          email: string
+          error_message: string | null
+          executive_summary: Json | null
+          id: string
+          job_descriptions: Json
+          name: string | null
+          phone: string | null
+          referral_code: string | null
+          share_token: string | null
+          status: string | null
+          total_hours_saved: number | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          ai_readiness_score?: number | null
+          analysis_results?: Json | null
+          analyzed_at?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          current_ai_tools?: string[] | null
+          current_ai_workflows?: string | null
+          email: string
+          error_message?: string | null
+          executive_summary?: Json | null
+          id?: string
+          job_descriptions?: Json
+          name?: string | null
+          phone?: string | null
+          referral_code?: string | null
+          share_token?: string | null
+          status?: string | null
+          total_hours_saved?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          ai_readiness_score?: number | null
+          analysis_results?: Json | null
+          analyzed_at?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          current_ai_tools?: string[] | null
+          current_ai_workflows?: string | null
+          email?: string
+          error_message?: string | null
+          executive_summary?: Json | null
+          id?: string
+          job_descriptions?: Json
+          name?: string | null
+          phone?: string | null
+          referral_code?: string | null
+          share_token?: string | null
+          status?: string | null
+          total_hours_saved?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
+      ai_usage_profiles: {
+        Row: {
+          created_at: string | null
+          current_tools: string[] | null
+          current_workflows: string | null
+          estimated_current_weekly_ai_hours: number | null
+          id: string
+          lead_assessment_id: string | null
+          profile_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_tools?: string[] | null
+          current_workflows?: string | null
+          estimated_current_weekly_ai_hours?: number | null
+          id?: string
+          lead_assessment_id?: string | null
+          profile_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_tools?: string[] | null
+          current_workflows?: string | null
+          estimated_current_weekly_ai_hours?: number | null
+          id?: string
+          lead_assessment_id?: string | null
+          profile_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_profiles_lead_assessment_id_fkey"
+            columns: ["lead_assessment_id"]
+            isOneToOne: false
+            referencedRelation: "ai_readiness_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badges: {
         Row: {
           category: string

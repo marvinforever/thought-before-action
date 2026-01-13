@@ -10,6 +10,8 @@ import { AuthHashRedirect } from "@/components/AuthHashRedirect";
 
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import AIReadinessLanding from "./pages/AIReadinessLanding";
+import AIReadinessReport from "./pages/AIReadinessReport";
 import PartnerRegister from "./pages/PartnerRegister";
 import PartnerLogin from "./pages/PartnerLogin";
 import PartnerDashboard from "./pages/PartnerDashboard";
@@ -148,6 +150,9 @@ const App = () => (
             <Route path="/sales-trainer" element={<SalesTrainer />} />
             {/* Public Prep Document */}
             <Route path="/prep/:shareToken" element={<PublicPrepDocument />} />
+            {/* AI Readiness Lead Gen Tool */}
+            <Route path="/ai-readiness" element={<AIReadinessLanding />} />
+            <Route path="/ai-readiness/report/:shareToken" element={<AIReadinessReport />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
