@@ -189,7 +189,10 @@ serve(async (req) => {
     const { 
       email, 
       name, 
+      firstName,
+      lastName,
       companyName, 
+      jobTitle,
       phone,
       jobDescriptions, 
       currentAITools, 
@@ -231,7 +234,10 @@ serve(async (req) => {
       .insert({
         email,
         name,
+        first_name: firstName,
+        last_name: lastName,
         company_name: companyName,
+        job_title: jobTitle,
         phone,
         job_descriptions: jobDescriptions,
         current_ai_tools: currentAITools || [],
