@@ -265,11 +265,28 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
     throw new Error('No content from AI');
   }
 
+  // Some models occasionally wrap JSON in markdown fences (```json ... ```)
+  // or add minor leading/trailing text. We sanitize before parsing.
+  const sanitizeJson = (raw: string) => {
+    let s = raw.trim();
+    // Strip markdown code fences if present
+    s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+    // If still not pure JSON, attempt to extract the outermost JSON object
+    const firstBrace = s.indexOf('{');
+    const lastBrace = s.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      s = s.slice(firstBrace, lastBrace + 1);
+    }
+    return s;
+  };
+
   let analysis: any;
   try {
-    analysis = JSON.parse(content);
+    analysis = JSON.parse(sanitizeJson(content));
   } catch (e) {
-    console.error('AI returned non-JSON content:', content);
+    console.error('AI returned non-JSON content (raw):', content);
+    console.error('AI returned non-JSON content (sanitized):', sanitizeJson(content));
     throw new Error('AI returned invalid JSON');
   }
   
