@@ -79,7 +79,18 @@ serve(async (req) => {
       .eq('company_id', companyId);
 
     if (!employees || employees.length === 0) {
-      throw new Error('No employees found for company');
+      throw new Error('No employees found for this company. Please add employees first.');
+    }
+    
+    // Check if any employees have job descriptions
+    const { data: jobDescriptions } = await supabase
+      .from('job_descriptions')
+      .select('profile_id')
+      .in('profile_id', employees.map(e => e.id))
+      .eq('is_current', true);
+    
+    if (!jobDescriptions || jobDescriptions.length === 0) {
+      throw new Error('No job descriptions found. Employees need job descriptions to analyze AI efficiency opportunities.');
     }
 
     const analyses: EmployeeAnalysis[] = [];
