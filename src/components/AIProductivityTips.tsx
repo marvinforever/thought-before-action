@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Clock, Lightbulb, ExternalLink, RefreshCw, FileText, ChevronDown, ChevronUp, Bot, Copy, Check } from "lucide-react";
+import { Loader2, Sparkles, Clock, Lightbulb, ExternalLink, RefreshCw, FileText, Bot } from "lucide-react";
 import { AddMyJobDescriptionDialog } from "@/components/AddMyJobDescriptionDialog";
 
 interface AITask {
@@ -41,7 +41,6 @@ export function AIProductivityTips({ onStartWithJericho }: AIProductivityTipsPro
   const [generating, setGenerating] = useState(false);
   const [expandedTip, setExpandedTip] = useState<number | null>(null);
   const [addJdDialogOpen, setAddJdDialogOpen] = useState(false);
-  const [showAll, setShowAll] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -214,8 +213,7 @@ export function AIProductivityTips({ onStartWithJericho }: AIProductivityTipsPro
   }
 
   const priorityTasks = recommendation.priority_tasks || [];
-  const displayedTasks = showAll ? priorityTasks : priorityTasks.slice(0, 3);
-  const hasMoreTasks = priorityTasks.length > 3;
+  const displayedTasks = priorityTasks;
 
   return (
     <Card>
@@ -301,28 +299,6 @@ export function AIProductivityTips({ onStartWithJericho }: AIProductivityTipsPro
             ))}
           </div>
         </ScrollArea>
-
-        {/* Show All / Show Less Toggle */}
-        {hasMoreTasks && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAll(!showAll)}
-            className="w-full text-muted-foreground hover:text-foreground"
-          >
-            {showAll ? (
-              <>
-                <ChevronUp className="h-4 w-4 mr-1" />
-                Show Less
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-4 w-4 mr-1" />
-                Show All ({priorityTasks.length} tips)
-              </>
-            )}
-          </Button>
-        )}
 
         {recommendation.recommended_tools && recommendation.recommended_tools.length > 0 && (
           <div className="pt-2 border-t">
