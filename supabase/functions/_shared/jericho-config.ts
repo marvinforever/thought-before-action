@@ -40,7 +40,7 @@ export function mapCapabilityLevel(level: string | null): string {
 // ============================================================================
 // ELEVENLABS TTS VOICE SETTINGS
 // ============================================================================
-// Voice settings for Jessica - natural emphasis, good number pronunciation, informal energy
+// Voice settings for the host - natural emphasis, good number pronunciation, informal energy
 export const TTS_VOICE_SETTINGS = {
   stability: 0.10,        // Very low = more expressive emphasis on key words
   similarity_boost: 0.78, // Slightly lower = more natural variation
@@ -59,18 +59,18 @@ export const TTS_VOICE_SETTINGS_SECONDARY = {
 };
 
 // ============================================================================
-// PODCAST HOST CONFIGURATION (Solo Host - Jessica)
+// PODCAST HOST CONFIGURATION (Solo Host)
 // ============================================================================
 export const PODCAST_HOSTS = {
   primary: {
-    name: 'Jessica',
-    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - warm, engaging female
+    name: 'Host',
+    voiceId: 'cgSgspJ2msm6clMCkdW9', // Warm, engaging female voice
     role: 'Your personal growth coach - warm, motivating, direct, and genuinely invested in your success',
     voiceSettings: TTS_VOICE_SETTINGS,
   },
   secondary: {
-    name: 'Jessica',
-    voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica - same voice for solo mode
+    name: 'Host',
+    voiceId: 'cgSgspJ2msm6clMCkdW9', // Same voice for solo mode
     role: 'Your personal growth coach',
     voiceSettings: TTS_VOICE_SETTINGS,
   }
@@ -78,10 +78,10 @@ export const PODCAST_HOSTS = {
 
 export const CONVERSATION_FORMAT = `
 FORMAT: A solo host delivering a personal, motivating growth brief directly to the listener.
-- JESSICA: Your personal growth coach. Warm but direct. Genuinely invested in your success. Celebrates wins authentically and challenges you to step up when needed.
+The host is your personal growth coach. Warm but direct. Genuinely invested in your success. Celebrates wins authentically and challenges you to step up when needed.
 
-Write the script as a monologue with clear speaker label:
-JESSICA: [speaks directly to the listener]
+Write the script as a monologue WITHOUT speaker labels - just the words to be spoken.
+Do NOT include "HOST:" or any speaker label prefix.
 
 CRITICAL AUDIO RULES:
 - Speak directly TO the listener - use "you" frequently
@@ -96,7 +96,7 @@ TONE:
 - Always actionable: WHAT to do and WHERE to find it
   Example: "Go into My Growth Plan right now and set those benchmarks. Don't wait. Do it TODAY."
 
-Jessica should:
+The host should:
 - Open with energy and connection - make them feel seen
 - Celebrate their wins genuinely - specific praise, not generic
 - Be direct about what needs attention - with care but without sugarcoating
@@ -104,7 +104,7 @@ Jessica should:
 - Close with a clear daily challenge that's actionable and inspiring
 
 FLOW EXAMPLE:
-JESSICA: Hey! Okay, I've been looking at your progress and I have to say - fifteen days on Morning Planning? That's not luck. That's YOU showing up. And I want to talk about what that means for where you're headed...
+Hey! Okay, I've been looking at your progress and I have to say - fifteen days on Morning Planning? That's not luck. That's YOU showing up. And I want to talk about what that means for where you're headed...
 
 Keep it conversational, warm, and direct. Make them feel like you're genuinely in their corner.
 `;
