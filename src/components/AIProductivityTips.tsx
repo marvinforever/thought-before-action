@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Clock, Lightbulb, ExternalLink, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Clock, Lightbulb, ExternalLink, RefreshCw, FileText } from "lucide-react";
+import { AddMyJobDescriptionDialog } from "@/components/AddMyJobDescriptionDialog";
 
 interface AITask {
   task: string;
@@ -34,8 +35,8 @@ export function AIProductivityTips() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [expandedTip, setExpandedTip] = useState<number | null>(null);
+  const [addJdDialogOpen, setAddJdDialogOpen] = useState(false);
   const { toast } = useToast();
-  // This component is for the current user only, no viewAs needed
 
   useEffect(() => {
     loadRecommendations();
@@ -152,35 +153,50 @@ export function AIProductivityTips() {
 
   if (!recommendation) {
     return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">AI Productivity Tips</CardTitle>
-          </div>
-          <CardDescription>
-            Get personalized AI tool recommendations based on your role
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={generateRecommendations} disabled={generating} className="w-full">
-            {generating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Lightbulb className="mr-2 h-4 w-4" />
-                Get My AI Tips
-              </>
-            )}
-          </Button>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Requires a job description on file
-          </p>
-        </CardContent>
-      </Card>
+      <>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">AI Productivity Tips</CardTitle>
+            </div>
+            <CardDescription>
+              Get personalized AI tool recommendations based on your role
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button onClick={generateRecommendations} disabled={generating} className="w-full">
+              {generating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Lightbulb className="mr-2 h-4 w-4" />
+                  Get My AI Tips
+                </>
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setAddJdDialogOpen(true)} 
+              className="w-full"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Add My Job Description
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Add your job description to unlock AI productivity recommendations
+            </p>
+          </CardContent>
+        </Card>
+        <AddMyJobDescriptionDialog
+          open={addJdDialogOpen}
+          onOpenChange={setAddJdDialogOpen}
+          onSuccess={() => generateRecommendations()}
+        />
+      </>
     );
   }
 
