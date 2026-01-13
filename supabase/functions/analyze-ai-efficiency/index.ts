@@ -184,7 +184,12 @@ async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionI
   }
 
   // Use AI to analyze the job description
-  const aiGatewayUrl = Deno.env.get('AI_GATEWAY_URL') || 'https://ai.lovable.dev/v1/chat/completions';
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    throw new Error('LOVABLE_API_KEY not configured');
+  }
+
+  const aiGatewayUrl = Deno.env.get('AI_GATEWAY_URL') || 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
   const systemPrompt = `You are an AI efficiency analyst. Your job is to analyze job descriptions and identify tasks that can be augmented or automated with AI tools.
 
@@ -202,9 +207,11 @@ For automation and augmentation tasks, recommend specific tools:
 - Zapier/Make: Workflow automation
 - GitHub Copilot: Code development
 
-Be conservative with time estimates - assume 20-40% time reduction for augmented tasks.`;
+Be conservative with time estimates - assume 20-40% time reduction for augmented tasks.
 
-  const userPrompt = `Analyze this job description and identify AI-augmentable tasks:
+IMPORTANT: Return ONLY valid JSON. No markdown. No extra text.`;
+
+  const userPrompt = `Analyze this job description and identify AI-augmentable tasks.
 
 Job Title: ${jobDescription.title || 'Not specified'}
 Description: ${jobDescription.description}
@@ -214,18 +221,18 @@ Return a JSON object with this structure:
   "ai_augmentable_tasks": [
     {
       "task": "specific task from job description",
-      "current_time_hours": estimated weekly hours spent on this task,
+      "current_time_hours": 0,
       "ai_solution": "how AI can help",
       "recommended_tool": "specific AI tool",
-      "estimated_time_after": hours after AI assistance,
-      "hours_saved": hours saved per week,
+      "estimated_time_after": 0,
+      "hours_saved": 0,
       "difficulty": "easy" | "medium" | "hard",
       "category": "full_automation" | "augmentation" | "human_inherent"
     }
   ],
-  "total_weekly_hours_saved": sum of hours saved,
-  "ai_readiness_score": 0-100 score based on how many tasks are AI-augmentable,
-  "recommended_tools": ["list", "of", "tools"],
+  "total_weekly_hours_saved": 0,
+  "ai_readiness_score": 0,
+  "recommended_tools": ["..."],
   "key_insight": "one sentence about the biggest opportunity"
 }
 
@@ -234,6 +241,7 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
   const response = await fetch(aiGatewayUrl, {
     method: 'POST',
     headers: {
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -242,8 +250,7 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.3,
-      response_format: { type: 'json_object' },
+      temperature: 0.2,
     }),
   });
 
@@ -253,12 +260,18 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
 
   const aiResult = await response.json();
   const content = aiResult.choices?.[0]?.message?.content;
-  
-  if (!content) {
+
+  if (!content || typeof content !== 'string') {
     throw new Error('No content from AI');
   }
 
-  const analysis = JSON.parse(content);
+  let analysis: any;
+  try {
+    analysis = JSON.parse(content);
+  } catch (e) {
+    console.error('AI returned non-JSON content:', content);
+    throw new Error('AI returned invalid JSON');
+  }
   
   // Get top 3 priority tasks (highest hours saved, easiest difficulty)
   const priorityTasks = [...(analysis.ai_augmentable_tasks || [])]
