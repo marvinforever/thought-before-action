@@ -56,16 +56,18 @@ const AI_TOOLS = [
   "Zapier AI",
 ];
 
+// PROOF - Evidence it works
 const STATS = [
-  { value: "47%", label: "Average productivity boost" },
-  { value: "12hrs", label: "Saved per employee/week" },
-  { value: "500+", label: "Teams analyzed" },
+  { value: "47%", label: "Average time reclaimed" },
+  { value: "12hrs", label: "Weekly hours returned per role" },
+  { value: "500+", label: "Roles analyzed across industries" },
 ];
 
+// PRODUCT - What they get
 const BENEFITS = [
-  { icon: BarChart3, title: "Detailed Analysis", desc: "Get a comprehensive breakdown of AI opportunities for each role" },
-  { icon: Lightbulb, title: "Smart Recommendations", desc: "Receive specific tool and workflow suggestions tailored to your needs" },
-  { icon: Target, title: "Quick Wins", desc: "Identify low-effort, high-impact opportunities to implement immediately" },
+  { icon: BarChart3, title: "Role-by-Role Breakdown", desc: "See exactly which tasks are consuming time vs. creating value—for each position" },
+  { icon: Lightbulb, title: "Specific Tool Matches", desc: "Get practical recommendations that fit your existing workflows, not generic advice" },
+  { icon: Target, title: "Quick Wins First", desc: "Start with low-effort changes that compound—visible progress within days, not months" },
 ];
 
 export default function AIReadinessLanding() {
@@ -315,19 +317,29 @@ export default function AIReadinessLanding() {
                 >
                   <Badge variant="outline" className="mb-6 border-accent/50 text-accent bg-accent/10">
                     <Clock className="h-3 w-3 mr-1" />
-                    Free AI Readiness Score • 2 minutes • Online
+                    Free • 2 Minutes • Instant Results
                   </Badge>
                 </motion.div>
 
-                {/* Person + Problem + Promise */}
+                {/* PERSON - Who this is for */}
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="text-lg md:text-xl text-accent font-medium mb-4"
+                >
+                  For leaders responsible for team performance, capacity, and growth
+                </motion.p>
+
+                {/* PROBLEM - The core pain */}
                 <motion.h1
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                   className="text-4xl md:text-6xl font-bold mb-6 leading-tight"
                 >
-                  For leaders who feel their teams are{" "}
-                  <span className="text-accent">busy</span> — but not moving.
+                  Your team is <span className="text-accent">stretched thin</span>—<br className="hidden md:block" />
+                  but you can't see where the time goes.
                 </motion.h1>
 
                 <motion.p
@@ -340,33 +352,34 @@ export default function AIReadinessLanding() {
                   You’ll see where AI can remove low-value work (without disrupting what already works).
                 </motion.p>
 
-                {/* Process (high-level) */}
+                {/* PROCESS - How it works */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.35 }}
                   className="max-w-3xl mx-auto mb-10"
                 >
+                  <p className="text-sm text-primary-foreground/60 uppercase tracking-wider mb-4">How It Works</p>
                   <div className="grid gap-3 md:grid-cols-3 text-left">
                     <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 p-4">
-                      <div className="text-xs uppercase tracking-wide text-primary-foreground/70">Process</div>
-                      <div className="mt-1 font-semibold">1) Drop roles</div>
-                      <div className="text-sm text-primary-foreground/70">PDF/Word/Text or paste</div>
+                      <div className="text-2xl font-bold text-accent mb-1">1</div>
+                      <div className="font-semibold">Upload Roles</div>
+                      <div className="text-sm text-primary-foreground/70">Drop job descriptions or paste them directly</div>
                     </div>
                     <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 p-4">
-                      <div className="text-xs uppercase tracking-wide text-primary-foreground/70">Process</div>
-                      <div className="mt-1 font-semibold">2) Share context</div>
-                      <div className="text-sm text-primary-foreground/70">Current tools + workflows</div>
+                      <div className="text-2xl font-bold text-accent mb-1">2</div>
+                      <div className="font-semibold">Add Context</div>
+                      <div className="text-sm text-primary-foreground/70">Tell us what AI tools you already use</div>
                     </div>
                     <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 p-4">
-                      <div className="text-xs uppercase tracking-wide text-primary-foreground/70">Process</div>
-                      <div className="mt-1 font-semibold">3) Get score</div>
-                      <div className="text-sm text-primary-foreground/70">Instant, role-by-role</div>
+                      <div className="text-2xl font-bold text-accent mb-1">3</div>
+                      <div className="font-semibold">Get Your Map</div>
+                      <div className="text-sm text-primary-foreground/70">See the opportunities, prioritized by impact</div>
                     </div>
                   </div>
                 </motion.div>
 
-                {/* Proof */}
+                {/* PROOF - Evidence it works */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -381,7 +394,7 @@ export default function AIReadinessLanding() {
                   ))}
                 </motion.div>
 
-                {/* Price + Place */}
+                {/* PRICE + PLACE reinforcement */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -390,15 +403,15 @@ export default function AIReadinessLanding() {
                 >
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-accent" />
-                    <span>Free (no card)</span>
+                    <span>Completely free—no credit card</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-accent" />
-                    <span>Up to 5 roles</span>
+                    <span>Analyze up to 5 roles at once</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-accent" />
-                    <span>Online, instant</span>
+                    <span>Results delivered instantly online</span>
                   </div>
                 </motion.div>
               </div>
@@ -472,10 +485,10 @@ export default function AIReadinessLanding() {
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-3 text-xl">
                       <div className="bg-accent text-accent-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">1</div>
-                      Add Job Roles to Analyze
+                      Which roles should we analyze?
                     </CardTitle>
                     <CardDescription className="text-base">
-                      Upload job description files (PDF, Word, Text) or paste the content directly. We'll analyze each role for AI opportunities.
+                      Upload job descriptions (PDF, Word, or Text) or paste them below. Each role gets its own analysis—start with the ones where capacity matters most.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -701,14 +714,14 @@ export default function AIReadinessLanding() {
                 <Card className="border-2 shadow-lg">
                   <CardHeader className="pb-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="secondary">Optional</Badge>
+                      <Badge variant="secondary">Optional but helps</Badge>
                     </div>
                     <CardTitle className="flex items-center gap-3 text-xl">
                       <div className="bg-accent text-accent-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">2</div>
-                      Current AI Usage
+                      What's already in place?
                     </CardTitle>
                     <CardDescription className="text-base">
-                      Tell us what AI tools you're already using so we can focus on <strong>additional</strong> opportunities.
+                      We'll skip what you're already doing and focus on the gaps that matter most.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -784,10 +797,10 @@ export default function AIReadinessLanding() {
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-3 text-xl">
                       <div className="bg-accent text-accent-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">3</div>
-                      Get Your Free Report
+                      Where should we send your report?
                     </CardTitle>
                     <CardDescription className="text-base">
-                      Fill in your details to receive your personalized AI readiness analysis.
+                      Your AI Readiness Report will be ready instantly—we just need to know where to deliver it.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
