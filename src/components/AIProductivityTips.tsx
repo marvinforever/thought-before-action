@@ -238,7 +238,7 @@ export function AIProductivityTips({ onStartWithJericho }: AIProductivityTipsPro
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <ScrollArea className="max-h-[350px]">
+        <ScrollArea className="h-[350px]">
           <div className="space-y-3 pr-3">
             {displayedTasks.map((task, idx) => (
               <div 
