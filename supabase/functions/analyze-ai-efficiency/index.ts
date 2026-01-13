@@ -350,14 +350,13 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
     throw new Error('AI returned invalid JSON');
   }
   
-  // Get top 3 priority tasks (highest hours saved, easiest difficulty)
+  // Get all priority tasks sorted by impact (highest hours saved, easiest difficulty first)
   const priorityTasks = [...(analysis.ai_augmentable_tasks || [])]
     .filter((t: AIAugmentableTask) => t.category !== 'human_inherent')
     .sort((a: AIAugmentableTask, b: AIAugmentableTask) => {
       const difficultyScore = { easy: 3, medium: 2, hard: 1 };
       return (b.hours_saved * difficultyScore[b.difficulty]) - (a.hours_saved * difficultyScore[a.difficulty]);
-    })
-    .slice(0, 3);
+    });
 
   return {
     jobDescriptionId: jobDescription.id,
