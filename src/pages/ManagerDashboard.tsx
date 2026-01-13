@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo, BookOpen } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo, BookOpen, Zap } from "lucide-react";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
@@ -31,6 +31,7 @@ import { ManagerToDoTab } from "@/components/ManagerToDoTab";
 import { MeetingRequestsSection } from "@/components/MeetingRequestsSection";
 
 import { ManagerResourcesTab } from "@/components/ManagerResourcesTab";
+import { AIEfficiencyReport } from "@/components/AIEfficiencyReport";
 
 
 type DirectReport = {
@@ -325,6 +326,10 @@ export default function ManagerDashboard() {
           <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
           <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="ai-efficiency" className="flex items-center gap-1">
+            <Zap className="h-3 w-3" />
+            AI Efficiency
+          </TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
         </TabsList>
 
@@ -512,6 +517,10 @@ export default function ManagerDashboard() {
 
         <TabsContent value="reviews">
           <ReviewsTab />
+        </TabsContent>
+
+        <TabsContent value="ai-efficiency">
+          <AIEfficiencyReport />
         </TabsContent>
       </Tabs>
 
