@@ -576,32 +576,31 @@ serve(async (req) => {
     
     let industryNews: { headline: string; summary: string; source: string; relevanceTag?: string }[] = [];
     
-    if (industry && industry !== 'general') {
-      try {
-        console.log(`Fetching industry news for ${industry}...`);
-        const newsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-industry-news`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`
-          },
-          body: JSON.stringify({
-            industry,
-            keywords: industryKeywords,
-            capabilityFocus: focusCapability
-          })
-        });
-        
-        if (newsResponse.ok) {
-          const newsData = await newsResponse.json();
-          industryNews = newsData.newsItems || [];
-          console.log(`Got ${industryNews.length} industry news items`);
-        } else {
-          console.warn('Industry news fetch failed:', newsResponse.status);
-        }
-      } catch (newsError) {
-        console.error('Error fetching industry news:', newsError);
+    // Always try to fetch news - use capability focus for context even if industry is general
+    try {
+      console.log(`Fetching industry news for ${industry} with capability focus: ${focusCapability}...`);
+      const newsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-industry-news`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`
+        },
+        body: JSON.stringify({
+          industry: industry || 'professional_development',
+          keywords: industryKeywords.length > 0 ? industryKeywords : ['leadership', 'growth', 'professional development'],
+          capabilityFocus: focusCapability
+        })
+      });
+      
+      if (newsResponse.ok) {
+        const newsData = await newsResponse.json();
+        industryNews = newsData.newsItems || [];
+        console.log(`Got ${industryNews.length} industry news items`);
+      } else {
+        console.warn('Industry news fetch failed:', newsResponse.status, await newsResponse.text());
       }
+    } catch (newsError) {
+      console.error('Error fetching industry news:', newsError);
     }
 
     // Build context for AI
