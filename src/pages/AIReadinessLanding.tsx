@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,10 +19,15 @@ import {
   ArrowLeft,
   Sparkles,
   CheckCircle,
-  Loader2
+  Users,
+  BarChart3,
+  Target,
+  Lightbulb,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface JobDescription {
   title: string;
@@ -42,6 +47,18 @@ const AI_TOOLS = [
   "Microsoft Copilot",
   "Google Gemini",
   "Zapier AI",
+];
+
+const STATS = [
+  { value: "47%", label: "Average productivity boost" },
+  { value: "12hrs", label: "Saved per employee/week" },
+  { value: "500+", label: "Teams analyzed" },
+];
+
+const BENEFITS = [
+  { icon: BarChart3, title: "Detailed Analysis", desc: "Get a comprehensive breakdown of AI opportunities for each role" },
+  { icon: Lightbulb, title: "Smart Recommendations", desc: "Receive specific tool and workflow suggestions tailored to your needs" },
+  { icon: Target, title: "Quick Wins", desc: "Identify low-effort, high-impact opportunities to implement immediately" },
 ];
 
 export default function AIReadinessLanding() {
@@ -151,60 +168,152 @@ export default function AIReadinessLanding() {
   const progress = (step / 3) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="bg-primary text-primary-foreground sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bot className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">Jericho AI</span>
+          <div className="flex items-center gap-3">
+            <div className="bg-accent rounded-lg p-2">
+              <Bot className="h-6 w-6 text-accent-foreground" />
+            </div>
+            <span className="text-xl font-bold tracking-tight">Jericho</span>
           </div>
-          <Badge variant="secondary" className="hidden sm:flex">
+          <Badge className="bg-accent text-accent-foreground hover:bg-accent/90 hidden sm:flex">
             <Sparkles className="h-3 w-3 mr-1" />
-            Free AI Readiness Analysis
+            Free AI Analysis
           </Badge>
         </div>
       </header>
 
-      {/* Hero Section */}
-      {step === 1 && (
-        <section className="container mx-auto px-4 py-12 text-center">
-          <Badge variant="outline" className="mb-4">
-            <Clock className="h-3 w-3 mr-1" />
-            2-minute analysis
-          </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-            Is Your Team AI-Ready?
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            Discover how many hours per week your team could save with AI. 
-            Get personalized recommendations and identify automation opportunities.
-          </p>
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Analyze up to 5 roles</span>
+      {/* Hero Section - Only on Step 1 */}
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.section 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-primary text-primary-foreground"
+          >
+            <div className="container mx-auto px-4 py-16 md:py-24">
+              <div className="max-w-4xl mx-auto text-center">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <Badge variant="outline" className="mb-6 border-accent/50 text-accent bg-accent/10">
+                    <Clock className="h-3 w-3 mr-1" />
+                    2-minute analysis • No signup required
+                  </Badge>
+                </motion.div>
+                
+                <motion.h1 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-4xl md:text-6xl font-bold mb-6 leading-tight"
+                >
+                  How Much Time Is Your Team{" "}
+                  <span className="text-accent">Wasting</span>{" "}
+                  On Tasks AI Could Handle?
+                </motion.h1>
+                
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-xl md:text-2xl text-primary-foreground/80 max-w-2xl mx-auto mb-10"
+                >
+                  Get your free AI Readiness Score and discover exactly how many hours 
+                  your team could save each week with smart automation.
+                </motion.p>
+
+                {/* Stats */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex flex-wrap justify-center gap-8 md:gap-16 mb-12"
+                >
+                  {STATS.map((stat, i) => (
+                    <div key={i} className="text-center">
+                      <div className="text-3xl md:text-4xl font-bold text-accent">{stat.value}</div>
+                      <div className="text-sm text-primary-foreground/70">{stat.label}</div>
+                    </div>
+                  ))}
+                </motion.div>
+
+                {/* Trust indicators */}
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex flex-wrap justify-center gap-6 text-sm text-primary-foreground/70"
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-accent" />
+                    <span>No credit card required</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-accent" />
+                    <span>Analyze up to 5 roles</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-accent" />
+                    <span>Instant results</span>
+                  </div>
+                </motion.div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Get specific tool recommendations</span>
+
+            {/* Wave transition */}
+            <div className="relative h-16 md:h-24">
+              <svg 
+                viewBox="0 0 1440 100" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+                className="absolute bottom-0 w-full"
+                preserveAspectRatio="none"
+              >
+                <path 
+                  d="M0 100V60C240 20 480 0 720 20C960 40 1200 80 1440 60V100H0Z" 
+                  className="fill-background"
+                />
+              </svg>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Identify AI agent opportunities</span>
-            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* Secondary header for steps 2 & 3 */}
+      {step > 1 && (
+        <div className="bg-primary text-primary-foreground py-8">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-2xl font-bold">AI Readiness Analysis</h2>
+            <p className="text-primary-foreground/70">Just a few more steps to get your personalized report</p>
           </div>
-        </section>
+        </div>
       )}
 
       {/* Progress */}
-      <div className="container mx-auto px-4 mb-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <Progress value={progress} className="h-2" />
-          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-            <span className={step >= 1 ? "text-primary font-medium" : ""}>1. Job Roles</span>
-            <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Current AI Usage</span>
-            <span className={step >= 3 ? "text-primary font-medium" : ""}>3. Get Report</span>
+          <div className="bg-muted rounded-full p-1">
+            <Progress value={progress} className="h-2" />
+          </div>
+          <div className="flex justify-between mt-3 text-sm">
+            <span className={`flex items-center gap-1.5 ${step >= 1 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+              {step > 1 ? <CheckCircle className="h-4 w-4 text-success" /> : <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">1</span>}
+              Job Roles
+            </span>
+            <span className={`flex items-center gap-1.5 ${step >= 2 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+              {step > 2 ? <CheckCircle className="h-4 w-4 text-success" /> : <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/30 text-muted-foreground'}`}>2</span>}
+              AI Usage
+            </span>
+            <span className={`flex items-center gap-1.5 ${step >= 3 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${step >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/30 text-muted-foreground'}`}>3</span>
+              Get Report
+            </span>
           </div>
         </div>
       </div>
@@ -212,261 +321,370 @@ export default function AIReadinessLanding() {
       {/* Main Content */}
       <main className="container mx-auto px-4 pb-16">
         <div className="max-w-2xl mx-auto">
-          
-          {/* Step 1: Job Descriptions */}
-          {step === 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm">1</span>
-                  Add Job Roles to Analyze
-                </CardTitle>
-                <CardDescription>
-                  Paste job descriptions or describe the key responsibilities. We'll analyze each role for AI opportunities.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {jobDescriptions.map((jd, index) => (
-                  <div key={index} className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base font-medium">Role {index + 1}</Label>
-                      {jobDescriptions.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeJobDescription(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <Input
-                      placeholder="Job Title (e.g., Marketing Manager)"
-                      value={jd.title}
-                      onChange={(e) => updateJobDescription(index, 'title', e.target.value)}
-                    />
-                    <Textarea
-                      placeholder="Paste the job description or describe key responsibilities..."
-                      value={jd.description}
-                      onChange={(e) => updateJobDescription(index, 'description', e.target.value)}
-                      rows={5}
-                    />
-                  </div>
-                ))}
-
-                {jobDescriptions.length < 5 && (
-                  <Button
-                    variant="outline"
-                    onClick={addJobDescription}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Another Role ({5 - jobDescriptions.length} remaining)
-                  </Button>
-                )}
-
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={() => setStep(2)}
-                    disabled={!canProceedStep1}
-                    size="lg"
-                  >
-                    Continue
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 2: Current AI Usage */}
-          {step === 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm">2</span>
-                  Current AI Usage (Optional)
-                </CardTitle>
-                <CardDescription>
-                  Tell us what AI tools you're already using so we can focus on additional opportunities.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label>What AI tools is your team using?</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {AI_TOOLS.map((tool) => (
-                      <div
-                        key={tool}
-                        className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedTools.includes(tool)
-                            ? 'bg-primary/10 border-primary'
-                            : 'hover:bg-muted'
-                        }`}
-                        onClick={() => toggleTool(tool)}
+          <AnimatePresence mode="wait">
+            {/* Step 1: Job Descriptions */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <Card className="border-2 shadow-lg">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-3 text-xl">
+                      <div className="bg-accent text-accent-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">1</div>
+                      Add Job Roles to Analyze
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Paste job descriptions or describe the key responsibilities. We'll analyze each role for AI opportunities.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {jobDescriptions.map((jd, index) => (
+                      <motion.div 
+                        key={index} 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-4 p-5 border-2 rounded-xl bg-muted/30 hover:border-accent/50 transition-colors"
                       >
-                        <Checkbox
-                          checked={selectedTools.includes(tool)}
-                          onChange={() => {}}
+                        <div className="flex items-center justify-between">
+                          <Label className="text-base font-semibold text-primary">Role {index + 1}</Label>
+                          {jobDescriptions.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeJobDescription(index)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <Input
+                          placeholder="Job Title (e.g., Marketing Manager)"
+                          value={jd.title}
+                          onChange={(e) => updateJobDescription(index, 'title', e.target.value)}
+                          className="border-2 focus:border-accent"
                         />
-                        <span className="text-sm">{tool}</span>
-                      </div>
+                        <Textarea
+                          placeholder="Paste the full job description or list the key responsibilities..."
+                          value={jd.description}
+                          onChange={(e) => updateJobDescription(index, 'description', e.target.value)}
+                          rows={5}
+                          className="border-2 focus:border-accent resize-none"
+                        />
+                      </motion.div>
                     ))}
-                  </div>
-                  <Input
-                    placeholder="Other tools (comma-separated)"
-                    value={otherTool}
-                    onChange={(e) => setOtherTool(e.target.value)}
-                  />
-                </div>
 
-                <div className="space-y-3">
-                  <Label>Describe any AI workflows you've implemented</Label>
-                  <Textarea
-                    placeholder="e.g., We use ChatGPT for drafting emails, Copilot for code review..."
-                    value={currentWorkflows}
-                    onChange={(e) => setCurrentWorkflows(e.target.value)}
-                    rows={4}
-                  />
-                </div>
+                    {jobDescriptions.length < 5 && (
+                      <Button
+                        variant="outline"
+                        onClick={addJobDescription}
+                        className="w-full border-2 border-dashed hover:border-accent hover:bg-accent/5"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Another Role ({5 - jobDescriptions.length} remaining)
+                      </Button>
+                    )}
 
-                <div className="flex justify-between pt-4">
-                  <Button variant="outline" onClick={() => setStep(1)}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
-                  </Button>
-                  <Button onClick={() => setStep(3)} size="lg">
-                    Continue
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="flex justify-end pt-4">
+                      <Button
+                        onClick={() => setStep(2)}
+                        disabled={!canProceedStep1}
+                        size="lg"
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold px-8"
+                      >
+                        Continue
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
 
-          {/* Step 3: Lead Capture */}
-          {step === 3 && !isAnalyzing && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm">3</span>
-                  Get Your Free Report
-                </CardTitle>
-                <CardDescription>
-                  Enter your email to receive your personalized AI readiness analysis.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Name</Label>
+                {/* Benefits section */}
+                <div className="mt-12 grid md:grid-cols-3 gap-6">
+                  {BENEFITS.map((benefit, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + i * 0.1 }}
+                      className="text-center p-6"
+                    >
+                      <div className="bg-accent/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                        <benefit.icon className="h-6 w-6 text-accent" />
+                      </div>
+                      <h3 className="font-semibold text-primary mb-2">{benefit.title}</h3>
+                      <p className="text-sm text-muted-foreground">{benefit.desc}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2: Current AI Usage */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <Card className="border-2 shadow-lg">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary">Optional</Badge>
+                    </div>
+                    <CardTitle className="flex items-center gap-3 text-xl">
+                      <div className="bg-accent text-accent-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">2</div>
+                      Current AI Usage
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Tell us what AI tools you're already using so we can focus on <strong>additional</strong> opportunities.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <Label className="text-base font-semibold">What AI tools is your team using?</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {AI_TOOLS.map((tool) => (
+                          <div
+                            key={tool}
+                            className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                              selectedTools.includes(tool)
+                                ? 'bg-accent/10 border-accent shadow-sm'
+                                : 'hover:border-muted-foreground/50 hover:bg-muted/50'
+                            }`}
+                            onClick={() => toggleTool(tool)}
+                          >
+                            <Checkbox
+                              checked={selectedTools.includes(tool)}
+                              onChange={() => {}}
+                              className="data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+                            />
+                            <span className="text-sm font-medium">{tool}</span>
+                          </div>
+                        ))}
+                      </div>
                       <Input
-                        id="name"
-                        placeholder="Your name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Other tools you're using (comma-separated)"
+                        value={otherTool}
+                        onChange={(e) => setOtherTool(e.target.value)}
+                        className="border-2"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
+
+                    <div className="space-y-4">
+                      <Label className="text-base font-semibold">Describe any AI workflows you've implemented</Label>
+                      <Textarea
+                        placeholder="e.g., We use ChatGPT for drafting emails, Copilot for code review, Jasper for marketing copy..."
+                        value={currentWorkflows}
+                        onChange={(e) => setCurrentWorkflows(e.target.value)}
+                        rows={4}
+                        className="border-2 resize-none"
                       />
                     </div>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="company">Company</Label>
-                      <Input
-                        id="company"
-                        placeholder="Company name"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                      />
+
+                    <div className="flex justify-between pt-4">
+                      <Button variant="outline" onClick={() => setStep(1)} className="border-2">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back
+                      </Button>
+                      <Button 
+                        onClick={() => setStep(3)} 
+                        size="lg"
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold px-8"
+                      >
+                        Continue
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="(optional)"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* Step 3: Lead Capture */}
+            {step === 3 && !isAnalyzing && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <Card className="border-2 shadow-lg">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-3 text-xl">
+                      <div className="bg-accent text-accent-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">3</div>
+                      Get Your Free Report
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      Enter your email to receive your personalized AI readiness analysis.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name" className="font-medium">Name</Label>
+                          <Input
+                            id="name"
+                            placeholder="Your name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="border-2"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email" className="font-medium">Email <span className="text-destructive">*</span></Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="your@email.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="border-2"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="company" className="font-medium">Company</Label>
+                          <Input
+                            id="company"
+                            placeholder="Company name"
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                            className="border-2"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone" className="font-medium">Phone</Label>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            placeholder="(optional)"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className="border-2"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Zap className="h-4 w-4 text-yellow-500" />
-                    <span>Instant AI-powered analysis</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                    <span>Personalized recommendations</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Bot className="h-4 w-4 text-primary" />
-                    <span>AI agent opportunities identified</span>
-                  </div>
-                </div>
+                    <div className="bg-primary/5 border-2 border-primary/20 rounded-xl p-5 space-y-3">
+                      <h4 className="font-semibold text-primary">What you'll get:</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 text-sm">
+                          <div className="bg-accent rounded-full p-1">
+                            <Zap className="h-3 w-3 text-accent-foreground" />
+                          </div>
+                          <span>AI Readiness Score for each role</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                          <div className="bg-accent rounded-full p-1">
+                            <TrendingUp className="h-3 w-3 text-accent-foreground" />
+                          </div>
+                          <span>Hours saved per week estimate</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                          <div className="bg-accent rounded-full p-1">
+                            <Lightbulb className="h-3 w-3 text-accent-foreground" />
+                          </div>
+                          <span>Specific tool recommendations</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                          <div className="bg-accent rounded-full p-1">
+                            <Bot className="h-3 w-3 text-accent-foreground" />
+                          </div>
+                          <span>AI agent opportunities identified</span>
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="flex justify-between pt-4">
-                  <Button variant="outline" onClick={() => setStep(2)}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
-                  </Button>
-                  <Button
-                    onClick={handleAnalyze}
-                    disabled={!canProceedStep3}
-                    size="lg"
-                    className="bg-gradient-to-r from-primary to-primary/80"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Get My Report
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="flex justify-between pt-4">
+                      <Button variant="outline" onClick={() => setStep(2)} className="border-2">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back
+                      </Button>
+                      <Button
+                        onClick={handleAnalyze}
+                        disabled={!canProceedStep3}
+                        size="lg"
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold px-8 shadow-lg hover:shadow-xl transition-all"
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Get My Free Report
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
 
-          {/* Analyzing State */}
-          {isAnalyzing && (
-            <Card className="text-center py-16">
-              <CardContent className="space-y-6">
-                <div className="relative mx-auto w-24 h-24">
-                  <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-                  <div className="relative bg-primary rounded-full w-24 h-24 flex items-center justify-center">
-                    <Bot className="h-12 w-12 text-primary-foreground animate-pulse" />
-                  </div>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">Jericho is Analyzing...</h2>
-                  <p className="text-muted-foreground">
-                    Our AI is reviewing your job descriptions and identifying automation opportunities.
-                  </p>
-                </div>
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  This usually takes 15-30 seconds
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {/* Analyzing State */}
+            {isAnalyzing && (
+              <motion.div
+                key="analyzing"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <Card className="border-2 shadow-lg text-center py-16">
+                  <CardContent className="space-y-8">
+                    <motion.div 
+                      className="relative mx-auto w-32 h-32"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                    >
+                      <div className="absolute inset-0 bg-accent/20 rounded-full" />
+                      <div className="absolute inset-2 bg-accent/30 rounded-full" />
+                      <div className="absolute inset-4 bg-accent rounded-full flex items-center justify-center">
+                        <Bot className="h-12 w-12 text-accent-foreground" />
+                      </div>
+                    </motion.div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-primary mb-3">Jericho is Analyzing...</h2>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        Our AI is reviewing your job descriptions and identifying automation opportunities. This usually takes 30-60 seconds.
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <motion.div
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1, repeat: Infinity }}
+                        >
+                          <CheckCircle className="h-4 w-4 text-success" />
+                        </motion.div>
+                        <span>Analyzing {jobDescriptions.filter(jd => jd.title && jd.description).length} job role(s)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Sparkles className="h-4 w-4 text-accent" />
+                        <span>Identifying AI opportunities</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t bg-muted/30 py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2024 Jericho AI. Your data is secure and never shared.</p>
+      <footer className="bg-primary text-primary-foreground py-8">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="bg-accent rounded-lg p-1.5">
+              <Bot className="h-5 w-5 text-accent-foreground" />
+            </div>
+            <span className="font-bold">Jericho</span>
+          </div>
+          <p className="text-sm text-primary-foreground/60">
+            Empowering teams to work smarter with AI
+          </p>
         </div>
       </footer>
     </div>
