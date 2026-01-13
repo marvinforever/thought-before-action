@@ -72,7 +72,7 @@ export function AIProductivityTips() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // First check if user has a job description - use profile_id as that's the FK
+      // First check if user has a job description
       const { data: jdCheck, error: jdError } = await supabase
         .from('job_descriptions')
         .select('id')

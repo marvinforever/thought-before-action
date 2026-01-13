@@ -171,7 +171,7 @@ async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionI
     const { data } = await supabase
       .from('job_descriptions')
       .select('*')
-      .eq('employee_id', profileId)
+      .eq('profile_id', profileId)
       .eq('is_current', true)
       .order('created_at', { ascending: false })
       .limit(1)
