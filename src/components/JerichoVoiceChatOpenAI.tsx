@@ -20,6 +20,312 @@ interface ContextSummary {
   activeHabitsCount: number;
 }
 
+// Tool execution functions
+const executeClientTool = async (
+  toolName: string, 
+  args: any, 
+  conversationId: string | null
+): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return "Error: Not authenticated";
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('company_id, full_name')
+    .eq('id', user.id)
+    .single();
+
+  const companyId = profile?.company_id;
+
+  switch (toolName) {
+    case 'add_90_day_goal': {
+      try {
+        const now = new Date();
+        const quarter = `Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+        const year = now.getFullYear();
+
+        const { data: existingGoals } = await supabase
+          .from('ninety_day_targets')
+          .select('goal_number')
+          .eq('profile_id', user.id)
+          .eq('quarter', quarter)
+          .eq('year', year)
+          .order('goal_number', { ascending: false })
+          .limit(1);
+
+        const nextGoalNumber = (existingGoals?.[0]?.goal_number || 0) + 1;
+
+        const { error } = await supabase.from('ninety_day_targets').insert({
+          profile_id: user.id,
+          company_id: companyId || '',
+          goal_text: args.goal_text,
+          category: args.category || 'career',
+          goal_type: 'professional',
+          quarter,
+          year,
+          goal_number: nextGoalNumber,
+          by_when: args.by_when || null,
+          completed: false,
+        } as any);
+
+        if (error) throw error;
+        toast.success("✅ Goal added to your plan!");
+        return `Successfully added goal: "${args.goal_text}"`;
+      } catch (err) {
+        console.error('Error adding goal:', err);
+        return "Failed to add goal";
+      }
+    }
+
+    case 'mark_goal_complete': {
+      try {
+        const { data: goals } = await supabase
+          .from('ninety_day_targets')
+          .select('id, goal_text')
+          .eq('profile_id', user.id)
+          .eq('completed', false);
+
+        const matchingGoal = goals?.find(g => 
+          g.goal_text.toLowerCase().includes(args.goal_text.toLowerCase()) ||
+          args.goal_text.toLowerCase().includes(g.goal_text.toLowerCase())
+        );
+
+        if (!matchingGoal) return "Could not find that goal";
+
+        const { error } = await supabase
+          .from('ninety_day_targets')
+          .update({ completed: true, updated_at: new Date().toISOString() })
+          .eq('id', matchingGoal.id);
+
+        if (error) throw error;
+        toast.success("🎉 Goal marked complete!");
+        return `Marked goal as complete: "${matchingGoal.goal_text}"`;
+      } catch (err) {
+        console.error('Error completing goal:', err);
+        return "Failed to mark goal complete";
+      }
+    }
+
+    case 'add_habit': {
+      try {
+        const { error } = await supabase.from('leading_indicators').insert({
+          profile_id: user.id,
+          company_id: companyId,
+          habit_name: args.habit_name,
+          habit_description: args.description,
+          target_frequency: args.frequency || 'daily',
+          habit_type: 'custom',
+          is_active: true,
+          current_streak: 0,
+          longest_streak: 0,
+        });
+
+        if (error) throw error;
+        toast.success("✅ Habit created!");
+        return `Created habit: "${args.habit_name}"`;
+      } catch (err) {
+        console.error('Error adding habit:', err);
+        return "Failed to add habit";
+      }
+    }
+
+    case 'check_off_habit': {
+      try {
+        // Find matching habit
+        const { data: habits } = await supabase
+          .from('leading_indicators')
+          .select('id, habit_name, current_streak, longest_streak')
+          .eq('profile_id', user.id)
+          .eq('is_active', true);
+
+        const matchingHabit = habits?.find(h => 
+          h.habit_name.toLowerCase().includes(args.habit_name.toLowerCase()) ||
+          args.habit_name.toLowerCase().includes(h.habit_name.toLowerCase())
+        );
+
+        if (!matchingHabit) return "Could not find that habit";
+
+        const today = new Date().toISOString().split('T')[0];
+
+        // Check if already completed today
+        const { data: existing } = await supabase
+          .from('habit_completions')
+          .select('id')
+          .eq('habit_id', matchingHabit.id)
+          .eq('completed_date', today)
+          .maybeSingle();
+
+        if (existing) {
+          return `You already checked off "${matchingHabit.habit_name}" today!`;
+        }
+
+        // Insert completion
+        await supabase.from('habit_completions').insert({
+          habit_id: matchingHabit.id,
+          profile_id: user.id,
+          completed_date: today,
+        });
+
+        // Update streak
+        const newStreak = (matchingHabit.current_streak || 0) + 1;
+        const newLongest = Math.max(newStreak, matchingHabit.longest_streak || 0);
+
+        await supabase
+          .from('leading_indicators')
+          .update({ 
+            current_streak: newStreak, 
+            longest_streak: newLongest,
+            last_completed_at: new Date().toISOString()
+          })
+          .eq('id', matchingHabit.id);
+
+        toast.success(`🔥 ${matchingHabit.habit_name} checked off! ${newStreak} day streak!`);
+        return `Checked off "${matchingHabit.habit_name}"! You're now on a ${newStreak} day streak!`;
+      } catch (err) {
+        console.error('Error checking off habit:', err);
+        return "Failed to check off habit";
+      }
+    }
+
+    case 'add_achievement': {
+      try {
+        const { error } = await supabase.from('achievements').insert({
+          profile_id: user.id,
+          company_id: companyId,
+          achievement_text: args.achievement_text,
+          category: args.category || 'professional',
+          achieved_date: new Date().toISOString().split('T')[0],
+        });
+
+        if (error) throw error;
+        toast.success("🏆 Achievement recorded!");
+        return `Recorded achievement: "${args.achievement_text}"`;
+      } catch (err) {
+        console.error('Error adding achievement:', err);
+        return "Failed to add achievement";
+      }
+    }
+
+    case 'update_vision': {
+      try {
+        let updateField = '';
+        if (args.vision_type === 'professional' || args.vision_type === 'career') {
+          updateField = args.timeframe === '3_year' ? 'three_year_vision' : 'one_year_vision';
+        } else {
+          updateField = args.timeframe === '3_year' ? 'personal_three_year_vision' : 'personal_one_year_vision';
+        }
+
+        const { data: existing } = await supabase
+          .from('personal_goals')
+          .select('profile_id')
+          .eq('profile_id', user.id)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from('personal_goals')
+            .update({ [updateField]: args.vision_text })
+            .eq('profile_id', user.id);
+        } else {
+          await supabase
+            .from('personal_goals')
+            .insert([{ profile_id: user.id, [updateField]: args.vision_text }] as any);
+        }
+
+        toast.success("✨ Vision updated!");
+        return `Updated ${args.vision_type} ${args.timeframe.replace('_', '-')} vision`;
+      } catch (err) {
+        console.error('Error updating vision:', err);
+        return "Failed to update vision";
+      }
+    }
+
+    case 'give_recognition': {
+      try {
+        // Find recipient by name
+        const { data: recipients } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .eq('company_id', companyId)
+          .neq('id', user.id);
+
+        const recipient = recipients?.find(r => 
+          r.full_name?.toLowerCase().includes(args.recipient_name.toLowerCase())
+        );
+
+        if (!recipient) {
+          return `Could not find someone named "${args.recipient_name}" in your company`;
+        }
+
+        const { error } = await supabase.from('recognition_notes').insert({
+          given_by: user.id,
+          given_to: recipient.id,
+          company_id: companyId,
+          title: args.recognition_text.substring(0, 100),
+          description: args.recognition_text,
+          category: args.category || 'teamwork',
+          impact_level: args.impact_level || 'medium',
+          visibility: 'company',
+          recognition_date: new Date().toISOString().split('T')[0],
+        });
+
+        if (error) throw error;
+
+        // Send notification email
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          await supabase.functions.invoke('send-recognition-notification', {
+            body: {
+              recipientEmail: recipient.email,
+              recipientName: recipient.full_name,
+              giverName: profile?.full_name || 'A colleague',
+              recognitionText: args.recognition_text,
+              category: args.category || 'teamwork',
+              impactLevel: args.impact_level || 'medium',
+            },
+            headers: session ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+          });
+        } catch (emailErr) {
+          console.warn('Could not send recognition email:', emailErr);
+        }
+
+        toast.success(`🌟 Recognition sent to ${recipient.full_name}!`);
+        return `Sent recognition to ${recipient.full_name}!`;
+      } catch (err) {
+        console.error('Error giving recognition:', err);
+        return "Failed to send recognition";
+      }
+    }
+
+    case 'save_coaching_insight': {
+      try {
+        const { error } = await supabase.from('coaching_insights').insert({
+          profile_id: user.id,
+          company_id: companyId,
+          insight_type: args.insight_type,
+          insight_text: args.insight_text,
+          confidence_level: 'medium',
+          source_conversation_id: conversationId,
+          is_active: true,
+          reinforcement_count: 1,
+          first_observed_at: new Date().toISOString(),
+          last_reinforced_at: new Date().toISOString(),
+        });
+
+        if (error) throw error;
+        return `Saved insight about ${args.insight_type}`;
+      } catch (err) {
+        console.error('Error saving insight:', err);
+        return "Failed to save insight";
+      }
+    }
+
+    default:
+      console.warn('Unknown tool:', toolName);
+      return `Unknown tool: ${toolName}`;
+  }
+};
+
 export function JerichoVoiceChatOpenAI({ isOpen, onClose }: JerichoVoiceChatProps) {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -38,6 +344,12 @@ export function JerichoVoiceChatOpenAI({ isOpen, onClose }: JerichoVoiceChatProp
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const messageBufferRef = useRef<{ role: string; content: string }[]>([]);
+  const conversationIdRef = useRef<string | null>(null);
+
+  // Keep conversationIdRef in sync
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   // Save messages to database
   const saveMessagesToDatabase = useCallback(async () => {
@@ -147,6 +459,9 @@ export function JerichoVoiceChatOpenAI({ isOpen, onClose }: JerichoVoiceChatProp
       const dc = pc.createDataChannel('oai-events');
       dataChannelRef.current = dc;
 
+      // Track pending function calls
+      const pendingCalls: Map<string, { name: string; arguments: string }> = new Map();
+
       dc.onopen = () => {
         console.log("Data channel open");
         // Send first message after connection
@@ -163,19 +478,21 @@ export function JerichoVoiceChatOpenAI({ isOpen, onClose }: JerichoVoiceChatProp
         }
       };
 
-      dc.onmessage = (e) => {
+      dc.onmessage = async (e) => {
         try {
           const event = JSON.parse(e.data);
-          console.log("OpenAI event:", event.type);
+          
+          // Log important events
+          if (!['response.audio.delta', 'input_audio_buffer.speech_started', 'input_audio_buffer.speech_stopped'].includes(event.type)) {
+            console.log("OpenAI event:", event.type, event);
+          }
 
           switch (event.type) {
             case 'response.audio_transcript.delta':
-              // Assistant speaking
               setIsSpeaking(true);
               break;
               
             case 'response.audio_transcript.done':
-              // Assistant finished speaking
               if (event.transcript) {
                 setTranscript(prev => [...prev, { 
                   role: 'assistant', 
@@ -188,7 +505,6 @@ export function JerichoVoiceChatOpenAI({ isOpen, onClose }: JerichoVoiceChatProp
               break;
 
             case 'conversation.item.input_audio_transcription.completed':
-              // User speech transcribed
               if (event.transcript) {
                 setTranscript(prev => [...prev, { 
                   role: 'user', 
@@ -196,6 +512,69 @@ export function JerichoVoiceChatOpenAI({ isOpen, onClose }: JerichoVoiceChatProp
                   timestamp: new Date() 
                 }]);
                 messageBufferRef.current.push({ role: 'user', content: event.transcript });
+              }
+              break;
+
+            // Handle function calls
+            case 'response.function_call_arguments.delta':
+              // Accumulate arguments
+              if (event.call_id) {
+                const existing = pendingCalls.get(event.call_id);
+                if (existing) {
+                  existing.arguments += event.delta || '';
+                }
+              }
+              break;
+
+            case 'response.output_item.added':
+              // New function call starting
+              if (event.item?.type === 'function_call') {
+                pendingCalls.set(event.item.call_id, {
+                  name: event.item.name,
+                  arguments: ''
+                });
+              }
+              break;
+
+            case 'response.function_call_arguments.done':
+              // Function call complete - execute it
+              if (event.call_id) {
+                const call = pendingCalls.get(event.call_id);
+                if (call) {
+                  console.log(`Executing tool: ${call.name}`, event.arguments);
+                  
+                  try {
+                    const args = JSON.parse(event.arguments || '{}');
+                    const result = await executeClientTool(call.name, args, conversationIdRef.current);
+                    console.log(`Tool result for ${call.name}:`, result);
+
+                    // Send result back to OpenAI
+                    dc.send(JSON.stringify({
+                      type: 'conversation.item.create',
+                      item: {
+                        type: 'function_call_output',
+                        call_id: event.call_id,
+                        output: result
+                      }
+                    }));
+
+                    // Continue the conversation
+                    dc.send(JSON.stringify({ type: 'response.create' }));
+                  } catch (toolErr) {
+                    console.error('Error executing tool:', toolErr);
+                    dc.send(JSON.stringify({
+                      type: 'conversation.item.create',
+                      item: {
+                        type: 'function_call_output',
+                        call_id: event.call_id,
+                        output: `Error: ${toolErr instanceof Error ? toolErr.message : 'Unknown error'}`
+                      }
+                    }));
+                    dc.send(JSON.stringify({ type: 'response.create' }));
+                  }
+
+                  pendingCalls.delete(event.call_id);
+                }
               }
               break;
 

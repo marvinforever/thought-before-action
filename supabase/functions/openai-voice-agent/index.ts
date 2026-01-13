@@ -188,6 +188,117 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
 
     console.log('Creating OpenAI Realtime ephemeral token...');
 
+    // Define tools for the voice agent
+    const tools = [
+      {
+        type: 'function',
+        name: 'add_90_day_goal',
+        description: 'Add a new 90-day goal to the user\'s growth plan. Use this when the user wants to set a new goal.',
+        parameters: {
+          type: 'object',
+          properties: {
+            goal_text: { type: 'string', description: 'The goal description' },
+            category: { type: 'string', enum: ['career', 'health', 'financial', 'relationships', 'personal'], description: 'Goal category' },
+            by_when: { type: 'string', description: 'Target completion date in YYYY-MM-DD format' }
+          },
+          required: ['goal_text']
+        }
+      },
+      {
+        type: 'function',
+        name: 'mark_goal_complete',
+        description: 'Mark an existing goal as completed. Use this when the user says they finished or completed a goal.',
+        parameters: {
+          type: 'object',
+          properties: {
+            goal_text: { type: 'string', description: 'Text that matches the goal to complete (can be partial match)' }
+          },
+          required: ['goal_text']
+        }
+      },
+      {
+        type: 'function',
+        name: 'add_habit',
+        description: 'Create a new habit for the user to track. Use this when they want to start tracking a new daily or weekly habit.',
+        parameters: {
+          type: 'object',
+          properties: {
+            habit_name: { type: 'string', description: 'Name of the habit' },
+            description: { type: 'string', description: 'Optional description of the habit' },
+            frequency: { type: 'string', enum: ['daily', 'weekly'], description: 'How often the habit should be done' }
+          },
+          required: ['habit_name']
+        }
+      },
+      {
+        type: 'function',
+        name: 'check_off_habit',
+        description: 'Mark a habit as completed for today. Use this when user says they did their habit, completed it, or checked it off.',
+        parameters: {
+          type: 'object',
+          properties: {
+            habit_name: { type: 'string', description: 'Name or partial name of the habit to check off' }
+          },
+          required: ['habit_name']
+        }
+      },
+      {
+        type: 'function',
+        name: 'add_achievement',
+        description: 'Record an accomplishment or achievement. Use this when user shares something they\'re proud of or accomplished.',
+        parameters: {
+          type: 'object',
+          properties: {
+            achievement_text: { type: 'string', description: 'Description of the achievement' },
+            category: { type: 'string', enum: ['professional', 'personal', 'health', 'financial', 'relationships'], description: 'Achievement category' }
+          },
+          required: ['achievement_text']
+        }
+      },
+      {
+        type: 'function',
+        name: 'update_vision',
+        description: 'Update the user\'s professional or personal vision. Use when they want to set or change their vision.',
+        parameters: {
+          type: 'object',
+          properties: {
+            vision_type: { type: 'string', enum: ['professional', 'personal'], description: 'Type of vision' },
+            timeframe: { type: 'string', enum: ['1_year', '3_year'], description: 'Vision timeframe' },
+            vision_text: { type: 'string', description: 'The vision statement' }
+          },
+          required: ['vision_type', 'timeframe', 'vision_text']
+        }
+      },
+      {
+        type: 'function',
+        name: 'give_recognition',
+        description: 'Send recognition/kudos to a colleague. Use when user wants to thank or recognize someone.',
+        parameters: {
+          type: 'object',
+          properties: {
+            recipient_name: { type: 'string', description: 'Name of the person to recognize' },
+            recognition_text: { type: 'string', description: 'The recognition message' },
+            category: { type: 'string', enum: ['teamwork', 'innovation', 'leadership', 'customer_focus', 'excellence', 'other'], description: 'Recognition category' },
+            impact_level: { type: 'string', enum: ['small', 'medium', 'large'], description: 'Impact level of what they did' }
+          },
+          required: ['recipient_name', 'recognition_text']
+        }
+      },
+      {
+        type: 'function',
+        name: 'save_coaching_insight',
+        description: 'Save an important insight from the conversation for future reference. Use this to remember important things about the user.',
+        parameters: {
+          type: 'object',
+          properties: {
+            insight_type: { type: 'string', enum: ['strength', 'growth_area', 'value', 'goal', 'preference', 'challenge', 'motivation', 'achievement'], description: 'Type of insight' },
+            insight_text: { type: 'string', description: 'The insight to remember' }
+          },
+          required: ['insight_type', 'insight_text']
+        }
+      }
+    ];
+
     // Create ephemeral token for WebRTC session
     const sessionResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
@@ -197,8 +308,27 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
       },
       body: JSON.stringify({
         model: 'gpt-4o-realtime-preview-2024-12-17',
-        voice: 'shimmer', // Using shimmer for consistency with podcasts
-        instructions: instructions,
+        voice: 'shimmer',
+        instructions: instructions + `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 ACTIONS YOU CAN TAKE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You have tools to actually update the user's growth plan. USE THEM!
+
+When the user says something like:
+- "I want to add a goal to..." → CALL add_90_day_goal
+- "I finished my goal about..." → CALL mark_goal_complete  
+- "I want to start tracking..." → CALL add_habit
+- "I did my [habit] today" / "Check off my [habit]" → CALL check_off_habit
+- "I accomplished..." / "I'm proud that..." → CALL add_achievement
+- "My vision is..." / "I want to become..." → CALL update_vision
+- "Give kudos to..." / "Thank [person] for..." → CALL give_recognition
+- (When you learn something important about them) → CALL save_coaching_insight
+
+IMPORTANT: Actually call the tools! Don't just say "I'll add that" - CALL THE FUNCTION!
+After calling a tool, confirm the action was taken.`,
+        tools: tools,
         input_audio_transcription: {
           model: 'whisper-1',
         },
