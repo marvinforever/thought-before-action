@@ -71,6 +71,24 @@ export function AIProductivityTips() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // First check if user has a job description - use profile_id as that's the FK
+      const { data: jdCheck, error: jdError } = await supabase
+        .from('job_descriptions')
+        .select('id')
+        .eq('profile_id', user.id)
+        .eq('is_current', true)
+        .limit(1);
+
+      if (jdError || !jdCheck || jdCheck.length === 0) {
+        toast({
+          title: "No job description found",
+          description: "Please add a job description first to get AI productivity recommendations.",
+          variant: "destructive",
+        });
+        setGenerating(false);
+        return;
+      }
+
       toast({
         title: "Analyzing your role...",
         description: "Finding AI opportunities in your job description.",
@@ -92,7 +110,7 @@ export function AIProductivityTips() {
       console.error('Error generating recommendations:', error);
       toast({
         title: "Error generating recommendations",
-        description: error.message || "Please ensure you have a job description on file.",
+        description: error.message || "Please try again later.",
         variant: "destructive",
       });
     } finally {
