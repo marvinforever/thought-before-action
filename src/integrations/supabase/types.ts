@@ -256,8 +256,11 @@ export type Database = {
           email: string
           error_message: string | null
           executive_summary: Json | null
+          first_name: string | null
           id: string
           job_descriptions: Json
+          job_title: string | null
+          last_name: string | null
           name: string | null
           phone: string | null
           referral_code: string | null
@@ -279,8 +282,11 @@ export type Database = {
           email: string
           error_message?: string | null
           executive_summary?: Json | null
+          first_name?: string | null
           id?: string
           job_descriptions?: Json
+          job_title?: string | null
+          last_name?: string | null
           name?: string | null
           phone?: string | null
           referral_code?: string | null
@@ -302,8 +308,11 @@ export type Database = {
           email?: string
           error_message?: string | null
           executive_summary?: Json | null
+          first_name?: string | null
           id?: string
           job_descriptions?: Json
+          job_title?: string | null
+          last_name?: string | null
           name?: string | null
           phone?: string | null
           referral_code?: string | null

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,12 @@ import {
   BarChart3,
   Target,
   Lightbulb,
-  Shield
+  Shield,
+  Upload,
+  FileText,
+  File,
+  X,
+  Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -32,6 +37,8 @@ import { motion, AnimatePresence } from "framer-motion";
 interface JobDescription {
   title: string;
   description: string;
+  fileName?: string;
+  isUploading?: boolean;
 }
 
 const AI_TOOLS = [
@@ -79,9 +86,11 @@ export default function AIReadinessLanding() {
   const [currentWorkflows, setCurrentWorkflows] = useState("");
   
   // Step 3: Lead Capture
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
   const [phone, setPhone] = useState("");
 
   // UTM tracking
@@ -108,6 +117,106 @@ export default function AIReadinessLanding() {
     setJobDescriptions(updated);
   };
 
+  const handleFileUpload = useCallback(async (index: number, file: File) => {
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'text/plain'
+    ];
+
+    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.pdf') && !file.name.endsWith('.docx') && !file.name.endsWith('.doc') && !file.name.endsWith('.txt')) {
+      toast.error("Please upload a PDF, Word document, or text file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size must be less than 10MB");
+      return;
+    }
+
+    // Update state to show uploading
+    const updated = [...jobDescriptions];
+    updated[index].isUploading = true;
+    updated[index].fileName = file.name;
+    setJobDescriptions(updated);
+
+    try {
+      // For text files, read directly
+      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        const text = await file.text();
+        const updatedAfter = [...jobDescriptions];
+        updatedAfter[index].description = text;
+        updatedAfter[index].isUploading = false;
+        // Try to extract title from filename
+        if (!updatedAfter[index].title) {
+          updatedAfter[index].title = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ").replace(/-/g, " ");
+        }
+        setJobDescriptions(updatedAfter);
+        toast.success("File content extracted!");
+        return;
+      }
+
+      // Upload file to storage
+      const filePath = `${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase
+        .storage
+        .from('job-descriptions')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Call edge function to extract text
+      const { data, error } = await supabase.functions.invoke('extract-document-text', {
+        body: { filePath, fileType: file.type },
+      });
+
+      if (error) throw error;
+
+      if (data?.text) {
+        const updatedAfter = [...jobDescriptions];
+        updatedAfter[index].description = data.text;
+        updatedAfter[index].isUploading = false;
+        // Try to extract title from filename
+        if (!updatedAfter[index].title) {
+          updatedAfter[index].title = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ").replace(/-/g, " ");
+        }
+        setJobDescriptions(updatedAfter);
+        toast.success("Document content extracted!");
+      } else {
+        throw new Error("No text extracted from document");
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+      const updatedError = [...jobDescriptions];
+      updatedError[index].isUploading = false;
+      updatedError[index].fileName = undefined;
+      setJobDescriptions(updatedError);
+      toast.error("Failed to extract text from document. Please paste the content manually.");
+    }
+  }, [jobDescriptions]);
+
+  const handleDrop = useCallback((index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileUpload(index, file);
+    }
+  }, [handleFileUpload]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const clearUploadedFile = (index: number) => {
+    const updated = [...jobDescriptions];
+    updated[index].fileName = undefined;
+    updated[index].description = "";
+    setJobDescriptions(updated);
+  };
+
   const toggleTool = (tool: string) => {
     setSelectedTools(prev => 
       prev.includes(tool) 
@@ -117,11 +226,11 @@ export default function AIReadinessLanding() {
   };
 
   const canProceedStep1 = jobDescriptions.some(jd => jd.title.trim() && jd.description.trim());
-  const canProceedStep3 = email.trim() && email.includes('@');
+  const canProceedStep3 = firstName.trim() && lastName.trim() && email.trim() && email.includes('@') && companyName.trim() && jobTitle.trim() && phone.trim();
 
   const handleAnalyze = async () => {
     if (!canProceedStep3) {
-      toast.error("Please enter a valid email address");
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -137,8 +246,11 @@ export default function AIReadinessLanding() {
       const { data, error } = await supabase.functions.invoke('analyze-public-ai-readiness', {
         body: {
           email,
-          name,
+          name: `${firstName} ${lastName}`,
+          firstName,
+          lastName,
           companyName,
+          jobTitle,
           phone,
           jobDescriptions: validJDs,
           currentAITools: allTools,
@@ -303,11 +415,11 @@ export default function AIReadinessLanding() {
           </div>
           <div className="flex justify-between mt-3 text-sm">
             <span className={`flex items-center gap-1.5 ${step >= 1 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-              {step > 1 ? <CheckCircle className="h-4 w-4 text-success" /> : <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">1</span>}
+              {step > 1 ? <CheckCircle className="h-4 w-4 text-green-600" /> : <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">1</span>}
               Job Roles
             </span>
             <span className={`flex items-center gap-1.5 ${step >= 2 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-              {step > 2 ? <CheckCircle className="h-4 w-4 text-success" /> : <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/30 text-muted-foreground'}`}>2</span>}
+              {step > 2 ? <CheckCircle className="h-4 w-4 text-green-600" /> : <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/30 text-muted-foreground'}`}>2</span>}
               AI Usage
             </span>
             <span className={`flex items-center gap-1.5 ${step >= 3 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
@@ -337,7 +449,7 @@ export default function AIReadinessLanding() {
                       Add Job Roles to Analyze
                     </CardTitle>
                     <CardDescription className="text-base">
-                      Paste job descriptions or describe the key responsibilities. We'll analyze each role for AI opportunities.
+                      Upload job description files (PDF, Word, Text) or paste the content directly. We'll analyze each role for AI opportunities.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -361,12 +473,84 @@ export default function AIReadinessLanding() {
                             </Button>
                           )}
                         </div>
+                        
                         <Input
                           placeholder="Job Title (e.g., Marketing Manager)"
                           value={jd.title}
                           onChange={(e) => updateJobDescription(index, 'title', e.target.value)}
                           className="border-2 focus:border-accent"
                         />
+
+                        {/* File Upload Zone */}
+                        <div
+                          onDrop={(e) => handleDrop(index, e)}
+                          onDragOver={handleDragOver}
+                          className={`relative border-2 border-dashed rounded-lg p-6 transition-all ${
+                            jd.isUploading 
+                              ? 'border-accent bg-accent/5' 
+                              : jd.fileName 
+                                ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
+                                : 'border-muted-foreground/30 hover:border-accent hover:bg-accent/5'
+                          }`}
+                        >
+                          {jd.isUploading ? (
+                            <div className="flex flex-col items-center gap-2 text-center">
+                              <Loader2 className="h-8 w-8 animate-spin text-accent" />
+                              <p className="text-sm text-muted-foreground">Extracting text from {jd.fileName}...</p>
+                            </div>
+                          ) : jd.fileName && jd.description ? (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-lg">
+                                  <FileText className="h-5 w-5 text-green-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{jd.fileName}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {jd.description.length.toLocaleString()} characters extracted
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => clearUploadedFile(index)}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-3 text-center">
+                              <div className="bg-muted rounded-full p-3">
+                                <Upload className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">Drop a file here or click to upload</p>
+                                <p className="text-xs text-muted-foreground">PDF, Word (.docx), or Text files up to 10MB</p>
+                              </div>
+                              <input
+                                type="file"
+                                accept=".pdf,.docx,.doc,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUpload(index, file);
+                                }}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-muted px-2 text-muted-foreground">Or paste content</span>
+                          </div>
+                        </div>
+
                         <Textarea
                           placeholder="Paste the full job description or list the key responsibilities..."
                           value={jd.description}
@@ -520,30 +704,30 @@ export default function AIReadinessLanding() {
                       Get Your Free Report
                     </CardTitle>
                     <CardDescription className="text-base">
-                      Enter your email to receive your personalized AI readiness analysis.
+                      Fill in your details to receive your personalized AI readiness analysis.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid gap-4">
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="name" className="font-medium">Name</Label>
+                          <Label htmlFor="firstName" className="font-medium">First Name <span className="text-destructive">*</span></Label>
                           <Input
-                            id="name"
-                            placeholder="Your name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            id="firstName"
+                            placeholder="John"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
                             className="border-2"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="email" className="font-medium">Email <span className="text-destructive">*</span></Label>
+                          <Label htmlFor="lastName" className="font-medium">Last Name <span className="text-destructive">*</span></Label>
                           <Input
-                            id="email"
-                            type="email"
-                            placeholder="your@email.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            id="lastName"
+                            placeholder="Smith"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
                             required
                             className="border-2"
                           />
@@ -551,23 +735,50 @@ export default function AIReadinessLanding() {
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="company" className="font-medium">Company</Label>
+                          <Label htmlFor="email" className="font-medium">Work Email <span className="text-destructive">*</span></Label>
                           <Input
-                            id="company"
-                            placeholder="Company name"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
+                            id="email"
+                            type="email"
+                            placeholder="john@company.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
                             className="border-2"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="phone" className="font-medium">Phone</Label>
+                          <Label htmlFor="phone" className="font-medium">Phone <span className="text-destructive">*</span></Label>
                           <Input
                             id="phone"
                             type="tel"
-                            placeholder="(optional)"
+                            placeholder="(555) 123-4567"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
+                            required
+                            className="border-2"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="company" className="font-medium">Company Name <span className="text-destructive">*</span></Label>
+                          <Input
+                            id="company"
+                            placeholder="Acme Inc."
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                            required
+                            className="border-2"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="jobTitle" className="font-medium">Your Job Title <span className="text-destructive">*</span></Label>
+                          <Input
+                            id="jobTitle"
+                            placeholder="Director of Operations"
+                            value={jobTitle}
+                            onChange={(e) => setJobTitle(e.target.value)}
+                            required
                             className="border-2"
                           />
                         </div>
@@ -656,7 +867,7 @@ export default function AIReadinessLanding() {
                           animate={{ scale: [1, 1.2, 1] }}
                           transition={{ duration: 1, repeat: Infinity }}
                         >
-                          <CheckCircle className="h-4 w-4 text-success" />
+                          <CheckCircle className="h-4 w-4 text-green-600" />
                         </motion.div>
                         <span>Analyzing {jobDescriptions.filter(jd => jd.title && jd.description).length} job role(s)</span>
                       </div>
