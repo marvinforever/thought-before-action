@@ -47,6 +47,7 @@ interface UserContext {
   totalCapabilities: number;
   focusCapability: string | null;
   appUrl: string;
+  priorityTasks: { title: string; priority: string; dueDate: string | null }[];
 }
 
 async function fetchProfileWithRetry(
@@ -102,17 +103,19 @@ Your voice is:
 
 You structure emails like a personal daily briefing:
 1. A warm, personalized greeting
-2. A quick status update on their 90-day goals (celebrate progress or gently nudge)
-3. Habit tracker summary (which ones are on fire, which need attention)
-4. Today's learning focus - mention the SPECIFIC CAPABILITY by name (provided as "Focus Capability")
-5. The daily challenge
-6. A motivating sign-off
+2. TODAY'S TOP PRIORITIES - List their 3-5 most important tasks/priorities for the day (from their task list)
+3. A quick status update on their 90-day goals (celebrate progress or gently nudge)
+4. Habit tracker summary (which ones are on fire, which need attention)
+5. Today's learning focus - mention the SPECIFIC CAPABILITY by name (provided as "Focus Capability")
+6. The daily challenge
+7. A motivating sign-off
 
 IMPORTANT RULES:
 - When including links, ONLY use these VALID app routes (do NOT invent other pages):
   * ${context.appUrl}/dashboard/my-growth-plan - Main growth plan page with goals, habits, vision
   * ${context.appUrl}/dashboard/my-resources - Learning resources and recommendations
   * ${context.appUrl}/dashboard/my-capabilities - Skill assessments and capability tracking
+  * ${context.appUrl}/dashboard/personal-assistant - Personal task board/to-do list
   * ${context.appUrl}/dashboard/settings - Email and account settings
 - Reference the SPECIFIC capability name provided, never say "general" capability
 - You CAN include <a> tags linking to resources, but ONLY use the exact routes listed above
@@ -159,6 +162,11 @@ ${context.capabilityScore !== null ? `\nOverall Capability Score: ${context.capa
 
 ${context.recentAchievements.length > 0 ? `Recent Wins: ${context.recentAchievements.join(', ')}` : ''}
 
+TODAY'S PRIORITY TASKS (from their personal assistant):
+${context.priorityTasks.length > 0
+  ? context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]${t.dueDate ? ` - Due: ${t.dueDate}` : ''}`).join('\n')
+  : 'No tasks in their to-do list yet'}
+
 === TODAY'S EPISODE ===
 Title: "${context.episodeTitle}"
 Focus Capability: ${context.focusCapability || 'Growth & Development'}
@@ -171,15 +179,17 @@ ${context.script.substring(0, 2000)}
 === INSTRUCTIONS ===
 Write a personalized daily briefing email that:
 1. Opens with a warm greeting that acknowledges where they are in their journey
-2. Gives a quick, encouraging update on their 90-day targets (if any are close to deadline or behind, gently nudge)
-3. Celebrates habit streaks or encourages consistency where needed
-4. Introduces today's episode focusing on "${context.focusCapability}" - mention this SPECIFIC capability by name
-5. Mentions the daily challenge as something specific to try today
-6. Signs off warmly as Jericho
+2. **IMPORTANT**: Lists their TOP 3-5 PRIORITIES for today from their task list (if they have tasks)
+3. Gives a quick, encouraging update on their 90-day targets (if any are close to deadline or behind, gently nudge)
+4. Celebrates habit streaks or encourages consistency where needed
+5. Introduces today's episode focusing on "${context.focusCapability}" - mention this SPECIFIC capability by name
+6. Mentions the daily challenge as something specific to try today
+7. Signs off warmly as Jericho
 
 APP URL for any links: ${context.appUrl}
+Their Personal Assistant (task board): ${context.appUrl}/dashboard/personal-assistant
 
-Keep it around 250-300 words. Make it feel like a personal check-in from a coach who knows them well.`;
+Keep it around 250-350 words. Make it feel like a personal check-in from a coach who knows them well.`;
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -287,7 +297,8 @@ serve(async (req) => {
       capabilitiesResult,
       achievementsResult,
       visionResult,
-      recognitionsResult
+      recognitionsResult,
+      tasksResult
     ] = await Promise.all([
       // Profile with company info for industry news
       supabase
@@ -356,6 +367,14 @@ serve(async (req) => {
         .select("id", { count: 'exact', head: true })
         .eq("given_by", profileId)
         .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+      // Priority tasks from personal assistant (todo and in_progress only)
+      supabase
+        .from("project_tasks")
+        .select("title, priority, due_date")
+        .eq("profile_id", profileId)
+        .in("column_status", ["todo", "in_progress"])
+        .order("priority", { ascending: false })
+        .limit(5),
     ]);
 
     const profile = (profileResult as any).data as any | null;
@@ -603,6 +622,13 @@ serve(async (req) => {
       console.error('Error fetching industry news:', newsError);
     }
 
+    // Process priority tasks
+    const priorityTasks = ((tasksResult as any).data || []).map((t: any) => ({
+      title: t.title,
+      priority: t.priority,
+      dueDate: t.due_date
+    }));
+
     // Build context for AI
     const userContext: UserContext = {
       firstName,
@@ -622,7 +648,8 @@ serve(async (req) => {
       capabilityScore,
       totalCapabilities,
       focusCapability,
-      appUrl
+      appUrl,
+      priorityTasks
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {

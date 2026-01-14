@@ -337,7 +337,7 @@ const executeClientTool = async (
           column_status: args.column_status || 'todo',
           due_date: args.due_date || null,
           position: count || 0,
-          source: 'jericho_voice',
+          source: 'voice',
           created_by_jericho: true,
         });
 
