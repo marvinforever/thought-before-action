@@ -48,17 +48,28 @@ export default defineConfig(({ mode }) => ({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: "/index.html",
-        // Ensure navigations revalidate quickly so users don't get "old" pages after a deploy.
+        navigateFallbackDenylist: [/^\/api/, /^\/supabase/],
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === "navigate",
             handler: "NetworkFirst",
             options: {
               cacheName: "pages",
-              networkTimeoutSeconds: 3,
+              networkTimeoutSeconds: 2,
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 24 * 60 * 60,
+                maxEntries: 30,
+                maxAgeSeconds: 5 * 60, // 5 minutes instead of 24 hours
+              },
+            },
+          },
+          {
+            urlPattern: /\.(js|css)$/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "assets",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60, // 1 hour
               },
             },
           },
