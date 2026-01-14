@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, FileDown, Loader2, Plus, Trash2, Building2, User, Package, Palette, Eye, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, ArrowRight, FileDown, Loader2, Plus, Trash2, Building2, User, Package, Eye, Sparkles, Upload, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -19,6 +20,14 @@ interface Product {
   benefits: string[];
   price?: string;
   included: boolean;
+}
+
+interface ExistingCustomer {
+  id: string;
+  name: string;
+  location?: string;
+  grower_history?: string;
+  operation_details?: any;
 }
 
 interface SalesProposalWizardProps {
@@ -37,17 +46,25 @@ export const SalesProposalWizard = ({
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Existing customers
+  const [existingCustomers, setExistingCustomers] = useState<ExistingCustomer[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [isNewCustomer, setIsNewCustomer] = useState(true);
   
   // Step 1: Customer Info
   const [customerName, setCustomerName] = useState("");
   const [farmName, setFarmName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [growerContext, setGrowerContext] = useState("");
   
   // Step 2: Products
   const [products, setProducts] = useState<Product[]>([]);
   
-  // Step 3: Branding
+  // Step 3: Branding (persistent)
   const [companyName, setCompanyName] = useState("");
   const [salesRepName, setSalesRepName] = useState("");
   const [salesRepTitle, setSalesRepTitle] = useState("Sales Representative");
@@ -55,6 +72,8 @@ export const SalesProposalWizard = ({
   const [salesRepEmail, setSalesRepEmail] = useState("");
   const [tagline, setTagline] = useState("Growing Together");
   const [primaryColor, setPrimaryColor] = useState("#16a34a");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   
   // Step 4: Additional
   const [introMessage, setIntroMessage] = useState("");
@@ -67,15 +86,31 @@ export const SalesProposalWizard = ({
     { number: 4, label: "Preview", icon: Eye },
   ];
 
-  // Load user profile and company info on open
+  // Load user profile, customers, and saved branding on open
   useEffect(() => {
     if (open) {
       loadUserInfo();
+      loadExistingCustomers();
       if (conversationContext) {
         extractProductsFromChat();
       }
     }
   }, [open, conversationContext]);
+
+  const loadExistingCustomers = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: customers } = await supabase
+      .from('sales_companies')
+      .select('id, name, location, grower_history, operation_details')
+      .eq('profile_id', user.id)
+      .order('name');
+
+    if (customers) {
+      setExistingCustomers(customers);
+    }
+  };
 
   const loadUserInfo = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -83,7 +118,7 @@ export const SalesProposalWizard = ({
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name, email, company_id, companies(name)')
+      .select('full_name, email, company_id, company_logo_url, companies(name)')
       .eq('id', user.id)
       .single();
 
@@ -91,6 +126,118 @@ export const SalesProposalWizard = ({
       setSalesRepName(profile.full_name || '');
       setSalesRepEmail(profile.email || user.email || '');
       setCompanyName((profile.companies as any)?.name || '');
+      if (profile.company_logo_url) {
+        setLogoUrl(profile.company_logo_url);
+        setLogoPreview(profile.company_logo_url);
+      }
+    }
+  };
+
+  const handleCustomerSelect = (value: string) => {
+    if (value === "new") {
+      setIsNewCustomer(true);
+      setSelectedCustomerId("");
+      setCustomerName("");
+      setFarmName("");
+      setGrowerContext("");
+    } else {
+      setIsNewCustomer(false);
+      setSelectedCustomerId(value);
+      const customer = existingCustomers.find(c => c.id === value);
+      if (customer) {
+        // Parse name - might be "Mike Harlan - Harlan Farms" format
+        const nameParts = customer.name.split(' - ');
+        setCustomerName(nameParts[0] || customer.name);
+        setFarmName(nameParts[1] || customer.location || '');
+        
+        // Set grower context from history
+        if (customer.grower_history) {
+          setGrowerContext(customer.grower_history);
+        }
+        if (customer.operation_details) {
+          const details = customer.operation_details;
+          if (details.key_quote) {
+            setIntroMessage(`Based on our ongoing partnership and your goal to "${details.key_quote}", I've put together these recommendations specifically for your operation.`);
+          }
+        }
+      }
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo must be less than 2MB');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => setLogoPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/logo.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('company-logos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(filePath);
+
+      // Save to profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ company_logo_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setLogoUrl(publicUrl);
+      toast.success('Logo saved! It will be used for all future proposals.');
+    } catch (err) {
+      console.error('Logo upload failed:', err);
+      toast.error('Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from('profiles')
+        .update({ company_logo_url: null })
+        .eq('id', user.id);
+
+      setLogoUrl(null);
+      setLogoPreview(null);
+      toast.success('Logo removed');
+    } catch (err) {
+      console.error('Failed to remove logo:', err);
     }
   };
 
@@ -118,10 +265,9 @@ export const SalesProposalWizard = ({
 
       if (data?.customerName) setCustomerName(data.customerName);
       if (data?.farmName) setFarmName(data.farmName);
-      if (data?.introMessage) setIntroMessage(data.introMessage);
+      if (data?.introMessage && !introMessage) setIntroMessage(data.introMessage);
     } catch (err) {
       console.error('Failed to extract products:', err);
-      // Add a sample product if extraction fails
       setProducts([{
         id: 'product-1',
         name: 'Product Recommendation',
@@ -184,7 +330,6 @@ export const SalesProposalWizard = ({
       const margin = 20;
       let y = 20;
 
-      // Helper to convert hex to RGB
       const hexToRgb = (hex: string) => {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? {
@@ -199,6 +344,25 @@ export const SalesProposalWizard = ({
       // Header bar
       doc.setFillColor(color.r, color.g, color.b);
       doc.rect(0, 0, pageWidth, 40, 'F');
+
+      // Add logo if available
+      if (logoUrl) {
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = logoUrl;
+          });
+          // Add logo to right side of header
+          const logoHeight = 25;
+          const logoWidth = (img.width / img.height) * logoHeight;
+          doc.addImage(img, 'PNG', pageWidth - margin - logoWidth, 7.5, logoWidth, logoHeight);
+        } catch (err) {
+          console.warn('Could not add logo to PDF:', err);
+        }
+      }
 
       // Company name
       doc.setTextColor(255, 255, 255);
@@ -243,7 +407,6 @@ export const SalesProposalWizard = ({
       const includedProducts = products.filter(p => p.included);
       
       for (const product of includedProducts) {
-        // Check if we need a new page
         if (y > 250) {
           doc.addPage();
           y = 20;
@@ -351,10 +514,13 @@ export const SalesProposalWizard = ({
 
   const resetWizard = () => {
     setStep(1);
+    setSelectedCustomerId("");
+    setIsNewCustomer(true);
     setCustomerName("");
     setFarmName("");
     setCustomerEmail("");
     setCustomerPhone("");
+    setGrowerContext("");
     setProducts([]);
     setIntroMessage("");
     setClosingMessage("");
@@ -404,6 +570,24 @@ export const SalesProposalWizard = ({
 
           {!extracting && step === 1 && (
             <div className="space-y-4">
+              {/* Customer dropdown */}
+              <div className="space-y-2">
+                <Label>Select Customer</Label>
+                <Select value={selectedCustomerId || "new"} onValueChange={handleCustomerSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose existing or add new..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">+ Add New Customer</SelectItem>
+                    {existingCustomers.map(customer => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} {customer.location && `(${customer.location})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="customerName">Customer Name *</Label>
                 <Input
@@ -422,6 +606,16 @@ export const SalesProposalWizard = ({
                   placeholder="Smith Family Farms"
                 />
               </div>
+              
+              {growerContext && (
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <Label className="text-xs text-muted-foreground">Customer History (from CRM)</Label>
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {growerContext.substring(0, 500)}...
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="customerEmail">Email</Label>
@@ -468,7 +662,7 @@ export const SalesProposalWizard = ({
                 </Button>
               </div>
 
-              {products.map((product, idx) => (
+              {products.map((product) => (
                 <Card key={product.id} className={!product.included ? 'opacity-50' : ''}>
                   <CardContent className="pt-4 space-y-3">
                     <div className="flex items-start gap-3">
@@ -548,6 +742,52 @@ export const SalesProposalWizard = ({
 
           {!extracting && step === 3 && (
             <div className="space-y-4">
+              {/* Logo upload */}
+              <div className="space-y-2">
+                <Label>Company Logo</Label>
+                <div className="flex items-center gap-4">
+                  {logoPreview ? (
+                    <div className="relative">
+                      <img 
+                        src={logoPreview} 
+                        alt="Company logo" 
+                        className="h-16 w-auto object-contain rounded border"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 bg-destructive text-destructive-foreground rounded-full"
+                        onClick={removeLogo}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div 
+                      className="h-16 w-32 border-2 border-dashed rounded flex items-center justify-center cursor-pointer hover:bg-muted/50"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {uploadingLogo ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Upload className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    <p>Upload once, use forever</p>
+                    <p>Max 2MB, PNG/JPG</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="companyName">Your Company Name</Label>
                 <Input
@@ -655,6 +895,12 @@ export const SalesProposalWizard = ({
                     <span className="text-muted-foreground">From:</span>
                     <span className="font-medium">{salesRepName}, {companyName}</span>
                   </div>
+                  {logoPreview && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Logo:</span>
+                      <img src={logoPreview} alt="Logo" className="h-8 w-auto" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t">
