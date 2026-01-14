@@ -93,15 +93,76 @@ const SalesTrainer = () => {
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
   });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasRestoredScrollRef = useRef(false);
+  const wasNearBottomRef = useRef(true);
 
-  // Scroll to bottom when messages change or when component mounts with existing messages
+  const getScrollViewport = () => {
+    const root = scrollRef.current;
+    if (!root) return null;
+    return root.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLDivElement | null;
+  };
+
+  const getScrollStorageKey = () => {
+    // Persist per conversation so different threads restore correctly
+    const id = conversationId || "new";
+    return `salesTrainerScroll:${id}`;
+  };
+
+  // Restore scroll position when returning to the page (after messages load)
   useEffect(() => {
-    if (scrollRef.current && hasStarted) {
-      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    if (!hasStarted) return;
+
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+
+    if (hasRestoredScrollRef.current) return;
+
+    const raw = sessionStorage.getItem(getScrollStorageKey());
+    if (raw) {
+      const savedTop = Number(raw);
+      if (!Number.isNaN(savedTop)) {
+        viewport.scrollTop = savedTop;
+        hasRestoredScrollRef.current = true;
+        return;
       }
     }
+
+    // No saved position yet; default to most recent
+    viewport.scrollTop = viewport.scrollHeight;
+    hasRestoredScrollRef.current = true;
+  }, [hasStarted, messages.length, conversationId]);
+
+  // Track user scroll + persist it
+  useEffect(() => {
+    if (!hasStarted) return;
+
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+
+    const onScroll = () => {
+      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      wasNearBottomRef.current = distanceFromBottom < 120;
+      sessionStorage.setItem(getScrollStorageKey(), String(viewport.scrollTop));
+    };
+
+    viewport.addEventListener("scroll", onScroll, { passive: true });
+    // Seed on mount
+    onScroll();
+
+    return () => viewport.removeEventListener("scroll", onScroll);
+  }, [hasStarted, conversationId]);
+
+  // Auto-scroll on new messages ONLY if the user was already near the bottom
+  useEffect(() => {
+    if (!hasStarted) return;
+    if (!wasNearBottomRef.current) return;
+
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+
+    viewport.scrollTop = viewport.scrollHeight;
   }, [messages, hasStarted]);
   // Load existing conversation
   const loadConversation = async (userId: string, companyId: string | null) => {
@@ -265,11 +326,6 @@ const SalesTrainer = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   const fetchDeals = async (userId: string) => {
     const { data } = await supabase
