@@ -398,6 +398,78 @@ const executeClientTool = async (
       }
     }
 
+    case 'add_sales_deal': {
+      try {
+        // First check if company exists, if not create it
+        let companyId: string | null = null;
+        
+        const { data: existingCompany } = await supabase
+          .from('sales_companies')
+          .select('id')
+          .eq('profile_id', user.id)
+          .ilike('name', args.company_name)
+          .maybeSingle();
+
+        if (existingCompany) {
+          companyId = existingCompany.id;
+        } else {
+          const { data: newCompany } = await supabase
+            .from('sales_companies')
+            .insert({ profile_id: user.id, name: args.company_name })
+            .select('id')
+            .single();
+          companyId = newCompany?.id || null;
+        }
+
+        const { error } = await supabase.from('sales_deals').insert({
+          profile_id: user.id,
+          deal_name: args.deal_name,
+          company_id: companyId,
+          stage: args.stage || 'prospecting',
+          value: args.value || null,
+          notes: args.notes || null,
+        });
+
+        if (error) throw error;
+        toast.success("💼 Deal added to pipeline!");
+        return `Added deal: "${args.deal_name}" with ${args.company_name} at ${args.stage || 'prospecting'} stage`;
+      } catch (err) {
+        console.error('Error adding deal:', err);
+        return "Failed to add deal";
+      }
+    }
+
+    case 'update_deal_stage': {
+      try {
+        const { data: deals } = await supabase
+          .from('sales_deals')
+          .select('id, deal_name, stage')
+          .eq('profile_id', user.id);
+
+        const matchingDeal = deals?.find(d => 
+          d.deal_name.toLowerCase().includes(args.deal_name.toLowerCase()) ||
+          args.deal_name.toLowerCase().includes(d.deal_name.toLowerCase())
+        );
+
+        if (!matchingDeal) return `Could not find a deal matching "${args.deal_name}"`;
+
+        const updateData: any = { stage: args.new_stage };
+        if (args.notes) updateData.notes = args.notes;
+
+        const { error } = await supabase
+          .from('sales_deals')
+          .update(updateData)
+          .eq('id', matchingDeal.id);
+
+        if (error) throw error;
+        toast.success(`📊 Deal moved to ${args.new_stage}!`);
+        return `Updated "${matchingDeal.deal_name}" to ${args.new_stage} stage`;
+      } catch (err) {
+        console.error('Error updating deal:', err);
+        return "Failed to update deal";
+      }
+    }
+
     default:
       console.warn('Unknown tool:', toolName);
       return `Unknown tool: ${toolName}`;
