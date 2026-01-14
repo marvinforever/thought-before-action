@@ -143,6 +143,7 @@ const App = () => (
                 }
               />
               <Route path="settings" element={<Settings />} />
+              <Route path="personal-assistant" element={<PersonalAssistant />} />
             </Route>
             {/* Public Academy Blog */}
             <Route path="/academy" element={<AcademyBlog />} />
