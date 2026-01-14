@@ -201,7 +201,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     // Fetch user context for Jericho (including onboarding data and coaching memory)
     // Fetch ALL historical targets for pattern analysis (no limit)
     // Also fetch company knowledge base for HR/policy questions
-    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData, coachingInsightsData, recentSummariesData, pendingFollowUpsData, companyKnowledgeData] = await Promise.all([
+    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData, coachingInsightsData, allConversationSummariesData, pendingFollowUpsData, companyKnowledgeData, projectTasksData, userProjectsData] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select('*, capabilities(name, description, category)')
@@ -244,21 +244,19 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .select('*')
         .eq('profile_id', user.id)
         .maybeSingle(),
-      // Coaching memory: Active insights
+      // Coaching memory: ALL active insights (no limit)
       supabase
         .from('coaching_insights')
         .select('*')
         .eq('profile_id', user.id)
         .eq('is_active', true)
-        .order('last_reinforced_at', { ascending: false })
-        .limit(30),
-      // Recent conversation summaries
+        .order('last_reinforced_at', { ascending: false }),
+      // ALL conversation summaries (full history for memory)
       supabase
         .from('conversation_summaries')
-        .select('*, conversations(title)')
+        .select('*, conversations(title, created_at)')
         .eq('profile_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10),
+        .order('created_at', { ascending: false }),
       // Pending follow-ups
       supabase
         .from('coaching_follow_ups')
@@ -275,7 +273,20 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .select('id, title, content, document_type, category, is_global')
         .or(`company_id.eq.${effectiveCompanyId},is_global.eq.true`)
         .eq('is_active', true)
-        .order('is_global', { ascending: false }) // Global docs first
+        .order('is_global', { ascending: false })
+        .order('created_at', { ascending: false }),
+      // Project tasks (Kanban board)
+      supabase
+        .from('project_tasks')
+        .select('*, user_projects(title, color)')
+        .eq('profile_id', user.id)
+        .order('position', { ascending: true }),
+      // User projects
+      supabase
+        .from('user_projects')
+        .select('*')
+        .eq('profile_id', user.id)
+        .eq('status', 'active')
         .order('created_at', { ascending: false }),
     ]);
 
@@ -507,28 +518,45 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
       } : null,
       // Long-term coaching memory
       coaching_memory: {
-        insights: (coachingInsightsData.data || []).map(i => ({
+        insights: (coachingInsightsData.data || []).map((i: any) => ({
           type: i.insight_type,
           text: i.insight_text,
           confidence: i.confidence_level,
           times_reinforced: i.reinforcement_count,
           first_observed: i.first_observed_at,
         })),
-        recent_conversations: (recentSummariesData.data || []).map(s => ({
+        all_conversations: (allConversationSummariesData.data || []).map((s: any) => ({
           title: s.conversations?.title,
           summary: s.summary_text,
           topics: s.key_topics,
           emotional_tone: s.emotional_tone,
           action_items: s.action_items,
           date: s.created_at,
+          conversation_date: s.conversations?.created_at,
         })),
-        pending_follow_ups: (pendingFollowUpsData.data || []).map(f => ({
+        pending_follow_ups: (pendingFollowUpsData.data || []).map((f: any) => ({
           type: f.follow_up_type,
           topic: f.context?.topic,
           scheduled_for: f.scheduled_for,
           context: f.context,
         })),
       },
+      // Project management data
+      projects: (userProjectsData.data || []).map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        color: p.color,
+      })),
+      tasks: (projectTasksData.data || []).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        status: t.column_status,
+        priority: t.priority,
+        due_date: t.due_date,
+        project: t.user_projects?.title,
+      })),
     };
 
     // Build system prompt
@@ -605,6 +633,18 @@ YOU HAVE ACCESS TO THESE TOOLS - USE THEM:
 - **update_habit**: Update or deactivate an existing habit
 - **save_coaching_insight**: Save an important insight about them for future reference (use sparingly!)
 - **forget_coaching_memory**: Permanently remove a specific past topic/conversation from long-term memory when the user asks you to forget it
+- **create_project**: Create a new project to organize related tasks
+- **add_task**: Add a new task to their Kanban board (todo, in_progress, done)
+- **update_task**: Move tasks between columns, update title/description, mark complete, change priority
+- **delete_task**: Remove a task from their board
+
+PROJECT MANAGEMENT (PERSONAL ASSISTANT MODE):
+You are also a personal assistant. When they ask you to remember things, track to-dos, manage projects, or take notes:
+- Use **add_task** to capture action items, reminders, and to-dos
+- Use **create_project** to organize related tasks into a project
+- Use **update_task** to move tasks between todo → in_progress → done
+- Use **save_coaching_insight** for things to remember long-term
+- Be proactive: if they mention something they need to do, offer to add it as a task
 
 WHEN TO USE TOOLS:
 - When they say "write that down" or "add that to my plan"
@@ -614,6 +654,8 @@ WHEN TO USE TOOLS:
 - When they want to update their vision statements
 - When they share something significant about themselves (life events, blockers, preferences) worth remembering
 - When they explicitly say "forget X", "stop bringing up X", "delete that memory", or similar — call **forget_coaching_memory**
+- When they mention a task, to-do, or action item — offer to add it to their board
+- When they say "remind me", "don't let me forget", "add to my list" — use **add_task**
 - **Always confirm what you're adding before or after using the tool**
 
 LONG-TERM MEMORY - YOU REMEMBER PAST CONVERSATIONS:
@@ -632,9 +674,9 @@ ${userContext.coaching_memory?.insights?.length > 0 ? `
 ${userContext.coaching_memory.insights.map((i: any) => `- [${i.type}] ${i.text} (confidence: ${i.confidence})`).join('\n')}
 ` : ''}
 
-${userContext.coaching_memory?.recent_conversations?.length > 0 ? `
-📝 RECENT CONVERSATIONS:
-${userContext.coaching_memory.recent_conversations.slice(0, 5).map((c: any) => `- ${c.title || 'Chat'}: ${c.summary} (tone: ${c.emotional_tone})`).join('\n')}
+${userContext.coaching_memory?.all_conversations?.length > 0 ? `
+📝 FULL CONVERSATION HISTORY (${userContext.coaching_memory.all_conversations.length} conversations):
+${userContext.coaching_memory.all_conversations.map((c: any) => `- ${c.title || 'Chat'} (${c.conversation_date?.slice(0, 10) || c.date?.slice(0, 10) || 'unknown date'}): ${c.summary} (tone: ${c.emotional_tone})`).join('\n')}
 ` : ''}
 
 ${userContext.coaching_memory?.pending_follow_ups?.length > 0 ? `
@@ -1327,6 +1369,126 @@ Be helpful, efficient, and produce high-quality work they can use right away.`;
               }
             },
             required: ["follow_up_topic"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_project",
+          description: "Create a new project to organize related tasks. Use when they want to group related work together.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                description: "The project name"
+              },
+              description: {
+                type: "string",
+                description: "Optional project description"
+              },
+              color: {
+                type: "string",
+                description: "Optional hex color for the project (e.g., #6366f1)"
+              }
+            },
+            required: ["title"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "add_task",
+          description: "Add a new task to their Kanban board. Use for action items, to-dos, reminders.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                description: "Short task title"
+              },
+              description: {
+                type: "string",
+                description: "Optional longer description or notes"
+              },
+              project_id: {
+                type: "string",
+                description: "Optional project ID to assign this task to"
+              },
+              priority: {
+                type: "string",
+                enum: ["low", "medium", "high", "urgent"],
+                description: "Task priority level"
+              },
+              column_status: {
+                type: "string",
+                enum: ["todo", "in_progress", "done"],
+                description: "Which column to place the task in (default: todo)"
+              },
+              due_date: {
+                type: "string",
+                description: "Optional due date in YYYY-MM-DD format"
+              }
+            },
+            required: ["title"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "update_task",
+          description: "Update an existing task. Use to move between columns, change priority, update text, or mark complete.",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: {
+                type: "string",
+                description: "The ID of the task to update"
+              },
+              title: {
+                type: "string",
+                description: "Updated task title"
+              },
+              description: {
+                type: "string",
+                description: "Updated description"
+              },
+              column_status: {
+                type: "string",
+                enum: ["todo", "in_progress", "done"],
+                description: "Move task to this column"
+              },
+              priority: {
+                type: "string",
+                enum: ["low", "medium", "high", "urgent"],
+                description: "Updated priority"
+              },
+              due_date: {
+                type: "string",
+                description: "Updated due date (YYYY-MM-DD) or null to remove"
+              }
+            },
+            required: ["task_id"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delete_task",
+          description: "Delete a task from the board. Use when they want to remove something completely.",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: {
+                type: "string",
+                description: "The ID of the task to delete"
+              }
+            },
+            required: ["task_id"]
           }
         }
       }
@@ -2224,6 +2386,130 @@ Share these results with empathy and offer 2-3 specific coaching suggestions for
                 tool_call_id: toolCall.id,
                 role: 'tool',
                 content: `No pending follow-up found matching "${functionArgs.follow_up_topic}"`
+              });
+            }
+          } else if (functionName === 'create_project') {
+            const { data: newProject, error: projectError } = await supabase
+              .from('user_projects')
+              .insert({
+                profile_id: user.id,
+                title: functionArgs.title,
+                description: functionArgs.description || null,
+                color: functionArgs.color || '#6366f1',
+              })
+              .select()
+              .single();
+            
+            if (projectError) {
+              console.error('Error creating project:', projectError);
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Failed to create project: ${projectError.message}`
+              });
+            } else {
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Created project "${functionArgs.title}" (ID: ${newProject.id})`
+              });
+            }
+          } else if (functionName === 'add_task') {
+            // Get the max position for the column
+            const { data: existingTasks } = await supabase
+              .from('project_tasks')
+              .select('position')
+              .eq('profile_id', user.id)
+              .eq('column_status', functionArgs.column_status || 'todo')
+              .order('position', { ascending: false })
+              .limit(1);
+            
+            const nextPosition = (existingTasks?.[0]?.position || 0) + 1;
+            
+            const { data: newTask, error: taskError } = await supabase
+              .from('project_tasks')
+              .insert({
+                profile_id: user.id,
+                title: functionArgs.title,
+                description: functionArgs.description || null,
+                project_id: functionArgs.project_id || null,
+                priority: functionArgs.priority || 'medium',
+                column_status: functionArgs.column_status || 'todo',
+                due_date: functionArgs.due_date || null,
+                position: nextPosition,
+                created_by_jericho: true,
+                source: 'chat',
+              })
+              .select()
+              .single();
+            
+            if (taskError) {
+              console.error('Error creating task:', taskError);
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Failed to create task: ${taskError.message}`
+              });
+            } else {
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Added task to ${functionArgs.column_status || 'todo'}: "${functionArgs.title}"${functionArgs.priority === 'urgent' || functionArgs.priority === 'high' ? ` (${functionArgs.priority} priority)` : ''}`
+              });
+            }
+          } else if (functionName === 'update_task') {
+            const updateData: any = {};
+            if (functionArgs.title) updateData.title = functionArgs.title;
+            if (functionArgs.description !== undefined) updateData.description = functionArgs.description;
+            if (functionArgs.column_status) updateData.column_status = functionArgs.column_status;
+            if (functionArgs.priority) updateData.priority = functionArgs.priority;
+            if (functionArgs.due_date !== undefined) updateData.due_date = functionArgs.due_date;
+            
+            const { error: updateError } = await supabase
+              .from('project_tasks')
+              .update(updateData)
+              .eq('id', functionArgs.task_id)
+              .eq('profile_id', user.id);
+            
+            if (updateError) {
+              console.error('Error updating task:', updateError);
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Failed to update task: ${updateError.message}`
+              });
+            } else {
+              const changes = [];
+              if (functionArgs.column_status) changes.push(`moved to ${functionArgs.column_status}`);
+              if (functionArgs.title) changes.push('title updated');
+              if (functionArgs.priority) changes.push(`priority set to ${functionArgs.priority}`);
+              if (functionArgs.due_date) changes.push(`due date set to ${functionArgs.due_date}`);
+              
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Task updated: ${changes.join(', ') || 'no changes'}`
+              });
+            }
+          } else if (functionName === 'delete_task') {
+            const { error: deleteError } = await supabase
+              .from('project_tasks')
+              .delete()
+              .eq('id', functionArgs.task_id)
+              .eq('profile_id', user.id);
+            
+            if (deleteError) {
+              console.error('Error deleting task:', deleteError);
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Failed to delete task: ${deleteError.message}`
+              });
+            } else {
+              toolResults.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: `Task deleted successfully`
               });
             }
           }

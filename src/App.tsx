@@ -39,6 +39,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { RegistrationWizard } from "./components/RegistrationWizard";
+import PersonalAssistant from "./pages/PersonalAssistant";
 
 const queryClient = new QueryClient();
 

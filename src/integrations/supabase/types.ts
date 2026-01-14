@@ -3432,6 +3432,72 @@ export type Database = {
           },
         ]
       }
+      project_tasks: {
+        Row: {
+          column_status: string
+          context: Json | null
+          created_at: string
+          created_by_jericho: boolean | null
+          description: string | null
+          due_date: string | null
+          id: string
+          position: number
+          priority: string | null
+          profile_id: string
+          project_id: string | null
+          source: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          column_status?: string
+          context?: Json | null
+          created_at?: string
+          created_by_jericho?: boolean | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          position?: number
+          priority?: string | null
+          profile_id: string
+          project_id?: string | null
+          source?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          column_status?: string
+          context?: Json | null
+          created_at?: string
+          created_by_jericho?: boolean | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          position?: number
+          priority?: string | null
+          profile_id?: string
+          project_id?: string | null
+          source?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recognition_analytics: {
         Row: {
           capability_id: string | null
@@ -4991,6 +5057,47 @@ export type Database = {
           },
           {
             foreignKeyName: "user_feature_flags_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_projects: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          profile_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          profile_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          profile_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_projects_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
