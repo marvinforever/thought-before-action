@@ -34,18 +34,9 @@ const Auth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Check if user has completed registration
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('registration_complete')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile?.registration_complete === false) {
-          navigate("/register", { replace: true });
-        } else {
-          navigate("/dashboard/my-growth-plan", { replace: true });
-        }
+        // For existing sessions, always go to dashboard
+        // Registration wizard is only for fresh signups handled below
+        navigate("/dashboard/my-growth-plan", { replace: true });
       }
     };
     checkSession();
@@ -55,18 +46,28 @@ const Auth = () => {
       if (event === "PASSWORD_RECOVERY") return;
       if (isSigningUp) return; // Don't redirect while signup is in progress
       if (session) {
-        // Check if user has completed registration
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('registration_complete')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile?.registration_complete === false) {
-          navigate("/register", { replace: true });
-        } else {
-          navigate("/dashboard/my-growth-plan", { replace: true });
+        // Only check registration_complete for SIGNED_IN events (fresh logins)
+        // For existing sessions, we already handled it above
+        if (event === "SIGNED_IN") {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('registration_complete')
+            .eq('id', session.user.id)
+            .single();
+          
+          // Only redirect to register for fresh signups where registration is incomplete
+          // profile?.registration_complete will be null for admin-created users, which is fine
+          if (profile && profile.registration_complete === false) {
+            // Check if user was created recently (within last 5 minutes) - indicates fresh signup
+            const createdAt = new Date(session.user.created_at);
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            if (createdAt > fiveMinutesAgo) {
+              navigate("/register", { replace: true });
+              return;
+            }
+          }
         }
+        navigate("/dashboard/my-growth-plan", { replace: true });
       }
     });
 
