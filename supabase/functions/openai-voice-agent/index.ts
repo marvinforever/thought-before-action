@@ -52,7 +52,7 @@ serve(async (req) => {
 
     console.log('Building OpenAI voice agent context for:', profile.full_name);
 
-    // Fetch context data in parallel
+    // Fetch context data in parallel - including sales data
     const [
       completenessData,
       capabilitiesData,
@@ -63,6 +63,9 @@ serve(async (req) => {
       coachingInsightsData,
       recentSummariesData,
       pendingFollowUpsData,
+      salesDealsData,
+      salesKnowledgeData,
+      productKnowledgeData,
     ] = await Promise.all([
       supabase.from('user_data_completeness').select('*').eq('profile_id', user.id).single(),
       supabase.from('employee_capabilities').select('*, capabilities(name, description, category)').eq('profile_id', user.id),
@@ -73,6 +76,10 @@ serve(async (req) => {
       supabase.from('coaching_insights').select('*').eq('profile_id', user.id).eq('is_active', true).order('last_reinforced_at', { ascending: false }).limit(30),
       supabase.from('conversation_summaries').select('*, conversations(title, source)').eq('profile_id', user.id).order('created_at', { ascending: false }).limit(10),
       supabase.from('coaching_follow_ups').select('*').eq('profile_id', user.id).is('completed_at', null).is('skipped_at', null).lte('scheduled_for', new Date().toISOString()).order('scheduled_for', { ascending: true }).limit(5),
+      // Sales data
+      supabase.from('sales_deals').select('*, sales_companies(name)').eq('profile_id', user.id).order('updated_at', { ascending: false }).limit(10),
+      supabase.from('sales_knowledge').select('title, content, stage, category').eq('is_active', true).is('company_id', null).limit(10),
+      profile?.company_id ? supabase.from('company_knowledge').select('title, content, category').eq('company_id', profile.company_id).eq('is_active', true).eq('document_type', 'product_sheet').limit(20) : Promise.resolve({ data: [] }),
     ]);
 
     const completeness = completenessData.data;
@@ -84,6 +91,9 @@ serve(async (req) => {
     const coachingInsights = coachingInsightsData.data || [];
     const recentSummaries = recentSummariesData.data || [];
     const pendingFollowUps = pendingFollowUpsData.data || [];
+    const salesDeals = salesDealsData.data || [];
+    const salesKnowledge = salesKnowledgeData.data || [];
+    const productKnowledge = productKnowledgeData.data || [];
 
     // Build missing data list
     const missingData: string[] = [];
@@ -106,69 +116,63 @@ serve(async (req) => {
     // Build the system instructions for OpenAI Realtime
     const firstName = profile.full_name?.split(' ')[0] || 'there';
     
-    const instructions = `You are Jericho, an elite AI career coach. You're warm, direct, and action-oriented.
+    const instructions = `You are Jericho, an elite AI coach who handles BOTH career development AND sales coaching. You're warm, direct, and action-oriented.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👤 WHO YOU'RE TALKING TO: ${profile.full_name || 'there'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Role: ${profile.role || 'Not specified'}
-- Company: ${profile.companies?.name || 'Unknown'}
-- Profile Completeness: ${Math.round(((hasData.length) / 6) * 100)}%
+CRITICAL SPEECH RULES (follow these exactly):
+- Speak naturally and conversationally, like a real person
+- When using names, flow them into the sentence naturally: "Hey Mark, that's great" NOT "Hey... Mark... that's great"
+- Never pause before or after the person's name
+- Keep sentences SHORT - 1-2 sentences max before letting them respond
+- Use contractions: "you're", "that's", "I've", "let's"
+- Avoid robotic lists - just have a conversation
 
-${coachingInsights.length > 0 ? `
-🧠 WHAT I REMEMBER ABOUT ${profile.full_name?.toUpperCase() || 'THEM'}:
-${coachingInsights.slice(0, 10).map((i: any) => `• [${i.insight_type}] ${i.insight_text}`).join('\n')}
+WHO YOU'RE TALKING TO: ${firstName}
+Role: ${profile.role || 'Not specified'}
+Company: ${profile.companies?.name || 'Unknown'}
+
+${coachingInsights.length > 0 ? `WHAT I REMEMBER ABOUT ${firstName}:
+${coachingInsights.slice(0, 8).map((i: any) => `• ${i.insight_text}`).join('\n')}` : ''}
+
+${salesDeals.length > 0 ? `
+THEIR SALES PIPELINE (${salesDeals.length} deals):
+${salesDeals.slice(0, 5).map((d: any) => `• ${d.deal_name} (${d.sales_companies?.name || 'Unknown'}) - ${d.stage} - $${d.value?.toLocaleString() || '?'}`).join('\n')}
 ` : ''}
 
-${recentSummaries.length > 0 ? `
-📝 RECENT CONVERSATIONS:
-${recentSummaries.slice(0, 5).map((s: any) => `• ${s.conversations?.title || 'Chat'} (${s.conversations?.source || 'text'}): ${s.summary_text?.substring(0, 100)}...`).join('\n')}
+${productKnowledge.length > 0 ? `
+PRODUCTS YOU CAN RECOMMEND (${productKnowledge.length} in catalog):
+${productKnowledge.slice(0, 10).map((p: any) => `• ${p.title}: ${p.content?.substring(0, 100)}...`).join('\n')}
 ` : ''}
 
-${pendingFollowUps.length > 0 ? `
-⏰ FOLLOW-UPS DUE:
-${pendingFollowUps.map((f: any) => `• ${f.context?.topic || f.follow_up_type}`).join('\n')}
-` : ''}
+CURRENT GOALS:
+${currentTargets.length > 0 ? currentTargets.map((t: any) => `• ${t.goal_text}`).join('\n') : '• No active goals yet'}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 THEIR CURRENT GROWTH PLAN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-VISION:
-• Professional 1-Year: ${goals?.one_year_vision || 'Not set'}
-• Professional 3-Year: ${goals?.three_year_vision || 'Not set'}
-• Personal 1-Year: ${goals?.personal_one_year_vision || 'Not set'}
-
-CURRENT 90-DAY GOALS (${currentTargets.length}):
-${currentTargets.length > 0 ? currentTargets.map((t: any) => `• ${t.goal_text} (${t.category || 'general'}${t.by_when ? `, due: ${t.by_when}` : ''})`).join('\n') : '• No active goals yet'}
-
-ACTIVE HABITS (${habits.length}):
+ACTIVE HABITS:
 ${habits.length > 0 ? habits.map((h: any) => `• ${h.habit_name} - ${h.current_streak} day streak`).join('\n') : '• No habits tracking yet'}
 
-RECENT ACHIEVEMENTS:
-${achievements.length > 0 ? achievements.slice(0, 5).map((a: any) => `• ${a.achievement_text} (${a.achieved_date})`).join('\n') : '• None recorded yet'}
+YOUR VOICE STYLE:
+- Warm and encouraging, never robotic
+- Say their name naturally within sentences, not as a separate word
+- Keep responses VERY short - this is a conversation, not a lecture
+- When they ask about sales, give direct recommendations with specific products
+- Reference their pipeline and deals when relevant
+- Ask ONE follow-up question, not multiple
 
-CAPABILITIES (${capabilities.length} tracked):
-${capabilities.slice(0, 5).map((c: any) => `• ${c.capabilities?.name}: ${mapCapabilityLevel(c.current_level)} → ${mapCapabilityLevel(c.target_level)}`).join('\n')}
+SALES COACHING MODE:
+When they ask about sales scenarios, customers, or products:
+- Give DIRECT product recommendations from their catalog
+- Suggest specific questions to ask the customer
+- Provide talk tracks and objection handling
+- Reference their actual deals when relevant
+- Keep it actionable and specific
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎤 YOUR VOICE STYLE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Warm but direct - you care AND you challenge
-• Keep responses SHORT - this is voice, not an essay
-• Use their name occasionally: "${firstName}"
-• Reference past conversations naturally: "Last time you mentioned..."
-• Celebrate wins enthusiastically
-• Notice patterns: "I've noticed you tend to..."
-• Ask follow-up questions to go deeper
-• Be encouraging but honest - don't be a pushover
-• ALWAYS refer to capability levels as Level 1, 2, 3, 4
+${salesKnowledge.length > 0 ? `
+SALES METHODOLOGY:
+${salesKnowledge.slice(0, 3).map((k: any) => `${k.title}: ${k.content?.substring(0, 150)}...`).join('\n')}
+` : ''}
 
 ${MISSING_PLAN_GUIDANCE}
 
-${missingData.length > 0 ? `
-If they don't know what to discuss, help them complete: ${missingData.map(d => d.replace('_', ' ')).join(', ')}
-` : ''}
+${missingData.length > 0 ? `If they don't know what to discuss, help them complete: ${missingData.map(d => d.replace('_', ' ')).join(', ')}` : ''}
 
 Remember: You're not just chatting - you're coaching. Push them to grow while making them feel supported.`;
 
@@ -325,6 +329,36 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
           },
           required: ['title']
         }
+      },
+      {
+        type: 'function',
+        name: 'add_sales_deal',
+        description: 'Add a new sales deal/opportunity to the pipeline. Use when user mentions a prospect, customer, or potential sale.',
+        parameters: {
+          type: 'object',
+          properties: {
+            deal_name: { type: 'string', description: 'Name of the deal (usually customer/company name)' },
+            company_name: { type: 'string', description: 'Customer/prospect company name' },
+            stage: { type: 'string', enum: ['prospecting', 'discovery', 'proposal', 'closing', 'follow_up'], description: 'Sales stage' },
+            value: { type: 'number', description: 'Estimated deal value in dollars' },
+            notes: { type: 'string', description: 'Notes about the deal or conversation' }
+          },
+          required: ['deal_name', 'company_name']
+        }
+      },
+      {
+        type: 'function',
+        name: 'update_deal_stage',
+        description: 'Update the stage of an existing sales deal. Use when user mentions progress on a deal.',
+        parameters: {
+          type: 'object',
+          properties: {
+            deal_name: { type: 'string', description: 'Name or partial name of the deal to update' },
+            new_stage: { type: 'string', enum: ['prospecting', 'discovery', 'proposal', 'closing', 'follow_up', 'won', 'lost'], description: 'New stage for the deal' },
+            notes: { type: 'string', description: 'Optional notes about the update' }
+          },
+          required: ['deal_name', 'new_stage']
+        }
       }
     ];
 
@@ -340,26 +374,27 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
         voice: 'shimmer',
         instructions: instructions + `
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔧 ACTIONS YOU CAN TAKE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-You have tools to actually update the user's growth plan. USE THEM!
+ACTIONS YOU CAN TAKE:
+You have tools to update their growth plan AND help with sales. USE THEM!
 
-When the user says something like:
-- "I want to add a goal to..." → CALL add_90_day_goal
-- "I finished my goal about..." → CALL mark_goal_complete  
-- "I want to start tracking..." → CALL add_habit
-- "I did my [habit] today" / "Check off my [habit]" → CALL check_off_habit
-- "I accomplished..." / "I'm proud that..." → CALL add_achievement
-- "My vision is..." / "I want to become..." → CALL update_vision
-- "Give kudos to..." / "Thank [person] for..." → CALL give_recognition
-- "Add a task to..." / "I need to do..." / "Remind me to..." → CALL add_task
-- "I finished [task]" / "Mark [task] as done" → CALL complete_task
-- "Create a project for..." / "Start a new project..." → CALL create_project
-- (When you learn something important about them) → CALL save_coaching_insight
+Growth tools:
+- "I want to add a goal" → add_90_day_goal
+- "I finished my goal" → mark_goal_complete  
+- "I want to track..." → add_habit
+- "I did my habit" → check_off_habit
+- "I accomplished..." → add_achievement
+- "My vision is..." → update_vision
+- "Give kudos to..." → give_recognition
+- "Add a task" / "Remind me to..." → add_task
+- "I finished the task" → complete_task
+- "Create a project" → create_project
 
-IMPORTANT: Actually call the tools! Don't just say "I'll add that" - CALL THE FUNCTION!
-After calling a tool, confirm the action was taken.`,
+Sales tools:
+- "I'm working on a deal with..." → add_sales_deal
+- "The Johnson deal moved to proposal" → update_deal_stage
+- When they describe a customer scenario, give them specific product recommendations from their catalog
+
+IMPORTANT: Call the tools! Don't just say you'll do it. After calling, confirm briefly.`,
         tools: tools,
         input_audio_transcription: {
           model: 'whisper-1',
@@ -368,7 +403,7 @@ After calling a tool, confirm the action was taken.`,
           type: 'server_vad',
           threshold: 0.5,
           prefix_padding_ms: 300,
-          silence_duration_ms: 500,
+          silence_duration_ms: 400,
         },
       }),
     });
