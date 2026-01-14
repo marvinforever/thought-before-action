@@ -70,7 +70,8 @@ export default function Settings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [profile, setProfile] = useState<{ full_name: string; email: string; podcast_duration_minutes: number } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; email: string; podcast_duration_minutes: number; hide_daily_brief: boolean } | null>(null);
+  const [savingHideBrief, setSavingHideBrief] = useState(false);
   
   // Email preferences state
   const [emailPrefs, setEmailPrefs] = useState({
@@ -111,7 +112,7 @@ export default function Settings() {
         // Fetch profile
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("full_name, podcast_duration_minutes")
+          .select("full_name, podcast_duration_minutes, hide_daily_brief")
           .eq("id", user.id)
           .single();
         
@@ -119,6 +120,7 @@ export default function Settings() {
           full_name: profileData?.full_name || "",
           email: user.email || "",
           podcast_duration_minutes: profileData?.podcast_duration_minutes || 2,
+          hide_daily_brief: profileData?.hide_daily_brief ?? false,
         });
 
         // Fetch email preferences
@@ -369,7 +371,50 @@ export default function Settings() {
           </CardTitle>
           <CardDescription>Customize your personalized audio briefing</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {/* Show/Hide Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Show on Dashboard</Label>
+              <p className="text-sm text-muted-foreground">
+                Display the Daily Growth Brief player on your growth plan page
+              </p>
+            </div>
+            <Switch
+              checked={!profile?.hide_daily_brief}
+              onCheckedChange={async (checked) => {
+                if (!profile) return;
+                setSavingHideBrief(true);
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) throw new Error("Not authenticated");
+                  
+                  const { error } = await supabase
+                    .from("profiles")
+                    .update({ hide_daily_brief: !checked })
+                    .eq("id", user.id);
+                  
+                  if (error) throw error;
+                  
+                  setProfile({ ...profile, hide_daily_brief: !checked });
+                  toast({
+                    title: "Preference saved",
+                    description: checked ? "Daily Growth Brief will now appear on your dashboard." : "Daily Growth Brief is now hidden from your dashboard.",
+                  });
+                } catch (error: any) {
+                  toast({
+                    title: "Error",
+                    description: error.message || "Failed to save preference.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setSavingHideBrief(false);
+                }
+              }}
+              disabled={savingHideBrief}
+            />
+          </div>
+
           <div className="space-y-3">
             <Label>Episode Duration</Label>
             <RadioGroup

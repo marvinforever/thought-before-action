@@ -3358,6 +3358,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           has_seen_manager_onboarding: boolean | null
+          hide_daily_brief: boolean
           id: string
           is_active: boolean | null
           is_admin: boolean | null
@@ -3383,6 +3384,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           has_seen_manager_onboarding?: boolean | null
+          hide_daily_brief?: boolean
           id: string
           is_active?: boolean | null
           is_admin?: boolean | null
@@ -3408,6 +3410,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           has_seen_manager_onboarding?: boolean | null
+          hide_daily_brief?: boolean
           id?: string
           is_active?: boolean | null
           is_admin?: boolean | null
