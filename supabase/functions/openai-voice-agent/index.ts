@@ -286,15 +286,44 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
       },
       {
         type: 'function',
-        name: 'save_coaching_insight',
-        description: 'Save an important insight from the conversation for future reference. Use this to remember important things about the user.',
+        name: 'add_task',
+        description: 'Add a task to the personal assistant Kanban board. Use when user wants to add a to-do, task, or reminder.',
         parameters: {
           type: 'object',
           properties: {
-            insight_type: { type: 'string', enum: ['strength', 'growth_area', 'value', 'goal', 'preference', 'challenge', 'motivation', 'achievement'], description: 'Type of insight' },
-            insight_text: { type: 'string', description: 'The insight to remember' }
+            title: { type: 'string', description: 'Title of the task' },
+            description: { type: 'string', description: 'Optional description of the task' },
+            priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], description: 'Task priority' },
+            column_status: { type: 'string', enum: ['todo', 'in_progress', 'done'], description: 'Which column to add the task to' },
+            due_date: { type: 'string', description: 'Due date in YYYY-MM-DD format' }
           },
-          required: ['insight_type', 'insight_text']
+          required: ['title']
+        }
+      },
+      {
+        type: 'function',
+        name: 'complete_task',
+        description: 'Mark a task as done in the personal assistant. Use when user says they finished or completed a task.',
+        parameters: {
+          type: 'object',
+          properties: {
+            task_title: { type: 'string', description: 'Title or partial title of the task to complete' }
+          },
+          required: ['task_title']
+        }
+      },
+      {
+        type: 'function',
+        name: 'create_project',
+        description: 'Create a new project to organize tasks. Use when user wants to start a new project or initiative.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Project name' },
+            description: { type: 'string', description: 'Project description' },
+            color: { type: 'string', description: 'Hex color for the project badge (e.g., #3b82f6)' }
+          },
+          required: ['title']
         }
       }
     ];
@@ -324,6 +353,9 @@ When the user says something like:
 - "I accomplished..." / "I'm proud that..." → CALL add_achievement
 - "My vision is..." / "I want to become..." → CALL update_vision
 - "Give kudos to..." / "Thank [person] for..." → CALL give_recognition
+- "Add a task to..." / "I need to do..." / "Remind me to..." → CALL add_task
+- "I finished [task]" / "Mark [task] as done" → CALL complete_task
+- "Create a project for..." / "Start a new project..." → CALL create_project
 - (When you learn something important about them) → CALL save_coaching_insight
 
 IMPORTANT: Actually call the tools! Don't just say "I'll add that" - CALL THE FUNCTION!
