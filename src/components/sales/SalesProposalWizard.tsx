@@ -154,8 +154,8 @@ export const SalesProposalWizard = ({
         if (customer.grower_history) {
           setGrowerContext(customer.grower_history);
         }
-        if (customer.operation_details) {
-          const details = customer.operation_details;
+        if (customer.operation_details && typeof customer.operation_details === 'object') {
+          const details = customer.operation_details as Record<string, any>;
           if (details.key_quote) {
             setIntroMessage(`Based on our ongoing partnership and your goal to "${details.key_quote}", I've put together these recommendations specifically for your operation.`);
           }
