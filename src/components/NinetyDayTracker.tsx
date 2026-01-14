@@ -1032,44 +1032,38 @@ export default function NinetyDayTracker() {
         {viewMode === "stacked" ? (
           <Tabs value={selectedQuarter} onValueChange={setSelectedQuarter}>
             <TabsList className="grid w-full grid-cols-4 sticky top-0 z-10 bg-background">
-              {QUARTERS.map(q => <TabsTrigger key={q} value={q}>
+              {QUARTERS.map((q) => (
+                <TabsTrigger key={q} value={q}>
                   {q}
-                </TabsTrigger>)}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
-            {QUARTERS.map(quarter => <TabsContent key={quarter} value={quarter} className="space-y-6">
+            {QUARTERS.map((quarter) => (
+              <TabsContent key={quarter} value={quarter} className="space-y-6">
                 <div>
                   <h3 className="font-semibold mb-3 text-sm">Personal Targets</h3>
                   <div className="space-y-3">
-                    {getTargetsForQuarter(quarter, "personal").map(goal => renderGoalCard(goal, quarter, "personal"))}
+                    {getTargetsForQuarter(quarter, "personal").map((goal) =>
+                      renderGoalCard(goal, quarter, "personal")
+                    )}
                   </div>
                 </div>
 
                 <div>
                   <h3 className="font-semibold mb-3 text-sm">Professional Targets</h3>
                   <div className="space-y-3">
-                    {getTargetsForQuarter(quarter, "professional").map(goal => renderGoalCard(goal, quarter, "professional"))}
+                    {getTargetsForQuarter(quarter, "professional").map((goal) =>
+                      renderGoalCard(goal, quarter, "professional")
+                    )}
                   </div>
                 </div>
-
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm">Health Targets</h3>
-                  <div className="space-y-3">
-                    {getTargetsForQuarter(quarter, "health").map(goal => renderGoalCard(goal, quarter, "health"))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm">Career Targets</h3>
-                  <div className="space-y-3">
-                    {getTargetsForQuarter(quarter, "career").map(goal => renderGoalCard(goal, quarter, "career"))}
-                  </div>
-                </div>
-              </TabsContent>)}
+              </TabsContent>
+            ))}
           </Tabs>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {QUARTERS.map(quarter => (
+            {QUARTERS.map((quarter) => (
               <div key={quarter} className="space-y-4">
                 <div className="sticky top-0 bg-background pb-2 z-10">
                   <h3 className="text-lg font-bold text-center">{quarter}</h3>
@@ -1078,25 +1072,17 @@ export default function NinetyDayTracker() {
                   <div>
                     <h4 className="text-xs font-semibold mb-2">Personal</h4>
                     <div className="space-y-2">
-                      {getTargetsForQuarter(quarter, "personal").map(goal => renderGoalCard(goal, quarter, "personal"))}
+                      {getTargetsForQuarter(quarter, "personal").map((goal) =>
+                        renderGoalCard(goal, quarter, "personal")
+                      )}
                     </div>
                   </div>
                   <div>
                     <h4 className="text-xs font-semibold mb-2">Professional</h4>
                     <div className="space-y-2">
-                      {getTargetsForQuarter(quarter, "professional").map(goal => renderGoalCard(goal, quarter, "professional"))}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold mb-2">Health</h4>
-                    <div className="space-y-2">
-                      {getTargetsForQuarter(quarter, "health").map(goal => renderGoalCard(goal, quarter, "health"))}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold mb-2">Career</h4>
-                    <div className="space-y-2">
-                      {getTargetsForQuarter(quarter, "career").map(goal => renderGoalCard(goal, quarter, "career"))}
+                      {getTargetsForQuarter(quarter, "professional").map((goal) =>
+                        renderGoalCard(goal, quarter, "professional")
+                      )}
                     </div>
                   </div>
                 </div>
