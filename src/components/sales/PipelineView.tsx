@@ -12,6 +12,7 @@ import {
 import { MoreHorizontal, Building2, DollarSign, Calendar, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { CustomerDetailDialog } from "./CustomerDetailDialog";
 
 interface PipelineViewProps {
   userId: string;
@@ -34,6 +35,8 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
   const { toast } = useToast();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [showCustomerDetail, setShowCustomerDetail] = useState(false);
 
   const fetchDeals = async () => {
     let query = supabase
@@ -118,10 +121,19 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{deal.deal_name}</p>
                       {deal.sales_companies?.name && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (deal.company_id) {
+                              setSelectedCustomerId(deal.company_id);
+                              setShowCustomerDetail(true);
+                            }
+                          }}
+                          className="text-xs text-muted-foreground flex items-center gap-1 mt-1 hover:text-primary transition-colors"
+                        >
                           <Building2 className="h-3 w-3" />
-                          {deal.sales_companies.name}
-                        </p>
+                          <span className="underline decoration-dotted">{deal.sales_companies.name}</span>
+                        </button>
                       )}
                     </div>
                     
@@ -171,6 +183,13 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
           </div>
         </div>
       ))}
+
+      {/* Customer Detail Dialog */}
+      <CustomerDetailDialog
+        open={showCustomerDetail}
+        onOpenChange={setShowCustomerDetail}
+        customerId={selectedCustomerId}
+      />
     </div>
   );
 };

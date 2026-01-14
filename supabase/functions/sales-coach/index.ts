@@ -97,6 +97,34 @@ serve(async (req) => {
       }
     }
 
+    // Fetch CRM customers (sales_companies) for context
+    let crmCustomerContext = '';
+    const { data: crmCustomers } = await supabase
+      .from('sales_companies')
+      .select('id, name, location, grower_history, operation_details, customer_since, notes')
+      .eq('profile_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    if (crmCustomers && crmCustomers.length > 0) {
+      crmCustomerContext = `\n\n=== YOUR CRM CUSTOMERS (${crmCustomers.length} total) ===
+You have access to detailed customer records. When asked about a customer, provide their full context.
+
+${crmCustomers.map(c => {
+        let customerInfo = `### ${c.name}`;
+        if (c.location) customerInfo += `\nLocation: ${c.location}`;
+        if (c.customer_since) customerInfo += `\nCustomer Since: ${c.customer_since}`;
+        if (c.notes) customerInfo += `\nNotes: ${c.notes}`;
+        if (c.operation_details && typeof c.operation_details === 'object') {
+          const details = c.operation_details as Record<string, any>;
+          if (details.total_acres) customerInfo += `\nOperation Size: ${details.total_acres}`;
+          if (details.key_quote) customerInfo += `\nKey Quote: "${details.key_quote}"`;
+        }
+        if (c.grower_history) customerInfo += `\nRelationship History:\n${c.grower_history.substring(0, 1000)}${c.grower_history.length > 1000 ? '...' : ''}`;
+        return customerInfo;
+      }).join('\n\n---\n\n')}`;
+    }
+
     const knowledgeContext = knowledge?.length 
       ? `\n\nSALES METHODOLOGY & KNOWLEDGE:\n${knowledge.map(k => `### ${k.title}\n${k.content}`).join('\n\n')}`
       : '';
@@ -249,7 +277,7 @@ ${knowledgeContext}${productKnowledge}`;
 === YOUR CONTEXT ===
 ${customerInfo}
 ${dealContext}
-${knowledgeContext}${productKnowledge}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}
 
 CONVERSATION SO FAR (includes your previous recommendation):
 ${conversationHistory}
@@ -264,7 +292,7 @@ Answer their question directly without regenerating the full pre-call plan.`;
 === YOUR CONTEXT ===
 ${customerInfo}
 ${dealContext}
-${knowledgeContext}${productKnowledge}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -314,7 +342,7 @@ This pairs well with [complementary product] because..."
 
 ${customerInfo}
 ${dealContext}
-${productKnowledge}
+${productKnowledge}${crmCustomerContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -357,7 +385,7 @@ SPECIAL COMMANDS:
 - If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
 
 ${dealContext}
-${knowledgeContext}${productKnowledge}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -398,7 +426,7 @@ CONVERSATION APPROACH:
 
 ${customerInfo}
 ${dealContext}
-${knowledgeContext}${productKnowledge}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 

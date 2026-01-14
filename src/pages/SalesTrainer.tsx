@@ -94,6 +94,15 @@ const SalesTrainer = () => {
   });
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to bottom when messages change or when component mounts with existing messages
+  useEffect(() => {
+    if (scrollRef.current && hasStarted) {
+      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [messages, hasStarted]);
   // Load existing conversation
   const loadConversation = async (userId: string, companyId: string | null) => {
     if (!companyId) return;
@@ -453,7 +462,7 @@ const SalesTrainer = () => {
             </div>
           <div>
               <h1 className="font-bold text-lg tracking-tight">Jericho</h1>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Sales Coach</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Sales Agent</p>
             </div>
             
             {/* Chat Mode Toggle */}
@@ -615,7 +624,7 @@ const SalesTrainer = () => {
               Hey{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}! 👋
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-md">
-              I'm Jericho, your AI sales coach. Let's work on your pipeline and close some deals together.
+              I'm Jericho, your AI sales agent. Let's work on your pipeline and close some deals together.
             </p>
             
             <Button 
