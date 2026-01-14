@@ -3352,6 +3352,7 @@ export type Database = {
       profiles: {
         Row: {
           company_id: string | null
+          company_logo_url: string | null
           created_at: string | null
           created_by_admin: boolean | null
           email: string | null
@@ -3376,6 +3377,7 @@ export type Database = {
         }
         Insert: {
           company_id?: string | null
+          company_logo_url?: string | null
           created_at?: string | null
           created_by_admin?: boolean | null
           email?: string | null
@@ -3400,6 +3402,7 @@ export type Database = {
         }
         Update: {
           company_id?: string | null
+          company_logo_url?: string | null
           created_at?: string | null
           created_by_admin?: boolean | null
           email?: string | null
@@ -4329,12 +4332,15 @@ export type Database = {
         Row: {
           annual_revenue: string | null
           created_at: string
+          customer_since: number | null
           employee_count: string | null
+          grower_history: string | null
           id: string
           industry: string | null
           location: string | null
           name: string
           notes: string | null
+          operation_details: Json | null
           profile_id: string
           updated_at: string
           website: string | null
@@ -4342,12 +4348,15 @@ export type Database = {
         Insert: {
           annual_revenue?: string | null
           created_at?: string
+          customer_since?: number | null
           employee_count?: string | null
+          grower_history?: string | null
           id?: string
           industry?: string | null
           location?: string | null
           name: string
           notes?: string | null
+          operation_details?: Json | null
           profile_id: string
           updated_at?: string
           website?: string | null
@@ -4355,12 +4364,15 @@ export type Database = {
         Update: {
           annual_revenue?: string | null
           created_at?: string
+          customer_since?: number | null
           employee_count?: string | null
+          grower_history?: string | null
           id?: string
           industry?: string | null
           location?: string | null
           name?: string
           notes?: string | null
+          operation_details?: Json | null
           profile_id?: string
           updated_at?: string
           website?: string | null
