@@ -320,6 +320,84 @@ const executeClientTool = async (
       }
     }
 
+    case 'add_task': {
+      try {
+        // Get count for position
+        const { count } = await supabase
+          .from('project_tasks')
+          .select('*', { count: 'exact', head: true })
+          .eq('profile_id', user.id)
+          .eq('column_status', args.column_status || 'todo');
+
+        const { error } = await supabase.from('project_tasks').insert({
+          profile_id: user.id,
+          title: args.title,
+          description: args.description || null,
+          priority: args.priority || 'medium',
+          column_status: args.column_status || 'todo',
+          due_date: args.due_date || null,
+          position: count || 0,
+          source: 'jericho_voice',
+          created_by_jericho: true,
+        });
+
+        if (error) throw error;
+        toast.success("📋 Task added to your board!");
+        return `Added task: "${args.title}" to ${args.column_status || 'todo'}`;
+      } catch (err) {
+        console.error('Error adding task:', err);
+        return "Failed to add task";
+      }
+    }
+
+    case 'complete_task': {
+      try {
+        const { data: tasks } = await supabase
+          .from('project_tasks')
+          .select('id, title')
+          .eq('profile_id', user.id)
+          .neq('column_status', 'done');
+
+        const matchingTask = tasks?.find(t => 
+          t.title.toLowerCase().includes(args.task_title.toLowerCase()) ||
+          args.task_title.toLowerCase().includes(t.title.toLowerCase())
+        );
+
+        if (!matchingTask) return `Could not find a task matching "${args.task_title}"`;
+
+        const { error } = await supabase
+          .from('project_tasks')
+          .update({ column_status: 'done' })
+          .eq('id', matchingTask.id);
+
+        if (error) throw error;
+        toast.success("✅ Task completed!");
+        return `Marked task as done: "${matchingTask.title}"`;
+      } catch (err) {
+        console.error('Error completing task:', err);
+        return "Failed to complete task";
+      }
+    }
+
+    case 'create_project': {
+      try {
+        const { error } = await supabase.from('user_projects').insert({
+          profile_id: user.id,
+          title: args.title,
+          description: args.description || null,
+          color: args.color || '#3b82f6',
+          status: 'active',
+        });
+
+        if (error) throw error;
+        toast.success("📁 Project created!");
+        return `Created project: "${args.title}"`;
+      } catch (err) {
+        console.error('Error creating project:', err);
+        return "Failed to create project";
+      }
+    }
+
     default:
       console.warn('Unknown tool:', toolName);
       return `Unknown tool: ${toolName}`;
