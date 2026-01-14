@@ -56,15 +56,24 @@ const DashboardLayout = () => {
             setIsSuperAdmin(profile.is_super_admin || false);
             setIsAdmin(profile.is_admin || false);
             
-            // Redirect to registration wizard if not complete (and not admin-created)
+            // Only redirect to registration for truly new users (created within last 5 minutes)
+            // who haven't completed registration and weren't admin-created
             if (!profile.registration_complete && !profile.created_by_admin) {
+              const createdAt = new Date(session.user.created_at);
+              const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+              if (createdAt > fiveMinutesAgo) {
+                navigate("/register");
+                return;
+              }
+            }
+          } else if (!profile) {
+            // No profile exists - only redirect for truly new users
+            const createdAt = new Date(session.user.created_at);
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            if (createdAt > fiveMinutesAgo) {
               navigate("/register");
               return;
             }
-          } else if (!profile) {
-            // No profile exists - redirect to registration
-            navigate("/register");
-            return;
           }
 
           // Check if user has manager role
