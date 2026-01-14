@@ -173,8 +173,16 @@ export default function NinetyDayTracker() {
     }
   };
   const getTargetsForQuarter = (quarter: string, category: string) => {
-    return [1, 2, 3].map(num => {
-      const existing = targets.find(t => t.quarter === quarter && t.category === category && t.goal_number === num);
+    // Get all existing targets for this quarter and category
+    const existingTargets = targets.filter(t => t.quarter === quarter && t.category === category);
+    
+    // Determine how many goal slots to show (at least 3, or enough to fit all existing + 1 empty)
+    const maxGoalNumber = existingTargets.length > 0 
+      ? Math.max(...existingTargets.map(t => t.goal_number || 0), 3) + 1
+      : 3;
+    
+    return Array.from({ length: maxGoalNumber }, (_, i) => i + 1).map(num => {
+      const existing = existingTargets.find(t => t.goal_number === num);
       return existing || {
         quarter,
         category,
@@ -1020,10 +1028,10 @@ export default function NinetyDayTracker() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-[600px] overflow-y-auto">
         {viewMode === "stacked" ? (
           <Tabs value={selectedQuarter} onValueChange={setSelectedQuarter}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-4 sticky top-0 z-10 bg-background">
               {QUARTERS.map(q => <TabsTrigger key={q} value={q}>
                   {q}
                 </TabsTrigger>)}
@@ -1041,6 +1049,20 @@ export default function NinetyDayTracker() {
                   <h3 className="font-semibold mb-3 text-sm">Professional Targets</h3>
                   <div className="space-y-3">
                     {getTargetsForQuarter(quarter, "professional").map(goal => renderGoalCard(goal, quarter, "professional"))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-3 text-sm">Health Targets</h3>
+                  <div className="space-y-3">
+                    {getTargetsForQuarter(quarter, "health").map(goal => renderGoalCard(goal, quarter, "health"))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-3 text-sm">Career Targets</h3>
+                  <div className="space-y-3">
+                    {getTargetsForQuarter(quarter, "career").map(goal => renderGoalCard(goal, quarter, "career"))}
                   </div>
                 </div>
               </TabsContent>)}
@@ -1063,6 +1085,18 @@ export default function NinetyDayTracker() {
                     <h4 className="text-xs font-semibold mb-2">Professional</h4>
                     <div className="space-y-2">
                       {getTargetsForQuarter(quarter, "professional").map(goal => renderGoalCard(goal, quarter, "professional"))}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold mb-2">Health</h4>
+                    <div className="space-y-2">
+                      {getTargetsForQuarter(quarter, "health").map(goal => renderGoalCard(goal, quarter, "health"))}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold mb-2">Career</h4>
+                    <div className="space-y-2">
+                      {getTargetsForQuarter(quarter, "career").map(goal => renderGoalCard(goal, quarter, "career"))}
                     </div>
                   </div>
                 </div>
