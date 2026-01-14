@@ -736,17 +736,6 @@ const SalesTrainer = () => {
                     </Button>
                     </>
                 )}
-                {isSuperAdmin && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowPrepGenerator(true)}
-                    className="gap-1"
-                  >
-                    <FileText className="h-3 w-3" />
-                    Create Prep Doc
-                  </Button>
-                )}
               </div>
             )}
 
@@ -773,20 +762,6 @@ const SalesTrainer = () => {
                   {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
-              {/* Always-visible prep doc button - super admin only for now */}
-              {messages.length >= 3 && isSuperAdmin && (
-                <div className="flex justify-end">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowPrepGenerator(true)}
-                    className="gap-1.5"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    Create Prep Doc from Chat
-                  </Button>
-                </div>
-              )}
             </div>
           </>
         )}
