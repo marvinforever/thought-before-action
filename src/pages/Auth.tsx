@@ -91,14 +91,20 @@ const Auth = () => {
       clearViewAsCompany();
       
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+
         toast({ title: "Welcome back!", description: "Successfully logged in." });
-        // Navigation is handled by onAuthStateChange listener
-        // Don't set loading false - let the redirect happen while showing spinner
+
+        // Deterministic redirect (don't rely on auth listener timing)
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get("redirect");
+        const safeRedirect = redirect && redirect.startsWith("/") ? redirect : null;
+
+        navigate(safeRedirect || "/dashboard/my-growth-plan", { replace: true });
         return;
       } else {
         // Set flag to prevent onAuthStateChange from redirecting prematurely
