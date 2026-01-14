@@ -43,6 +43,7 @@ import { AddDealDialog } from "@/components/sales/AddDealDialog";
 import { DealCoachDialog } from "@/components/sales/DealCoachDialog";
 import { SalesKnowledgePodcasts } from "@/components/sales/SalesKnowledgePodcasts";
 import { PrepDocumentGenerator } from "@/components/sales/PrepDocumentGenerator";
+import { SalesProposalWizard } from "@/components/sales/SalesProposalWizard";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -86,6 +87,7 @@ const SalesTrainer = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<string>("");
   const [showPrepGenerator, setShowPrepGenerator] = useState(false);
+  const [showProposalWizard, setShowProposalWizard] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = localStorage.getItem('salesTrainerChatMode');
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
@@ -762,6 +764,20 @@ const SalesTrainer = () => {
                   {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
+              {/* Create Proposal button - appears after recommendations */}
+              {messages.length >= 2 && chatMode === 'rec' && (
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowProposalWizard(true)}
+                    className="gap-1.5"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Create Proposal
+                  </Button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -792,6 +808,13 @@ const SalesTrainer = () => {
         open={showPrepGenerator}
         onOpenChange={setShowPrepGenerator}
         conversationContext={messages.slice(-6).map(m => `${m.role}: ${m.content}`).join("\n")}
+      />
+
+      <SalesProposalWizard
+        open={showProposalWizard}
+        onOpenChange={setShowProposalWizard}
+        conversationContext={messages.slice(-10).map(m => `${m.role}: ${m.content}`).join("\n")}
+        companyId={profile?.company_id}
       />
     </div>
   );
