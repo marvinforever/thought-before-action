@@ -126,7 +126,29 @@ Use this information to make SPECIFIC product recommendations from your catalog 
     let systemPrompt = '';
     const isRecMode = chatMode === 'rec';
     
-    // REC MODE PROMPT PREFIX - used across all company types when in rec mode
+    // Detect if this is a clarification/follow-up question vs a new rec request
+    // Look at conversation history to see if we already gave a recommendation
+    const hasExistingRec = conversationHistory && (
+      conversationHistory.includes('PRE-CALL CHECKLIST') ||
+      conversationHistory.includes('PRODUCT RECOMMENDATIONS') ||
+      conversationHistory.includes('QUESTIONS TO ASK') ||
+      conversationHistory.includes('OPENING LINE')
+    );
+    
+    // Detect clarification patterns in the user's message
+    const clarificationPatterns = [
+      /^(what|why|how|can you|could you|tell me more|explain|clarify)/i,
+      /\?$/,  // Ends with question mark
+      /^(is |are |do |does |will |would |should )/i,
+      /(about that|about this|you mentioned|regarding|what do you mean)/i,
+      /(more detail|more info|elaborate|expand on)/i,
+    ];
+    const looksLikeClarification = clarificationPatterns.some(pattern => pattern.test(message.trim()));
+    
+    // If we have an existing rec AND the message looks like a clarification, don't regenerate the full plan
+    const isClarificationQuestion = hasExistingRec && looksLikeClarification;
+    
+    // REC MODE PROMPT PREFIX - used when generating NEW recommendations
     const recModePrefix = `You are Jericho, a sales preparation assistant. The user wants DIRECT ANSWERS, not coaching questions.
 
 YOUR JOB:
@@ -162,6 +184,25 @@ FORMAT YOUR RESPONSES LIKE THIS:
 "[Exact words to say when they answer]"
 
 Be direct. Be specific. Give them everything they need.
+
+`;
+
+    // CLARIFICATION MODE PREFIX - used when answering follow-up questions
+    const clarificationPrefix = `You are Jericho, a sales preparation assistant. The user is asking a FOLLOW-UP QUESTION about a recommendation you already gave them.
+
+YOUR JOB:
+- Answer their specific question directly
+- Reference the recommendation you already provided
+- Give additional detail, clarification, or explanation
+- Keep it focused on what they asked
+
+DO NOT:
+- Regenerate a whole new pre-call plan
+- Repeat all the checklists and formats from before
+- Give them a completely new set of recommendations
+- Ignore their actual question
+
+Just answer what they asked, clearly and directly. If they want a different product recommendation or a new scenario, they'll tell you.
 
 `;
     
@@ -201,8 +242,24 @@ FOLLOW-UP: [DATE] - Close/Commitment
 After generating the plan, offer to help them add this as a deal in their pipeline.
 
 ${knowledgeContext}${productKnowledge}`;
+    } else if (isRecMode && isClarificationQuestion) {
+      // REC MODE - CLARIFICATION: User is asking a follow-up question
+      console.log('Detected clarification question in REC mode');
+      systemPrompt = `${clarificationPrefix}
+=== YOUR CONTEXT ===
+${customerInfo}
+${dealContext}
+${knowledgeContext}${productKnowledge}
+
+CONVERSATION SO FAR (includes your previous recommendation):
+${conversationHistory}
+
+USER'S FOLLOW-UP QUESTION: "${message}"
+
+Answer their question directly without regenerating the full pre-call plan.`;
     } else if (isRecMode) {
-      // REC MODE - Direct answers, no coaching questions
+      // REC MODE - NEW REQUEST: Generate fresh recommendation
+      console.log('New recommendation request in REC mode');
       systemPrompt = `${recModePrefix}
 === YOUR CONTEXT ===
 ${customerInfo}
