@@ -205,11 +205,6 @@ export default function MyGrowthPlan() {
         />
       )}
 
-      {/* AI Productivity Tips - Feature Flagged */}
-      {!aiEfficiencyFlagLoading && isAIEfficiencyEnabled && (
-        <AIProductivityTips onStartWithJericho={handleStartWithJericho} />
-      )}
-
       {/* Personal Vision and Greatness/Badges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div data-onboarding="vision">
@@ -328,6 +323,11 @@ export default function MyGrowthPlan() {
       <div data-onboarding="achievements">
         <AchievementsCard />
       </div>
+
+      {/* AI Productivity Tips - Feature Flagged */}
+      {!aiEfficiencyFlagLoading && isAIEfficiencyEnabled && (
+        <AIProductivityTips onStartWithJericho={handleStartWithJericho} />
+      )}
 
       {/* Badge Celebration Overlay */}
       <CelebrationOverlay 
