@@ -202,7 +202,7 @@ Remember: You're not just chatting - you're coaching. Push them to grow while ma
           type: 'object',
           properties: {
             goal_text: { type: 'string', description: 'The goal description' },
-            category: { type: 'string', enum: ['career', 'health', 'financial', 'relationships', 'personal'], description: 'Goal category' },
+            category: { type: 'string', enum: ['personal', 'professional'], description: 'Goal category - personal for health, relationships, hobbies; professional for career, work, financial goals' },
             by_when: { type: 'string', description: 'Target completion date in YYYY-MM-DD format' }
           },
           required: ['goal_text']
