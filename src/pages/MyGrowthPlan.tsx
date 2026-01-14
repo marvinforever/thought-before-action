@@ -48,7 +48,7 @@ export default function MyGrowthPlan() {
   const [loading, setLoading] = useState(true);
   const [viewJdDialogOpen, setViewJdDialogOpen] = useState(false);
   const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
-  const [userProfile, setUserProfile] = useState<{ id: string; company_id: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ id: string; company_id: string; hide_daily_brief?: boolean } | null>(null);
   const [jerichoOpen, setJerichoOpen] = useState(false);
   const [jerichoContextType, setJerichoContextType] = useState<string | undefined>(undefined);
   const [jerichoTaskDetails, setJerichoTaskDetails] = useState<AITask | undefined>(undefined);
@@ -102,12 +102,16 @@ export default function MyGrowthPlan() {
       // Fetch user profile for podcast player
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, company_id")
+        .select("id, company_id, hide_daily_brief")
         .eq("id", user.id)
         .single();
       
       if (profile) {
-        setUserProfile(profile);
+        setUserProfile({
+          id: profile.id,
+          company_id: profile.company_id,
+          hide_daily_brief: profile.hide_daily_brief ?? false,
+        });
       }
 
       let targetUserId = user.id;
@@ -191,8 +195,8 @@ export default function MyGrowthPlan() {
         }}
       />
 
-      {/* Daily Podcast Player - Feature Flagged */}
-      {userProfile && !podcastFlagLoading && isPodcastEnabled && (
+      {/* Daily Podcast Player - Feature Flagged + User Preference */}
+      {userProfile && !podcastFlagLoading && isPodcastEnabled && !userProfile.hide_daily_brief && (
         <DailyPodcastPlayer 
           key={podcastRefreshKey}
           profileId={userProfile.id} 
