@@ -740,29 +740,16 @@ const SalesTrainer = () => {
             {/* Quick Actions - always visible for easy access */}
             <div className="flex flex-wrap gap-2 mb-4">
                 {hasMethodologyAccess && (
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    onClick={() => sendMessage("Generate a 4-call plan for a grower I'm working with")}
-                    className="gap-1 bg-amber-600 hover:bg-amber-700"
-                  >
-                    <CalendarDays className="h-3 w-3" />
-                    Generate 4-Call Plan
-                  </Button>
-                )}
-                {deals.length === 0 && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowAddDeal(true)}
-                    className="gap-1"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add my first deal
-                  </Button>
-                )}
-                {hasMethodologyAccess ? (
                   <>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={() => sendMessage("Generate a 4-call plan for a grower I'm working with")}
+                      className="gap-1 bg-amber-600 hover:bg-amber-700"
+                    >
+                      <CalendarDays className="h-3 w-3" />
+                      Generate 4-Call Plan
+                    </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -778,23 +765,17 @@ const SalesTrainer = () => {
                       111.4 Strategy
                     </Button>
                   </>
-                ) : (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => sendMessage("Walk me through your 5-step sales process")}
-                    >
-                      Teach me the process
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => sendMessage("How do I set appointments effectively?")}
-                    >
-                      Appointment setting tips
-                    </Button>
-                    </>
+                )}
+                {deals.length === 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAddDeal(true)}
+                    className="gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add my first deal
+                  </Button>
                 )}
                 <Button 
                   variant="outline" 
@@ -803,7 +784,14 @@ const SalesTrainer = () => {
                   className="gap-1"
                 >
                   <LayoutGrid className="h-3 w-3" />
-                  Manage pipeline
+                  My pipeline
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => sendMessage("What should I focus on today?")}
+                >
+                  Today's priorities
                 </Button>
               </div>
 
