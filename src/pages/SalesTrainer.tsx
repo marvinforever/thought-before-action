@@ -95,14 +95,21 @@ const SalesTrainer = () => {
 
   const getScrollViewport = () => scrollRef.current;
 
-  // Scroll to bottom helper (double RAF makes it reliable with async renders)
-  const scrollToBottom = () => {
+  // Scroll to bottom helper (logs included)
+  const scrollToBottom = (reason?: string) => {
     const viewport = getScrollViewport();
     if (!viewport) return;
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         viewport.scrollTop = viewport.scrollHeight;
+        // Debug: keep for now until confirmed fixed
+        console.log("[SalesTrainer scrollToBottom]", {
+          reason,
+          scrollTop: viewport.scrollTop,
+          scrollHeight: viewport.scrollHeight,
+          clientHeight: viewport.clientHeight,
+        });
       });
     });
   };
@@ -129,7 +136,7 @@ const SalesTrainer = () => {
     if (!hasStarted) return;
     if (isUserScrollingRef.current) return;
 
-    scrollToBottom();
+    scrollToBottom(`render-change messages=${messages.length} loading=${chatLoading}`);
   }, [hasStarted, messages.length, chatLoading]);
   // Load existing conversation
   const loadConversation = async (userId: string, companyId: string | null) => {
@@ -636,7 +643,7 @@ const SalesTrainer = () => {
       )}
 
       {/* Main Chat Area */}
-      <main className="flex-1 container mx-auto px-4 py-6 flex flex-col max-w-3xl">
+      <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col max-w-3xl">
         {!hasStarted ? (
           /* Welcome State */
           <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
@@ -675,7 +682,7 @@ const SalesTrainer = () => {
         ) : (
           /* Active Coaching State */
           <>
-            <div className="flex-1 overflow-y-auto pr-4" ref={scrollRef}>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-4" ref={scrollRef}>
               <div className="space-y-4 pb-4">
                 {messages.map((msg, idx) => (
                   <div
