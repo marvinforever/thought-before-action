@@ -62,6 +62,18 @@ serve(async (req) => {
     const hasMethodologyAccess = effectiveCompanyId === STATELINE_COMPANY_ID;
     const isStreamlineAg = effectiveCompanyId === STREAMLINE_AG_COMPANY_ID;
 
+    // Fetch company name dynamically for personalized prompts
+    let companyName = 'your company';
+    if (effectiveCompanyId) {
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', effectiveCompanyId)
+        .single();
+      companyName = companyData?.name || 'your company';
+      console.log(`Using company name: ${companyName}`);
+    }
+
     // Fetch sales knowledge - include company-specific content
     const stage = deal?.stage || 'prospecting';
     let knowledgeQuery = supabase
@@ -235,7 +247,7 @@ Just answer what they asked, clearly and directly. If they want a different prod
 `;
     
     if (generateCallPlan && hasMethodologyAccess) {
-      systemPrompt = `You are Jericho, an expert agricultural sales coach trained on Stateline Cooperative's "4-Call Plan" methodology.
+      systemPrompt = `You are Jericho, an expert agricultural sales coach trained on ${companyName}'s "4-Call Plan" methodology.
 
 THE USER WANTS TO GENERATE A FULL-YEAR CALL PLAN FOR A GROWER.
 
@@ -348,7 +360,7 @@ ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
 Remember: You're their trusted agronomic advisor. Help them help their customers succeed!`;
     } else if (hasMethodologyAccess) {
-      systemPrompt = `You are Jericho, an expert agricultural sales coach trained on the proven "4-Call Plan" methodology.
+      systemPrompt = `You are Jericho, an expert agricultural sales coach for ${companyName}, trained on the proven "4-Call Plan" methodology.
 
 YOUR APPROACH: Help salespeople reverse-engineer from their goals, whether that's volume targets, revenue goals, or customer count objectives.
 
@@ -432,7 +444,7 @@ ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 Remember: You're their trusted coach. ONE question at a time. Help them hit their goals!`;
     } else {
       // Non-Stateline users get generic sales coaching
-      systemPrompt = `You are Jericho, an AI sales assistant - NOT a CRM. You're like having a sharp, supportive colleague who keeps track of everything so the salesperson doesn't have to.
+      systemPrompt = `You are Jericho, an AI sales assistant for ${companyName}. You're like having a sharp, supportive colleague who keeps track of everything so the salesperson doesn't have to.
 
 YOUR ROLE:
 - You're a conversational partner, not a data entry system
