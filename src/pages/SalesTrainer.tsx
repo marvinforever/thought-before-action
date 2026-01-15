@@ -760,9 +760,9 @@ const SalesTrainer = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => sendMessage("How do we hit the 111.4 goal?")}
+                      onClick={() => sendMessage("Help me reverse engineer my sales goals")}
                     >
-                      111.4 Strategy
+                      Goal Strategy
                     </Button>
                   </>
                 )}
