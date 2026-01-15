@@ -23,6 +23,28 @@ serve(async (req) => {
     const today = now.toISOString().split('T')[0];
 
     console.log(`Processing daily brief queue at ${now.toISOString()}`);
+    
+    // CRITICAL: Only send emails at 7am Eastern (12:00 UTC in winter, 11:00 UTC in summer)
+    // Check if current hour in Eastern time is 7am
+    const easternTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const easternHour = easternTime.getHours();
+    
+    console.log(`Current Eastern time: ${easternTime.toLocaleString()}, hour: ${easternHour}`);
+    
+    // Only allow sending between 6am and 8am Eastern to handle slight timing variations
+    if (easternHour < 6 || easternHour > 8) {
+      console.log(`BLOCKED: Outside allowed window (6-8am Eastern). Current Eastern hour: ${easternHour}`);
+      return new Response(
+        JSON.stringify({ 
+          message: "Outside allowed time window", 
+          currentEasternHour: easternHour,
+          allowedWindow: "6am-8am Eastern" 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    console.log(`ALLOWED: Within 6-8am Eastern window. Proceeding with daily brief emails.`);
     console.log(`SENDING TO ALL USERS with daily_podcast flag enabled`);
 
     // Get all companies with daily_podcast flag enabled
