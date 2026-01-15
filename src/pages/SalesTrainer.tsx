@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
@@ -92,7 +92,6 @@ const SalesTrainer = () => {
   });
   const scrollRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
-  const lastMessageCountRef = useRef(0);
 
   const getScrollViewport = () => {
     const root = scrollRef.current;
@@ -102,12 +101,15 @@ const SalesTrainer = () => {
     ) as HTMLDivElement | null;
   };
 
-  // Scroll to bottom helper
+  // Scroll to bottom helper (double RAF makes it reliable with async renders)
   const scrollToBottom = () => {
     const viewport = getScrollViewport();
     if (!viewport) return;
+
     requestAnimationFrame(() => {
-      viewport.scrollTop = viewport.scrollHeight;
+      requestAnimationFrame(() => {
+        viewport.scrollTop = viewport.scrollHeight;
+      });
     });
   };
 
@@ -128,33 +130,13 @@ const SalesTrainer = () => {
     return () => viewport.removeEventListener("scroll", onScroll);
   }, [hasStarted]);
 
-  // Always scroll to bottom when new messages arrive
-  useEffect(() => {
+  // Auto-scroll on any content change (messages + loader), unless user has intentionally scrolled up
+  useLayoutEffect(() => {
     if (!hasStarted) return;
+    if (isUserScrollingRef.current) return;
 
-    // If message count increased, scroll to bottom
-    if (messages.length > lastMessageCountRef.current) {
-      // Small delay to let DOM update
-      setTimeout(scrollToBottom, 50);
-    }
-    lastMessageCountRef.current = messages.length;
-  }, [messages.length, hasStarted]);
-
-  // Ensure the "thinking" loader is visible when it appears
-  useEffect(() => {
-    if (!hasStarted) return;
-    if (!chatLoading) return;
-
-    // Give the loader bubble time to render
-    setTimeout(scrollToBottom, 50);
-  }, [chatLoading, hasStarted]);
-
-  // Scroll to bottom when conversation starts
-  useEffect(() => {
-    if (hasStarted && messages.length > 0) {
-      setTimeout(scrollToBottom, 100);
-    }
-  }, [hasStarted]);
+    scrollToBottom();
+  }, [hasStarted, messages.length, chatLoading]);
   // Load existing conversation
   const loadConversation = async (userId: string, companyId: string | null) => {
     if (!companyId) return;
