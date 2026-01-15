@@ -131,7 +131,7 @@ const SalesTrainer = () => {
   // Always scroll to bottom when new messages arrive
   useEffect(() => {
     if (!hasStarted) return;
-    
+
     // If message count increased, scroll to bottom
     if (messages.length > lastMessageCountRef.current) {
       // Small delay to let DOM update
@@ -139,6 +139,15 @@ const SalesTrainer = () => {
     }
     lastMessageCountRef.current = messages.length;
   }, [messages.length, hasStarted]);
+
+  // Ensure the "thinking" loader is visible when it appears
+  useEffect(() => {
+    if (!hasStarted) return;
+    if (!chatLoading) return;
+
+    // Give the loader bubble time to render
+    setTimeout(scrollToBottom, 50);
+  }, [chatLoading, hasStarted]);
 
   // Scroll to bottom when conversation starts
   useEffect(() => {
