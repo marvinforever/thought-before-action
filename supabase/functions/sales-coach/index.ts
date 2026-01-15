@@ -21,7 +21,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    const { message, deal, conversationHistory, generateCallPlan, customerContext, viewAsCompanyId, chatMode = 'rec' } = await req.json();
+    const { message, deal, conversationHistory, generateCallPlan, customerContext, viewAsCompanyId, chatMode = 'rec', dealsCount = 0 } = await req.json();
 
     // Authenticate user
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -604,6 +604,7 @@ WHEN THEY ASK WHAT TO FOCUS ON:
 - Look at their pipeline and identify priorities
 - Consider deal values, stages, and how long deals have been sitting
 - Give them 2-3 specific actions with exact language to use
+${dealsCount < 10 ? `- IMPORTANT: They only have ${dealsCount} deals in their pipeline. ALWAYS include prospecting as a top priority! A healthy pipeline needs at least 10+ active deals. Encourage them to add new prospects today.` : ''}
 
 WHEN THEY NEED HELP WITH A CUSTOMER:
 - Help them prepare discovery questions
