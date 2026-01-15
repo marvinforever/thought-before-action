@@ -22,6 +22,7 @@ interface Message {
 const conversationStarters = [
   { label: "I'm working a deal", prompt: "I've got a deal I'm working on..." },
   { label: "New prospect", prompt: "I just met a potential new customer..." },
+  { label: "Manage pipeline", prompt: "Show me my current pipeline" },
   { label: "Stuck on something", prompt: "I'm stuck on something and need help..." },
 ];
 
@@ -246,6 +247,7 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
       // Clean up any deal detection blocks from the message
       assistantMessage = assistantMessage
         .replace(/\[DEAL_DETECTED\][\s\S]*?\[\/DEAL_DETECTED\]/g, '')
+        .replace(/\[PIPELINE_ACTION\][\s\S]*?\[\/PIPELINE_ACTION\]/g, '')
         .trim();
       
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
@@ -255,8 +257,35 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
         await saveMessage(currentConvId, "assistant", assistantMessage);
       }
 
-      // Refresh context in case a deal was auto-created
-      fetchUserContext();
+      // Show notifications for pipeline actions
+      const pipelineActions = response.data?.pipelineActions || [];
+      for (const action of pipelineActions) {
+        if (action.success) {
+          toast({ 
+            title: action.action === 'move_deal' ? "📊 Deal moved!" :
+                   action.action === 'update_deal' ? "✏️ Deal updated!" :
+                   action.action === 'delete_deal' ? "🗑️ Deal deleted!" :
+                   action.action === 'list_pipeline' ? "📋 Pipeline loaded" : "✅ Done!",
+            description: action.message
+          });
+        } else {
+          toast({ 
+            title: "Action failed", 
+            description: action.message,
+            variant: "destructive" 
+          });
+        }
+      }
+
+      // Show deal creation notification
+      if (response.data?.dealCreated) {
+        toast({ title: "💼 New deal added to your pipeline!" });
+      }
+
+      // Refresh context if any pipeline changes were made
+      if (response.data?.dealCreated || pipelineActions.length > 0) {
+        fetchUserContext();
+      }
     } catch (error) {
       console.error("Chat error:", error);
       toast({ title: "Error getting response", variant: "destructive" });

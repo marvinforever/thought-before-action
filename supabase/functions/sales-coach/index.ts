@@ -381,6 +381,46 @@ value: <estimated value if mentioned, or null>
 notes: <brief summary of what they shared>
 [/DEAL_DETECTED]
 
+PIPELINE MANAGEMENT COMMANDS - You can execute these actions for the user:
+When the user asks you to manage their pipeline, use these action blocks at the END of your response:
+
+1. To MOVE a deal to a different stage:
+[PIPELINE_ACTION]
+action: move_deal
+deal_name: <partial or full name to match>
+new_stage: <prospecting|discovery|proposal|closing|follow_up|won|lost>
+[/PIPELINE_ACTION]
+
+2. To UPDATE a deal's value or details:
+[PIPELINE_ACTION]
+action: update_deal
+deal_name: <partial or full name to match>
+value: <new value in dollars, or null to keep>
+notes: <new notes, or null to keep>
+priority: <1-5, or null to keep>
+[/PIPELINE_ACTION]
+
+3. To DELETE a deal:
+[PIPELINE_ACTION]
+action: delete_deal
+deal_name: <partial or full name to match>
+[/PIPELINE_ACTION]
+
+4. To LIST/SHOW the pipeline:
+[PIPELINE_ACTION]
+action: list_pipeline
+stage: <optional stage filter, or "all">
+[/PIPELINE_ACTION]
+
+When the user says things like:
+- "move X to proposal" → use move_deal
+- "update the value on X to $50k" → use update_deal
+- "delete the X deal" → use delete_deal  
+- "show my pipeline" or "what deals do I have" → use list_pipeline
+- "remove the old deals" → confirm which ones, then use delete_deal
+
+Always confirm what you're doing in your response, then include the action block.
+
 SPECIAL COMMANDS:
 - If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
 
@@ -416,6 +456,46 @@ stage: <prospecting|discovery|proposal|closing|follow_up>
 value: <estimated value if mentioned, or null>
 notes: <brief summary of what they shared>
 [/DEAL_DETECTED]
+
+PIPELINE MANAGEMENT COMMANDS - You can execute these actions for the user:
+When the user asks you to manage their pipeline, use these action blocks at the END of your response:
+
+1. To MOVE a deal to a different stage:
+[PIPELINE_ACTION]
+action: move_deal
+deal_name: <partial or full name to match>
+new_stage: <prospecting|discovery|proposal|closing|follow_up|won|lost>
+[/PIPELINE_ACTION]
+
+2. To UPDATE a deal's value or details:
+[PIPELINE_ACTION]
+action: update_deal
+deal_name: <partial or full name to match>
+value: <new value in dollars, or null to keep>
+notes: <new notes, or null to keep>
+priority: <1-5, or null to keep>
+[/PIPELINE_ACTION]
+
+3. To DELETE a deal:
+[PIPELINE_ACTION]
+action: delete_deal
+deal_name: <partial or full name to match>
+[/PIPELINE_ACTION]
+
+4. To LIST/SHOW the pipeline:
+[PIPELINE_ACTION]
+action: list_pipeline
+stage: <optional stage filter, or "all">
+[/PIPELINE_ACTION]
+
+When the user says things like:
+- "move X to proposal" → use move_deal
+- "update the value on X to $50k" → use update_deal
+- "delete the X deal" → use delete_deal  
+- "show my pipeline" or "what deals do I have" → use list_pipeline
+- "remove the old deals" → confirm which ones, then use delete_deal
+
+Always confirm what you're doing in your response, then include the action block.
 
 CONVERSATION APPROACH:
 1. Start by asking about THEIR situation - one question
@@ -597,12 +677,165 @@ Remember: ONE question at a time. Be their trusted coach, not an interrogator.`;
       }
     }
 
+    // Check for pipeline actions and execute them
+    const pipelineActionMatches = assistantMessage.matchAll(/\[PIPELINE_ACTION\]([\s\S]*?)\[\/PIPELINE_ACTION\]/gi);
+    const pipelineActions: { action: string; success: boolean; message: string }[] = [];
+    
+    for (const actionMatch of pipelineActionMatches) {
+      const actionBlock = actionMatch[1];
+      const action = actionBlock.match(/action:\s*(.+)/i)?.[1]?.trim()?.toLowerCase();
+      const dealName = actionBlock.match(/deal_name:\s*(.+)/i)?.[1]?.trim();
+      const newStage = actionBlock.match(/new_stage:\s*(.+)/i)?.[1]?.trim()?.toLowerCase();
+      const valueStr = actionBlock.match(/value:\s*(.+)/i)?.[1]?.trim();
+      const notes = actionBlock.match(/notes:\s*(.+)/i)?.[1]?.trim();
+      const priorityStr = actionBlock.match(/priority:\s*(.+)/i)?.[1]?.trim();
+      const stageFilter = actionBlock.match(/stage:\s*(.+)/i)?.[1]?.trim()?.toLowerCase();
+      
+      console.log('Processing pipeline action:', { action, dealName, newStage, valueStr, notes, priorityStr, stageFilter });
+      
+      try {
+        if (action === 'move_deal' && dealName && newStage) {
+          // Find the deal by partial name match
+          const { data: deals } = await supabase
+            .from('sales_deals')
+            .select('id, deal_name, stage')
+            .eq('profile_id', user.id);
+          
+          const matchingDeal = deals?.find(d => 
+            d.deal_name.toLowerCase().includes(dealName.toLowerCase()) ||
+            dealName.toLowerCase().includes(d.deal_name.toLowerCase())
+          );
+          
+          if (matchingDeal) {
+            const validStages = ['prospecting', 'discovery', 'proposal', 'closing', 'follow_up', 'won', 'lost'];
+            if (validStages.includes(newStage)) {
+              const { error } = await supabase
+                .from('sales_deals')
+                .update({ stage: newStage as any })
+                .eq('id', matchingDeal.id);
+              
+              if (!error) {
+                pipelineActions.push({ action: 'move_deal', success: true, message: `Moved "${matchingDeal.deal_name}" to ${newStage}` });
+              } else {
+                pipelineActions.push({ action: 'move_deal', success: false, message: `Failed to move deal: ${error.message}` });
+              }
+            }
+          } else {
+            pipelineActions.push({ action: 'move_deal', success: false, message: `Could not find deal matching "${dealName}"` });
+          }
+        }
+        
+        if (action === 'update_deal' && dealName) {
+          const { data: deals } = await supabase
+            .from('sales_deals')
+            .select('id, deal_name')
+            .eq('profile_id', user.id);
+          
+          const matchingDeal = deals?.find(d => 
+            d.deal_name.toLowerCase().includes(dealName.toLowerCase()) ||
+            dealName.toLowerCase().includes(d.deal_name.toLowerCase())
+          );
+          
+          if (matchingDeal) {
+            const updateData: any = {};
+            if (valueStr && valueStr !== 'null') {
+              const numericValue = valueStr.replace(/[^0-9.]/g, '');
+              if (numericValue) updateData.value = parseInt(numericValue);
+            }
+            if (notes && notes !== 'null') updateData.notes = notes;
+            if (priorityStr && priorityStr !== 'null') {
+              const priority = parseInt(priorityStr);
+              if (priority >= 1 && priority <= 5) updateData.priority = priority;
+            }
+            
+            if (Object.keys(updateData).length > 0) {
+              const { error } = await supabase
+                .from('sales_deals')
+                .update(updateData)
+                .eq('id', matchingDeal.id);
+              
+              if (!error) {
+                pipelineActions.push({ action: 'update_deal', success: true, message: `Updated "${matchingDeal.deal_name}"` });
+              } else {
+                pipelineActions.push({ action: 'update_deal', success: false, message: `Failed to update: ${error.message}` });
+              }
+            }
+          } else {
+            pipelineActions.push({ action: 'update_deal', success: false, message: `Could not find deal matching "${dealName}"` });
+          }
+        }
+        
+        if (action === 'delete_deal' && dealName) {
+          const { data: deals } = await supabase
+            .from('sales_deals')
+            .select('id, deal_name')
+            .eq('profile_id', user.id);
+          
+          const matchingDeal = deals?.find(d => 
+            d.deal_name.toLowerCase().includes(dealName.toLowerCase()) ||
+            dealName.toLowerCase().includes(d.deal_name.toLowerCase())
+          );
+          
+          if (matchingDeal) {
+            const { error } = await supabase
+              .from('sales_deals')
+              .delete()
+              .eq('id', matchingDeal.id);
+            
+            if (!error) {
+              pipelineActions.push({ action: 'delete_deal', success: true, message: `Deleted "${matchingDeal.deal_name}"` });
+            } else {
+              pipelineActions.push({ action: 'delete_deal', success: false, message: `Failed to delete: ${error.message}` });
+            }
+          } else {
+            pipelineActions.push({ action: 'delete_deal', success: false, message: `Could not find deal matching "${dealName}"` });
+          }
+        }
+        
+        if (action === 'list_pipeline') {
+          let query = supabase
+            .from('sales_deals')
+            .select(`
+              deal_name, stage, value, expected_close_date, priority, notes,
+              sales_companies(name)
+            `)
+            .eq('profile_id', user.id)
+            .order('priority');
+          
+          if (stageFilter && stageFilter !== 'all') {
+            query = query.eq('stage', stageFilter);
+          }
+          
+          const { data: pipelineDeals } = await query.limit(30);
+          
+          if (pipelineDeals && pipelineDeals.length > 0) {
+            pipelineActions.push({ 
+              action: 'list_pipeline', 
+              success: true, 
+              message: `Found ${pipelineDeals.length} deals` 
+            });
+          } else {
+            pipelineActions.push({ action: 'list_pipeline', success: true, message: 'No deals found' });
+          }
+        }
+      } catch (actionError) {
+        console.error('Error executing pipeline action:', actionError);
+        pipelineActions.push({ action: action || 'unknown', success: false, message: 'Action failed' });
+      }
+    }
+    
+    // Remove pipeline action blocks from message shown to user
+    assistantMessage = assistantMessage
+      .replace(/\[PIPELINE_ACTION\][\s\S]*?\[\/PIPELINE_ACTION\]/gi, '')
+      .trim();
+
     return new Response(
       JSON.stringify({ 
         message: assistantMessage,
         hasMethodologyAccess,
         isStreamlineAg,
         dealCreated, // Let frontend know a deal was created (for refreshing pipeline)
+        pipelineActions, // Let frontend know what pipeline actions were executed
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
