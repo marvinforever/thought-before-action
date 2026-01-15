@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface SalesKnowledgePodcastsProps {
   userId: string;
+  companyId?: string;
 }
 
 interface KnowledgeItem {
@@ -54,7 +55,7 @@ interface Deal {
   sales_companies: { name: string } | null;
 }
 
-export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) => {
+export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodcastsProps) => {
   const { toast } = useToast();
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -70,14 +71,25 @@ export const SalesKnowledgePodcasts = ({ userId }: SalesKnowledgePodcastsProps) 
   useEffect(() => {
     fetchKnowledge();
     fetchDeals();
-  }, [userId]);
+  }, [userId, companyId]);
 
   const fetchKnowledge = async () => {
-    const { data, error } = await supabase
+    // Build query - filter by company if provided, otherwise show global items only
+    let query = supabase
       .from("sales_knowledge")
       .select("id, title, content, stage, category, tags")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
+    
+    if (companyId) {
+      // Show items for this company OR global items (no company_id)
+      query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+    } else {
+      // No company - only show global items
+      query = query.is("company_id", null);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       setKnowledge(data);

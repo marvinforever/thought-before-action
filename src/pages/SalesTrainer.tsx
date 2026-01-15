@@ -612,7 +612,7 @@ const SalesTrainer = () => {
                     <TabsContent value="deals" className="mt-0"><DealsTable userId={user?.id} /></TabsContent>
                     <TabsContent value="companies" className="mt-0"><CompaniesManager userId={user?.id} /></TabsContent>
                     <TabsContent value="contacts" className="mt-0"><ContactsManager userId={user?.id} /></TabsContent>
-                    <TabsContent value="podcasts" className="mt-0"><SalesKnowledgePodcasts userId={user?.id} /></TabsContent>
+                    <TabsContent value="podcasts" className="mt-0"><SalesKnowledgePodcasts userId={user?.id} companyId={profile?.company_id} /></TabsContent>
                   </div>
                 </Tabs>
               </DialogContent>
