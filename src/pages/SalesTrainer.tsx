@@ -5,7 +5,7 @@ import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// ScrollArea removed here; we use a plain overflow container for reliable auto-scroll
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -91,17 +91,9 @@ const SalesTrainer = () => {
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
   });
   const scrollRef = useRef<HTMLDivElement>(null);
-  const scrollViewportRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
 
-  const getScrollViewport = () => {
-    if (scrollViewportRef.current) return scrollViewportRef.current;
-
-    // Fallback for safety (older markup / unexpected render)
-    const root = scrollRef.current;
-    if (!root) return null;
-    return root.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
-  };
+  const getScrollViewport = () => scrollRef.current;
 
   // Scroll to bottom helper (double RAF makes it reliable with async renders)
   const scrollToBottom = () => {
@@ -683,7 +675,7 @@ const SalesTrainer = () => {
         ) : (
           /* Active Coaching State */
           <>
-            <ScrollArea className="flex-1 pr-4" ref={scrollRef} viewportRef={scrollViewportRef}>
+            <div className="flex-1 overflow-y-auto pr-4" ref={scrollRef}>
               <div className="space-y-4 pb-4">
                 {messages.map((msg, idx) => (
                   <div
@@ -716,7 +708,7 @@ const SalesTrainer = () => {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Quick Actions - always visible for easy access */}
             <div className="flex flex-wrap gap-2 mb-4">
