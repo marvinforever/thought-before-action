@@ -91,14 +91,16 @@ const SalesTrainer = () => {
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
   });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
 
   const getScrollViewport = () => {
+    if (scrollViewportRef.current) return scrollViewportRef.current;
+
+    // Fallback for safety (older markup / unexpected render)
     const root = scrollRef.current;
     if (!root) return null;
-    return root.querySelector(
-      "[data-radix-scroll-area-viewport]"
-    ) as HTMLDivElement | null;
+    return root.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
   };
 
   // Scroll to bottom helper (double RAF makes it reliable with async renders)
@@ -681,7 +683,7 @@ const SalesTrainer = () => {
         ) : (
           /* Active Coaching State */
           <>
-            <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+            <ScrollArea className="flex-1 pr-4" ref={scrollRef} viewportRef={scrollViewportRef}>
               <div className="space-y-4 pb-4">
                 {messages.map((msg, idx) => (
                   <div
