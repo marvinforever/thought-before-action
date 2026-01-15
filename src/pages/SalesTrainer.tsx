@@ -91,8 +91,8 @@ const SalesTrainer = () => {
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
   });
   const scrollRef = useRef<HTMLDivElement>(null);
-  const hasRestoredScrollRef = useRef(false);
-  const wasNearBottomRef = useRef(true);
+  const isUserScrollingRef = useRef(false);
+  const lastMessageCountRef = useRef(0);
 
   const getScrollViewport = () => {
     const root = scrollRef.current;
@@ -102,30 +102,16 @@ const SalesTrainer = () => {
     ) as HTMLDivElement | null;
   };
 
-  const getScrollStorageKey = () => {
-    // Persist per conversation so different threads restore correctly
-    const id = conversationId || "new";
-    return `salesTrainerScroll:${id}`;
-  };
-
-  // Restore scroll position when returning to the page (after messages load)
-  useEffect(() => {
-    if (!hasStarted) return;
-
+  // Scroll to bottom helper
+  const scrollToBottom = () => {
     const viewport = getScrollViewport();
     if (!viewport) return;
-
-    if (hasRestoredScrollRef.current) return;
-
-    // Always scroll to bottom when loading conversation
-    // This ensures users see the most recent messages first
     requestAnimationFrame(() => {
       viewport.scrollTop = viewport.scrollHeight;
     });
-    hasRestoredScrollRef.current = true;
-  }, [hasStarted, messages.length, conversationId]);
+  };
 
-  // Track user scroll + persist it
+  // Track if user manually scrolled away from bottom
   useEffect(() => {
     if (!hasStarted) return;
 
@@ -134,27 +120,32 @@ const SalesTrainer = () => {
 
     const onScroll = () => {
       const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      wasNearBottomRef.current = distanceFromBottom < 120;
-      sessionStorage.setItem(getScrollStorageKey(), String(viewport.scrollTop));
+      // If user scrolled more than 150px from bottom, they're manually scrolling
+      isUserScrollingRef.current = distanceFromBottom > 150;
     };
 
     viewport.addEventListener("scroll", onScroll, { passive: true });
-    // Seed on mount
-    onScroll();
-
     return () => viewport.removeEventListener("scroll", onScroll);
-  }, [hasStarted, conversationId]);
+  }, [hasStarted]);
 
-  // Auto-scroll on new messages ONLY if the user was already near the bottom
+  // Always scroll to bottom when new messages arrive
   useEffect(() => {
     if (!hasStarted) return;
-    if (!wasNearBottomRef.current) return;
+    
+    // If message count increased, scroll to bottom
+    if (messages.length > lastMessageCountRef.current) {
+      // Small delay to let DOM update
+      setTimeout(scrollToBottom, 50);
+    }
+    lastMessageCountRef.current = messages.length;
+  }, [messages.length, hasStarted]);
 
-    const viewport = getScrollViewport();
-    if (!viewport) return;
-
-    viewport.scrollTop = viewport.scrollHeight;
-  }, [messages, hasStarted]);
+  // Scroll to bottom when conversation starts
+  useEffect(() => {
+    if (hasStarted && messages.length > 0) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [hasStarted]);
   // Load existing conversation
   const loadConversation = async (userId: string, companyId: string | null) => {
     if (!companyId) return;
