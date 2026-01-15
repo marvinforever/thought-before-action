@@ -646,6 +646,12 @@ const SalesTrainer = () => {
         ) : (
           /* Active Coaching State */
           <>
+            <button
+              onClick={scrollToBottom}
+              className="text-xs text-primary hover:underline mb-2 flex items-center gap-1"
+            >
+              ↓ Scroll to bottom
+            </button>
             <div className="flex-1 min-h-0 overflow-y-auto pr-4">
               <div className="space-y-4 pb-4">
                 {messages.map((msg, idx) => (
