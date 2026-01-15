@@ -768,6 +768,15 @@ const SalesTrainer = () => {
                 <Button 
                   variant="outline" 
                   size="sm"
+                  onClick={() => sendMessage("Give me a pre-call plan based on what we've discussed")}
+                  className="gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  Pre-call Plan
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
                   onClick={() => sendMessage("Show me my current pipeline")}
                   className="gap-1"
                 >
