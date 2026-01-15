@@ -46,10 +46,23 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
     }
   }, [userId, companyId]);
 
+  // Helper to get the actual scrollable viewport inside Radix ScrollArea
+  const getScrollViewport = () => {
+    const root = scrollRef.current;
+    if (!root) return null;
+    return root.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLDivElement | null;
+  };
+
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      const viewport = getScrollViewport();
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    });
   }, [messages]);
 
   const fetchUserContext = async () => {

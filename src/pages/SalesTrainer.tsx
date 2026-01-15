@@ -22,6 +22,7 @@ import {
   Loader2,
   LogOut,
   LayoutDashboard,
+  LayoutGrid,
   PanelRightOpen,
   Sparkles,
   Building2,
@@ -119,18 +120,11 @@ const SalesTrainer = () => {
 
     if (hasRestoredScrollRef.current) return;
 
-    const raw = sessionStorage.getItem(getScrollStorageKey());
-    if (raw) {
-      const savedTop = Number(raw);
-      if (!Number.isNaN(savedTop)) {
-        viewport.scrollTop = savedTop;
-        hasRestoredScrollRef.current = true;
-        return;
-      }
-    }
-
-    // No saved position yet; default to most recent
-    viewport.scrollTop = viewport.scrollHeight;
+    // Always scroll to bottom when loading conversation
+    // This ensures users see the most recent messages first
+    requestAnimationFrame(() => {
+      viewport.scrollTop = viewport.scrollHeight;
+    });
     hasRestoredScrollRef.current = true;
   }, [hasStarted, messages.length, conversationId]);
 
@@ -803,6 +797,15 @@ const SalesTrainer = () => {
                     </Button>
                     </>
                 )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => sendMessage("Show me my current pipeline")}
+                  className="gap-1"
+                >
+                  <LayoutGrid className="h-3 w-3" />
+                  Manage pipeline
+                </Button>
               </div>
             )}
 
