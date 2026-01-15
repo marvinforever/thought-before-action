@@ -90,53 +90,17 @@ const SalesTrainer = () => {
     const saved = localStorage.getItem('salesTrainerChatMode');
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
   });
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isUserScrollingRef = useRef(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const getScrollViewport = () => scrollRef.current;
-
-  // Scroll to bottom helper (logs included)
-  const scrollToBottom = (reason?: string) => {
-    const viewport = getScrollViewport();
-    if (!viewport) return;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        viewport.scrollTop = viewport.scrollHeight;
-        // Debug: keep for now until confirmed fixed
-        console.log("[SalesTrainer scrollToBottom]", {
-          reason,
-          scrollTop: viewport.scrollTop,
-          scrollHeight: viewport.scrollHeight,
-          clientHeight: viewport.clientHeight,
-        });
-      });
-    });
+  // Simple scroll-into-view approach
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: "auto" });
   };
 
-  // Track if user manually scrolled away from bottom
+  // Auto-scroll when messages or loader changes
   useEffect(() => {
     if (!hasStarted) return;
-
-    const viewport = getScrollViewport();
-    if (!viewport) return;
-
-    const onScroll = () => {
-      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      // If user scrolled more than 150px from bottom, they're manually scrolling
-      isUserScrollingRef.current = distanceFromBottom > 150;
-    };
-
-    viewport.addEventListener("scroll", onScroll, { passive: true });
-    return () => viewport.removeEventListener("scroll", onScroll);
-  }, [hasStarted]);
-
-  // Auto-scroll on any content change (messages + loader), unless user has intentionally scrolled up
-  useLayoutEffect(() => {
-    if (!hasStarted) return;
-    if (isUserScrollingRef.current) return;
-
-    scrollToBottom(`render-change messages=${messages.length} loading=${chatLoading}`);
+    scrollToBottom();
   }, [hasStarted, messages.length, chatLoading]);
   // Load existing conversation
   const loadConversation = async (userId: string, companyId: string | null) => {
@@ -682,7 +646,7 @@ const SalesTrainer = () => {
         ) : (
           /* Active Coaching State */
           <>
-            <div className="flex-1 min-h-0 overflow-y-auto pr-4" ref={scrollRef}>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-4">
               <div className="space-y-4 pb-4">
                 {messages.map((msg, idx) => (
                   <div
@@ -714,6 +678,8 @@ const SalesTrainer = () => {
                     </Card>
                   </div>
                 )}
+                {/* Scroll anchor */}
+                <div ref={bottomRef} />
               </div>
             </div>
 
