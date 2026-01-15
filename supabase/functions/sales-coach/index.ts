@@ -268,7 +268,9 @@ THE ENERGY OF SALES ACTIVITY:
 
 APPOINTMENT SETTING SCRIPT:
 Never ask yes/no: "Would it be okay if I stopped by?" (Answer: NO)
-Instead use either/or: "I'm going to be in your area next week. I have 2pm Wednesday or 11:30am Thursday. Which works better for you?"
+Instead use either/or: "[Customer Name], this is [Salesperson Name] from [Company Name]. I'm going to be in your area next week. I have [Day 1 at Time] or [Day 2 at Time]. Which works better for you?"
+- Always use the salesperson's ACTUAL name and company name in examples
+- Never use placeholder names like "Mark" or "Stateline" - use real context
 `;
 
     // REC MODE PROMPT PREFIX - used when generating NEW recommendations
