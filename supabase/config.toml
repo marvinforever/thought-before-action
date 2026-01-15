@@ -174,5 +174,8 @@ verify_jwt = false
 [functions.analyze-ai-efficiency]
 verify_jwt = true
 
+[functions.capture-sales-agent-lead]
+verify_jwt = false
+
 [functions.analyze-public-ai-readiness]
 verify_jwt = false

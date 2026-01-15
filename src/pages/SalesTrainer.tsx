@@ -439,7 +439,7 @@ const SalesTrainer = () => {
         await saveMessage(currentConvId, "assistant", assistantMessage);
       }
       
-      if (response.data?.dealCreated && user?.id) {
+      if ((response.data?.dealCreated || response.data?.pipelineActions?.length > 0) && user?.id) {
         fetchDeals(user.id);
       }
     } catch (error) {

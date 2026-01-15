@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { ViewAsProvider } from "@/contexts/ViewAsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -34,6 +35,7 @@ import MomentumAcademy from "./pages/MomentumAcademy";
 import AcademyBlog from "./pages/AcademyBlog";
 import Sales from "./pages/Sales";
 import SalesTrainer from "./pages/SalesTrainer";
+import SalesAgentLanding from "./pages/SalesAgentLanding";
 import PublicPrepDocument from "./pages/PublicPrepDocument";
 import DashboardLayout from "./components/DashboardLayout";
 import Settings from "./pages/Settings";
@@ -44,9 +46,10 @@ import PersonalAssistant from "./pages/PersonalAssistant";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <ViewAsProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <ViewAsProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -150,6 +153,8 @@ const App = () => (
             <Route path="/academy/:slug" element={<AcademyBlog />} />
             {/* Sales Trainer - Public with auth */}
             <Route path="/sales-trainer" element={<SalesTrainer />} />
+            {/* Jericho Sales Agent Landing Page */}
+            <Route path="/sales-agent" element={<SalesAgentLanding />} />
             {/* Public Prep Document */}
             <Route path="/prep/:shareToken" element={<PublicPrepDocument />} />
             {/* AI Readiness Lead Gen Tool */}
@@ -161,6 +166,7 @@ const App = () => (
       </ViewAsProvider>
     </TooltipProvider>
   </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;
