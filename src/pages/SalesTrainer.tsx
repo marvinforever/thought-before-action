@@ -370,6 +370,7 @@ const SalesTrainer = () => {
           generateCallPlan: isCallPlanRequest && hasMethodologyAccess,
           viewAsCompanyId: viewAsCompanyId || undefined,
           chatMode,
+          dealsCount: deals.length,
         },
       });
 
