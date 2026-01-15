@@ -57,11 +57,10 @@ interface Company {
   name: string;
 }
 
-// Companies with access to 4-call methodology
-const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
+// Companies with access to advanced sales methodology features
 const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
-const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
-const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID];
+// All companies now have access to methodology features - no gating
+const METHODOLOGY_ENABLED = true;
 
 type ChatMode = "coach" | "rec";
 
@@ -284,8 +283,8 @@ const SalesTrainer = () => {
       
       setProfile(profileData);
       
-      // Check if user has access to 4-call methodology
-      setHasMethodologyAccess(FOUR_CALL_COMPANIES.includes(profileData?.company_id));
+      // All users now have access to methodology features
+      setHasMethodologyAccess(METHODOLOGY_ENABLED);
       
       // Check if super admin
       const { data: superAdminRole } = await supabase.rpc('has_role', { 

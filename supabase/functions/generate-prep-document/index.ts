@@ -6,10 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Companies with access to Stateline-specific methodologies (4-call plan, season review, 111.4 strategy)
-const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
-const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
-const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID, MOMENTUM_COMPANY_ID];
+// All companies now have access to sales methodology features
+const METHODOLOGY_ENABLED = true;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -81,13 +79,10 @@ Deno.serve(async (req) => {
       .eq("company_id", profile.company_id)
       .limit(10);
 
-    // Check if user has access to Stateline-specific methodologies
-    const hasMethodologyAccess = FOUR_CALL_COMPANIES.includes(profile.company_id);
-
     // Build prompt for AI - the AI will extract prospect info from the conversation
-    const methodologySection = hasMethodologyAccess ? `
+    const methodologySection = METHODOLOGY_ENABLED ? `
 SALES METHODOLOGY CONTEXT:
-You can reference the 4-Call Plan methodology, Season Review process, and 111.4 strategy when relevant.
+You can reference strategic selling methodologies, season review processes, and goal-based planning when relevant.
 ` : '';
 
     const systemPrompt = `You are a sales preparation document generator. Analyze the conversation and create a professional, actionable sales prep document.
