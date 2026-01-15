@@ -6,11 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Companies with access to special methodologies
-const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
-const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+// All companies now have access to sales methodology features
+const METHODOLOGY_ENABLED = true;
 const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
-const FOUR_CALL_COMPANIES = [STATELINE_COMPANY_ID, MOMENTUM_COMPANY_ID];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -61,7 +59,7 @@ serve(async (req) => {
       }
     }
 
-    const hasMethodologyAccess = FOUR_CALL_COMPANIES.includes(effectiveCompanyId);
+    const hasMethodologyAccess = METHODOLOGY_ENABLED;
     const isStreamlineAg = effectiveCompanyId === STREAMLINE_AG_COMPANY_ID;
 
     // Fetch sales knowledge - include company-specific content
@@ -72,8 +70,8 @@ serve(async (req) => {
       .eq('is_active', true);
 
     if (hasMethodologyAccess) {
-      // Users with access get Stateline methodology + general content
-      knowledgeQuery = knowledgeQuery.or(`company_id.eq.${STATELINE_COMPANY_ID},company_id.is.null`);
+      // Users with access get general methodology content + company-specific if available
+      knowledgeQuery = knowledgeQuery.or(`company_id.eq.${effectiveCompanyId},company_id.is.null`);
     } else {
       // Other users only get general (non-company-specific) content
       knowledgeQuery = knowledgeQuery.is('company_id', null);
