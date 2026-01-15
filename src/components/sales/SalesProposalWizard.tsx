@@ -247,7 +247,7 @@ export const SalesProposalWizard = ({
     setExtracting(true);
     try {
       const { data, error } = await supabase.functions.invoke('extract-proposal-products', {
-        body: { conversationContext }
+        body: { conversationContext, companyId }
       });
 
       if (error) throw error;
