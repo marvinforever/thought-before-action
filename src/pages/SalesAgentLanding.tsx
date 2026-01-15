@@ -119,11 +119,11 @@ export default function SalesAgentLanding() {
         <section className="relative overflow-hidden bg-primary text-primary-foreground">
           <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/90" />
           <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-20 left-10 w-72 h-72 bg-accent rounded-full blur-3xl" />
-            <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent rounded-full blur-3xl" />
+            <div className="absolute top-10 left-10 w-72 h-72 bg-accent rounded-full blur-3xl" />
+            <div className="absolute bottom-10 right-10 w-96 h-96 bg-accent rounded-full blur-3xl" />
           </div>
           
-          <div className="relative container mx-auto px-6 py-20 md:py-32">
+          <div className="relative container mx-auto px-6 py-12 md:py-20">
             <motion.div 
               className="max-w-4xl mx-auto text-center"
               initial={{ opacity: 0, y: 30 }}
@@ -166,7 +166,7 @@ export default function SalesAgentLanding() {
         </section>
 
         {/* Problem Section */}
-        <section className="py-20 bg-muted/30">
+        <section className="py-12 bg-muted/30">
           <div className="container mx-auto px-6">
             <motion.div 
               className="max-w-3xl mx-auto text-center"
@@ -174,11 +174,11 @@ export default function SalesAgentLanding() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
                 Sound Familiar?
               </h2>
               
-              <div className="space-y-6 text-left">
+              <div className="space-y-4 text-left">
                 {[
                   "Your team won't use CRM. You know it. They know it.",
                   "Product knowledge lives in people's heads—not systems.",
@@ -188,16 +188,16 @@ export default function SalesAgentLanding() {
                 ].map((problem, index) => (
                   <motion.div
                     key={index}
-                    className="flex items-start gap-4 bg-card p-6 rounded-xl shadow-sm border"
+                    className="flex items-start gap-3 bg-card p-4 rounded-lg shadow-sm border"
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-destructive font-bold">!</span>
+                    <div className="h-6 w-6 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-destructive font-bold text-sm">!</span>
                     </div>
-                    <p className="text-lg text-foreground">{problem}</p>
+                    <p className="text-base text-foreground">{problem}</p>
                   </motion.div>
                 ))}
               </div>
@@ -206,7 +206,7 @@ export default function SalesAgentLanding() {
         </section>
 
         {/* Promise Section */}
-        <section className="py-20 bg-background">
+        <section className="py-12 bg-background">
           <div className="container mx-auto px-6">
             <motion.div 
               className="max-w-4xl mx-auto"
@@ -214,8 +214,8 @@ export default function SalesAgentLanding() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
             >
-              <div className="grid md:grid-cols-2 gap-12 items-center">
-                <div className="bg-muted/50 p-8 rounded-2xl border">
+              <div className="grid md:grid-cols-2 gap-8 items-center">
+                <div className="bg-muted/50 p-6 rounded-xl border">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Before Jericho</h3>
                   <ul className="space-y-3">
                     {[
@@ -233,7 +233,7 @@ export default function SalesAgentLanding() {
                   </ul>
                 </div>
                 
-                <div className="bg-accent/10 p-8 rounded-2xl border border-accent/20">
+                <div className="bg-accent/10 p-6 rounded-xl border border-accent/20">
                   <h3 className="text-sm font-semibold text-accent uppercase tracking-wide mb-4">With Jericho</h3>
                   <ul className="space-y-3">
                     {[
@@ -256,15 +256,15 @@ export default function SalesAgentLanding() {
         </section>
 
         {/* Ask Jericho Section */}
-        <section className="py-20 bg-primary text-primary-foreground">
+        <section className="py-12 bg-primary text-primary-foreground">
           <div className="container mx-auto px-6">
             <motion.div 
-              className="text-center mb-16"
+              className="text-center mb-10"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold mb-3">
                 Whatever You Need... <span className="text-accent">Ask Jericho</span>
               </h2>
               <p className="text-primary-foreground/70 text-lg max-w-2xl mx-auto">
@@ -282,13 +282,13 @@ export default function SalesAgentLanding() {
               {askJerichoFeatures.map((feature, index) => (
                 <motion.div
                   key={index}
-                  className="bg-primary-foreground/10 backdrop-blur-sm p-6 rounded-xl border border-primary-foreground/20 hover:border-accent/50 transition-colors"
+                  className="bg-primary-foreground/10 backdrop-blur-sm p-5 rounded-lg border border-primary-foreground/20 hover:border-accent/50 transition-colors"
                   variants={fadeInUp}
                 >
-                  <feature.icon className="h-8 w-8 text-accent mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">{feature.text}</h3>
+                  <feature.icon className="h-6 w-6 text-accent mb-3" />
+                  <h3 className="text-base font-semibold mb-1">{feature.text}</h3>
                   <p className="text-primary-foreground/70 text-sm">{feature.description}</p>
-                  <p className="text-accent font-bold mt-4">Ask Jericho.</p>
+                  <p className="text-accent font-bold mt-3 text-sm">Ask Jericho.</p>
                 </motion.div>
               ))}
             </motion.div>
@@ -296,23 +296,23 @@ export default function SalesAgentLanding() {
         </section>
 
         {/* Proof Section - Client Logos */}
-        <section className="py-16 bg-muted/30">
+        <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-6">
-            <p className="text-center text-muted-foreground mb-8">
+            <p className="text-center text-muted-foreground mb-6 text-sm">
               Trusted by ag sales teams across the Midwest
             </p>
-            <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-70">
-              <img src={agPartnersLogo} alt="AG Partners" className="h-10 md:h-12 object-contain grayscale hover:grayscale-0 transition-all" />
-              <img src={loganLogo} alt="Logan Contractors" className="h-10 md:h-12 object-contain grayscale hover:grayscale-0 transition-all" />
-              <img src={slcLogo} alt="SLC" className="h-10 md:h-12 object-contain grayscale hover:grayscale-0 transition-all" />
-              <img src={mcmLogo} alt="MCM" className="h-10 md:h-12 object-contain grayscale hover:grayscale-0 transition-all" />
-              <img src={winfieldLogo} alt="Winfield" className="h-10 md:h-12 object-contain grayscale hover:grayscale-0 transition-all" />
+            <div className="flex flex-wrap justify-center items-center gap-6 md:gap-12 opacity-70">
+              <img src={agPartnersLogo} alt="AG Partners" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all" />
+              <img src={loganLogo} alt="Logan Contractors" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all" />
+              <img src={slcLogo} alt="SLC" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all" />
+              <img src={mcmLogo} alt="MCM" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all" />
+              <img src={winfieldLogo} alt="Winfield" className="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all" />
             </div>
           </div>
         </section>
 
         {/* Product Features */}
-        <section className="py-20 bg-background">
+        <section className="py-12 bg-background">
           <div className="container mx-auto px-6">
             <motion.div 
               className="max-w-4xl mx-auto"
@@ -320,11 +320,11 @@ export default function SalesAgentLanding() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
             >
-              <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
                   Everything You Need to Succeed
                 </h2>
-                <p className="text-muted-foreground text-lg">
+                <p className="text-muted-foreground">
                   Built specifically for ag sales professionals
                 </p>
               </div>
@@ -333,16 +333,16 @@ export default function SalesAgentLanding() {
                 {productFeatures.map((feature, index) => (
                   <motion.div
                     key={index}
-                    className="flex items-center gap-4 bg-card p-5 rounded-xl border"
+                    className="flex items-center gap-3 bg-card p-4 rounded-lg border"
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                      <Check className="h-5 w-5 text-accent" />
+                    <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                      <Check className="h-4 w-4 text-accent" />
                     </div>
-                    <p className="text-foreground font-medium">{feature}</p>
+                    <p className="text-foreground text-sm font-medium">{feature}</p>
                   </motion.div>
                 ))}
               </div>
@@ -351,18 +351,18 @@ export default function SalesAgentLanding() {
         </section>
 
         {/* Pricing Positioning */}
-        <section className="py-16 bg-highlight-gold">
+        <section className="py-10 bg-highlight-gold">
           <div className="container mx-auto px-6 text-center">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
-              <TrendingUp className="h-12 w-12 text-accent mx-auto mb-4" />
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+              <TrendingUp className="h-10 w-10 text-accent mx-auto mb-3" />
+              <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1">
                 Start Free. Scale When Ready.
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 No credit card required. See the value before you commit.
               </p>
             </motion.div>
@@ -370,7 +370,7 @@ export default function SalesAgentLanding() {
         </section>
 
         {/* Lead Capture Form */}
-        <section id="lead-form" className="py-20 bg-primary text-primary-foreground">
+        <section id="lead-form" className="py-12 bg-primary text-primary-foreground">
           <div className="container mx-auto px-6">
             <motion.div 
               className="max-w-xl mx-auto"
@@ -378,9 +378,9 @@ export default function SalesAgentLanding() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <div className="text-center mb-8">
-                <Sparkles className="h-10 w-10 text-accent mx-auto mb-4" />
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              <div className="text-center mb-6">
+                <Sparkles className="h-8 w-8 text-accent mx-auto mb-3" />
+                <h2 className="text-2xl md:text-3xl font-bold mb-2">
                   Ready to Be the Pro?
                 </h2>
                 <p className="text-primary-foreground/70">
@@ -389,10 +389,10 @@ export default function SalesAgentLanding() {
               </div>
 
               {submitted ? (
-                <div className="bg-accent/20 p-8 rounded-2xl text-center">
-                  <Check className="h-12 w-12 text-accent mx-auto mb-4" />
-                  <h3 className="text-xl font-bold mb-2">You're on the list!</h3>
-                  <p className="text-primary-foreground/70 mb-6">
+                <div className="bg-accent/20 p-6 rounded-xl text-center">
+                  <Check className="h-10 w-10 text-accent mx-auto mb-3" />
+                  <h3 className="text-lg font-bold mb-2">You're on the list!</h3>
+                  <p className="text-primary-foreground/70 mb-4 text-sm">
                     We'll be in touch soon to get you started.
                   </p>
                   <Button
@@ -403,8 +403,8 @@ export default function SalesAgentLanding() {
                   </Button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="bg-primary-foreground/10 p-8 rounded-2xl border border-primary-foreground/20">
-                  <div className="space-y-4">
+                <form onSubmit={handleSubmit} className="bg-primary-foreground/10 p-6 rounded-xl border border-primary-foreground/20">
+                  <div className="space-y-3">
                     <div>
                       <Label htmlFor="name" className="text-primary-foreground">Name *</Label>
                       <Input
@@ -465,7 +465,7 @@ export default function SalesAgentLanding() {
                     <Button 
                       type="submit" 
                       size="lg"
-                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90 mt-4"
+                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90 mt-2"
                       disabled={isSubmitting}
                     >
                       {isSubmitting ? "Submitting..." : "Get Early Access"}
