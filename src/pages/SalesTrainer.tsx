@@ -737,9 +737,8 @@ const SalesTrainer = () => {
               </div>
             </ScrollArea>
 
-            {/* Quick Actions */}
-            {messages.length <= 2 && (
-              <div className="flex flex-wrap gap-2 mb-4">
+            {/* Quick Actions - always visible for easy access */}
+            <div className="flex flex-wrap gap-2 mb-4">
                 {hasMethodologyAccess && (
                   <Button 
                     variant="default" 
@@ -807,7 +806,6 @@ const SalesTrainer = () => {
                   Manage pipeline
                 </Button>
               </div>
-            )}
 
             {/* Input */}
             <div className="pt-4 border-t bg-background/50 backdrop-blur-sm -mx-4 px-4 pb-2 space-y-2">
