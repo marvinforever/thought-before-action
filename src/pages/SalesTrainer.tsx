@@ -57,10 +57,8 @@ interface Company {
   name: string;
 }
 
-// Companies with access to advanced sales methodology features
-const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
-// All companies now have access to methodology features - no gating
-const METHODOLOGY_ENABLED = true;
+// Companies with access to proprietary Stateline methodologies
+const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 
 type ChatMode = "coach" | "rec";
 
@@ -283,8 +281,8 @@ const SalesTrainer = () => {
       
       setProfile(profileData);
       
-      // All users now have access to methodology features
-      setHasMethodologyAccess(METHODOLOGY_ENABLED);
+      // Proprietary Stateline-only methodologies
+      setHasMethodologyAccess(profileData?.company_id === STATELINE_COMPANY_ID);
       
       // Check if super admin
       const { data: superAdminRole } = await supabase.rpc('has_role', { 
@@ -759,9 +757,9 @@ const SalesTrainer = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => sendMessage("Help me reverse engineer my sales goals")}
+                      onClick={() => sendMessage("How do we hit the 111.4 goal?")}
                     >
-                      Goal Strategy
+                      111.4 Strategy
                     </Button>
                   </>
                 )}

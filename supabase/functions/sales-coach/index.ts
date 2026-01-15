@@ -6,8 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// All companies now have access to sales methodology features
-const METHODOLOGY_ENABLED = true;
+// Companies with access to proprietary Stateline methodologies
+const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
 
 serve(async (req) => {
@@ -59,7 +59,7 @@ serve(async (req) => {
       }
     }
 
-    const hasMethodologyAccess = METHODOLOGY_ENABLED;
+    const hasMethodologyAccess = effectiveCompanyId === STATELINE_COMPANY_ID;
     const isStreamlineAg = effectiveCompanyId === STREAMLINE_AG_COMPANY_ID;
 
     // Fetch sales knowledge - include company-specific content
@@ -70,10 +70,12 @@ serve(async (req) => {
       .eq('is_active', true);
 
     if (hasMethodologyAccess) {
-      // Users with access get general methodology content + company-specific if available
+      // Stateline users get Stateline-only methodology knowledge + general content
+      knowledgeQuery = knowledgeQuery.or(`company_id.eq.${STATELINE_COMPANY_ID},company_id.is.null`);
+    } else if (effectiveCompanyId) {
+      // Non-Stateline users get their own company knowledge + general content
       knowledgeQuery = knowledgeQuery.or(`company_id.eq.${effectiveCompanyId},company_id.is.null`);
     } else {
-      // Other users only get general (non-company-specific) content
       knowledgeQuery = knowledgeQuery.is('company_id', null);
     }
 

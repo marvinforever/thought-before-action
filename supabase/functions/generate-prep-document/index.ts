@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// All companies now have access to sales methodology features
-const METHODOLOGY_ENABLED = true;
+// Companies with access to proprietary Stateline methodologies (4-call plan, season review, 111.4 strategy)
+const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -80,9 +80,10 @@ Deno.serve(async (req) => {
       .limit(10);
 
     // Build prompt for AI - the AI will extract prospect info from the conversation
-    const methodologySection = METHODOLOGY_ENABLED ? `
+    const hasMethodologyAccess = profile.company_id === STATELINE_COMPANY_ID;
+    const methodologySection = hasMethodologyAccess ? `
 SALES METHODOLOGY CONTEXT:
-You can reference strategic selling methodologies, season review processes, and goal-based planning when relevant.
+You can reference the 4-Call Plan methodology, Season Review process, and 111.4 strategy when relevant.
 ` : '';
 
     const systemPrompt = `You are a sales preparation document generator. Analyze the conversation and create a professional, actionable sales prep document.
