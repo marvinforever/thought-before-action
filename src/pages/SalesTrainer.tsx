@@ -868,7 +868,7 @@ const SalesTrainer = () => {
         open={showProposalWizard}
         onOpenChange={setShowProposalWizard}
         conversationContext={messages.slice(-10).map(m => `${m.role}: ${m.content}`).join("\n")}
-        companyId={profile?.company_id}
+        companyId={viewAsCompanyId || profile?.company_id}
       />
     </div>
   );

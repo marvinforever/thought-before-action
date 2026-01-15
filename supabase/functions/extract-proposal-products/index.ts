@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationContext } = await req.json();
+    const { conversationContext, companyId } = await req.json();
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
 
     if (!conversationContext) {
@@ -21,10 +22,30 @@ serve(async (req) => {
       );
     }
 
+    // Fetch company's product catalog from company_knowledge
+    let productCatalog = '';
+    if (companyId) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: knowledge } = await supabase
+        .from('company_knowledge')
+        .select('title, content, category')
+        .eq('company_id', companyId)
+        .eq('is_active', true)
+        .in('category', ['products', 'pricing', 'services', 'catalog']);
+
+      if (knowledge && knowledge.length > 0) {
+        productCatalog = `\n\nCOMPANY PRODUCT CATALOG (ONLY recommend products from this list):\n${knowledge.map(k => `- ${k.title}: ${k.content?.substring(0, 500) || ''}`).join('\n')}`;
+      }
+    }
+
     const systemPrompt = `You are a helpful assistant that extracts product recommendations from sales conversations.
+${productCatalog ? `\nIMPORTANT: Only recommend products that exist in the company's product catalog provided below. Do not invent or suggest products not in the catalog.${productCatalog}` : ''}
 
 Analyze the conversation and extract:
-1. Any products or services recommended
+1. Any products or services recommended (MUST be from the company catalog if provided)
 2. Customer/prospect name if mentioned
 3. Farm or operation name if mentioned
 4. A suitable intro message for a proposal
@@ -45,7 +66,7 @@ Return a JSON object with this structure:
 }
 
 Rules:
-- Extract ALL products mentioned in recommendations
+- Extract ALL products mentioned in recommendations${productCatalog ? ' that exist in the company catalog' : ''}
 - For benefits, focus on specific outcomes, not features
 - Keep pitches concise (1 sentence)
 - If no products found, return empty products array
