@@ -23,18 +23,153 @@ function numberToWords(num: number): string {
   if (num < 20) return ones[num];
   if (num < 100) {
     const remainder = num % 10;
-    return tens[Math.floor(num / 10)] + (remainder ? ' ' + ones[remainder] : '');
+    return tens[Math.floor(num / 10)] + (remainder ? '-' + ones[remainder] : '');
   }
   if (num < 1000) {
     const remainder = num % 100;
-    return ones[Math.floor(num / 100)] + ' hundred' + (remainder ? ' ' + numberToWords(remainder) : '');
+    return ones[Math.floor(num / 100)] + ' hundred' + (remainder ? ' and ' + numberToWords(remainder) : '');
   }
   if (num < 1000000) {
     const remainder = num % 1000;
     return numberToWords(Math.floor(num / 1000)) + ' thousand' + (remainder ? ' ' + numberToWords(remainder) : '');
   }
+  if (num < 1000000000) {
+    const remainder = num % 1000000;
+    return numberToWords(Math.floor(num / 1000000)) + ' million' + (remainder ? ' ' + numberToWords(remainder) : '');
+  }
   // For very large numbers, just return digits spoken individually
   return num.toString().split('').map(d => ones[parseInt(d)] || d).join(' ');
+}
+
+/**
+ * Convert ordinal numbers (1st, 2nd, 3rd, etc.) to spoken words
+ */
+function ordinalToWords(num: number): string {
+  const ordinalOnes = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth',
+                       'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth',
+                       'seventeenth', 'eighteenth', 'nineteenth'];
+  const ordinalTens = ['', '', 'twentieth', 'thirtieth', 'fortieth', 'fiftieth', 'sixtieth', 'seventieth', 'eightieth', 'ninetieth'];
+  
+  if (num < 20) return ordinalOnes[num];
+  if (num < 100) {
+    const remainder = num % 10;
+    if (remainder === 0) return ordinalTens[Math.floor(num / 10)];
+    return numberToWords(Math.floor(num / 10) * 10) + '-' + ordinalOnes[remainder];
+  }
+  // For larger ordinals, use number + "th" approach spoken out
+  const baseWord = numberToWords(num);
+  if (num % 10 === 1 && num % 100 !== 11) return baseWord.replace(/one$/, 'first');
+  if (num % 10 === 2 && num % 100 !== 12) return baseWord.replace(/two$/, 'second');
+  if (num % 10 === 3 && num % 100 !== 13) return baseWord.replace(/three$/, 'third');
+  return baseWord + 'th';
+}
+
+/**
+ * Comprehensive text preprocessing for TTS - converts numbers, dates, abbreviations to spoken form
+ */
+function preprocessTextForTTS(text: string): string {
+  let processed = text;
+  
+  // Handle year ranges first (e.g., "2024-2025" → "twenty twenty-four to twenty twenty-five")
+  processed = processed.replace(/\b(20\d{2})-(20\d{2})\b/g, (_, y1, y2) => {
+    return `${numberToWords(parseInt(y1))} to ${numberToWords(parseInt(y2))}`;
+  });
+  
+  // Handle dates (e.g., "January 15, 2024" or "Jan 15" or "1/15/2024")
+  const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  const monthAbbrevs = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  
+  // "January 15, 2024" → "January fifteenth, twenty twenty-four"
+  processed = processed.replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?\b/gi, 
+    (_, month, day, year) => {
+      const dayWord = ordinalToWords(parseInt(day));
+      const yearWord = year ? ', ' + numberToWords(parseInt(year)) : '';
+      return `${month} ${dayWord}${yearWord}`;
+    });
+  
+  // Handle numeric dates "1/15" or "1/15/24" or "01/15/2024"
+  processed = processed.replace(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g, (_, m, d, y) => {
+    const month = months[parseInt(m) - 1] || m;
+    const day = ordinalToWords(parseInt(d));
+    if (y) {
+      const year = y.length === 2 ? 2000 + parseInt(y) : parseInt(y);
+      return `${month} ${day}, ${numberToWords(year)}`;
+    }
+    return `${month} ${day}`;
+  });
+  
+  // Handle ordinal suffixes: "1st", "2nd", "3rd", "4th", etc.
+  processed = processed.replace(/\b(\d+)(st|nd|rd|th)\b/gi, (_, num) => ordinalToWords(parseInt(num)));
+  
+  // Handle times: "3:30" → "three thirty", "3:05" → "three oh five"
+  processed = processed.replace(/\b(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)?\b/g, (_, h, m, ampm) => {
+    const hour = numberToWords(parseInt(h));
+    let minute = '';
+    if (m === '00') {
+      minute = ampm ? '' : " o'clock";
+    } else if (parseInt(m) < 10) {
+      minute = ' oh ' + numberToWords(parseInt(m));
+    } else {
+      minute = ' ' + numberToWords(parseInt(m));
+    }
+    const period = ampm ? ' ' + ampm.toLowerCase().split('').join(' ') : '';
+    return hour + minute + period;
+  });
+  
+  // Handle percentages: "85%" → "eighty-five percent"
+  processed = processed.replace(/\b(\d+(?:\.\d+)?)%/g, (_, num) => {
+    if (num.includes('.')) {
+      const [whole, decimal] = num.split('.');
+      return `${numberToWords(parseInt(whole))} point ${decimal.split('').map((d: string) => numberToWords(parseInt(d))).join(' ')} percent`;
+    }
+    return numberToWords(parseInt(num)) + ' percent';
+  });
+  
+  // Handle decimal numbers: "3.5" → "three point five"
+  processed = processed.replace(/\b(\d+)\.(\d+)\b/g, (_, whole, decimal) => {
+    const wholeWord = numberToWords(parseInt(whole));
+    const decimalWords = decimal.split('').map((d: string) => numberToWords(parseInt(d))).join(' ');
+    return `${wholeWord} point ${decimalWords}`;
+  });
+  
+  // Handle dollar amounts: "$50" → "fifty dollars", "$1.5M" → "one point five million dollars"
+  processed = processed.replace(/\$(\d+(?:\.\d+)?)\s*(k|K|m|M|b|B)?/g, (_, num, suffix) => {
+    let amount = '';
+    if (num.includes('.')) {
+      const [whole, decimal] = num.split('.');
+      amount = `${numberToWords(parseInt(whole))} point ${decimal.split('').map((d: string) => numberToWords(parseInt(d))).join(' ')}`;
+    } else {
+      amount = numberToWords(parseInt(num));
+    }
+    const suffixMap: Record<string, string> = { k: ' thousand', K: ' thousand', m: ' million', M: ' million', b: ' billion', B: ' billion' };
+    const suffixWord = suffix ? (suffixMap[suffix as string] || '') : '';
+    return amount + suffixWord + ' dollars';
+  });
+  
+  // Handle standalone numbers 2+ digits that weren't caught above
+  processed = processed.replace(/\b(\d{2,})\b/g, (_, num) => numberToWords(parseInt(num)));
+  
+  // Handle single-digit numbers in specific contexts (skip if part of a word or version)
+  // "3 goals" → "three goals" but NOT "v2" or "step1"
+  processed = processed.replace(/(?<![a-zA-Z])(\d)(?![a-zA-Z0-9])/g, (_, num) => numberToWords(parseInt(num)));
+  
+  // Common abbreviations that should be spoken out
+  processed = processed
+    .replace(/\bvs\.?\b/gi, 'versus')
+    .replace(/\betc\.?\b/gi, 'et cetera')
+    .replace(/\be\.g\.?\b/gi, 'for example')
+    .replace(/\bi\.e\.?\b/gi, 'that is')
+    .replace(/\bw\/\b/gi, 'with')
+    .replace(/\bw\/o\b/gi, 'without')
+    .replace(/\b&\b/g, 'and')
+    .replace(/\bROI\b/g, 'R O I')
+    .replace(/\bKPIs?\b/g, 'K P Is')
+    .replace(/\bQ1\b/gi, 'Q one')
+    .replace(/\bQ2\b/gi, 'Q two')
+    .replace(/\bQ3\b/gi, 'Q three')
+    .replace(/\bQ4\b/gi, 'Q four');
+  
+  return processed;
 }
 
 // ElevenLabs voice IDs - using dynamic, engaging voices
@@ -228,16 +363,8 @@ async function generateSegmentAudio(
     .replace(/\n+/g, ' ')
     .trim();
   
-  // Fix number pronunciation - spell out percentages and common patterns
-  cleanedText = cleanedText
-    // "20%" → "twenty percent"
-    .replace(/\b(\d+)%/g, (_, num) => numberToWords(parseInt(num)) + ' percent')
-    // "111.4" goal style numbers → spoken form
-    .replace(/\b(\d+)\.(\d+)\b/g, (_, whole, decimal) => `${numberToWords(parseInt(whole))} point ${decimal}`)
-    // Large numbers like "1000" → "one thousand"
-    .replace(/\b(\d{4,})\b/g, (_, num) => numberToWords(parseInt(num)));
-
-  
+  // Apply comprehensive number and abbreviation preprocessing
+  cleanedText = preprocessTextForTTS(cleanedText);
   // If text is short enough, generate directly
   if (cleanedText.length <= 800) {
     return await generateChunkAudio(cleanedText, voiceId, voiceSettings, apiKey, previousText, nextText);
