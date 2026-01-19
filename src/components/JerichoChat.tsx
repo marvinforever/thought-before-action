@@ -384,6 +384,16 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
                 });
               }
 
+              // Show toast if Jericho added a task
+              if (accumulatedContent.includes('✅ Added to your Personal Assistant') || 
+                  accumulatedContent.includes('Successfully added task') ||
+                  accumulatedContent.includes('Added task to')) {
+                toast({
+                  title: "Task added! ✅",
+                  description: "Check your Personal Assistant to see it.",
+                });
+              }
+
               window.dispatchEvent(new Event('onboardingProgressRefresh'));
               streamDone = true;
               break;

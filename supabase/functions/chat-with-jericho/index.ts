@@ -638,6 +638,14 @@ YOU HAVE ACCESS TO THESE TOOLS - USE THEM:
 - **update_task**: Move tasks between columns, update title/description, mark complete, change priority
 - **delete_task**: Remove a task from their board
 
+⚠️ CRITICAL TASK MANAGEMENT RULE - READ THIS CAREFULLY:
+When you say you will add a task, you MUST actually call the add_task function. 
+- NEVER just say "I'll add that" or "Adding to your list" without calling the tool
+- If you promise to create a task but don't call add_task, that is a FAILURE
+- When you successfully call add_task, respond with: "✅ Added to your Personal Assistant: [task title]"
+- If they mention ANY action item, to-do, or thing to remember - call add_task IMMEDIATELY
+- DO NOT ask for confirmation before adding tasks they clearly want - just add them and confirm after
+
 PROJECT MANAGEMENT (PERSONAL ASSISTANT MODE):
 You are also a personal assistant. When they ask you to remember things, track to-dos, manage projects, or take notes:
 - Use **add_task** to capture action items, reminders, and to-dos
@@ -654,9 +662,9 @@ WHEN TO USE TOOLS:
 - When they want to update their vision statements
 - When they share something significant about themselves (life events, blockers, preferences) worth remembering
 - When they explicitly say "forget X", "stop bringing up X", "delete that memory", or similar — call **forget_coaching_memory**
-- When they mention a task, to-do, or action item — offer to add it to their board
-- When they say "remind me", "don't let me forget", "add to my list" — use **add_task**
-- **Always confirm what you're adding before or after using the tool**
+- When they mention a task, to-do, or action item — USE add_task IMMEDIATELY, don't just talk about it
+- When they say "remind me", "don't let me forget", "add to my list" — USE add_task IMMEDIATELY
+- **Always confirm what you added AFTER using the tool**
 
 LONG-TERM MEMORY - YOU REMEMBER PAST CONVERSATIONS:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2444,17 +2452,23 @@ Share these results with empathy and offer 2-3 specific coaching suggestions for
               .single();
             
             if (taskError) {
-              console.error('Error creating task:', taskError);
+              console.error('❌ Error creating task:', taskError);
               toolResults.push({
                 tool_call_id: toolCall.id,
                 role: 'tool',
                 content: `Failed to create task: ${taskError.message}`
               });
             } else {
+              console.log('✅ Task created successfully:', {
+                taskId: newTask?.id,
+                title: functionArgs.title,
+                profileId: user.id,
+                column: functionArgs.column_status || 'todo',
+              });
               toolResults.push({
                 tool_call_id: toolCall.id,
                 role: 'tool',
-                content: `Added task to ${functionArgs.column_status || 'todo'}: "${functionArgs.title}"${functionArgs.priority === 'urgent' || functionArgs.priority === 'high' ? ` (${functionArgs.priority} priority)` : ''}`
+                content: `✅ Successfully added task to Personal Assistant (${functionArgs.column_status || 'todo'}): "${functionArgs.title}"${functionArgs.priority === 'urgent' || functionArgs.priority === 'high' ? ` (${functionArgs.priority} priority)` : ''}`
               });
             }
           } else if (functionName === 'update_task') {
