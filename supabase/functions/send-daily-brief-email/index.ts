@@ -587,40 +587,10 @@ serve(async (req) => {
     // Get recognitions count
     const recognitionsSent = (recognitionsResult as any).count || 0;
 
-    // Fetch industry news from the company
-    const company = (profile?.companies as any) || null;
-    const industry = company?.industry || 'general';
-    const industryKeywords = company?.industry_keywords || [];
+    // Industry news temporarily disabled until curated ag-specific content sources are available
+    // TODO: Re-enable when we have curated agriculture industry news sources
     const focusCapability = episode.capability_name || topCapabilities[0]?.name || null;
-    
-    let industryNews: { headline: string; summary: string; source: string; relevanceTag?: string }[] = [];
-    
-    // Always try to fetch news - use capability focus for context even if industry is general
-    try {
-      console.log(`Fetching industry news for ${industry} with capability focus: ${focusCapability}...`);
-      const newsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-industry-news`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`
-        },
-        body: JSON.stringify({
-          industry: industry || 'professional_development',
-          keywords: industryKeywords.length > 0 ? industryKeywords : ['leadership', 'growth', 'professional development'],
-          capabilityFocus: focusCapability
-        })
-      });
-      
-      if (newsResponse.ok) {
-        const newsData = await newsResponse.json();
-        industryNews = newsData.newsItems || [];
-        console.log(`Got ${industryNews.length} industry news items`);
-      } else {
-        console.warn('Industry news fetch failed:', newsResponse.status, await newsResponse.text());
-      }
-    } catch (newsError) {
-      console.error('Error fetching industry news:', newsError);
-    }
+    const industryNews: { headline: string; summary: string; source: string; relevanceTag?: string }[] = [];
 
     // Process priority tasks
     const priorityTasks = ((tasksResult as any).data || []).map((t: any) => ({
