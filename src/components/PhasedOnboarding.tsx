@@ -138,8 +138,8 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
     }
 
     if ((milestone.id === 'jericho_chat' || milestone.id === 'diagnostic') && onOpenJericho) {
-      if (location.pathname !== '/my-growth-plan') {
-        navigate('/my-growth-plan');
+      if (location.pathname !== '/dashboard/my-growth-plan') {
+        navigate('/dashboard/my-growth-plan');
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('openJericho'));
         }, 100);
@@ -312,8 +312,8 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
                 }
 
                 if ((milestone.id === 'jericho_chat' || milestone.id === 'diagnostic') && onOpenJericho) {
-                  if (location.pathname !== '/my-growth-plan') {
-                    navigate('/my-growth-plan');
+                  if (location.pathname !== '/dashboard/my-growth-plan') {
+                    navigate('/dashboard/my-growth-plan');
                     setTimeout(() => {
                       window.dispatchEvent(new CustomEvent('openJericho'));
                     }, 100);
