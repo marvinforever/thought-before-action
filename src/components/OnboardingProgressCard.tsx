@@ -62,8 +62,11 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
     if (milestone.route) {
       const [path, hash] = milestone.route.split('#');
       
+      // Ensure path starts with /dashboard for safety
+      const safePath = path.startsWith('/dashboard') ? path : `/dashboard${path}`;
+      
       // If we're already on the same page, just scroll to the element
-      if (location.pathname === path && hash) {
+      if (location.pathname === safePath && hash) {
         const element = document.querySelector(`[data-onboarding="${hash}"]`);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -77,7 +80,7 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
       }
       
       // Navigate to the route
-      navigate(path);
+      navigate(safePath, { replace: false });
       
       // If there's a hash, scroll to it after navigation
       if (hash) {
