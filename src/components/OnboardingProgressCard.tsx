@@ -46,7 +46,7 @@ export function OnboardingProgressCard({ onOpenJericho, onStartFirstDailyBrief, 
     // For jericho_chat and diagnostic, open Jericho chat
     if ((milestone.id === 'jericho_chat' || milestone.id === 'diagnostic') && onOpenJericho) {
       // If we're not on my-growth-plan, navigate there first
-      if (location.pathname !== '/my-growth-plan') {
+      if (location.pathname !== '/dashboard/my-growth-plan') {
         navigate('/my-growth-plan');
         // Give time for navigation, then trigger Jericho
         setTimeout(() => {
