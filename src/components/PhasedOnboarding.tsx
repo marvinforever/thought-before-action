@@ -127,7 +127,7 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
     if (isPreview) {
       if (milestone.route) {
         const [path] = milestone.route.split('#');
-        navigate(path);
+        navigate(path, { replace: false });
       }
       return;
     }
@@ -139,10 +139,10 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
 
     if ((milestone.id === 'jericho_chat' || milestone.id === 'diagnostic') && onOpenJericho) {
       if (location.pathname !== '/dashboard/my-growth-plan') {
-        navigate('/dashboard/my-growth-plan');
+        navigate('/dashboard/my-growth-plan', { replace: false });
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('openJericho'));
-        }, 100);
+        }, 150);
       } else {
         onOpenJericho();
       }
@@ -152,7 +152,10 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
     if (milestone.route) {
       const [path, hash] = milestone.route.split('#');
       
-      if (location.pathname === path && hash) {
+      // Ensure path starts with /dashboard for safety
+      const safePath = path.startsWith('/dashboard') ? path : `/dashboard${path}`;
+      
+      if (location.pathname === safePath && hash) {
         const element = document.querySelector(`[data-onboarding="${hash}"]`);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -164,7 +167,7 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
         return;
       }
       
-      navigate(path);
+      navigate(safePath, { replace: false });
       
       if (hash) {
         setTimeout(() => {
@@ -301,7 +304,7 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
                 if (isPreview) {
                   if (milestone.route) {
                     const [path] = milestone.route.split('#');
-                    navigate(path);
+                    navigate(path, { replace: false });
                   }
                   return;
                 }
@@ -313,10 +316,10 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
 
                 if ((milestone.id === 'jericho_chat' || milestone.id === 'diagnostic') && onOpenJericho) {
                   if (location.pathname !== '/dashboard/my-growth-plan') {
-                    navigate('/dashboard/my-growth-plan');
+                    navigate('/dashboard/my-growth-plan', { replace: false });
                     setTimeout(() => {
                       window.dispatchEvent(new CustomEvent('openJericho'));
-                    }, 100);
+                    }, 150);
                   } else {
                     onOpenJericho();
                   }
@@ -326,7 +329,10 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
                 if (milestone.route) {
                   const [path, hash] = milestone.route.split('#');
                   
-                  if (location.pathname === path && hash) {
+                  // Ensure path starts with /dashboard for safety
+                  const safePath = path.startsWith('/dashboard') ? path : `/dashboard${path}`;
+                  
+                  if (location.pathname === safePath && hash) {
                     const element = document.querySelector(`[data-onboarding="${hash}"]`);
                     if (element) {
                       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -338,7 +344,7 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
                     return;
                   }
                   
-                  navigate(path);
+                  navigate(safePath, { replace: false });
                   
                   if (hash) {
                     setTimeout(() => {
