@@ -22,10 +22,10 @@ export function BuildStamp() {
   }, [now]);
 
   return (
-    <div className="fixed bottom-2 right-2 z-[60] select-none">
-      <Badge variant="secondary" className="font-mono text-[10px] leading-4">
-        build {info.build} • host {info.host} • {info.path}
-      </Badge>
+    <div className="fixed bottom-0 left-0 z-[60] select-none opacity-30 hover:opacity-100 transition-opacity">
+      <span className="font-mono text-[8px] text-muted-foreground px-1">
+        {info.build.slice(0, 16)}
+      </span>
     </div>
   );
 }
