@@ -305,20 +305,29 @@ Return a JSON object with this structure:
   "ai_augmentable_tasks": [
     {
       "task": "specific task from job description",
-      "current_time_hours": 0,
+      "current_time_hours": 5,
       "ai_solution": "how AI can help",
       "recommended_tool": "specific AI tool",
-      "estimated_time_after": 0,
-      "hours_saved": 0,
+      "estimated_time_after": 2,
+      "hours_saved": 3,
       "difficulty": "easy" | "medium" | "hard",
       "category": "full_automation" | "augmentation" | "human_inherent"
     }
   ],
-  "total_weekly_hours_saved": 0,
-  "ai_readiness_score": 0,
-  "recommended_tools": ["..."],
+  "total_weekly_hours_saved": 15,
+  "ai_readiness_score": 65,
+  "recommended_tools": ["ChatGPT/Claude", "Perplexity"],
   "key_insight": "one sentence about the biggest opportunity"
 }
+
+IMPORTANT SCORING GUIDELINES:
+- ai_readiness_score MUST be a number from 0 to 100 (percentage scale)
+  - 0-30: Low readiness (few AI-automatable tasks, mostly human-inherent work)
+  - 31-50: Moderate readiness (some augmentation opportunities)
+  - 51-70: Good readiness (significant automation potential)
+  - 71-100: High readiness (many tasks can be automated or heavily augmented)
+- Base the score on what percentage of the role's tasks can benefit from AI
+- Consider both the quantity and quality of AI opportunities
 
 Focus on practical, immediately actionable recommendations. Be specific about which AI tools to use.`;
 
