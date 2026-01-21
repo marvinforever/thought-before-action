@@ -10,10 +10,11 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useViewAs } from "@/contexts/ViewAsContext";
-import { Loader2, Zap, Clock, DollarSign, Users, TrendingUp, Download, RefreshCw, Lightbulb, Rocket, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Zap, Clock, DollarSign, Users, TrendingUp, Download, RefreshCw, Lightbulb, Rocket, Search, ChevronDown, ChevronUp, User, Eye, ArrowRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
+import { EmployeeAIDetailDialog } from "./EmployeeAIDetailDialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 interface Employee {
   id: string;
   full_name: string;
@@ -64,6 +65,30 @@ interface RoadmapPhase {
   tools?: string[];
 }
 
+interface AITask {
+  task: string;
+  current_time_hours: number;
+  estimated_time_after: number;
+  hours_saved: number;
+  ai_solution: string;
+  recommended_tool: string;
+  difficulty: "easy" | "medium" | "hard";
+  category: "automation" | "augmentation";
+}
+
+interface EmployeeAIData {
+  id: string;
+  profile_id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  ai_readiness_score: number;
+  estimated_weekly_hours_saved: number;
+  priority_tasks: AITask[];
+  recommended_tools: string[];
+  generated_at: string;
+}
+
 interface AIEfficiencyReportData {
   id: string;
   company_id: string;
@@ -87,6 +112,13 @@ export function AIEfficiencyReport() {
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  
+  // Employee drilldown state
+  const [employeeAIData, setEmployeeAIData] = useState<EmployeeAIData[]>([]);
+  const [selectedEmployeeAI, setSelectedEmployeeAI] = useState<EmployeeAIData | null>(null);
+  const [showEmployeeDetail, setShowEmployeeDetail] = useState(false);
+  const [employeeTabSearch, setEmployeeTabSearch] = useState("");
+  
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
 
@@ -155,6 +187,71 @@ export function AIEfficiencyReport() {
     }
   };
 
+  const loadEmployeeAIData = async (companyId: string) => {
+    try {
+      // Get all employee AI recommendations with profile data
+      const { data: recommendations, error } = await supabase
+        .from('employee_ai_recommendations')
+        .select(`
+          id,
+          profile_id,
+          ai_readiness_score,
+          estimated_weekly_hours_saved,
+          priority_tasks,
+          recommended_tools,
+          generated_at
+        `)
+        .order('generated_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Get unique profile IDs
+      const profileIds = [...new Set(recommendations?.map(r => r.profile_id) || [])];
+      
+      if (profileIds.length === 0) {
+        setEmployeeAIData([]);
+        return;
+      }
+
+      // Fetch profile data for these employees
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role, company_id')
+        .in('id', profileIds)
+        .eq('company_id', companyId);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      // Merge recommendations with profile data, taking the latest per employee
+      const latestByEmployee = new Map<string, EmployeeAIData>();
+      
+      for (const rec of recommendations || []) {
+        const profile = profileMap.get(rec.profile_id);
+        if (!profile) continue;
+        
+        // Only keep the latest per employee
+        if (!latestByEmployee.has(rec.profile_id)) {
+          latestByEmployee.set(rec.profile_id, {
+            id: rec.id,
+            profile_id: rec.profile_id,
+            full_name: profile.full_name || 'Unknown',
+            email: profile.email || '',
+            role: profile.role || '',
+            ai_readiness_score: rec.ai_readiness_score || 0,
+            estimated_weekly_hours_saved: rec.estimated_weekly_hours_saved || 0,
+            priority_tasks: (rec.priority_tasks as unknown as AITask[]) || [],
+            recommended_tools: (rec.recommended_tools as unknown as string[]) || [],
+            generated_at: rec.generated_at,
+          });
+        }
+      }
+
+      setEmployeeAIData(Array.from(latestByEmployee.values()));
+    } catch (error) {
+      console.error('Error loading employee AI data:', error);
+    }
+  };
+
   const loadReport = async () => {
     setLoading(true);
     try {
@@ -173,6 +270,8 @@ export function AIEfficiencyReport() {
 
       if (data) {
         setReport(data as unknown as AIEfficiencyReportData);
+        // Also load employee-level data for the By Employee tab
+        await loadEmployeeAIData(companyId);
       } else {
         // Load employees for selection if no report exists
         await loadEmployees();
@@ -444,13 +543,144 @@ export function AIEfficiencyReport() {
         />
       </div>
 
-      <Tabs defaultValue="opportunities" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="employees" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="employees" className="flex items-center gap-1">
+            <User className="h-3 w-3" />
+            By Employee
+          </TabsTrigger>
           <TabsTrigger value="opportunities">Quick Wins</TabsTrigger>
           <TabsTrigger value="roles">By Role</TabsTrigger>
-          <TabsTrigger value="departments">By Department</TabsTrigger>
+          <TabsTrigger value="departments">By Dept</TabsTrigger>
           <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
         </TabsList>
+
+        {/* NEW: By Employee Tab */}
+        <TabsContent value="employees" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Individual Employee AI Analysis
+              </CardTitle>
+              <CardDescription>
+                Drill down into each employee's AI opportunities with transparent time savings calculations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Search */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search employees..."
+                  value={employeeTabSearch}
+                  onChange={(e) => setEmployeeTabSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <ScrollArea className="h-[500px]">
+                <div className="space-y-3">
+                  {employeeAIData
+                    .filter(emp => 
+                      emp.full_name.toLowerCase().includes(employeeTabSearch.toLowerCase()) ||
+                      emp.email.toLowerCase().includes(employeeTabSearch.toLowerCase()) ||
+                      emp.role.toLowerCase().includes(employeeTabSearch.toLowerCase())
+                    )
+                    .sort((a, b) => b.estimated_weekly_hours_saved - a.estimated_weekly_hours_saved)
+                    .map((emp) => {
+                      const topTasks = emp.priority_tasks?.slice(0, 3) || [];
+                      const totalTasks = emp.priority_tasks?.length || 0;
+                      
+                      return (
+                        <Card 
+                          key={emp.id} 
+                          className="hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setSelectedEmployeeAI(emp);
+                            setShowEmployeeDetail(true);
+                          }}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-4">
+                              {/* Avatar */}
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                                  {emp.full_name?.charAt(0) || '?'}
+                                </AvatarFallback>
+                              </Avatar>
+
+                              {/* Employee Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="font-semibold">{emp.full_name}</h4>
+                                  {emp.role && (
+                                    <Badge variant="secondary" className="text-xs">{emp.role}</Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">{emp.email}</p>
+
+                                {/* Top Opportunities Preview */}
+                                {topTasks.length > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    {topTasks.map((task, idx) => (
+                                      <div key={idx} className="text-xs flex items-center gap-2">
+                                        <Zap className="h-3 w-3 text-yellow-500 flex-shrink-0" />
+                                        <span className="truncate">{task.task}</span>
+                                        <span className="text-green-600 font-medium whitespace-nowrap">
+                                          -{task.hours_saved}h
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {totalTasks > 3 && (
+                                      <p className="text-xs text-muted-foreground pl-5">
+                                        +{totalTasks - 3} more opportunities
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Stats */}
+                              <div className="flex items-center gap-4 flex-shrink-0">
+                                <div className="text-center">
+                                  <div className="text-lg font-bold text-green-600">
+                                    {emp.estimated_weekly_hours_saved}h
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">saved/week</p>
+                                </div>
+
+                                <div className="text-center">
+                                  <div className="text-lg font-bold">
+                                    {Math.round(emp.ai_readiness_score)}%
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">AI ready</p>
+                                </div>
+
+                                <Button variant="ghost" size="sm" className="flex-shrink-0">
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Details
+                                  <ArrowRight className="h-3 w-3 ml-1" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+
+                  {employeeAIData.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>No employee analysis data available.</p>
+                      <p className="text-sm">Run a new analysis to see individual employee breakdowns.</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="opportunities" className="space-y-4">
           <Card>
@@ -622,6 +852,13 @@ export function AIEfficiencyReport() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Employee AI Detail Dialog */}
+      <EmployeeAIDetailDialog
+        employee={selectedEmployeeAI}
+        open={showEmployeeDetail}
+        onOpenChange={setShowEmployeeDetail}
+      />
     </div>
   );
 }
