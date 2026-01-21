@@ -786,7 +786,10 @@ export function AIEfficiencyReport() {
                         </div>
                         <div>
                           <div className="text-sm text-muted-foreground">AI Readiness</div>
-                          <Progress value={role.avg_readiness_score} className="mt-1" />
+                          <div className="flex items-center gap-2 mt-1">
+                            <Progress value={role.avg_readiness_score} className="flex-1" />
+                            <span className="text-sm font-medium">{Math.round(role.avg_readiness_score)}%</span>
+                          </div>
                         </div>
                       </div>
                       {role.top_tools && role.top_tools.length > 0 && (
@@ -830,7 +833,10 @@ export function AIEfficiencyReport() {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">AI Readiness</div>
-                        <Progress value={dept.avg_readiness_score} className="mt-1" />
+                        <div className="flex items-center gap-2 mt-1">
+                          <Progress value={dept.avg_readiness_score} className="flex-1" />
+                          <span className="text-sm font-medium">{Math.round(dept.avg_readiness_score)}%</span>
+                        </div>
                       </div>
                     </div>
                   </div>
