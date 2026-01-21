@@ -466,13 +466,28 @@ MATH CHECK REQUIREMENTS:
 - total_weekly_hours_saved MUST equal sum of all hours_saved
 - total_weekly_hours_saved MUST NOT exceed ${MAX_AI_SAVINGS_HOURS} hours
 
+PROMPT QUALITY REQUIREMENTS (CRITICAL):
+Each starter_prompt MUST be:
+1. COMPLETE and READY TO USE - the employee should be able to copy, paste, and get results immediately
+2. SPECIFIC to the task - not generic AI prompts
+3. Include clear [PLACEHOLDERS] showing where to insert their specific data
+4. Use proper formatting with line breaks and structure
+5. Include context about desired output format, tone, and length
+6. Have 2-3 prompts per task (one basic, one advanced, one for edge cases)
+
+PROMPT EXAMPLES BY CATEGORY:
+- Email drafting: "Write a professional email to [RECIPIENT ROLE] about [TOPIC]. Key points: [LIST 3-5 BULLETS]. Tone: [formal/friendly/urgent]. Keep under 150 words."
+- Report writing: "Analyze this data and create a [TYPE] report:\\n\\n[PASTE DATA]\\n\\nInclude: executive summary, key findings, recommendations. Format as bullet points with headers."
+- Research: "Research [TOPIC] and provide: 1) Current trends, 2) Key statistics, 3) Competitor analysis, 4) Actionable recommendations. Cite sources."
+- Meeting prep: "Create an agenda for a [DURATION] meeting about [TOPIC] with [ATTENDEES]. Include: objectives, discussion points, time allocations, action items template."
+
 AI READINESS SCORE GUIDANCE (0-100%):
 - Consider the employee's capabilities and growth areas
 - Factor in any behavioral insights from coaching conversations
 - Higher scores for roles with many repetitive, data-heavy tasks
 - Lower scores for roles requiring human judgment (leadership, strategy, negotiations)
 
-Focus on ACTIONABLE tasks with SPECIFIC workflows and READY-TO-USE prompts.`;
+Focus on ACTIONABLE tasks with SPECIFIC workflows and READY-TO-USE prompts that employees can copy and paste TODAY.`;
 
   const response = await fetch(aiGatewayUrl, {
     method: 'POST',

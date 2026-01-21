@@ -161,6 +161,19 @@ export function EmployeeAIDetailDialog({
   const weeklyValue = totalHoursSaved * HOURLY_RATE;
   const annualValue = weeklyValue * 52;
 
+  // Collect all prompts for the prompt library
+  const allPrompts = (employee.priority_tasks || []).flatMap((task, taskIdx) => 
+    (task.starter_prompts || []).map((sp, spIdx) => ({
+      task: task.task,
+      tool: task.recommended_tool,
+      use_case: sp.use_case,
+      prompt: sp.prompt,
+      expected_output: sp.expected_output,
+      id: `lib-${taskIdx}-${spIdx}`,
+      hours_saved: task.hours_saved,
+    }))
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
@@ -257,6 +270,68 @@ export function EmployeeAIDetailDialog({
                 </div>
               </CardContent>
             </Card>
+
+            {/* AI PROMPT LIBRARY - Quick Access to All Prompts */}
+            {allPrompts.length > 0 && (
+              <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-background">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Copy className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm">AI Prompt Library</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {allPrompts.length} ready-to-use prompts • Copy and paste into ChatGPT, Claude, or Copilot
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {allPrompts.map((p) => (
+                      <div 
+                        key={p.id} 
+                        className="border rounded-lg p-3 bg-background hover:border-primary/50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{p.use_case}</span>
+                              <Badge variant="secondary" className="text-xs">{p.tool}</Badge>
+                              <Badge variant="outline" className="text-xs text-green-600">
+                                Save {p.hours_saved.toFixed(1)}h/wk
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              For: {p.task}
+                            </p>
+                          </div>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-8 flex-shrink-0"
+                            onClick={() => copyPrompt(p.prompt, p.id)}
+                          >
+                            {copiedPrompts.has(p.id) ? (
+                              <><CheckCircle className="h-3 w-3 mr-1" /> Copied!</>
+                            ) : (
+                              <><Copy className="h-3 w-3 mr-1" /> Copy Prompt</>
+                            )}
+                          </Button>
+                        </div>
+                        <pre className="text-xs bg-muted p-3 rounded-md whitespace-pre-wrap font-mono border max-h-32 overflow-y-auto">
+                          {p.prompt}
+                        </pre>
+                        <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
+                          <Lightbulb className="h-3 w-3 mt-0.5 flex-shrink-0 text-yellow-500" />
+                          <span><strong>Expected result:</strong> {p.expected_output}</span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Separator />
 
