@@ -9,9 +9,11 @@ const corsHeaders = {
 
 // Constants for realistic calculations
 const HOURLY_RATE = 75; // $75/hour value
-const MAX_WEEKLY_WORK_HOURS = 45; // Max hours someone works per week
+const MAX_WEEKLY_WORK_HOURS = 60; // Max hours someone works per week (absolute ceiling)
+const MAX_CURRENT_TASK_HOURS = 40; // Max total task hours we analyze per person (realistic work)
 const MAX_AI_SAVINGS_PERCENT = 0.35; // Max 35% of work week can be saved via AI
-const MAX_SINGLE_TASK_HOURS = 10; // No single task can exceed 10 hrs/week
+const MAX_SINGLE_TASK_HOURS = 8; // No single task can exceed 8 hrs/week
+const MAX_AI_SAVINGS_HOURS = 14; // Absolute max hours saved per employee per week
 
 interface WorkflowStep {
   step: number;
@@ -285,29 +287,68 @@ async function saveEmployeeRecommendation(supabase: any, payload: {
 }
 
 async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionId?: string) {
-  let jobDescription;
-  if (jobDescriptionId) {
-    const { data } = await supabase
-      .from('job_descriptions')
-      .select('*')
-      .eq('id', jobDescriptionId)
-      .single();
-    jobDescription = data;
-  } else {
-    const { data } = await supabase
-      .from('job_descriptions')
-      .select('*')
+  // Fetch job description, capabilities, and conversation insights in parallel
+  const [jobDescResult, capabilitiesResult, insightsResult, conversationsResult] = await Promise.all([
+    // Job description
+    jobDescriptionId 
+      ? supabase.from('job_descriptions').select('*').eq('id', jobDescriptionId).single()
+      : supabase.from('job_descriptions').select('*').eq('profile_id', profileId).eq('is_current', true).order('created_at', { ascending: false }).limit(1).single(),
+    
+    // Employee capabilities with details
+    supabase
+      .from('employee_capabilities')
+      .select('*, capabilities(name, description, category)')
       .eq('profile_id', profileId)
-      .eq('is_current', true)
+      .order('priority', { ascending: true })
+      .limit(10),
+    
+    // Coaching insights from Jericho conversations
+    supabase
+      .from('coaching_insights')
+      .select('insight_type, insight_text, confidence_level')
+      .eq('profile_id', profileId)
+      .eq('is_active', true)
+      .order('last_reinforced_at', { ascending: false })
+      .limit(10),
+    
+    // Recent conversation summaries to understand how they work
+    supabase
+      .from('conversation_summaries')
+      .select('summary_text, key_topics, action_items')
+      .eq('profile_id', profileId)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    jobDescription = data;
-  }
+      .limit(5),
+  ]);
+
+  const jobDescription = jobDescResult.data;
+  const capabilities = capabilitiesResult.data || [];
+  const coachingInsights = insightsResult.data || [];
+  const conversationSummaries = conversationsResult.data || [];
 
   if (!jobDescription) {
     return null;
   }
+  
+  // Build context from capabilities
+  const capabilityContext = capabilities.length > 0 
+    ? `\n\nEMPLOYEE CAPABILITIES (areas they focus on):\n${capabilities.map((c: any) => 
+        `- ${c.capabilities?.name || 'Unknown'} (${c.current_level || 'developing'} → ${c.target_level || 'proficient'}): ${c.capabilities?.description || ''}`
+      ).join('\n')}`
+    : '';
+  
+  // Build context from coaching insights (behavioral patterns from Jericho)
+  const insightContext = coachingInsights.length > 0
+    ? `\n\nBEHAVIORAL INSIGHTS FROM COACHING (how they actually work):\n${coachingInsights.map((i: any) => 
+        `- [${i.insight_type}] ${i.insight_text}`
+      ).join('\n')}`
+    : '';
+  
+  // Build context from conversation summaries
+  const conversationContext = conversationSummaries.length > 0
+    ? `\n\nRECENT CONVERSATION THEMES (what they discuss with AI coach):\n${conversationSummaries.map((s: any) => 
+        `- Topics: ${(s.key_topics || []).join(', ')}`
+      ).join('\n')}`
+    : '';
 
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
@@ -316,19 +357,20 @@ async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionI
 
   const aiGatewayUrl = Deno.env.get('AI_GATEWAY_URL') || 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
-  const systemPrompt = `You are an AI efficiency analyst specializing in realistic, actionable AI adoption strategies. Your job is to analyze job descriptions and identify specific tasks that can be augmented or automated with AI tools.
+  const systemPrompt = `You are an AI efficiency analyst specializing in realistic, actionable AI adoption strategies. Your job is to analyze job descriptions, employee capabilities, and behavioral insights to identify specific tasks that can be augmented or automated with AI tools.
 
 CRITICAL CONSTRAINTS - YOU MUST FOLLOW THESE:
-1. Maximum work week: ${MAX_WEEKLY_WORK_HOURS} hours
-2. Maximum AI savings per person: ${Math.round(MAX_AI_SAVINGS_PERCENT * 100)}% of work week (${Math.round(MAX_WEEKLY_WORK_HOURS * MAX_AI_SAVINGS_PERCENT)} hours max)
-3. No single task can claim more than ${MAX_SINGLE_TASK_HOURS} hours/week
-4. Be CONSERVATIVE: most tasks save 20-50% of time, NOT 80%
-5. Tasks must be SPECIFIC and MEASURABLE
+1. Maximum work week: ${MAX_WEEKLY_WORK_HOURS} hours (absolute ceiling)
+2. Maximum total task hours to analyze: ${MAX_CURRENT_TASK_HOURS} hours per person
+3. Maximum AI savings per person: ${MAX_AI_SAVINGS_HOURS} hours/week (absolute cap)
+4. No single task can claim more than ${MAX_SINGLE_TASK_HOURS} hours/week
+5. Be CONSERVATIVE: most tasks save 20-50% of time, NOT 80%
+6. Tasks must be SPECIFIC and MEASURABLE
 
 For each task, you MUST provide:
 - instances_per_week: How many times this task occurs weekly (1-20)
-- minutes_per_instance: Time per occurrence (5-180 minutes)
-- ai_automation_percent: What % AI can realistically handle (15-60% for most tasks)
+- minutes_per_instance: Time per occurrence (5-120 minutes max)
+- ai_automation_percent: What % AI can realistically handle (15-50% for most tasks)
 - workflow_steps: 3-5 concrete steps to implement with AI
 - starter_prompts: 1-2 ready-to-use prompts they can copy/paste
 
@@ -345,12 +387,24 @@ RECOMMENDED TOOLS (be specific):
 - Zapier/Make: Workflow automation for repetitive tasks
 - Notion AI: Documentation and project notes
 
+AI READINESS SCORE (0-100%):
+This represents how ready this employee is to benefit from AI tools:
+- 0-25%: Low readiness (few AI opportunities, mostly human-inherent work)
+- 26-50%: Moderate readiness (some augmentation potential)
+- 51-75%: Good readiness (significant automation possible)
+- 76-100%: High readiness (many tasks can be heavily augmented with AI)
+
+Consider their capabilities and behavioral insights when scoring - employees already using AI or showing interest score higher.
+
 IMPORTANT: Return ONLY valid JSON. No markdown. No extra text.`;
 
-  const userPrompt = `Analyze this job description and identify 4-8 AI-augmentable tasks with REALISTIC time savings.
+  const userPrompt = `Analyze this employee and identify 4-8 AI-augmentable tasks with REALISTIC time savings.
 
 Job Title: ${jobDescription.title || 'Not specified'}
 Description: ${jobDescription.description}
+${capabilityContext}
+${insightContext}
+${conversationContext}
 
 Return a JSON object with this exact structure:
 {
@@ -360,11 +414,11 @@ Return a JSON object with this exact structure:
       "instances_per_week": 5,
       "minutes_per_instance": 45,
       "current_time_hours": 3.75,
-      "ai_automation_percent": 40,
+      "ai_automation_percent": 35,
       "ai_solution": "one sentence on how AI helps",
       "recommended_tool": "specific AI tool name",
-      "estimated_time_after": 2.25,
-      "hours_saved": 1.5,
+      "estimated_time_after": 2.44,
+      "hours_saved": 1.31,
       "difficulty": "easy",
       "category": "augmentation",
       "workflow_steps": [
@@ -398,7 +452,7 @@ Return a JSON object with this exact structure:
       "quick_start_guide": "Try this today: Before your next status report, paste your raw notes into ChatGPT with the prompt above. Review the output and you'll cut report writing time in half."
     }
   ],
-  "total_weekly_hours_saved": 8,
+  "total_weekly_hours_saved": 6,
   "ai_readiness_score": 55,
   "recommended_tools": ["ChatGPT/Claude", "Microsoft Copilot"],
   "key_insight": "The biggest opportunity is automating weekly status reports and meeting prep."
@@ -408,14 +462,15 @@ MATH CHECK REQUIREMENTS:
 - current_time_hours = (instances_per_week × minutes_per_instance) / 60
 - hours_saved = current_time_hours × (ai_automation_percent / 100)
 - estimated_time_after = current_time_hours - hours_saved
+- Sum of all current_time_hours MUST NOT exceed ${MAX_CURRENT_TASK_HOURS} hours
 - total_weekly_hours_saved MUST equal sum of all hours_saved
-- total_weekly_hours_saved MUST NOT exceed ${Math.round(MAX_WEEKLY_WORK_HOURS * MAX_AI_SAVINGS_PERCENT)} hours
+- total_weekly_hours_saved MUST NOT exceed ${MAX_AI_SAVINGS_HOURS} hours
 
-AI READINESS SCORING (0-100):
-- 0-30: Low (few AI opportunities, mostly human-inherent work)
-- 31-50: Moderate (some augmentation potential)
-- 51-70: Good (significant automation possible)
-- 71-100: High (many tasks can be heavily augmented)
+AI READINESS SCORE GUIDANCE (0-100%):
+- Consider the employee's capabilities and growth areas
+- Factor in any behavioral insights from coaching conversations
+- Higher scores for roles with many repetitive, data-heavy tasks
+- Lower scores for roles requiring human judgment (leadership, strategy, negotiations)
 
 Focus on ACTIONABLE tasks with SPECIFIC workflows and READY-TO-USE prompts.`;
 
@@ -467,12 +522,11 @@ Focus on ACTIONABLE tasks with SPECIFIC workflows and READY-TO-USE prompts.`;
   }
 
   // Validate and cap hours to realistic limits
-  const maxHoursSaved = MAX_WEEKLY_WORK_HOURS * MAX_AI_SAVINGS_PERCENT;
   let tasks = (analysis.ai_augmentable_tasks || []).map((t: AIAugmentableTask) => {
     // Recalculate to ensure math is correct
     const calculatedCurrentHours = (t.instances_per_week * t.minutes_per_instance) / 60;
     const cappedCurrentHours = Math.min(calculatedCurrentHours, MAX_SINGLE_TASK_HOURS);
-    const automationPercent = Math.min(t.ai_automation_percent, 60) / 100; // Cap at 60%
+    const automationPercent = Math.min(t.ai_automation_percent, 50) / 100; // Cap at 50%
     const calculatedHoursSaved = cappedCurrentHours * automationPercent;
     
     return {
@@ -480,24 +534,41 @@ Focus on ACTIONABLE tasks with SPECIFIC workflows and READY-TO-USE prompts.`;
       current_time_hours: Math.round(cappedCurrentHours * 100) / 100,
       hours_saved: Math.round(calculatedHoursSaved * 100) / 100,
       estimated_time_after: Math.round((cappedCurrentHours - calculatedHoursSaved) * 100) / 100,
-      ai_automation_percent: Math.min(t.ai_automation_percent, 60),
+      ai_automation_percent: Math.min(t.ai_automation_percent, 50),
       workflow_steps: t.workflow_steps || [],
       starter_prompts: t.starter_prompts || [],
       quick_start_guide: t.quick_start_guide || '',
     };
   });
 
-  // Calculate total and normalize if exceeds max
+  // First, cap total current_time_hours to MAX_CURRENT_TASK_HOURS (realistic work analyzed)
+  let totalCurrentHours = tasks.reduce((sum: number, t: AIAugmentableTask) => sum + t.current_time_hours, 0);
+  if (totalCurrentHours > MAX_CURRENT_TASK_HOURS) {
+    const scaleFactor = MAX_CURRENT_TASK_HOURS / totalCurrentHours;
+    tasks = tasks.map((t: AIAugmentableTask) => {
+      const newCurrentHours = Math.round(t.current_time_hours * scaleFactor * 100) / 100;
+      const newHoursSaved = Math.round(t.hours_saved * scaleFactor * 100) / 100;
+      return {
+        ...t,
+        current_time_hours: newCurrentHours,
+        hours_saved: newHoursSaved,
+        estimated_time_after: Math.round((newCurrentHours - newHoursSaved) * 100) / 100,
+      };
+    });
+    totalCurrentHours = MAX_CURRENT_TASK_HOURS;
+  }
+
+  // Then, cap total hours_saved to MAX_AI_SAVINGS_HOURS (absolute max per person)
   let totalHoursSaved = tasks.reduce((sum: number, t: AIAugmentableTask) => sum + t.hours_saved, 0);
   
-  if (totalHoursSaved > maxHoursSaved) {
-    const scaleFactor = maxHoursSaved / totalHoursSaved;
+  if (totalHoursSaved > MAX_AI_SAVINGS_HOURS) {
+    const scaleFactor = MAX_AI_SAVINGS_HOURS / totalHoursSaved;
     tasks = tasks.map((t: AIAugmentableTask) => ({
       ...t,
       hours_saved: Math.round(t.hours_saved * scaleFactor * 100) / 100,
       estimated_time_after: Math.round((t.current_time_hours - (t.hours_saved * scaleFactor)) * 100) / 100,
     }));
-    totalHoursSaved = maxHoursSaved;
+    totalHoursSaved = MAX_AI_SAVINGS_HOURS;
   }
   
   // Sort by impact (highest hours saved, easiest difficulty first)
