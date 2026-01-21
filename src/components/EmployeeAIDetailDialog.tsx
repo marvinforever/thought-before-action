@@ -9,10 +9,10 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Gauge } from "@/components/ui/gauge";
+import { useToast } from "@/hooks/use-toast";
 import {
   Clock,
   Calculator,
@@ -23,17 +23,41 @@ import {
   Wrench,
   TrendingUp,
   DollarSign,
+  Copy,
+  CheckCircle,
+  Play,
+  BookOpen,
 } from "lucide-react";
+
+interface WorkflowStep {
+  step: number;
+  action: string;
+  tool: string;
+  time_minutes: number;
+  prompt_template?: string;
+}
+
+interface StarterPrompt {
+  use_case: string;
+  prompt: string;
+  expected_output: string;
+}
 
 interface AITask {
   task: string;
+  instances_per_week?: number;
+  minutes_per_instance?: number;
   current_time_hours: number;
+  ai_automation_percent?: number;
   estimated_time_after: number;
   hours_saved: number;
   ai_solution: string;
   recommended_tool: string;
   difficulty: "easy" | "medium" | "hard";
-  category: "automation" | "augmentation";
+  category: "automation" | "augmentation" | "full_automation";
+  workflow_steps?: WorkflowStep[];
+  starter_prompts?: StarterPrompt[];
+  quick_start_guide?: string;
 }
 
 interface EmployeeAIData {
@@ -56,7 +80,7 @@ interface EmployeeAIDetailDialogProps {
   onStartWithJericho?: (task: AITask) => void;
 }
 
-const HOURLY_RATE = 50; // Default hourly rate for calculations
+const HOURLY_RATE = 75; // $75/hour value
 
 export function EmployeeAIDetailDialog({
   employee,
@@ -65,6 +89,8 @@ export function EmployeeAIDetailDialog({
   onStartWithJericho,
 }: EmployeeAIDetailDialogProps) {
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
+  const [copiedPrompts, setCopiedPrompts] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   if (!employee) return null;
 
@@ -76,6 +102,30 @@ export function EmployeeAIDetailDialog({
       newExpanded.add(index);
     }
     setExpandedTasks(newExpanded);
+  };
+
+  const copyPrompt = async (prompt: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedPrompts(prev => new Set(prev).add(id));
+      toast({
+        title: "Prompt copied!",
+        description: "Paste it into ChatGPT, Claude, or Copilot to try it out.",
+      });
+      setTimeout(() => {
+        setCopiedPrompts(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 3000);
+    } catch {
+      toast({
+        title: "Failed to copy",
+        description: "Please select and copy the text manually.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -92,7 +142,7 @@ export function EmployeeAIDetailDialog({
   };
 
   const getCategoryIcon = (category: string) => {
-    return category === "automation" ? (
+    return category === "full_automation" ? (
       <Zap className="h-3 w-3" />
     ) : (
       <TrendingUp className="h-3 w-3" />
@@ -156,7 +206,7 @@ export function EmployeeAIDetailDialog({
               <Card>
                 <CardContent className="p-3 text-center">
                   <Clock className="h-5 w-5 mx-auto text-primary mb-1" />
-                  <div className="text-2xl font-bold">{totalHoursSaved}h</div>
+                  <div className="text-2xl font-bold">{totalHoursSaved.toFixed(1)}h</div>
                   <p className="text-xs text-muted-foreground">Hours Saved/Week</p>
                 </CardContent>
               </Card>
@@ -188,24 +238,21 @@ export function EmployeeAIDetailDialog({
                 <div className="flex items-center gap-2 mb-3">
                   <Calculator className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium text-sm">Calculation Breakdown</span>
+                  <Badge variant="outline" className="ml-auto text-xs">@${HOURLY_RATE}/hr</Badge>
                 </div>
                 <div className="text-sm space-y-1 text-muted-foreground">
                   <p>
-                    <strong>Current weekly task hours:</strong> {totalCurrentHours}h
+                    <strong>Current weekly task hours:</strong> {totalCurrentHours.toFixed(1)}h
                   </p>
                   <p>
                     <strong>Projected hours after AI:</strong>{" "}
-                    {totalCurrentHours - totalHoursSaved}h
+                    {(totalCurrentHours - totalHoursSaved).toFixed(1)}h
                   </p>
                   <p>
-                    <strong>Time saved:</strong> {totalHoursSaved}h/week ×{" "}
-                    {((totalHoursSaved / totalCurrentHours) * 100 || 0).toFixed(0)}%
-                    reduction
+                    <strong>Time saved:</strong> {totalHoursSaved.toFixed(1)}h/week ({totalCurrentHours > 0 ? ((totalHoursSaved / totalCurrentHours) * 100).toFixed(0) : 0}% reduction)
                   </p>
                   <p>
-                    <strong>Value calculation:</strong> {totalHoursSaved}h × $
-                    {HOURLY_RATE}/hr = ${weeklyValue}/week → $
-                    {annualValue.toLocaleString()}/year
+                    <strong>Value calculation:</strong> {totalHoursSaved.toFixed(1)}h × ${HOURLY_RATE}/hr = ${weeklyValue.toLocaleString()}/week → ${annualValue.toLocaleString()}/year
                   </p>
                 </div>
               </CardContent>
@@ -240,18 +287,30 @@ export function EmployeeAIDetailDialog({
                             </Badge>
                             <Badge variant="outline" className="text-xs flex items-center gap-1">
                               {getCategoryIcon(task.category)}
-                              {task.category}
+                              {task.category === "full_automation" ? "automation" : task.category}
                             </Badge>
                           </div>
+
+                          {/* Granular breakdown if available */}
+                          {task.instances_per_week && task.minutes_per_instance && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {task.instances_per_week}× per week • {task.minutes_per_instance} min each
+                            </p>
+                          )}
 
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {task.current_time_hours}h → {task.estimated_time_after}h
+                              {task.current_time_hours.toFixed(1)}h → {task.estimated_time_after.toFixed(1)}h
                             </span>
                             <span className="text-green-600 font-medium">
-                              Save {task.hours_saved}h/week
+                              Save {task.hours_saved.toFixed(1)}h/week
                             </span>
+                            {task.ai_automation_percent && (
+                              <span className="text-blue-600">
+                                {task.ai_automation_percent}% AI
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -265,7 +324,21 @@ export function EmployeeAIDetailDialog({
                       </div>
 
                       {expandedTasks.has(idx) && (
-                        <div className="mt-4 pt-4 border-t space-y-3">
+                        <div className="mt-4 pt-4 border-t space-y-4">
+                          {/* Quick Start Guide */}
+                          {task.quick_start_guide && (
+                            <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                              <div className="flex items-center gap-2 text-green-800 dark:text-green-200 font-medium text-sm mb-1">
+                                <Play className="h-4 w-4" />
+                                Try This Today
+                              </div>
+                              <p className="text-sm text-green-700 dark:text-green-300">
+                                {task.quick_start_guide}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* How AI Helps */}
                           <div>
                             <h5 className="text-xs font-medium text-muted-foreground mb-1">
                               HOW AI HELPS
@@ -278,11 +351,98 @@ export function EmployeeAIDetailDialog({
                             <Badge variant="secondary">{task.recommended_tool}</Badge>
                           </div>
 
+                          {/* Workflow Steps */}
+                          {task.workflow_steps && task.workflow_steps.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                <BookOpen className="h-3 w-3" />
+                                STEP-BY-STEP WORKFLOW
+                              </h5>
+                              <div className="space-y-2">
+                                {task.workflow_steps.map((step, stepIdx) => (
+                                  <div key={stepIdx} className="flex items-start gap-3 text-sm">
+                                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary flex-shrink-0">
+                                      {step.step}
+                                    </div>
+                                    <div className="flex-1">
+                                      <p>{step.action}</p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        {step.tool && step.tool !== "None" && (
+                                          <Badge variant="outline" className="text-xs">{step.tool}</Badge>
+                                        )}
+                                        <span className="text-xs text-muted-foreground">
+                                          ~{step.time_minutes} min
+                                        </span>
+                                      </div>
+                                      {step.prompt_template && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="mt-1 h-7 text-xs"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            copyPrompt(step.prompt_template!, `step-${idx}-${stepIdx}`);
+                                          }}
+                                        >
+                                          {copiedPrompts.has(`step-${idx}-${stepIdx}`) ? (
+                                            <><CheckCircle className="h-3 w-3 mr-1" /> Copied!</>
+                                          ) : (
+                                            <><Copy className="h-3 w-3 mr-1" /> Copy Prompt</>
+                                          )}
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Starter Prompts */}
+                          {task.starter_prompts && task.starter_prompts.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                <Copy className="h-3 w-3" />
+                                COPY-PASTE PROMPTS
+                              </h5>
+                              <div className="space-y-3">
+                                {task.starter_prompts.map((sp, spIdx) => (
+                                  <div key={spIdx} className="border rounded-lg p-3 bg-background">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium">{sp.use_case}</span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyPrompt(sp.prompt, `prompt-${idx}-${spIdx}`);
+                                        }}
+                                      >
+                                        {copiedPrompts.has(`prompt-${idx}-${spIdx}`) ? (
+                                          <><CheckCircle className="h-3 w-3 mr-1 text-green-600" /> Copied!</>
+                                        ) : (
+                                          <><Copy className="h-3 w-3 mr-1" /> Copy</>
+                                        )}
+                                      </Button>
+                                    </div>
+                                    <pre className="text-xs bg-muted/50 p-2 rounded whitespace-pre-wrap font-mono">
+                                      {sp.prompt}
+                                    </pre>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                      <strong>Expected output:</strong> {sp.expected_output}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           {/* Time savings visualization */}
                           <div className="bg-muted/50 p-3 rounded-lg">
                             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                              <span>Before: {task.current_time_hours}h/week</span>
-                              <span>After: {task.estimated_time_after}h/week</span>
+                              <span>Before: {task.current_time_hours.toFixed(1)}h/week</span>
+                              <span>After: {task.estimated_time_after.toFixed(1)}h/week</span>
                             </div>
                             <div className="relative h-2 bg-muted rounded-full overflow-hidden">
                               <div
@@ -292,17 +452,18 @@ export function EmployeeAIDetailDialog({
                               <div
                                 className="absolute inset-y-0 left-0 bg-green-500"
                                 style={{
-                                  width: `${
+                                  width: `${Math.max(0, Math.min(100, 
                                     ((task.current_time_hours - task.hours_saved) /
                                       task.current_time_hours) *
                                     100
-                                  }%`,
+                                  ))}%`,
                                 }}
                               />
                             </div>
                             <p className="text-xs text-center mt-1 text-green-600 font-medium">
-                              {((task.hours_saved / task.current_time_hours) * 100).toFixed(0)}%
-                              time reduction
+                              {task.current_time_hours > 0 
+                                ? ((task.hours_saved / task.current_time_hours) * 100).toFixed(0)
+                                : 0}% time reduction
                             </p>
                           </div>
 

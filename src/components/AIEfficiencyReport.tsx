@@ -26,13 +26,20 @@ interface Employee {
 
 interface ExecutiveSummary {
   headline: string;
+  subheadline?: string;
   employees_analyzed: number;
+  total_hours_saved?: number;
   avg_hours_saved_per_employee: number;
-  annual_hours_saved: number;
-  annual_value_estimate: number;
+  annual_hours_saved?: number;
+  weekly_value?: number;
+  annual_value?: number;
+  annual_value_estimate?: number; // legacy field
+  hourly_rate?: number;
   ai_readiness_score: number;
   top_opportunity_role: string;
   top_opportunity_department: string;
+  quick_win_count?: number;
+  quick_win_hours?: number;
 }
 
 interface RoleAnalysis {
@@ -55,6 +62,10 @@ interface QuickWin {
   affected_employees: number;
   total_weekly_hours_saved: number;
   recommended_tool: string;
+  difficulty?: string;
+  workflow_steps?: any[];
+  starter_prompts?: any[];
+  quick_start_guide?: string;
 }
 
 interface RoadmapPhase {
@@ -62,18 +73,27 @@ interface RoadmapPhase {
   title: string;
   focus: string;
   estimated_hours_saved?: number;
+  weekly_value?: number;
+  annual_value?: number;
   tools?: string[];
+  actions?: string[];
 }
 
 interface AITask {
   task: string;
+  instances_per_week?: number;
+  minutes_per_instance?: number;
   current_time_hours: number;
+  ai_automation_percent?: number;
   estimated_time_after: number;
   hours_saved: number;
   ai_solution: string;
   recommended_tool: string;
   difficulty: "easy" | "medium" | "hard";
-  category: "automation" | "augmentation";
+  category: "automation" | "augmentation" | "full_automation";
+  workflow_steps?: any[];
+  starter_prompts?: any[];
+  quick_start_guide?: string;
 }
 
 interface EmployeeAIData {
@@ -508,25 +528,43 @@ export function AIEfficiencyReport() {
       {/* Executive Summary Banner */}
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
         <CardContent className="pt-6">
-          <p className="text-xl font-semibold text-center mb-6">{summary.headline}</p>
+          <p className="text-xl font-semibold text-center mb-2">{summary.headline}</p>
+          {summary.subheadline && (
+            <p className="text-lg text-center text-muted-foreground mb-6">{summary.subheadline}</p>
+          )}
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary">{summary.annual_hours_saved.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Hours Saved/Year</div>
+              <div className="text-3xl font-bold text-primary">
+                {(summary.total_hours_saved || report.total_estimated_hours_saved || 0).toFixed(0)}h
+              </div>
+              <div className="text-sm text-muted-foreground">Hours Saved/Week</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">${(summary.annual_value_estimate / 1000).toFixed(0)}K</div>
-              <div className="text-sm text-muted-foreground">Estimated Value</div>
+              <div className="text-3xl font-bold text-green-600">
+                ${((summary.weekly_value || (report.total_estimated_hours_saved * 75)) / 1000).toFixed(1)}K
+              </div>
+              <div className="text-sm text-muted-foreground">Weekly Value</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-600">
+                ${((summary.annual_value || summary.annual_value_estimate || (report.total_estimated_hours_saved * 75 * 52)) / 1000).toFixed(0)}K
+              </div>
+              <div className="text-sm text-muted-foreground">Annual Value</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold">{summary.employees_analyzed}</div>
-              <div className="text-sm text-muted-foreground">Employees Analyzed</div>
+              <div className="text-sm text-muted-foreground">Employees</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold">{summary.avg_hours_saved_per_employee}h</div>
-              <div className="text-sm text-muted-foreground">Avg Hours/Employee/Week</div>
+              <div className="text-3xl font-bold">{summary.avg_hours_saved_per_employee.toFixed(1)}h</div>
+              <div className="text-sm text-muted-foreground">Avg/Person/Week</div>
             </div>
+          </div>
+
+          {/* Value calculation transparency */}
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Calculated at <strong>${summary.hourly_rate || 75}/hour</strong> fully-loaded labor cost
           </div>
         </CardContent>
       </Card>
