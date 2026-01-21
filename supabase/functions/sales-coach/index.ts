@@ -101,7 +101,7 @@ serve(async (req) => {
         .select('title, content, category, document_type')
         .eq('company_id', effectiveCompanyId)
         .eq('is_active', true)
-        .eq('document_type', 'product_sheet')
+        .in('document_type', ['product_sheet', 'product_catalog'])
         .limit(50);
 
       if (companyDocs && companyDocs.length > 0) {
