@@ -7,15 +7,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Constants for realistic calculations
+const HOURLY_RATE = 75; // $75/hour value
+const MAX_WEEKLY_WORK_HOURS = 45; // Max hours someone works per week
+const MAX_AI_SAVINGS_PERCENT = 0.35; // Max 35% of work week can be saved via AI
+const MAX_SINGLE_TASK_HOURS = 10; // No single task can exceed 10 hrs/week
+
+interface WorkflowStep {
+  step: number;
+  action: string;
+  tool: string;
+  time_minutes: number;
+  prompt_template?: string;
+}
+
+interface StarterPrompt {
+  use_case: string;
+  prompt: string;
+  expected_output: string;
+}
+
 interface AIAugmentableTask {
   task: string;
+  instances_per_week: number;
+  minutes_per_instance: number;
   current_time_hours: number;
+  ai_automation_percent: number;
   ai_solution: string;
   recommended_tool: string;
   estimated_time_after: number;
   hours_saved: number;
   difficulty: 'easy' | 'medium' | 'hard';
   category: 'full_automation' | 'augmentation' | 'human_inherent';
+  workflow_steps: WorkflowStep[];
+  starter_prompts: StarterPrompt[];
+  quick_start_guide: string;
 }
 
 interface EmployeeAnalysis {
@@ -53,8 +79,6 @@ serve(async (req) => {
         throw new Error('No job description found for this employee');
       }
       
-      // Store the recommendation (table does not have a UNIQUE constraint on profile_id,
-      // so we cannot use upsert(onConflict: 'profile_id') reliably).
       await saveEmployeeRecommendation(supabase, {
         profile_id: profileId,
         job_description_id: analysis.jobDescriptionId,
@@ -63,6 +87,18 @@ serve(async (req) => {
         recommended_tools: analysis.recommended_tools,
         estimated_weekly_hours_saved: analysis.total_weekly_hours_saved,
         ai_readiness_score: analysis.ai_readiness_score,
+        workflow_data: analysis.priority_tasks.map(t => ({
+          task: t.task,
+          workflow_steps: t.workflow_steps,
+          quick_start_guide: t.quick_start_guide,
+        })),
+        prompt_library: analysis.priority_tasks.flatMap((t: AIAugmentableTask) => 
+          t.starter_prompts.map((p: StarterPrompt) => ({
+            task: t.task,
+            tool: t.recommended_tool,
+            ...p,
+          }))
+        ),
         generated_at: new Date().toISOString(),
         mentioned_in_podcast: false,
       });
@@ -79,7 +115,6 @@ serve(async (req) => {
       .eq('company_id', companyId)
       .eq('is_active', true);
     
-    // If specific employee IDs provided, filter to those
     if (employeeIds && Array.isArray(employeeIds) && employeeIds.length > 0) {
       employeesQuery = employeesQuery.in('id', employeeIds);
     }
@@ -95,7 +130,6 @@ serve(async (req) => {
       throw new Error('No employees found. Please select employees to analyze.');
     }
     
-    // Check if any employees have job descriptions
     const { data: jobDescriptions } = await supabase
       .from('job_descriptions')
       .select('profile_id')
@@ -119,7 +153,6 @@ serve(async (req) => {
             ...analysis,
           });
 
-          // Store individual recommendation
           await saveEmployeeRecommendation(supabase, {
             profile_id: employee.id,
             job_description_id: analysis.jobDescriptionId,
@@ -128,6 +161,18 @@ serve(async (req) => {
             recommended_tools: analysis.recommended_tools,
             estimated_weekly_hours_saved: analysis.total_weekly_hours_saved,
             ai_readiness_score: analysis.ai_readiness_score,
+            workflow_data: analysis.priority_tasks.map(t => ({
+              task: t.task,
+              workflow_steps: t.workflow_steps,
+              quick_start_guide: t.quick_start_guide,
+            })),
+            prompt_library: analysis.priority_tasks.flatMap((t: AIAugmentableTask) => 
+              t.starter_prompts.map((p: StarterPrompt) => ({
+                task: t.task,
+                tool: t.recommended_tool,
+                ...p,
+              }))
+            ),
             generated_at: new Date().toISOString(),
             mentioned_in_podcast: false,
           });
@@ -182,10 +227,11 @@ async function saveEmployeeRecommendation(supabase: any, payload: {
   recommended_tools: any;
   estimated_weekly_hours_saved: number;
   ai_readiness_score: number;
+  workflow_data?: any;
+  prompt_library?: any;
   generated_at: string;
   mentioned_in_podcast?: boolean;
 }) {
-  // Update latest existing recommendation for this profile, or insert a new one.
   const { data: existing, error: existingError } = await supabase
     .from('employee_ai_recommendations')
     .select('id')
@@ -198,20 +244,24 @@ async function saveEmployeeRecommendation(supabase: any, payload: {
     console.error('Error checking existing recommendations:', existingError);
   }
 
+  const upsertData = {
+    job_description_id: payload.job_description_id,
+    recommendations: payload.recommendations,
+    priority_tasks: payload.priority_tasks,
+    recommended_tools: payload.recommended_tools,
+    estimated_weekly_hours_saved: payload.estimated_weekly_hours_saved,
+    ai_readiness_score: payload.ai_readiness_score,
+    workflow_data: payload.workflow_data || [],
+    prompt_library: payload.prompt_library || [],
+    generated_at: payload.generated_at,
+    mentioned_in_podcast: payload.mentioned_in_podcast ?? false,
+    updated_at: new Date().toISOString(),
+  };
+
   if (existing?.id) {
     const { error: updateError } = await supabase
       .from('employee_ai_recommendations')
-      .update({
-        job_description_id: payload.job_description_id,
-        recommendations: payload.recommendations,
-        priority_tasks: payload.priority_tasks,
-        recommended_tools: payload.recommended_tools,
-        estimated_weekly_hours_saved: payload.estimated_weekly_hours_saved,
-        ai_readiness_score: payload.ai_readiness_score,
-        generated_at: payload.generated_at,
-        mentioned_in_podcast: payload.mentioned_in_podcast ?? false,
-        updated_at: new Date().toISOString(),
-      })
+      .update(upsertData)
       .eq('id', existing.id);
 
     if (updateError) {
@@ -225,14 +275,7 @@ async function saveEmployeeRecommendation(supabase: any, payload: {
     .from('employee_ai_recommendations')
     .insert({
       profile_id: payload.profile_id,
-      job_description_id: payload.job_description_id,
-      recommendations: payload.recommendations,
-      priority_tasks: payload.priority_tasks,
-      recommended_tools: payload.recommended_tools,
-      estimated_weekly_hours_saved: payload.estimated_weekly_hours_saved,
-      ai_readiness_score: payload.ai_readiness_score,
-      generated_at: payload.generated_at,
-      mentioned_in_podcast: payload.mentioned_in_podcast ?? false,
+      ...upsertData,
     });
 
   if (insertError) {
@@ -242,7 +285,6 @@ async function saveEmployeeRecommendation(supabase: any, payload: {
 }
 
 async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionId?: string) {
-  // Get job description
   let jobDescription;
   if (jobDescriptionId) {
     const { data } = await supabase
@@ -267,7 +309,6 @@ async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionI
     return null;
   }
 
-  // Use AI to analyze the job description
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
     throw new Error('LOVABLE_API_KEY not configured');
@@ -275,61 +316,108 @@ async function analyzeEmployee(supabase: any, profileId: string, jobDescriptionI
 
   const aiGatewayUrl = Deno.env.get('AI_GATEWAY_URL') || 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
-  const systemPrompt = `You are an AI efficiency analyst. Your job is to analyze job descriptions and identify tasks that can be augmented or automated with AI tools.
+  const systemPrompt = `You are an AI efficiency analyst specializing in realistic, actionable AI adoption strategies. Your job is to analyze job descriptions and identify specific tasks that can be augmented or automated with AI tools.
 
-For each task in the job description, categorize it as:
-1. "full_automation" - AI can handle this entirely (e.g., data entry, scheduling, basic research)
-2. "augmentation" - AI can speed this up significantly (e.g., report writing, analysis, communication drafting)
-3. "human_inherent" - Requires human judgment/relationships (e.g., negotiations, mentoring, creative strategy)
+CRITICAL CONSTRAINTS - YOU MUST FOLLOW THESE:
+1. Maximum work week: ${MAX_WEEKLY_WORK_HOURS} hours
+2. Maximum AI savings per person: ${Math.round(MAX_AI_SAVINGS_PERCENT * 100)}% of work week (${Math.round(MAX_WEEKLY_WORK_HOURS * MAX_AI_SAVINGS_PERCENT)} hours max)
+3. No single task can claim more than ${MAX_SINGLE_TASK_HOURS} hours/week
+4. Be CONSERVATIVE: most tasks save 20-50% of time, NOT 80%
+5. Tasks must be SPECIFIC and MEASURABLE
 
-For automation and augmentation tasks, recommend specific tools:
-- ChatGPT/Claude: Writing, summarizing, brainstorming, coding assistance
-- Microsoft Copilot: Office productivity, email drafting, meeting summaries
+For each task, you MUST provide:
+- instances_per_week: How many times this task occurs weekly (1-20)
+- minutes_per_instance: Time per occurrence (5-180 minutes)
+- ai_automation_percent: What % AI can realistically handle (15-60% for most tasks)
+- workflow_steps: 3-5 concrete steps to implement with AI
+- starter_prompts: 1-2 ready-to-use prompts they can copy/paste
+
+CATEGORIZE each task as:
+1. "full_automation" - AI handles entirely (data entry, scheduling, basic research) - RARE, max 2 tasks
+2. "augmentation" - AI speeds this up (report writing, analysis, drafting) - MOST COMMON
+3. "human_inherent" - Requires human judgment (negotiations, mentoring, strategy) - NO TIME SAVINGS
+
+RECOMMENDED TOOLS (be specific):
+- ChatGPT/Claude: Writing, summarizing, brainstorming, analysis
+- Microsoft Copilot: Email drafting, meeting summaries, Office docs
 - Perplexity: Research, fact-checking, competitive analysis
-- Notion AI: Documentation, project management
-- Grammarly: Writing refinement
-- Zapier/Make: Workflow automation
-- GitHub Copilot: Code development
-
-Be conservative with time estimates - assume 20-40% time reduction for augmented tasks.
+- GitHub Copilot: Code development only
+- Zapier/Make: Workflow automation for repetitive tasks
+- Notion AI: Documentation and project notes
 
 IMPORTANT: Return ONLY valid JSON. No markdown. No extra text.`;
 
-  const userPrompt = `Analyze this job description and identify AI-augmentable tasks.
+  const userPrompt = `Analyze this job description and identify 4-8 AI-augmentable tasks with REALISTIC time savings.
 
 Job Title: ${jobDescription.title || 'Not specified'}
 Description: ${jobDescription.description}
 
-Return a JSON object with this structure:
+Return a JSON object with this exact structure:
 {
   "ai_augmentable_tasks": [
     {
-      "task": "specific task from job description",
-      "current_time_hours": 5,
-      "ai_solution": "how AI can help",
-      "recommended_tool": "specific AI tool",
-      "estimated_time_after": 2,
-      "hours_saved": 3,
-      "difficulty": "easy" | "medium" | "hard",
-      "category": "full_automation" | "augmentation" | "human_inherent"
+      "task": "specific, measurable task from job description",
+      "instances_per_week": 5,
+      "minutes_per_instance": 45,
+      "current_time_hours": 3.75,
+      "ai_automation_percent": 40,
+      "ai_solution": "one sentence on how AI helps",
+      "recommended_tool": "specific AI tool name",
+      "estimated_time_after": 2.25,
+      "hours_saved": 1.5,
+      "difficulty": "easy",
+      "category": "augmentation",
+      "workflow_steps": [
+        {
+          "step": 1,
+          "action": "Gather key data points from project tracker",
+          "tool": "None",
+          "time_minutes": 5
+        },
+        {
+          "step": 2,
+          "action": "Open ChatGPT and paste the summarization prompt",
+          "tool": "ChatGPT",
+          "time_minutes": 2,
+          "prompt_template": "Summarize these updates..."
+        },
+        {
+          "step": 3,
+          "action": "Review AI output and make edits",
+          "tool": "None",
+          "time_minutes": 10
+        }
+      ],
+      "starter_prompts": [
+        {
+          "use_case": "Weekly status report",
+          "prompt": "Summarize these project updates into a professional status report for leadership. Include: progress %, blockers, next steps. Tone: executive-friendly, concise.\\n\\nUpdates:\\n[paste here]",
+          "expected_output": "A 2-3 paragraph executive summary with clear formatting"
+        }
+      ],
+      "quick_start_guide": "Try this today: Before your next status report, paste your raw notes into ChatGPT with the prompt above. Review the output and you'll cut report writing time in half."
     }
   ],
-  "total_weekly_hours_saved": 15,
-  "ai_readiness_score": 65,
-  "recommended_tools": ["ChatGPT/Claude", "Perplexity"],
-  "key_insight": "one sentence about the biggest opportunity"
+  "total_weekly_hours_saved": 8,
+  "ai_readiness_score": 55,
+  "recommended_tools": ["ChatGPT/Claude", "Microsoft Copilot"],
+  "key_insight": "The biggest opportunity is automating weekly status reports and meeting prep."
 }
 
-IMPORTANT SCORING GUIDELINES:
-- ai_readiness_score MUST be a number from 0 to 100 (percentage scale)
-  - 0-30: Low readiness (few AI-automatable tasks, mostly human-inherent work)
-  - 31-50: Moderate readiness (some augmentation opportunities)
-  - 51-70: Good readiness (significant automation potential)
-  - 71-100: High readiness (many tasks can be automated or heavily augmented)
-- Base the score on what percentage of the role's tasks can benefit from AI
-- Consider both the quantity and quality of AI opportunities
+MATH CHECK REQUIREMENTS:
+- current_time_hours = (instances_per_week × minutes_per_instance) / 60
+- hours_saved = current_time_hours × (ai_automation_percent / 100)
+- estimated_time_after = current_time_hours - hours_saved
+- total_weekly_hours_saved MUST equal sum of all hours_saved
+- total_weekly_hours_saved MUST NOT exceed ${Math.round(MAX_WEEKLY_WORK_HOURS * MAX_AI_SAVINGS_PERCENT)} hours
 
-Focus on practical, immediately actionable recommendations. Be specific about which AI tools to use.`;
+AI READINESS SCORING (0-100):
+- 0-30: Low (few AI opportunities, mostly human-inherent work)
+- 31-50: Moderate (some augmentation potential)
+- 51-70: Good (significant automation possible)
+- 71-100: High (many tasks can be heavily augmented)
+
+Focus on ACTIONABLE tasks with SPECIFIC workflows and READY-TO-USE prompts.`;
 
   const response = await fetch(aiGatewayUrl, {
     method: 'POST',
@@ -358,14 +446,9 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
     throw new Error('No content from AI');
   }
 
-  // Some models occasionally wrap JSON in markdown fences (```json ... ```)
-  // or add minor leading/trailing text. We sanitize before parsing.
   const sanitizeJson = (raw: string) => {
     let s = raw.trim();
-    // Strip markdown code fences if present
     s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
-
-    // If still not pure JSON, attempt to extract the outermost JSON object
     const firstBrace = s.indexOf('{');
     const lastBrace = s.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
@@ -382,9 +465,43 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
     console.error('AI returned non-JSON content (sanitized):', sanitizeJson(content));
     throw new Error('AI returned invalid JSON');
   }
+
+  // Validate and cap hours to realistic limits
+  const maxHoursSaved = MAX_WEEKLY_WORK_HOURS * MAX_AI_SAVINGS_PERCENT;
+  let tasks = (analysis.ai_augmentable_tasks || []).map((t: AIAugmentableTask) => {
+    // Recalculate to ensure math is correct
+    const calculatedCurrentHours = (t.instances_per_week * t.minutes_per_instance) / 60;
+    const cappedCurrentHours = Math.min(calculatedCurrentHours, MAX_SINGLE_TASK_HOURS);
+    const automationPercent = Math.min(t.ai_automation_percent, 60) / 100; // Cap at 60%
+    const calculatedHoursSaved = cappedCurrentHours * automationPercent;
+    
+    return {
+      ...t,
+      current_time_hours: Math.round(cappedCurrentHours * 100) / 100,
+      hours_saved: Math.round(calculatedHoursSaved * 100) / 100,
+      estimated_time_after: Math.round((cappedCurrentHours - calculatedHoursSaved) * 100) / 100,
+      ai_automation_percent: Math.min(t.ai_automation_percent, 60),
+      workflow_steps: t.workflow_steps || [],
+      starter_prompts: t.starter_prompts || [],
+      quick_start_guide: t.quick_start_guide || '',
+    };
+  });
+
+  // Calculate total and normalize if exceeds max
+  let totalHoursSaved = tasks.reduce((sum: number, t: AIAugmentableTask) => sum + t.hours_saved, 0);
   
-  // Get all priority tasks sorted by impact (highest hours saved, easiest difficulty first)
-  const priorityTasks = [...(analysis.ai_augmentable_tasks || [])]
+  if (totalHoursSaved > maxHoursSaved) {
+    const scaleFactor = maxHoursSaved / totalHoursSaved;
+    tasks = tasks.map((t: AIAugmentableTask) => ({
+      ...t,
+      hours_saved: Math.round(t.hours_saved * scaleFactor * 100) / 100,
+      estimated_time_after: Math.round((t.current_time_hours - (t.hours_saved * scaleFactor)) * 100) / 100,
+    }));
+    totalHoursSaved = maxHoursSaved;
+  }
+  
+  // Sort by impact (highest hours saved, easiest difficulty first)
+  const priorityTasks = [...tasks]
     .filter((t: AIAugmentableTask) => t.category !== 'human_inherent')
     .sort((a: AIAugmentableTask, b: AIAugmentableTask) => {
       const difficultyScore = { easy: 3, medium: 2, hard: 1 };
@@ -394,9 +511,9 @@ Focus on practical, immediately actionable recommendations. Be specific about wh
   return {
     jobDescriptionId: jobDescription.id,
     jobTitle: jobDescription.title,
-    ai_augmentable_tasks: analysis.ai_augmentable_tasks || [],
-    total_weekly_hours_saved: analysis.total_weekly_hours_saved || 0,
-    ai_readiness_score: analysis.ai_readiness_score || 0,
+    ai_augmentable_tasks: tasks,
+    total_weekly_hours_saved: Math.round(totalHoursSaved * 100) / 100,
+    ai_readiness_score: Math.min(analysis.ai_readiness_score || 0, 100),
     recommended_tools: analysis.recommended_tools || [],
     priority_tasks: priorityTasks,
     key_insight: analysis.key_insight,
@@ -440,27 +557,56 @@ function aggregateAnalyses(analyses: EmployeeAnalysis[]) {
     avg_readiness_score: emps.reduce((s, e) => s + e.ai_readiness_score, 0) / emps.length,
   })).sort((a, b) => b.total_hours_saved - a.total_hours_saved);
 
-  // Find quick wins (easy tasks with high impact across multiple employees)
-  const allTasks = analyses.flatMap(a => a.ai_augmentable_tasks);
-  const taskFrequency = new Map<string, { count: number; totalHours: number; tool: string; difficulty: string }>();
+  // Find quick wins with workflow data
+  const allTasks = analyses.flatMap(a => a.priority_tasks || []);
+  const taskGroups = new Map<string, { 
+    count: number; 
+    totalHours: number; 
+    tool: string; 
+    difficulty: string;
+    workflow_steps: WorkflowStep[];
+    starter_prompts: StarterPrompt[];
+    quick_start_guide: string;
+  }>();
   
   allTasks.forEach(t => {
-    const key = t.task.toLowerCase().substring(0, 50);
-    const existing = taskFrequency.get(key) || { count: 0, totalHours: 0, tool: t.recommended_tool, difficulty: t.difficulty };
+    const key = t.task.toLowerCase().substring(0, 60);
+    const existing = taskGroups.get(key) || { 
+      count: 0, 
+      totalHours: 0, 
+      tool: t.recommended_tool, 
+      difficulty: t.difficulty,
+      workflow_steps: t.workflow_steps || [],
+      starter_prompts: t.starter_prompts || [],
+      quick_start_guide: t.quick_start_guide || '',
+    };
     existing.count++;
     existing.totalHours += t.hours_saved;
-    taskFrequency.set(key, existing);
+    if (!existing.workflow_steps.length && t.workflow_steps?.length) {
+      existing.workflow_steps = t.workflow_steps;
+    }
+    if (!existing.starter_prompts.length && t.starter_prompts?.length) {
+      existing.starter_prompts = t.starter_prompts;
+    }
+    if (!existing.quick_start_guide && t.quick_start_guide) {
+      existing.quick_start_guide = t.quick_start_guide;
+    }
+    taskGroups.set(key, existing);
   });
 
-  const quickWins = Array.from(taskFrequency.entries())
-    .filter(([_, v]) => v.difficulty === 'easy' && v.count >= 2)
+  const quickWins = Array.from(taskGroups.entries())
+    .filter(([_, v]) => v.difficulty === 'easy' || v.count >= 2)
     .sort((a, b) => b[1].totalHours - a[1].totalHours)
-    .slice(0, 5)
+    .slice(0, 8)
     .map(([task, data]) => ({
       task,
       affected_employees: data.count,
-      total_weekly_hours_saved: data.totalHours,
+      total_weekly_hours_saved: Math.round(data.totalHours * 100) / 100,
       recommended_tool: data.tool,
+      difficulty: data.difficulty,
+      workflow_steps: data.workflow_steps,
+      starter_prompts: data.starter_prompts,
+      quick_start_guide: data.quick_start_guide,
     }));
 
   // Implementation roadmap
@@ -468,46 +614,62 @@ function aggregateAnalyses(analyses: EmployeeAnalysis[]) {
     {
       phase: 1,
       title: 'Quick Wins (Week 1-2)',
-      focus: 'Easy automation tasks with immediate impact',
-      estimated_hours_saved: quickWins.reduce((s, q) => s + q.total_weekly_hours_saved, 0),
+      focus: 'Deploy easy automations with immediate ROI',
+      estimated_hours_saved: quickWins.filter(q => q.difficulty === 'easy').reduce((s, q) => s + q.total_weekly_hours_saved, 0),
+      weekly_value: quickWins.filter(q => q.difficulty === 'easy').reduce((s, q) => s + q.total_weekly_hours_saved, 0) * HOURLY_RATE,
+      actions: quickWins.filter(q => q.difficulty === 'easy').slice(0, 3).map(q => q.task),
     },
     {
       phase: 2,
-      title: 'Tool Adoption (Week 3-4)',
-      focus: 'Roll out recommended AI tools with training',
+      title: 'Tool Rollout (Week 3-4)',
+      focus: 'Train team on recommended AI tools',
       tools: [...new Set(analyses.flatMap(a => a.recommended_tools))].slice(0, 5),
+      estimated_hours_saved: totalHoursSaved * 0.4,
+      weekly_value: totalHoursSaved * 0.4 * HOURLY_RATE,
     },
     {
       phase: 3,
       title: 'Process Integration (Month 2)',
-      focus: 'Embed AI into daily workflows',
-      estimated_hours_saved: totalHoursSaved * 0.5,
+      focus: 'Embed AI into daily workflows with medium-difficulty tasks',
+      estimated_hours_saved: totalHoursSaved * 0.7,
+      weekly_value: totalHoursSaved * 0.7 * HOURLY_RATE,
     },
     {
       phase: 4,
       title: 'Full Adoption (Month 3+)',
-      focus: 'Advanced automation and optimization',
+      focus: 'Advanced automation and continuous optimization',
       estimated_hours_saved: totalHoursSaved,
+      weekly_value: totalHoursSaved * HOURLY_RATE,
+      annual_value: totalHoursSaved * HOURLY_RATE * 52,
     },
   ];
 
-  // Executive summary
+  // Executive summary with $75/hour calculations
+  const weeklyValue = totalHoursSaved * HOURLY_RATE;
+  const annualValue = weeklyValue * 52;
+  const avgPerEmployee = analyses.length > 0 ? totalHoursSaved / analyses.length : 0;
+
   const executiveSummary = {
-    headline: `Your organization could save ${Math.round(totalHoursSaved)} hours per week through AI adoption`,
+    headline: `Your team could save ${Math.round(totalHoursSaved)} hours per week`,
+    subheadline: `That's $${weeklyValue.toLocaleString()}/week or $${Math.round(annualValue / 1000)}K annually`,
     employees_analyzed: analyses.length,
-    avg_hours_saved_per_employee: analyses.length > 0 ? Math.round(totalHoursSaved / analyses.length * 10) / 10 : 0,
-    annual_hours_saved: Math.round(totalHoursSaved * 52),
-    annual_value_estimate: Math.round(totalHoursSaved * 52 * 50), // $50/hour average
+    total_hours_saved: Math.round(totalHoursSaved * 10) / 10,
+    avg_hours_saved_per_employee: Math.round(avgPerEmployee * 10) / 10,
+    weekly_value: weeklyValue,
+    annual_value: annualValue,
+    hourly_rate: HOURLY_RATE,
     ai_readiness_score: Math.round(avgScore),
     top_opportunity_role: roleAnalysis[0]?.role || 'N/A',
     top_opportunity_department: departmentAnalysis[0]?.department || 'N/A',
+    quick_win_count: quickWins.length,
+    quick_win_hours: quickWins.reduce((s, q) => s + q.total_weekly_hours_saved, 0),
   };
 
   return {
     executiveSummary,
     roleAnalysis,
     departmentAnalysis,
-    totalHoursSaved,
+    totalHoursSaved: Math.round(totalHoursSaved * 10) / 10,
     overallScore: avgScore,
     quickWins,
     roadmap,

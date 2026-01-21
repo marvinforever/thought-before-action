@@ -244,6 +244,57 @@ export type Database = {
           },
         ]
       }
+      ai_prompt_usage: {
+        Row: {
+          created_at: string | null
+          id: string
+          jericho_practiced: boolean | null
+          marked_helpful: boolean | null
+          profile_id: string | null
+          prompt_copied: boolean | null
+          prompt_text: string | null
+          recommendation_id: string | null
+          task_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          jericho_practiced?: boolean | null
+          marked_helpful?: boolean | null
+          profile_id?: string | null
+          prompt_copied?: boolean | null
+          prompt_text?: string | null
+          recommendation_id?: string | null
+          task_name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          jericho_practiced?: boolean | null
+          marked_helpful?: boolean | null
+          profile_id?: string | null
+          prompt_copied?: boolean | null
+          prompt_text?: string | null
+          recommendation_id?: string | null
+          task_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_prompt_usage_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_prompt_usage_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "employee_ai_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_readiness_assessments: {
         Row: {
           ai_readiness_score: number | null
@@ -2017,9 +2068,11 @@ export type Database = {
           mentioned_in_podcast: boolean | null
           priority_tasks: Json
           profile_id: string
+          prompt_library: Json | null
           recommendations: Json
           recommended_tools: Json
           updated_at: string
+          workflow_data: Json | null
         }
         Insert: {
           ai_readiness_score?: number | null
@@ -2032,9 +2085,11 @@ export type Database = {
           mentioned_in_podcast?: boolean | null
           priority_tasks?: Json
           profile_id: string
+          prompt_library?: Json | null
           recommendations?: Json
           recommended_tools?: Json
           updated_at?: string
+          workflow_data?: Json | null
         }
         Update: {
           ai_readiness_score?: number | null
@@ -2047,9 +2102,11 @@ export type Database = {
           mentioned_in_podcast?: boolean | null
           priority_tasks?: Json
           profile_id?: string
+          prompt_library?: Json | null
           recommendations?: Json
           recommended_tools?: Json
           updated_at?: string
+          workflow_data?: Json | null
         }
         Relationships: [
           {
