@@ -271,68 +271,6 @@ export function EmployeeAIDetailDialog({
               </CardContent>
             </Card>
 
-            {/* AI PROMPT LIBRARY - Quick Access to All Prompts */}
-            {allPrompts.length > 0 && (
-              <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-background">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Copy className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm">AI Prompt Library</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {allPrompts.length} ready-to-use prompts • Copy and paste into ChatGPT, Claude, or Copilot
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {allPrompts.map((p) => (
-                      <div 
-                        key={p.id} 
-                        className="border rounded-lg p-3 bg-background hover:border-primary/50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{p.use_case}</span>
-                              <Badge variant="secondary" className="text-xs">{p.tool}</Badge>
-                              <Badge variant="outline" className="text-xs text-green-600">
-                                Save {p.hours_saved.toFixed(1)}h/wk
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              For: {p.task}
-                            </p>
-                          </div>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="h-8 flex-shrink-0"
-                            onClick={() => copyPrompt(p.prompt, p.id)}
-                          >
-                            {copiedPrompts.has(p.id) ? (
-                              <><CheckCircle className="h-3 w-3 mr-1" /> Copied!</>
-                            ) : (
-                              <><Copy className="h-3 w-3 mr-1" /> Copy Prompt</>
-                            )}
-                          </Button>
-                        </div>
-                        <pre className="text-xs bg-muted p-3 rounded-md whitespace-pre-wrap font-mono border max-h-32 overflow-y-auto">
-                          {p.prompt}
-                        </pre>
-                        <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
-                          <Lightbulb className="h-3 w-3 mt-0.5 flex-shrink-0 text-yellow-500" />
-                          <span><strong>Expected result:</strong> {p.expected_output}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             <Separator />
 
             {/* Task Analysis */}
@@ -346,11 +284,11 @@ export function EmployeeAIDetailDialog({
                 {(employee.priority_tasks || []).map((task, idx) => (
                   <Card
                     key={idx}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => toggleTask(idx)}
+                    className="border-l-4 border-l-primary/50"
                   >
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
+                      {/* Task Header */}
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium text-sm">{task.task}</h4>
@@ -360,43 +298,76 @@ export function EmployeeAIDetailDialog({
                             >
                               {task.difficulty}
                             </Badge>
-                            <Badge variant="outline" className="text-xs flex items-center gap-1">
-                              {getCategoryIcon(task.category)}
-                              {task.category === "full_automation" ? "automation" : task.category}
+                            <Badge variant="secondary" className="text-xs">
+                              {task.recommended_tool}
                             </Badge>
                           </div>
 
-                          {/* Granular breakdown if available */}
-                          {task.instances_per_week && task.minutes_per_instance && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {task.instances_per_week}× per week • {task.minutes_per_instance} min each
-                            </p>
-                          )}
-
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <span className="text-muted-foreground flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {task.current_time_hours.toFixed(1)}h → {task.estimated_time_after.toFixed(1)}h
                             </span>
-                            <span className="text-green-600 font-medium">
+                            <span className="text-green-600 font-semibold">
                               Save {task.hours_saved.toFixed(1)}h/week
                             </span>
-                            {task.ai_automation_percent && (
-                              <span className="text-blue-600">
-                                {task.ai_automation_percent}% AI
-                              </span>
-                            )}
                           </div>
                         </div>
-
-                        <Button variant="ghost" size="sm">
-                          {expandedTasks.has(idx) ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
                       </div>
+
+                      {/* PROMPTS - Always visible */}
+                      {task.starter_prompts && task.starter_prompts.length > 0 && (
+                        <div className="space-y-2 mb-3">
+                          {task.starter_prompts.map((sp, spIdx) => (
+                            <div 
+                              key={spIdx} 
+                              className="bg-primary/5 border border-primary/20 rounded-lg p-3"
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Copy className="h-4 w-4 text-primary" />
+                                  <span className="font-medium text-sm">{sp.use_case}</span>
+                                </div>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-7"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyPrompt(sp.prompt, `prompt-${idx}-${spIdx}`);
+                                  }}
+                                >
+                                  {copiedPrompts.has(`prompt-${idx}-${spIdx}`) ? (
+                                    <><CheckCircle className="h-3 w-3 mr-1" /> Copied!</>
+                                  ) : (
+                                    <><Copy className="h-3 w-3 mr-1" /> Copy Prompt</>
+                                  )}
+                                </Button>
+                              </div>
+                              <pre className="text-xs bg-background p-2 rounded border whitespace-pre-wrap font-mono max-h-24 overflow-y-auto">
+                                {sp.prompt}
+                              </pre>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                <strong>Result:</strong> {sp.expected_output}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Expand for more details */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full text-xs text-muted-foreground"
+                        onClick={() => toggleTask(idx)}
+                      >
+                        {expandedTasks.has(idx) ? (
+                          <><ChevronUp className="h-3 w-3 mr-1" /> Hide workflow details</>
+                        ) : (
+                          <><ChevronDown className="h-3 w-3 mr-1" /> Show workflow details</>
+                        )}
+                      </Button>
 
                       {expandedTasks.has(idx) && (
                         <div className="mt-4 pt-4 border-t space-y-4">
@@ -467,46 +438,6 @@ export function EmployeeAIDetailDialog({
                                         </Button>
                                       )}
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Starter Prompts */}
-                          {task.starter_prompts && task.starter_prompts.length > 0 && (
-                            <div>
-                              <h5 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                                <Copy className="h-3 w-3" />
-                                COPY-PASTE PROMPTS
-                              </h5>
-                              <div className="space-y-3">
-                                {task.starter_prompts.map((sp, spIdx) => (
-                                  <div key={spIdx} className="border rounded-lg p-3 bg-background">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-sm font-medium">{sp.use_case}</span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          copyPrompt(sp.prompt, `prompt-${idx}-${spIdx}`);
-                                        }}
-                                      >
-                                        {copiedPrompts.has(`prompt-${idx}-${spIdx}`) ? (
-                                          <><CheckCircle className="h-3 w-3 mr-1 text-green-600" /> Copied!</>
-                                        ) : (
-                                          <><Copy className="h-3 w-3 mr-1" /> Copy</>
-                                        )}
-                                      </Button>
-                                    </div>
-                                    <pre className="text-xs bg-muted/50 p-2 rounded whitespace-pre-wrap font-mono">
-                                      {sp.prompt}
-                                    </pre>
-                                    <p className="text-xs text-muted-foreground mt-2">
-                                      <strong>Expected output:</strong> {sp.expected_output}
-                                    </p>
                                   </div>
                                 ))}
                               </div>
