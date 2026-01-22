@@ -243,8 +243,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
         </div>
       )}
 
-      <ScrollArea className="h-[500px] pr-4">
-        <div className="space-y-3">
+      <div className="space-y-3 pr-4">
           {knowledge.map((item) => {
             const data = podcastData[item.id];
             const hasEpisodes = data?.episodes && data.episodes.length > 0;
@@ -398,8 +397,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
               </Card>
             );
           })}
-        </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 };
