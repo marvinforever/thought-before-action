@@ -3,6 +3,7 @@ import { X, Send, Loader2, Copy, Check, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { FormattedMessage } from '@/components/ui/formatted-message';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useViewAs } from '@/contexts/ViewAsContext';
@@ -583,16 +584,23 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
                   : 'bg-muted text-foreground'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                {/* Show typed-out content for streaming message, otherwise show full content */}
-                {msg.role === 'assistant' && isLoading && idx === messages.length - 1
-                  ? streamBuffer.slice(0, displayedChars)
-                  : msg.content}
-                {/* Show typing cursor for active streaming message */}
-                {msg.role === 'assistant' && isLoading && idx === messages.length - 1 && displayedChars < streamBuffer.length && (
-                  <span className="inline-block w-2 h-4 ml-1 bg-foreground/70 animate-pulse" />
-                )}
-              </p>
+              {msg.role === 'assistant' ? (
+                <>
+                  {/* Show typed-out content for streaming message */}
+                  {isLoading && idx === messages.length - 1 ? (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                      {streamBuffer.slice(0, displayedChars)}
+                      {displayedChars < streamBuffer.length && (
+                        <span className="inline-block w-2 h-4 ml-1 bg-foreground/70 animate-pulse" />
+                      )}
+                    </p>
+                  ) : (
+                    <FormattedMessage content={msg.content} />
+                  )}
+                </>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+              )}
               
               {/* Action buttons for assistant messages with generated content */}
               {msg.role === 'assistant' && msg.content && !isLoading && (
