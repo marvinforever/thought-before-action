@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FormattedMessage } from "@/components/ui/formatted-message";
 import { Send, Loader2, MessageCircle, Sparkles, Plus, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -395,22 +396,7 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
                     }`}
                   >
                     {msg.role === "assistant" ? (
-                      <div 
-                        className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-2 prose-headings:font-semibold"
-                        dangerouslySetInnerHTML={{ 
-                          __html: msg.content
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                            .replace(/^### (.*$)/gm, '<h4>$1</h4>')
-                            .replace(/^## (.*$)/gm, '<h3>$1</h3>')
-                            .replace(/^# (.*$)/gm, '<h2>$1</h2>')
-                            .replace(/^- (.*$)/gm, '<li>$1</li>')
-                            .replace(/^(\d+)\. (.*$)/gm, '<li>$2</li>')
-                            .replace(/(<li>.*<\/li>\n?)+/g, '<ul class="list-disc pl-4">$&</ul>')
-                            .replace(/\n\n/g, '</p><p>')
-                            .replace(/\n/g, '<br/>')
-                        }}
-                      />
+                      <FormattedMessage content={msg.content} />
                     ) : (
                       <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     )}
