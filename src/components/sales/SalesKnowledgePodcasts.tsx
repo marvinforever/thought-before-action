@@ -55,11 +55,19 @@ interface Deal {
   sales_companies: { name: string } | null;
 }
 
+interface Customer {
+  id: string;
+  name: string;
+  location: string | null;
+}
+
 export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodcastsProps) => {
   const { toast } = useToast();
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
   const [generatingEpisode, setGeneratingEpisode] = useState<number | null>(null);
@@ -71,6 +79,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
   useEffect(() => {
     fetchKnowledge();
     fetchDeals();
+    fetchCustomers();
   }, [userId, companyId]);
 
   const fetchKnowledge = async () => {
@@ -109,6 +118,18 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     }
   };
 
+  const fetchCustomers = async () => {
+    const { data } = await supabase
+      .from("sales_companies")
+      .select("id, name, location")
+      .eq("profile_id", userId)
+      .order("name");
+    
+    if (data) {
+      setCustomers(data);
+    }
+  };
+
   const generateEpisode = async (item: KnowledgeItem, episodeIndex: number) => {
     setGenerating(item.id);
     setGeneratingEpisode(episodeIndex);
@@ -119,6 +140,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           knowledgeId: item.id, 
           chunkIndex: episodeIndex,
           dealId: selectedDealId,
+          customerId: selectedCustomerId,
         },
       });
 
@@ -217,29 +239,53 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           </p>
         </div>
         
-        {deals.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedDealId || "general"} onValueChange={(v) => setSelectedDealId(v === "general" ? null : v)}>
-              <SelectTrigger className="w-[200px] h-9">
-                <SelectValue placeholder="Apply to deal..." />
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Customer Selection */}
+          {customers.length > 0 && (
+            <Select value={selectedCustomerId || "general"} onValueChange={(v) => setSelectedCustomerId(v === "general" ? null : v)}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="Choose customer..." />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="general">General training</SelectItem>
-                {deals.map((deal) => (
-                  <SelectItem key={deal.id} value={deal.id}>
-                    {deal.deal_name}
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        )}
+          )}
+          
+          {/* Deal Selection */}
+          {deals.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Apply to deal..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No specific deal</SelectItem>
+                  {deals.map((deal) => (
+                    <SelectItem key={deal.id} value={deal.id}>
+                      {deal.deal_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </div>
 
-      {selectedDealId && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-sm">
-          <span className="font-medium">🎯 Deal Mode:</span> Episodes will be customized with examples for your selected deal
+      {(selectedDealId || selectedCustomerId) && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-sm flex items-center gap-2">
+          <span className="font-medium">🎯 Personalized Mode:</span> 
+          Episodes will be customized
+          {selectedCustomerId && <span>for <strong>{customers.find(c => c.id === selectedCustomerId)?.name}</strong></span>}
+          {selectedCustomerId && selectedDealId && <span>+</span>}
+          {selectedDealId && <span>deal: <strong>{deals.find(d => d.id === selectedDealId)?.deal_name}</strong></span>}
         </div>
       )}
 

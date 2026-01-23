@@ -1491,6 +1491,67 @@ export type Database = {
           },
         ]
       }
+      customer_insights: {
+        Row: {
+          company_id: string | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          insight_text: string
+          insight_type: string
+          is_actionable: boolean | null
+          products_mentioned: string[] | null
+          profile_id: string | null
+          source_message_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          insight_text: string
+          insight_type: string
+          is_actionable?: boolean | null
+          products_mentioned?: string[] | null
+          profile_id?: string | null
+          source_message_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          insight_text?: string
+          insight_type?: string
+          is_actionable?: boolean | null
+          products_mentioned?: string[] | null
+          profile_id?: string | null
+          source_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_insights_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_insights_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_insights_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "sales_coach_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_industry_news: {
         Row: {
           capability_context: string | null
@@ -4356,6 +4417,108 @@ export type Database = {
           },
         ]
       }
+      sales_coach_feedback: {
+        Row: {
+          company_id: string | null
+          context_snapshot: Json | null
+          created_at: string | null
+          feedback_text: string | null
+          id: string
+          message_id: string | null
+          profile_id: string | null
+          rating: string
+          recommendation_type: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          context_snapshot?: Json | null
+          created_at?: string | null
+          feedback_text?: string | null
+          id?: string
+          message_id?: string | null
+          profile_id?: string | null
+          rating: string
+          recommendation_type?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          context_snapshot?: Json | null
+          created_at?: string | null
+          feedback_text?: string | null
+          id?: string
+          message_id?: string | null
+          profile_id?: string | null
+          rating?: string
+          recommendation_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_coach_feedback_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_coach_feedback_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "sales_coach_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_coach_feedback_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_coach_learning: {
+        Row: {
+          company_id: string
+          confidence_score: number | null
+          created_at: string | null
+          feedback_count: number | null
+          id: string
+          learned_response: string
+          pattern_key: string
+          pattern_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          confidence_score?: number | null
+          created_at?: string | null
+          feedback_count?: number | null
+          id?: string
+          learned_response: string
+          pattern_key: string
+          pattern_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          feedback_count?: number | null
+          id?: string
+          learned_response?: string
+          pattern_key?: string
+          pattern_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_coach_learning_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_coach_messages: {
         Row: {
           content: string
@@ -4593,6 +4756,9 @@ export type Database = {
           content: string
           created_at: string
           created_by: string | null
+          file_name: string | null
+          file_type: string | null
+          file_url: string | null
           id: string
           is_active: boolean | null
           stage: Database["public"]["Enums"]["deal_stage"] | null
@@ -4606,6 +4772,9 @@ export type Database = {
           content: string
           created_at?: string
           created_by?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           is_active?: boolean | null
           stage?: Database["public"]["Enums"]["deal_stage"] | null
@@ -4619,6 +4788,9 @@ export type Database = {
           content?: string
           created_at?: string
           created_by?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           is_active?: boolean | null
           stage?: Database["public"]["Enums"]["deal_stage"] | null

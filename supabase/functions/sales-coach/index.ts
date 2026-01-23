@@ -93,6 +93,25 @@ serve(async (req) => {
 
     const { data: knowledge } = await knowledgeQuery.limit(15);
 
+    // Fetch learned patterns from feedback (company-wide learning)
+    let learnedPatternsContext = '';
+    if (effectiveCompanyId) {
+      const { data: learnings } = await supabase
+        .from('sales_coach_learning')
+        .select('pattern_type, pattern_key, learned_response, confidence_score, feedback_count')
+        .eq('company_id', effectiveCompanyId)
+        .order('feedback_count', { ascending: false })
+        .limit(10);
+      
+      if (learnings && learnings.length > 0) {
+        learnedPatternsContext = `\n\n=== LEARNED FROM YOUR TEAM'S FEEDBACK ===
+Your team has provided feedback that shaped these preferences. Apply them to your recommendations:
+
+${learnings.map(l => `- ${l.pattern_type.replace(/_/g, ' ').toUpperCase()}: "${l.pattern_key}" → ${l.learned_response} (based on ${l.feedback_count} reviews, ${Math.round(l.confidence_score * 100)}% confidence)`).join('\n')}
+`;
+      }
+    }
+
     // Fetch company-specific product knowledge from company_knowledge table
     let productKnowledge = '';
     if (effectiveCompanyId) {
@@ -614,7 +633,7 @@ WHEN THEY NEED HELP WITH A CUSTOMER:
 
 ${customerInfo}
 ${dealContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${learnedPatternsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
