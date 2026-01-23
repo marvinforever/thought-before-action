@@ -2387,6 +2387,82 @@ export type Database = {
           },
         ]
       }
+      field_map_analyses: {
+        Row: {
+          analysis_result: Json | null
+          company_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          field_name: string | null
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          key_insights: string | null
+          map_type: string | null
+          profile_id: string | null
+          raw_ai_response: string | null
+          sales_opportunities: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          analysis_result?: Json | null
+          company_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          field_name?: string | null
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          key_insights?: string | null
+          map_type?: string | null
+          profile_id?: string | null
+          raw_ai_response?: string | null
+          sales_opportunities?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          analysis_result?: Json | null
+          company_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          field_name?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          key_insights?: string | null
+          map_type?: string | null
+          profile_id?: string | null
+          raw_ai_response?: string | null
+          sales_opportunities?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_map_analyses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_map_analyses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_map_analyses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       greatness_keys: {
         Row: {
           company_id: string

@@ -189,6 +189,7 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
         open={showCustomerDetail}
         onOpenChange={setShowCustomerDetail}
         customerId={selectedCustomerId}
+        companyId={companyId || undefined}
       />
     </div>
   );
