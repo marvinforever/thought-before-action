@@ -5,13 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, MapPin, Calendar, DollarSign, Users, FileText, TrendingUp, History, Phone, Mail } from "lucide-react";
+import { Building2, MapPin, Calendar, DollarSign, Users, FileText, TrendingUp, History, Phone, Mail, Map } from "lucide-react";
 import { format } from "date-fns";
+import { FieldMapAnalyzer } from "./FieldMapAnalyzer";
 
 interface CustomerDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customerId: string | null;
+  companyId?: string;
 }
 
 interface Customer {
@@ -50,7 +52,7 @@ interface Deal {
   notes?: string;
 }
 
-export const CustomerDetailDialog = ({ open, onOpenChange, customerId }: CustomerDetailDialogProps) => {
+export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId }: CustomerDetailDialogProps) => {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -109,10 +111,14 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId }: Custome
           </div>
         ) : customer ? (
           <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-4 w-full">
+            <TabsList className="grid grid-cols-5 w-full">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
-              <TabsTrigger value="deals">Deals ({deals.length})</TabsTrigger>
+              <TabsTrigger value="contacts">Contacts</TabsTrigger>
+              <TabsTrigger value="deals">Deals</TabsTrigger>
+              <TabsTrigger value="fieldmaps" className="flex items-center gap-1">
+                <Map className="h-3 w-3" />
+                Field Maps
+              </TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -282,6 +288,25 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId }: Custome
                       </CardContent>
                     </Card>
                   ))
+                )}
+              </TabsContent>
+
+              <TabsContent value="fieldmaps" className="mt-0">
+                {customerId && companyId && (
+                  <FieldMapAnalyzer
+                    customerId={customerId}
+                    customerName={customer.name}
+                    companyId={companyId}
+                    customerContext={{
+                      name: customer.name,
+                      location: customer.location,
+                      operationDetails: customer.operation_details,
+                      crops: (customer.operation_details as Record<string, any>)?.crops 
+                        ? JSON.stringify((customer.operation_details as Record<string, any>).crops)
+                        : undefined,
+                      totalAcres: (customer.operation_details as Record<string, any>)?.total_acres,
+                    }}
+                  />
                 )}
               </TabsContent>
 
