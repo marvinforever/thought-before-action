@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { knowledgeId, chunkIndex = 0, dealId, dealContext } = await req.json();
+    const { knowledgeId, chunkIndex = 0, dealId, dealContext, customerId } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -53,7 +53,32 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Chunking content for: ${knowledge.title}${dealInfo ? ` (Deal: ${dealInfo.dealName})` : ''}`);
+    // Optional: Fetch customer info if customerId provided
+    let customerInfo = null;
+    if (customerId) {
+      const { data: customer } = await supabase
+        .from('sales_companies')
+        .select('name, location, grower_history, operation_details, notes')
+        .eq('id', customerId)
+        .single();
+      
+      if (customer) {
+        customerInfo = {
+          name: customer.name,
+          location: customer.location,
+          growerHistory: customer.grower_history,
+          operationDetails: customer.operation_details,
+          notes: customer.notes,
+        };
+      }
+    }
+
+    const contextLabel = customerInfo 
+      ? ` (Customer: ${customerInfo.name})`
+      : dealInfo 
+        ? ` (Deal: ${dealInfo.dealName})`
+        : '';
+    console.log(`Chunking content for: ${knowledge.title}${contextLabel}`);
 
     // First, break content into bite-sized chunks using AI
     const chunkPrompt = `Break this sales training content into 3-5 SHORT, bite-sized lessons. Each lesson should be ONE focused concept that can be taught in 60-90 seconds.
@@ -112,8 +137,22 @@ Return ONLY the JSON array, no other text.`;
     
     console.log(`Generating episode ${chunkIndex + 1}/${chunks.length}: ${chunk.title}`);
 
-    // Add deal context to the script prompt if available
-    const dealContextText = dealInfo ? `
+    // Add customer/deal context to the script prompt if available
+    let personalizationContext = '';
+    
+    if (customerInfo) {
+      personalizationContext = `
+PERSONALIZE FOR THIS SPECIFIC CUSTOMER:
+- Customer Name: ${customerInfo.name}
+- Location: ${customerInfo.location || 'Unknown'}
+${customerInfo.operationDetails ? `- Operation Details: ${JSON.stringify(customerInfo.operationDetails)}` : ''}
+${customerInfo.growerHistory ? `- Relationship History: ${customerInfo.growerHistory.substring(0, 500)}` : ''}
+${customerInfo.notes ? `- Notes: ${customerInfo.notes}` : ''}
+
+Make this episode feel like you're specifically coaching them on how to approach ${customerInfo.name}. Reference their operation, history, and situation naturally. This is a 1-on-1 coaching session for this exact customer.
+`;
+    } else if (dealInfo) {
+      personalizationContext = `
 APPLY THIS TO THE USER'S REAL DEAL:
 - Company: ${dealInfo.companyName || 'Unknown'}
 - Deal: ${dealInfo.dealName}
@@ -121,14 +160,15 @@ APPLY THIS TO THE USER'S REAL DEAL:
 - Notes: ${dealInfo.notes || 'None'}
 
 Customize your examples and advice to help with THIS specific deal. Mention the company name naturally. Make it feel like a personal coaching session for this exact situation.
-` : '';
+`;
+    }
 
     const scriptPrompt = `You're recording a thoughtful sales insight - like a trusted advisor sharing something that might help them see their next opportunity differently.
 
 LESSON: ${chunk.title}
 KEY POINT: ${chunk.key_point}
 CONTENT: ${chunk.content}
-${dealContextText}
+${personalizationContext}
 RULES:
 1. Start with curiosity - a question or observation that makes them think
 2. Keep it conversational and warm - like a mentor over coffee
@@ -140,7 +180,7 @@ RULES:
 8. NO stage directions, NO "intro music", NO host names
 9. Just write the words to speak - nothing else
 10. Tone: Warm advisor, NOT drill sergeant. Curious, NOT commanding.
-${dealInfo ? '11. Reference their specific deal/company naturally throughout!' : ''}
+${(customerInfo || dealInfo) ? '11. Reference their specific customer/deal naturally throughout!' : ''}
 
 AVOID phrases like:
 - "Listen up" / "Here's the deal" / "Let me tell you"
