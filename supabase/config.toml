@@ -179,3 +179,9 @@ verify_jwt = false
 
 [functions.analyze-public-ai-readiness]
 verify_jwt = false
+
+[functions.generate-career-path]
+verify_jwt = true
+
+[functions.detect-career-aspirations]
+verify_jwt = true

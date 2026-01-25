@@ -2741,6 +2741,19 @@ function streamResponse(response: Response, conversationId: string, supabase: an
             .update({ updated_at: new Date().toISOString() })
             .eq('id', conversationId);
           
+          // Trigger async career aspiration detection (fire and forget)
+          // This analyzes the user's message for career-related signals
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          fetch(`${supabaseUrl}/functions/v1/detect-career-aspirations`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ conversationId }),
+          }).catch(err => console.log('Aspiration detection skipped:', err.message));
+          
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
         }
       } catch (error) {

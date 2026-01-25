@@ -1015,6 +1015,155 @@ export type Database = {
           },
         ]
       }
+      career_aspirations: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          aspiration_text: string
+          aspiration_type: string
+          company_id: string
+          confidence_score: number | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          keywords: string[] | null
+          profile_id: string
+          sentiment: string | null
+          source_conversation_id: string | null
+          source_type: string
+          target_role: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          aspiration_text: string
+          aspiration_type: string
+          company_id: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          keywords?: string[] | null
+          profile_id: string
+          sentiment?: string | null
+          source_conversation_id?: string | null
+          source_type?: string
+          target_role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          aspiration_text?: string
+          aspiration_type?: string
+          company_id?: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          keywords?: string[] | null
+          profile_id?: string
+          sentiment?: string | null
+          source_conversation_id?: string | null
+          source_type?: string
+          target_role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_aspirations_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_aspirations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_aspirations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_aspirations_source_conversation_id_fkey"
+            columns: ["source_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_paths: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          from_role: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          path_type: string
+          required_capabilities: Json | null
+          to_role: string
+          typical_timeline_months: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          from_role?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          path_type?: string
+          required_capabilities?: Json | null
+          to_role: string
+          typical_timeline_months?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          from_role?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          path_type?: string
+          required_capabilities?: Json | null
+          to_role?: string
+          typical_timeline_months?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_paths_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_paths_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaching_follow_ups: {
         Row: {
           channel: string | null
@@ -3766,6 +3915,94 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotion_readiness: {
+        Row: {
+          assessed_at: string
+          assessed_by: string
+          capability_gaps: Json | null
+          capability_readiness_pct: number | null
+          career_path_id: string | null
+          company_id: string
+          created_at: string
+          estimated_ready_date: string | null
+          experience_readiness_pct: number | null
+          id: string
+          next_assessment_due: string | null
+          overall_readiness_pct: number
+          performance_readiness_pct: number | null
+          profile_id: string
+          readiness_summary: string | null
+          recommended_actions: Json | null
+          strengths: Json | null
+          target_role: string
+          updated_at: string
+        }
+        Insert: {
+          assessed_at?: string
+          assessed_by?: string
+          capability_gaps?: Json | null
+          capability_readiness_pct?: number | null
+          career_path_id?: string | null
+          company_id: string
+          created_at?: string
+          estimated_ready_date?: string | null
+          experience_readiness_pct?: number | null
+          id?: string
+          next_assessment_due?: string | null
+          overall_readiness_pct: number
+          performance_readiness_pct?: number | null
+          profile_id: string
+          readiness_summary?: string | null
+          recommended_actions?: Json | null
+          strengths?: Json | null
+          target_role: string
+          updated_at?: string
+        }
+        Update: {
+          assessed_at?: string
+          assessed_by?: string
+          capability_gaps?: Json | null
+          capability_readiness_pct?: number | null
+          career_path_id?: string | null
+          company_id?: string
+          created_at?: string
+          estimated_ready_date?: string | null
+          experience_readiness_pct?: number | null
+          id?: string
+          next_assessment_due?: string | null
+          overall_readiness_pct?: number
+          performance_readiness_pct?: number | null
+          profile_id?: string
+          readiness_summary?: string | null
+          recommended_actions?: Json | null
+          strengths?: Json | null
+          target_role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_readiness_career_path_id_fkey"
+            columns: ["career_path_id"]
+            isOneToOne: false
+            referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_readiness_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_readiness_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
