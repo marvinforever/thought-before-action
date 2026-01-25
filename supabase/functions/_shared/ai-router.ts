@@ -193,8 +193,8 @@ export interface RoutingContext {
   estimatedOutputTokens?: number;
   requiresVision?: boolean;
   requiresStreaming?: boolean;
-  companyId?: string;
-  profileId?: string;
+  companyId?: string | null;
+  profileId?: string | null;
   functionName?: string;
 }
 
@@ -447,9 +447,9 @@ export async function callAI(
 // ============================================================================
 
 interface UsageLogEntry {
-  companyId?: string;
-  profileId?: string;
-  functionName?: string;
+  companyId?: string | null;
+  profileId?: string | null;
+  functionName?: string | null;
   modelUsed: string;
   modelProvider: string;
   taskType: TaskType;
