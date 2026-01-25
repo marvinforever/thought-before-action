@@ -9,10 +9,27 @@
  * 
  * ANY CHANGES HERE APPLY TO ALL JERICHO INTERACTIONS.
  * This ensures a consistent experience across all touchpoints.
+ * 
+ * For intelligent model routing across all AI functions, see:
+ * - supabase/functions/_shared/ai-router.ts
  */
 
+// Re-export router for convenience
+export { 
+  MODELS, 
+  ROUTING_TABLE, 
+  routeToModel, 
+  callAI, 
+  estimateCost,
+  DEFAULT_MODEL,
+  DEFAULT_GATEWAY_URL,
+  type TaskType,
+  type RoutingContext,
+  type ModelConfig,
+} from './ai-router.ts';
+
 // ============================================================================
-// AI MODEL SETTINGS
+// AI MODEL SETTINGS (Legacy - use ai-router.ts for new code)
 // ============================================================================
 export const AI_CONFIG = {
   model: 'google/gemini-2.5-flash',

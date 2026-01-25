@@ -376,6 +376,78 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_log: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          estimated_cost_usd: number | null
+          fallback_reason: string | null
+          function_name: string
+          id: string
+          input_tokens: number | null
+          latency_ms: number | null
+          metadata: Json | null
+          model_provider: string
+          model_used: string
+          output_tokens: number | null
+          profile_id: string | null
+          task_type: string | null
+          total_tokens: number | null
+          was_fallback: boolean | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          fallback_reason?: string | null
+          function_name: string
+          id?: string
+          input_tokens?: number | null
+          latency_ms?: number | null
+          metadata?: Json | null
+          model_provider?: string
+          model_used: string
+          output_tokens?: number | null
+          profile_id?: string | null
+          task_type?: string | null
+          total_tokens?: number | null
+          was_fallback?: boolean | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          fallback_reason?: string | null
+          function_name?: string
+          id?: string
+          input_tokens?: number | null
+          latency_ms?: number | null
+          metadata?: Json | null
+          model_provider?: string
+          model_used?: string
+          output_tokens?: number | null
+          profile_id?: string | null
+          task_type?: string | null
+          total_tokens?: number | null
+          was_fallback?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_log_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_usage_profiles: {
         Row: {
           created_at: string | null
@@ -5570,7 +5642,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ai_monthly_costs: {
+        Row: {
+          call_count: number | null
+          company_id: string | null
+          model_provider: string | null
+          model_used: string | null
+          month: string | null
+          total_cost_usd: number | null
+          total_tokens: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_create_profile: {
