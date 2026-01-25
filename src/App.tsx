@@ -43,6 +43,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { RegistrationWizard } from "./components/RegistrationWizard";
 import PersonalAssistant from "./pages/PersonalAssistant";
+import CareerPath from "./pages/CareerPath";
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,7 @@ const App = () => (
               <Route path="my-capabilities" element={<MyCapabilities />} />
               <Route path="my-resources" element={<MyResources />} />
               <Route path="growth-roadmap" element={<GrowthRoadmap />} />
+              <Route path="career-path" element={<CareerPath />} />
               <Route
                 path="training-roi"
                 element={
