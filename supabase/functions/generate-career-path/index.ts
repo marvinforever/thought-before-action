@@ -248,14 +248,25 @@ async function generateRoadmap(
   targetRole: string,
   gaps: any[],
   strengths: any[],
-  routingContext: RoutingContext
+  routingContext: RoutingContext,
+  wizardContext?: { selfAssessment?: any; targetTimeline?: number }
 ): Promise<{ roadmap: any; readinessScore: number }> {
+  const timelineMonths = wizardContext?.targetTimeline || 12;
+  const selfAssessmentContext = wizardContext?.selfAssessment 
+    ? `\nSELF-ASSESSMENT (1-5 scale):
+- Technical Skills: ${wizardContext.selfAssessment.technicalSkills}/5
+- Leadership: ${wizardContext.selfAssessment.leadership}/5
+- Communication: ${wizardContext.selfAssessment.communication}/5
+- Experience: ${wizardContext.selfAssessment.experience}/5\n`
+    : '';
+  
   const prompt = `Create a detailed, phased career development roadmap.
 
 EMPLOYEE: ${data.profile.full_name}
 CURRENT ROLE: ${data.profile.role}
 TARGET ROLE: ${targetRole}
-
+TARGET TIMELINE: ${timelineMonths} months
+${selfAssessmentContext}
 IDENTIFIED GAPS:
 ${JSON.stringify(gaps, null, 2)}
 
@@ -266,12 +277,22 @@ THEIR CURRENT HABITS (showing discipline):
 ${data.habits.map((h: any) => `- ${h.habit_name}: ${h.current_streak} day streak, ${h.longest_streak} best`).join('\n') || 'No habits tracked'}
 
 TASK:
-Create a phased development roadmap with specific milestones:
+Create a phased development roadmap tailored to their ${timelineMonths}-month timeline with specific milestones:
 
+${timelineMonths <= 6 ? `
+1. PHASE 1 (0-6 weeks): Intensive quick wins
+2. PHASE 2 (6-12 weeks): Core skill acceleration
+3. PHASE 3 (12-18 weeks): Advanced capabilities
+4. PHASE 4 (18-24 weeks): Final readiness push` : 
+timelineMonths <= 12 ? `
+1. PHASE 1 (0-90 days): Quick wins and foundation
+2. PHASE 2 (90-180 days): Core skill development  
+3. PHASE 3 (180-270 days): Advanced capabilities
+4. PHASE 4 (270-365 days): Leadership/mastery` : `
 1. PHASE 1 (0-90 days): Quick wins and foundation
 2. PHASE 2 (90-180 days): Core skill development  
 3. PHASE 3 (180-365 days): Advanced capabilities
-4. PHASE 4 (12-24 months): Leadership/mastery
+4. PHASE 4 (12-${timelineMonths} months): Leadership/mastery`}
 
 For each phase include:
 - Specific capabilities to develop
@@ -344,9 +365,15 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { employeeId, targetRole } = await req.json();
+    const { 
+      employeeId, 
+      targetRole, 
+      aspirations: userAspirations, 
+      selfAssessment, 
+      targetTimeline 
+    } = await req.json();
 
-    console.log("Generating career path for employee:", employeeId);
+    console.log("Generating career path for employee:", employeeId, "Target:", targetRole, "Timeline:", targetTimeline);
 
     // Fetch employee profile
     const { data: profile } = await supabase
@@ -439,6 +466,25 @@ serve(async (req) => {
       oneOnOnes: oneOnOnesResult.data || [],
     };
 
+    // If user provided aspirations via wizard, add them to context
+    if (userAspirations) {
+      employeeData.aspirations = [
+        { 
+          aspiration_text: userAspirations, 
+          aspiration_type: 'wizard_input', 
+          source_type: 'wizard',
+          created_at: new Date().toISOString(),
+        },
+        ...employeeData.aspirations,
+      ];
+    }
+
+    // If user provided self-assessment via wizard, enhance data context
+    const wizardContext = {
+      selfAssessment: selfAssessment || null,
+      targetTimeline: targetTimeline || 12,
+    };
+
     const companyPaths = companyPathsResult.data || [];
 
     // Set up routing context for Opus
@@ -479,7 +525,8 @@ serve(async (req) => {
       primaryTarget,
       gaps,
       strengths,
-      routingContext
+      routingContext,
+      wizardContext
     );
 
     // Save promotion readiness to database

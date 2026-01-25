@@ -12,13 +12,15 @@ import {
   MessageSquare,
   Heart,
   TrendingUp,
-  Loader2
+  Loader2,
+  Wand2
 } from "lucide-react";
 import { useCareerPath, CareerPath, CareerAspiration } from "@/hooks/useCareerPath";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { PromotionReadinessCard } from "./PromotionReadinessCard";
 import { CareerRoadmapView } from "./CareerRoadmapView";
+import { CareerPathWizard, WizardData } from "./career/CareerPathWizard";
 
 interface CareerPathExplorerProps {
   profileId?: string;
@@ -41,6 +43,7 @@ export function CareerPathExplorer({ profileId: propProfileId, companyId: propCo
   const [profileId, setProfileId] = useState<string>(propProfileId || "");
   const [companyId, setCompanyId] = useState<string>(propCompanyId || "");
   const [roadmapOpen, setRoadmapOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedTargetRole, setSelectedTargetRole] = useState<string | undefined>();
   
   const { 
@@ -96,10 +99,27 @@ export function CareerPathExplorer({ profileId: propProfileId, companyId: propCo
     setRoadmapOpen(true);
   };
 
-  const handleGenerateCustom = async () => {
-    setSelectedTargetRole(undefined);
-    await generateCareerPath(profileId);
-    setRoadmapOpen(true);
+  const handleGenerateCustom = () => {
+    setWizardOpen(true);
+  };
+
+  const handleWizardComplete = async (data: WizardData) => {
+    const targetRole = data.targetRole 
+      ? careerPaths.find(p => p.id === data.targetRole)?.to_role 
+      : data.customTargetRole || undefined;
+    
+    setSelectedTargetRole(targetRole);
+    
+    const result = await generateCareerPath(profileId, targetRole, {
+      aspirations: data.aspirations,
+      selfAssessment: data.selfAssessment,
+      timeline: data.timeline,
+    });
+    
+    if (result) {
+      setWizardOpen(false);
+      setRoadmapOpen(true);
+    }
   };
 
   if (!profileId) {
@@ -157,18 +177,9 @@ export function CareerPathExplorer({ profileId: propProfileId, companyId: propCo
                           Generate a personalized path based on your capabilities.
                         </p>
                       </div>
-                      <Button onClick={handleGenerateCustom} disabled={generating}>
-                        {generating ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Generate My Path
-                          </>
-                        )}
+                      <Button onClick={handleGenerateCustom}>
+                        <Wand2 className="mr-2 h-4 w-4" />
+                        Set Up My Career Path
                       </Button>
                     </div>
                   </CardContent>
@@ -317,7 +328,7 @@ export function CareerPathExplorer({ profileId: propProfileId, companyId: propCo
           <PromotionReadinessCard 
             profileId={profileId}
             onViewRoadmap={() => setRoadmapOpen(true)}
-            onGeneratePath={() => {}}
+            onGeneratePath={handleGenerateCustom}
           />
         </div>
       </div>
@@ -328,6 +339,15 @@ export function CareerPathExplorer({ profileId: propProfileId, companyId: propCo
         open={roadmapOpen}
         onOpenChange={setRoadmapOpen}
         initialRoadmap={roadmap}
+      />
+
+      {/* Setup Wizard */}
+      <CareerPathWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        careerPaths={careerPaths}
+        onComplete={handleWizardComplete}
+        generating={generating}
       />
     </div>
   );
