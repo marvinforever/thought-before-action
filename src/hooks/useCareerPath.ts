@@ -150,12 +150,31 @@ export function useCareerPath() {
     }
   };
 
-  const generateCareerPath = async (employeeId: string, targetRole?: string) => {
+  const generateCareerPath = async (
+    employeeId: string,
+    targetRole?: string,
+    wizardData?: {
+      aspirations?: string;
+      selfAssessment?: {
+        technicalSkills: number;
+        leadership: number;
+        communication: number;
+        experience: number;
+      };
+      timeline?: string;
+    }
+  ) => {
     try {
       setGenerating(true);
       
       const { data, error } = await supabase.functions.invoke("generate-career-path", {
-        body: { employeeId, targetRole },
+        body: { 
+          employeeId, 
+          targetRole,
+          aspirations: wizardData?.aspirations,
+          selfAssessment: wizardData?.selfAssessment,
+          targetTimeline: wizardData?.timeline ? parseInt(wizardData.timeline) : undefined,
+        },
       });
 
       if (error) throw error;
