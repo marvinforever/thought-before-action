@@ -21,7 +21,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    const { message, deal, conversationHistory, generateCallPlan, customerContext, viewAsCompanyId, chatMode = 'rec', dealsCount = 0 } = await req.json();
+    const { message, deal, conversationHistory, generateCallPlan, customerContext, viewAsCompanyId, viewAsUserId, chatMode = 'rec', dealsCount = 0 } = await req.json();
 
     // Authenticate user
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -48,14 +48,29 @@ serve(async (req) => {
 
     // Check if super admin for view-as functionality
     let effectiveCompanyId = profile?.company_id;
-    if (viewAsCompanyId) {
-      const { data: isSuperAdmin } = await supabase.rpc('has_role', { 
-        _user_id: user.id, 
-        _role: 'super_admin' 
-      });
-      if (isSuperAdmin) {
+    let effectiveUserId = user.id;
+    let effectiveUserName = profile?.full_name;
+    
+    const { data: isSuperAdmin } = await supabase.rpc('has_role', { 
+      _user_id: user.id, 
+      _role: 'super_admin' 
+    });
+    
+    if (isSuperAdmin) {
+      if (viewAsCompanyId) {
         effectiveCompanyId = viewAsCompanyId;
         console.log(`Super admin viewing as company: ${viewAsCompanyId}`);
+      }
+      if (viewAsUserId) {
+        effectiveUserId = viewAsUserId;
+        // Get the impersonated user's name
+        const { data: viewAsProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', viewAsUserId)
+          .single();
+        effectiveUserName = viewAsProfile?.full_name || 'Unknown';
+        console.log(`Super admin viewing as user: ${effectiveUserName} (${viewAsUserId})`);
       }
     }
 
@@ -128,12 +143,12 @@ ${learnings.map(l => `- ${l.pattern_type.replace(/_/g, ' ').toUpperCase()}: "${l
       }
     }
 
-    // Fetch CRM customers (sales_companies) for context
+    // Fetch CRM customers (sales_companies) for context - use effectiveUserId for impersonation
     let crmCustomerContext = '';
     const { data: crmCustomers } = await supabase
       .from('sales_companies')
       .select('id, name, location, grower_history, operation_details, customer_since, notes')
-      .eq('profile_id', user.id)
+      .eq('profile_id', effectiveUserId)
       .order('updated_at', { ascending: false })
       .limit(20);
 
@@ -159,11 +174,18 @@ ${crmCustomers.map(c => {
     // Fetch historical purchase data from customer_purchase_history
     let historicalSalesContext = '';
     if (effectiveCompanyId) {
-      // Get top customers by revenue (last 3 years)
-      const { data: topCustomers } = await supabase
+      // Build query - filter by rep name if viewing as specific user
+      let historyQuery = supabase
         .from('customer_purchase_history')
         .select('customer_name, amount, product_description, sale_date, rep_name, bonus_category, season')
-        .eq('company_id', effectiveCompanyId)
+        .eq('company_id', effectiveCompanyId);
+      
+      // If viewing as a specific user, filter to their transactions
+      if (effectiveUserName && effectiveUserId !== user.id) {
+        historyQuery = historyQuery.ilike('rep_name', effectiveUserName.toUpperCase());
+      }
+      
+      const { data: topCustomers } = await historyQuery
         .order('sale_date', { ascending: false })
         .limit(500);
 

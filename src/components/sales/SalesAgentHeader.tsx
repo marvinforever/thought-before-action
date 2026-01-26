@@ -42,6 +42,11 @@ interface Company {
   name: string;
 }
 
+interface CompanyUser {
+  id: string;
+  full_name: string;
+}
+
 interface SalesAgentHeaderProps {
   user: any;
   profile: any;
@@ -50,10 +55,14 @@ interface SalesAgentHeaderProps {
   hasStarted: boolean;
   isSuperAdmin: boolean;
   companies: Company[];
+  companyUsers: CompanyUser[];
   viewAsCompanyId: string | null;
   viewAsCompanyName: string | null;
+  viewAsUserId: string | null;
+  viewAsUserName: string | null;
   chatMode: "coach" | "rec";
   onViewAsChange: (companyId: string | null, companyName: string | null) => void;
+  onViewAsUserChange: (userId: string | null, userName: string | null) => void;
   onChatModeChange: (mode: "coach" | "rec") => void;
   onNewConversation: () => void;
   onAddDeal: () => void;
@@ -76,10 +85,14 @@ export function SalesAgentHeader({
   hasStarted,
   isSuperAdmin,
   companies,
+  companyUsers,
   viewAsCompanyId,
   viewAsCompanyName,
+  viewAsUserId,
+  viewAsUserName,
   chatMode,
   onViewAsChange,
+  onViewAsUserChange,
   onChatModeChange,
   onNewConversation,
   onAddDeal,
@@ -186,6 +199,33 @@ export function SalesAgentHeader({
                     ))}
                   </SelectContent>
                 </Select>
+                
+                {/* User selector - shows when company is selected */}
+                {viewAsCompanyId && companyUsers.length > 0 && (
+                  <Select 
+                    value={viewAsUserId || "none"} 
+                    onValueChange={(val) => {
+                      if (val === "none") {
+                        onViewAsUserChange(null, null);
+                      } else {
+                        const selectedUser = companyUsers.find(u => u.id === val);
+                        onViewAsUserChange(val, selectedUser?.full_name || null);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[140px] h-8 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground">
+                      <SelectValue placeholder="Select user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">All Users</SelectItem>
+                      {companyUsers.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             )}
 
@@ -307,15 +347,21 @@ export function SalesAgentHeader({
       </header>
 
       {/* View As Banner */}
-      {viewAsCompanyId && viewAsCompanyName && (
+      {(viewAsCompanyId && viewAsCompanyName) && (
         <div className="bg-accent text-primary px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
           <Eye className="h-4 w-4" />
           Viewing as: <strong>{viewAsCompanyName}</strong>
+          {viewAsUserId && viewAsUserName && (
+            <> → <strong>{viewAsUserName}</strong></>
+          )}
           <Button 
             variant="ghost" 
             size="sm" 
             className="h-6 px-2 text-primary hover:bg-accent/80"
-            onClick={() => onViewAsChange(null, null)}
+            onClick={() => {
+              onViewAsUserChange(null, null);
+              onViewAsChange(null, null);
+            }}
           >
             Exit
           </Button>
