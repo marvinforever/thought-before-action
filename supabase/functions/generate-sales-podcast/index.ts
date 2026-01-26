@@ -142,24 +142,30 @@ Return ONLY the JSON array, no other text.`;
     
     if (customerInfo) {
       personalizationContext = `
-PERSONALIZE FOR THIS SPECIFIC CUSTOMER:
+PERSONALIZE FOR THE REP'S UPCOMING CALL WITH THIS CUSTOMER:
 - Customer Name: ${customerInfo.name}
 - Location: ${customerInfo.location || 'Unknown'}
 ${customerInfo.operationDetails ? `- Operation Details: ${JSON.stringify(customerInfo.operationDetails)}` : ''}
 ${customerInfo.growerHistory ? `- Relationship History: ${customerInfo.growerHistory.substring(0, 500)}` : ''}
 ${customerInfo.notes ? `- Notes: ${customerInfo.notes}` : ''}
 
-Make this episode feel like you're specifically coaching them on how to approach ${customerInfo.name}. Reference their operation, history, and situation naturally. This is a 1-on-1 coaching session for this exact customer.
+IMPORTANT: You are coaching the SALES REP, speaking ABOUT the customer. Address the rep directly ("you") and refer to the customer by name in third person ("${customerInfo.name}", "they", "their operation").
+
+Example tone: "When you sit down with ${customerInfo.name}, here's something to consider..." or "Given what you know about ${customerInfo.name}'s operation..."
+
+Make this feel like you're prepping the rep for their call - giving them specific angles, conversation starters, and things to watch for with THIS particular customer.
 `;
     } else if (dealInfo) {
       personalizationContext = `
-APPLY THIS TO THE USER'S REAL DEAL:
+COACH THE REP ON THIS SPECIFIC DEAL:
 - Company: ${dealInfo.companyName || 'Unknown'}
 - Deal: ${dealInfo.dealName}
 - Stage: ${dealInfo.stage}
 - Notes: ${dealInfo.notes || 'None'}
 
-Customize your examples and advice to help with THIS specific deal. Mention the company name naturally. Make it feel like a personal coaching session for this exact situation.
+IMPORTANT: You are coaching the SALES REP about their deal. Address the rep directly ("you") and refer to the company/customer in third person.
+
+Customize your examples and advice to help with THIS specific deal. Mention the company name naturally. Make it feel like a personal coaching session for their upcoming conversation.
 `;
     }
 
