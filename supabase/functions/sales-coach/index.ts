@@ -324,11 +324,14 @@ WHEN ASKED ABOUT CUSTOMER HISTORY:
 
     // Build deal context
     let dealContext = '';
+    let dealPurchaseHistoryContext = '';
+    
     if (deal) {
+      const companyName = deal.sales_companies?.name || 'Unknown';
       dealContext = `
 CURRENT DEAL:
 - Name: ${deal.deal_name || 'Unknown'}
-- Company: ${deal.sales_companies?.name || 'Unknown'}
+- Company: ${companyName}
 - Stage: ${deal.stage || 'prospecting'}
 - Value: $${deal.value?.toLocaleString() || 'Not specified'}
 - Expected Close: ${deal.expected_close_date || 'Not set'}
@@ -353,6 +356,64 @@ CURRENT DEAL:
         dealContext += `\n\nIMPORTANT: This is a TARGETED ACCOUNT with specific growth goals. Focus your recommendations on ${categories.primary || 'the primary category'}${categories.secondary ? ` and ${categories.secondary}` : ''} products that fit their ${deal.estimated_acres ? `${deal.estimated_acres.toLocaleString()}-acre` : ''} operation.`;
       }
       dealContext += '\n';
+      
+      // Auto-fetch purchase history for this deal's customer
+      if (companyName !== 'Unknown' && effectiveCompanyId) {
+        console.log(`[deal-context] Auto-fetching purchase history for: ${companyName}`);
+        try {
+          const rows = await fetchAllPurchaseHistory({
+            supabase,
+            companyId: effectiveCompanyId,
+            repName: null,
+            customerNameQuery: companyName,
+            seasonYear: null,
+          });
+          
+          if (rows.length > 0) {
+            // Aggregate the data
+            const totalRevenue = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+            const byProduct = new Map<string, { total: number; count: number }>();
+            const seasonsSet = new Set<string>();
+            
+            for (const r of rows) {
+              const p = r.product_description || 'Unknown';
+              const amt = Number(r.amount) || 0;
+              const cur = byProduct.get(p) || { total: 0, count: 0 };
+              cur.total += amt;
+              cur.count += 1;
+              byProduct.set(p, cur);
+              if (r.season) seasonsSet.add(r.season);
+            }
+            
+            const topProducts = Array.from(byProduct.entries())
+              .sort((a, b) => b[1].total - a[1].total)
+              .slice(0, 10)
+              .map(([name, data]) => `- ${name}: ${formatCurrency(data.total)} (${data.count} orders)`)
+              .join('\n');
+            
+            dealPurchaseHistoryContext = `
+=== HISTORICAL PURCHASE DATA FOR THIS CUSTOMER ===
+Total Revenue: ${formatCurrency(totalRevenue)} (${rows.length} transactions)
+Seasons Active: ${Array.from(seasonsSet).sort().join(', ')}
+
+TOP PRODUCTS PURCHASED:
+${topProducts}
+
+Use this purchase history to make informed recommendations. You know what they've bought before, so suggest complementary products or upsells based on their buying patterns.
+`;
+            console.log(`[deal-context] Found ${rows.length} transactions, $${totalRevenue.toLocaleString()} total`);
+          } else {
+            dealPurchaseHistoryContext = `
+=== NO PURCHASE HISTORY FOUND ===
+This appears to be a new prospect with no historical transactions in our system.
+Focus on discovery questions to understand their current suppliers and product needs.
+`;
+            console.log('[deal-context] No purchase history found for this customer');
+          }
+        } catch (historyError) {
+          console.error('[deal-context] Error fetching purchase history:', historyError);
+        }
+      }
     }
 
     // Build customer context if provided (farm info, challenges, etc.)
@@ -742,7 +803,7 @@ ${knowledgeContext}${productKnowledge}`;
       systemPrompt = `${clarificationPrefix}
 === YOUR CONTEXT ===
 ${customerInfo}
-${dealContext}
+${dealContext}${dealPurchaseHistoryContext}
 ${knowledgeContext}${productKnowledge}${crmCustomerContext}
 
 CONVERSATION SO FAR (includes your previous recommendation):
@@ -757,7 +818,7 @@ Answer their question directly without regenerating the full pre-call plan.`;
       systemPrompt = `${recModePrefix}
 === YOUR CONTEXT ===
 ${customerInfo}
-${dealContext}
+${dealContext}${dealPurchaseHistoryContext}
 ${knowledgeContext}${productKnowledge}${crmCustomerContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
@@ -820,7 +881,7 @@ EXAMPLE RECOMMENDATION FORMAT:
 This pairs well with [complementary product] because..."
 
 ${customerInfo}
-${dealContext}
+${dealContext}${dealPurchaseHistoryContext}
 ${productKnowledge}${crmCustomerContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
@@ -903,7 +964,7 @@ Always confirm what you're doing in your response, then include the action block
 SPECIAL COMMANDS:
 - If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
 
-${dealContext}
+${dealContext}${dealPurchaseHistoryContext}
 ${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
@@ -984,7 +1045,7 @@ WHEN THEY NEED HELP WITH A CUSTOMER:
 - Give them exact words to say
 
 ${customerInfo}
-${dealContext}
+${dealContext}${dealPurchaseHistoryContext}
 ${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}${learnedPatternsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}

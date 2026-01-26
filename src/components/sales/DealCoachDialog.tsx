@@ -15,6 +15,7 @@ import { FormattedMessage } from "@/components/ui/formatted-message";
 import { Send, Loader2, Building2, DollarSign, Target, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { PurchaseHistoryCard } from "./PurchaseHistoryCard";
 
 interface DealCoachDialogProps {
   deal: any;
@@ -178,6 +179,14 @@ export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogPro
             )}
           </div>
         </Card>
+
+        {/* Purchase History */}
+        {deal?.sales_companies?.name && (
+          <PurchaseHistoryCard 
+            customerName={deal.sales_companies.name}
+            defaultOpen={false}
+          />
+        )}
 
         {/* Quick Prompts */}
         <div className="flex flex-wrap gap-2">
