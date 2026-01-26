@@ -435,6 +435,109 @@ Use this information to make SPECIFIC product recommendations from your catalog 
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      // --- DEAL MOVE COMMAND ---
+      // Detect commands like "move Scott Robertson to closing" or "move the Robertson deal to proposal"
+      const movePatterns = [
+        /move\s+(?:the\s+)?(.+?)\s+(?:deal\s+)?to\s+(prospecting|discovery|proposal|closing|follow[_\s]?up)/i,
+        /(?:put|set|change)\s+(?:the\s+)?(.+?)\s+(?:deal\s+)?(?:to|in)\s+(prospecting|discovery|proposal|closing|follow[_\s]?up)/i,
+        /(.+?)\s+(?:deal\s+)?(?:should be|goes|is now)\s+(?:in\s+)?(prospecting|discovery|proposal|closing|follow[_\s]?up)/i,
+      ];
+      
+      let moveMatch = null;
+      for (const pattern of movePatterns) {
+        moveMatch = message.match(pattern);
+        if (moveMatch) break;
+      }
+      
+      if (moveMatch) {
+        const dealSearchTerm = moveMatch[1].trim();
+        let targetStage = moveMatch[2].toLowerCase().replace(/\s+/g, '_');
+        if (targetStage === 'followup') targetStage = 'follow_up';
+        
+        console.log(`[REC][move] Detected move command: "${dealSearchTerm}" -> "${targetStage}"`);
+        
+        // Search for deals matching the term
+        const { data: matchingDeals, error: searchError } = await supabase
+          .from('sales_deals')
+          .select('id, deal_name, stage, sales_companies(name)')
+          .eq('profile_id', effectiveUserId)
+          .or(`deal_name.ilike.%${dealSearchTerm}%,sales_companies.name.ilike.%${dealSearchTerm}%`)
+          .limit(5);
+        
+        if (searchError) {
+          console.error('[REC][move] Search error:', searchError);
+        }
+        
+        if (!matchingDeals || matchingDeals.length === 0) {
+          return new Response(
+            JSON.stringify({
+              message: `I couldn't find a deal matching "${dealSearchTerm}" in your pipeline. Try using the exact name or company name.`,
+              hasMethodologyAccess,
+              isStreamlineAg,
+              dealCreated: false,
+              pipelineActions: [],
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // If multiple matches, pick the best one (or ask for clarification)
+        const deal = matchingDeals[0];
+        const oldStage = deal.stage;
+        
+        if (oldStage === targetStage) {
+          return new Response(
+            JSON.stringify({
+              message: `**${deal.deal_name}** is already in ${targetStage.replace('_', ' ')}. No changes needed.`,
+              hasMethodologyAccess,
+              isStreamlineAg,
+              dealCreated: false,
+              pipelineActions: [],
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Execute the move
+        const { error: updateError } = await supabase
+          .from('sales_deals')
+          .update({ stage: targetStage })
+          .eq('id', deal.id);
+        
+        if (updateError) {
+          console.error('[REC][move] Update error:', updateError);
+          return new Response(
+            JSON.stringify({
+              message: `Sorry, I couldn't move the deal. Error: ${updateError.message}`,
+              hasMethodologyAccess,
+              isStreamlineAg,
+              dealCreated: false,
+              pipelineActions: [],
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const stageLabels: Record<string, string> = {
+          prospecting: 'Prospecting',
+          discovery: 'Discovery',
+          proposal: 'Proposal',
+          closing: 'Closing',
+          follow_up: 'Follow Up',
+        };
+        
+        return new Response(
+          JSON.stringify({
+            message: `✅ Done! Moved **${deal.deal_name}** from ${stageLabels[oldStage] || oldStage} → **${stageLabels[targetStage] || targetStage}**`,
+            hasMethodologyAccess,
+            isStreamlineAg,
+            dealCreated: false,
+            pipelineActions: [{ action: 'move', dealId: deal.id, newStage: targetStage }],
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
     
     // Detect if this is a clarification/follow-up question vs a new rec request
