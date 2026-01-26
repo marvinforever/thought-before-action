@@ -23,8 +23,10 @@ const detectSeasonYear = (text: string): string | null => {
 const extractCustomerNameFromMessage = (text: string): string | null => {
   // Handle: “give me Scott Oakes' purchase history”, “show Scott Oakes purchase history”, etc.
   const patterns = [
+    /(?:see|i\s+asked\s+to\s+see|i\s+need\s+to\s+see|can\s+i\s+see|let\s+me\s+see)\s+(.+?)\s*(?:'s)?\s*(?:purchase history|history|orders|purchases)/i,
     /(?:give me|show me|pull|lookup|get)\s+(.+?)\s*(?:'s)?\s*(?:purchase history|history|orders|purchases)/i,
     /(?:purchase history|history|orders|purchases)\s+(?:for|of)\s+(.+?)\s*(?:$|\?|\.)/i,
+    /(?:purchase history|history|orders|purchases)\s+from\s+(.+?)\s*(?:$|\?|\.)/i,
     /what did\s+(.+?)\s+buy/i,
   ];
   for (const p of patterns) {
@@ -340,7 +342,10 @@ Use this information to make SPECIFIC product recommendations from your catalog 
       const customerNameQuery = extractCustomerNameFromMessage(message);
       const seasonYear = detectSeasonYear(message);
 
+      console.log(`[REC][history] message="${message}" extractedCustomer="${customerNameQuery}" season="${seasonYear}"`);
+
       if (customerNameQuery && /purchase history|\bhistory\b|orders|purchases|what did/i.test(message)) {
+        console.log('[REC][history] Direct history path engaged');
         const repNameFilter = (isSuperAdmin && effectiveUserId !== user.id)
           ? (effectiveUserName ? effectiveUserName.toUpperCase() : null)
           : null;
