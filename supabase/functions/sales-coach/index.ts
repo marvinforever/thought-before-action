@@ -6,6 +6,79 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// --- Helpers for direct (non-LLM) historical data answers in REC mode ---
+const escapeLike = (value: string) => value.replace(/[\\%_]/g, (m) => `\\${m}`);
+
+const detectSeasonYear = (text: string): string | null => {
+  const explicitYear = text.match(/\b(20\d{2})\b/);
+  if (explicitYear?.[1]) return explicitYear[1];
+
+  const t = text.toLowerCase();
+  const nowYear = new Date().getFullYear();
+  if (t.includes('this year')) return String(nowYear);
+  if (t.includes('last year') || t.includes('previous year')) return String(nowYear - 1);
+  return null;
+};
+
+const extractCustomerNameFromMessage = (text: string): string | null => {
+  // Handle: “give me Scott Oakes' purchase history”, “show Scott Oakes purchase history”, etc.
+  const patterns = [
+    /(?:give me|show me|pull|lookup|get)\s+(.+?)\s*(?:'s)?\s*(?:purchase history|history|orders|purchases)/i,
+    /(?:purchase history|history|orders|purchases)\s+(?:for|of)\s+(.+?)\s*(?:$|\?|\.)/i,
+    /what did\s+(.+?)\s+buy/i,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m?.[1]) return m[1].trim().replace(/["“”]/g, '');
+  }
+  return null;
+};
+
+const formatCurrency = (n: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+
+async function fetchAllPurchaseHistory(params: {
+  supabase: any;
+  companyId: string;
+  repName?: string | null;
+  customerNameQuery: string;
+  seasonYear?: string | null;
+}) {
+  const { supabase, companyId, repName, customerNameQuery, seasonYear } = params;
+  const like = `%${escapeLike(customerNameQuery.toUpperCase())}%`;
+
+  // PostgREST defaults to 1k rows; page through everything.
+  const pageSize = 1000;
+  let from = 0;
+  const rows: any[] = [];
+
+  while (true) {
+    let q = supabase
+      .from('customer_purchase_history')
+      .select('customer_name, amount, product_description, sale_date, rep_name, bonus_category, season')
+      .eq('company_id', companyId)
+      // Stored format is typically "LAST, FIRST"; but user types "First Last".
+      // Use a broad contains match, plus a fallback without spaces.
+      .or(`customer_name.ilike.${like},customer_name.ilike.%${escapeLike(customerNameQuery.replace(/\s+/g, '').toUpperCase())}%`);
+
+    if (repName) {
+      q = q.eq('rep_name', repName);
+    }
+    if (seasonYear) {
+      q = q.eq('season', seasonYear);
+    }
+
+    const { data, error } = await q.range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+}
+
 // Companies with access to proprietary Stateline methodologies
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
@@ -153,8 +226,8 @@ ${learnings.map(l => `- ${l.pattern_type.replace(/_/g, ' ').toUpperCase()}: "${l
       .limit(20);
 
     if (crmCustomers && crmCustomers.length > 0) {
-      crmCustomerContext = `\n\n=== YOUR CRM CUSTOMERS (${crmCustomers.length} total) ===
-You have access to detailed customer records. When asked about a customer, provide their full context.
+      crmCustomerContext = `\n\n=== CRM CUSTOMER DIRECTORY (sample: ${crmCustomers.length}) ===
+This is a RECENT sample of CRM customer records for context only (not an access limit).
 
 ${crmCustomers.map(c => {
         let customerInfo = `### ${c.name}`;
@@ -260,6 +333,73 @@ Use this information to make SPECIFIC product recommendations from your catalog 
     // Special handling for 4-call plan generation
     let systemPrompt = '';
     const isRecMode = chatMode === 'rec';
+
+    // --- REC MODE DIRECT DATA ANSWER (bypass LLM) ---
+    // If the user is explicitly asking for purchase history, answer from the database directly.
+    if (isRecMode && effectiveCompanyId) {
+      const customerNameQuery = extractCustomerNameFromMessage(message);
+      const seasonYear = detectSeasonYear(message);
+
+      if (customerNameQuery && /purchase history|\bhistory\b|orders|purchases|what did/i.test(message)) {
+        const repNameFilter = (isSuperAdmin && effectiveUserId !== user.id)
+          ? (effectiveUserName ? effectiveUserName.toUpperCase() : null)
+          : null;
+
+        const rows = await fetchAllPurchaseHistory({
+          supabase,
+          companyId: effectiveCompanyId,
+          repName: repNameFilter,
+          customerNameQuery,
+          seasonYear,
+        });
+
+        if (!rows.length) {
+          return new Response(
+            JSON.stringify({
+              message: `No transactions found for "${customerNameQuery}"${seasonYear ? ` in season ${seasonYear}` : ''}.\n\nTip: try typing the customer exactly as it appears in CRM, or just a last name.`,
+              hasMethodologyAccess,
+              isStreamlineAg,
+              dealCreated: false,
+              pipelineActions: [],
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Aggregate by product
+        const byProduct = new Map<string, { total: number; count: number }>();
+        for (const r of rows) {
+          const p = r.product_description || 'Unknown product';
+          const amt = Number(r.amount) || 0;
+          const cur = byProduct.get(p) || { total: 0, count: 0 };
+          cur.total += amt;
+          cur.count += 1;
+          byProduct.set(p, cur);
+        }
+
+        const topProducts = Array.from(byProduct.entries())
+          .sort((a, b) => b[1].total - a[1].total);
+
+        const customerNames = Array.from(new Set(rows.map(r => r.customer_name).filter(Boolean)));
+        const matchedName = customerNames.length === 1 ? customerNames[0] : customerNameQuery;
+        const total = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+        const lines = topProducts.map(([p, v]) =>
+          `- ${p}: ${formatCurrency(v.total)} (${v.count} lines)`
+        );
+
+        return new Response(
+          JSON.stringify({
+            message: `PURCHASE HISTORY — ${matchedName}${seasonYear ? ` (Season ${seasonYear})` : ''}\nRep: ${repNameFilter || 'All reps'}\nTransactions (lines): ${rows.length}\nTotal: ${formatCurrency(total)}\n\nPRODUCTS PURCHASED (all):\n${lines.join('\n')}`,
+            hasMethodologyAccess,
+            isStreamlineAg,
+            dealCreated: false,
+            pipelineActions: [],
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
     
     // Detect if this is a clarification/follow-up question vs a new rec request
     // Look at conversation history to see if we already gave a recommendation
