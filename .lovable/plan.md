@@ -1,142 +1,157 @@
 
-# Targeted Accounts Import System
+# Auto-Link Purchase History to Pipeline Deals
 
 ## Overview
-Import your December 2025 targeted prospects and growth customers as deals in the sales pipeline. Each seller gets their assigned accounts pre-loaded with estimated acres, customer type, and growth category targets.
+When a deal's customer matches someone in the historical purchase data, the system should automatically pull and display their purchase history. This gives reps instant access to buying patterns, product preferences, and revenue data right from the pipeline.
 
 ---
 
-## Phase 1: Schema Enhancements
+## The Matching Challenge
 
-Add three new columns to the `sales_deals` table to capture the targeted account data:
+The data exists in two different formats:
 
-### New Columns
-| Column | Type | Purpose |
-|--------|------|---------|
-| `estimated_acres` | integer | Farm size for opportunity sizing |
-| `customer_type` | text | 'prospect' or 'current_customer' |
-| `target_categories` | jsonb | Structured growth targets |
+| Source | Example Name Format |
+|--------|---------------------|
+| Pipeline deals (sales_companies) | `Tim Murray`, `Zierke Bros` |
+| Purchase history (customer_purchase_history) | `MURRAY, TIM`, `ZIERKE, BRAD` |
 
-### Target Categories Structure
+The system needs fuzzy matching to connect these records.
+
+---
+
+## Implementation Phases
+
+### Phase 1: Backend - History Lookup Helper
+
+Create a new helper function in the `sales-coach` edge function to fetch purchase history by customer name with fuzzy matching:
+
+**Matching Logic:**
+1. Extract first/last name parts from the company name
+2. Handle multi-person entries (e.g., "Zierke Bros" → search all Zierkes)
+3. Search both "LAST, FIRST" and "FIRST LAST" patterns
+4. Return aggregated purchase data (total revenue, products, seasons)
+
+This reuses the existing `fetchAllPurchaseHistory` function with the same name normalization logic.
+
+---
+
+### Phase 2: Auto-Include History in Deal Context
+
+Update the `sales-coach` edge function to automatically fetch purchase history when a deal is provided:
+
+**When a deal object is passed:**
+1. Get the company name from `deal.sales_companies.name`
+2. Call the purchase history lookup
+3. Include the results in the deal context sent to the AI
+4. Jericho now knows their full buying history without being asked
+
+**Example context addition:**
 ```text
-{
-  "primary": "Fertilizer",
-  "secondary": "Chemical",
-  "tertiary": "Seed"
-}
+HISTORICAL PURCHASE DATA FOR THIS CUSTOMER:
+- Total Revenue: $45,230 (23 transactions)
+- Products: Fertilizer, Nitrogen, Specialty Chem
+- Seasons Active: 2022, 2023, 2024
+- Top Products: [detailed list]
 ```
 
 ---
 
-## Phase 2: Import Edge Function
+### Phase 3: UI - Display History in Deal Views
 
-Create a new `import-targeted-accounts` edge function that:
+Add a "Purchase History" section to multiple locations:
 
-1. **Parses CSV data** with columns:
-   - seller, farmer_name, estimated_acres, type_of_customer
-   - primary_growth_category, secondary_growth_category, third_growth_category
-   - notes (optional)
+**A. DealCoachDialog (src/components/sales/DealCoachDialog.tsx)**
+- Add a collapsible "Purchase History" card below the deal summary
+- Show: Total revenue, transaction count, top products, last purchase date
+- Indicate if no history found (prospect vs. data gap)
 
-2. **Matches sellers to profiles** using fuzzy name matching against existing Stateline profiles
+**B. CustomerDetailDialog (src/components/sales/CustomerDetailDialog.tsx)**
+- Enhance the existing "History" tab to pull from `customer_purchase_history`
+- Add a "Transactions" sub-section with product breakdown
+- Show year-over-year trends
 
-3. **Creates or links companies:**
-   - Check if farmer already exists in `sales_companies` for that rep
-   - Create new company record if not found
-   - Use the `operation_details` JSONB field to store acres
-
-4. **Creates deals with:**
-   - `deal_name`: "{Farmer Name} - 2026 Growth Target"
-   - `stage`: "prospecting" for prospects, "discovery" for current customers
-   - `estimated_acres`: from CSV
-   - `customer_type`: 'prospect' or 'current_customer'
-   - `target_categories`: { primary, secondary, tertiary }
-   - `notes`: any additional notes from CSV
+**C. PipelineView Deal Cards (src/components/sales/PipelineView.tsx)**
+- Add a small indicator badge showing if historical data exists
+- On hover or click, show quick revenue summary
 
 ---
 
-## Phase 3: Admin Import UI
+### Phase 4: New API Endpoint (Optional Enhancement)
 
-Add a "Targeted Accounts" import section in Super Admin with:
+Create a dedicated edge function `get-customer-purchase-summary` that:
+- Takes a customer name as input
+- Returns structured JSON with purchase summary
+- Can be called directly from UI components
+- Caches results for performance
 
-- Company selector (defaults to Stateline)
-- CSV paste area
-- Preview of parsed records with seller matching
-- Import button with progress indicator
-
----
-
-## Phase 4: Pipeline UI Updates
-
-### Pipeline View Enhancements
-- Show a badge for customer type (prospect vs growth)
-- Display primary category as a tag on the deal card
-- Show acres in the deal details
-
-### Deal Card Display
-```text
-+---------------------------------+
-| Scott Robertson                 |
-| 🌱 Fertilizer | 1,200 ac       |
-| [PROSPECT]                      |
-+---------------------------------+
-```
-
-### DealsTable Enhancements
-- Add columns for Acres, Type, and Primary Category
-- Allow filtering by customer type and category
-
----
-
-## Phase 5: Jericho Integration
-
-Update the `sales-coach` edge function to:
-
-1. Include `target_categories` when building customer context
-2. When discussing a deal, Jericho knows:
-   - "This is a prospect with 1,200 acres"
-   - "Primary target is Fertilizer, secondary is Chemical"
-3. Tailor recommendations to the targeted product areas
+This allows the frontend to fetch history independently without going through the full coaching flow.
 
 ---
 
 ## Technical Details
 
-### Database Migration
+### Fuzzy Name Matching Algorithm
+
 ```text
-ALTER TABLE sales_deals 
-  ADD COLUMN estimated_acres integer,
-  ADD COLUMN customer_type text,
-  ADD COLUMN target_categories jsonb;
+Input: "Zierke Bros"
+Steps:
+1. Normalize: Remove common suffixes (Bros, Farms, Inc)
+2. Extract key name: "Zierke"
+3. Query: WHERE customer_name ILIKE '%ZIERKE%'
+4. Return all matching records aggregated
+
+Input: "Tim Murray"
+Steps:
+1. Split: first="Tim", last="Murray"
+2. Query: WHERE customer_name ILIKE '%MURRAY%' AND customer_name ILIKE '%TIM%'
+3. Catches: "MURRAY, TIM" and "TIM MURRAY"
 ```
 
-### Rep-to-Profile Mapping
-The following sellers from your CSV map to existing profiles:
+### Files to Modify
 
-| CSV Seller | Profile ID |
-|------------|------------|
-| Christian O'Banion | db6e428d-380f-483a-a259-55b622580a79 |
-| Joel Loseke | eac605a2-c833-4597-a5c2-cc6e6e5d4e03 |
-| Ed Lehman | c4e346de-156d-4410-bfcf-ce11d0ac4e6b |
-| Kally Windschitl | 30b712c0-ad7a-4e1a-bb06-010a1ec9cfee |
-| Kelli Barnett | 0fae7e33-0a6e-4689-ad65-9e0cb758f6c7 |
-| Clay Mogard | 5ddb139c-4453-4bb4-ad89-9fd7266ec13b |
-| Ben Borchardt | 2d69e5f5-d964-4bb0-9bca-55bcfba93850 |
-| Blake Miller | 176bee82-5595-4941-956a-52ff8ff0eb90 |
-| Trevor Kluver | ab3d266a-bd68-4c35-b441-f5e6c7d9fa1b |
+| File | Changes |
+|------|---------|
+| `supabase/functions/sales-coach/index.ts` | Add auto-history lookup when deal is provided |
+| `src/components/sales/DealCoachDialog.tsx` | Display purchase history summary |
+| `src/components/sales/CustomerDetailDialog.tsx` | Add transactions tab with history data |
+| `src/components/sales/PipelineView.tsx` | Add history indicator badge |
+| (new) `supabase/functions/get-customer-purchase-summary/index.ts` | Dedicated history lookup API |
 
-### Import Validation
-- Verify all sellers match existing profiles before import
-- Flag any unmatched sellers for manual review
-- Deduplicate against existing deals by farmer name
+### Data Flow
+
+```text
+User clicks deal in pipeline
+        ↓
+DealCoachDialog opens
+        ↓
+Calls sales-coach with deal object
+        ↓
+sales-coach extracts company name
+        ↓
+Fuzzy matches against customer_purchase_history
+        ↓
+Returns AI response with embedded history context
+        ↓
+UI displays history summary in dialog
+```
+
+---
+
+## Edge Cases
+
+1. **No match found**: Display "No purchase history found - this appears to be a new prospect"
+2. **Multiple matches**: Aggregate all matching records (handles family operations like Zierke Bros)
+3. **Name variations**: The fuzzy matching handles common variations (Tim/Timothy, etc.)
+4. **Prospects vs. current customers**: Use `customer_type` field to set expectations
 
 ---
 
 ## Summary
 
-This implementation gives you:
-1. **73 deals pre-loaded** across 9 reps with full targeting data
-2. **Visual clarity** in the pipeline showing what type of customer and which products to focus on
-3. **AI-powered coaching** that knows exactly what to recommend for each account
-4. **Repeatable process** for future targeted account lists
+This gives reps:
+1. **Automatic context** - Jericho knows their purchase history without being asked
+2. **Visual indicators** - See at a glance which deals have historical data
+3. **Quick access** - View full transaction history from any deal dialog
+4. **Smarter coaching** - AI recommendations based on actual buying patterns
 
-The data enriches both the CRM pipeline and Jericho's context, making the system truly useful for field reps planning their outreach.
+The existing name-matching logic from the "Rec mode" direct history lookup is reused, ensuring consistency across chat queries and automated lookups.
