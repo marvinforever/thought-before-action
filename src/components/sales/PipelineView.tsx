@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, DragEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,10 +9,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Building2, DollarSign, Calendar, ArrowRight, Leaf, Users } from "lucide-react";
+import { MoreHorizontal, Building2, DollarSign, Calendar, ArrowRight, Leaf, Users, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { CustomerDetailDialog } from "./CustomerDetailDialog";
+import { cn } from "@/lib/utils";
 
 interface PipelineViewProps {
   userId: string;
@@ -46,6 +47,8 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
   const [loading, setLoading] = useState(true);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showCustomerDetail, setShowCustomerDetail] = useState(false);
+  const [draggedDealId, setDraggedDealId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
   const fetchDeals = async () => {
     if (!userId) {
@@ -89,6 +92,56 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
     }
   };
 
+  // Drag and Drop handlers
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, dealId: string) => {
+    setDraggedDealId(dealId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", dealId);
+    // Add a slight delay to show the dragging state
+    setTimeout(() => {
+      const element = e.target as HTMLElement;
+      element.style.opacity = "0.5";
+    }, 0);
+  };
+
+  const handleDragEnd = (e: DragEvent<HTMLDivElement>) => {
+    setDraggedDealId(null);
+    setDragOverStage(null);
+    const element = e.target as HTMLElement;
+    element.style.opacity = "1";
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, stageKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverStage !== stageKey) {
+      setDragOverStage(stageKey);
+    }
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    // Only clear if we're leaving the stage container entirely
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      setDragOverStage(null);
+    }
+  };
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>, stageKey: string) => {
+    e.preventDefault();
+    const dealId = e.dataTransfer.getData("text/plain");
+    
+    if (dealId && draggedDealId) {
+      const deal = deals.find(d => d.id === dealId);
+      if (deal && deal.stage !== stageKey) {
+        await moveDeal(dealId, stageKey);
+      }
+    }
+    
+    setDraggedDealId(null);
+    setDragOverStage(null);
+  };
+
   const getStageDeals = (stageKey: string) => 
     deals.filter(d => d.stage === stageKey);
 
@@ -102,7 +155,13 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {stages.map((stage, idx) => (
-        <div key={stage.key} className="space-y-3">
+        <div 
+          key={stage.key} 
+          className="space-y-3"
+          onDragOver={(e) => handleDragOver(e, stage.key)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, stage.key)}
+        >
           {/* Stage Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -119,29 +178,48 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
             ${getStageValue(stage.key).toLocaleString()}
           </p>
 
-          {/* Deals */}
-          <div className="space-y-2 min-h-[200px]">
+          {/* Deals Drop Zone */}
+          <div 
+            className={cn(
+              "space-y-2 min-h-[200px] rounded-lg transition-all duration-200 p-1 -m-1",
+              dragOverStage === stage.key && draggedDealId && deals.find(d => d.id === draggedDealId)?.stage !== stage.key
+                ? "bg-primary/10 border-2 border-dashed border-primary"
+                : "border-2 border-transparent"
+            )}
+          >
             {getStageDeals(stage.key).map(deal => (
-              <Card key={deal.id} className="cursor-pointer hover:shadow-md transition-shadow">
+              <Card 
+                key={deal.id} 
+                className={cn(
+                  "cursor-grab hover:shadow-md transition-all active:cursor-grabbing",
+                  draggedDealId === deal.id && "opacity-50 scale-95"
+                )}
+                draggable
+                onDragStart={(e) => handleDragStart(e, deal.id)}
+                onDragEnd={handleDragEnd}
+              >
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{deal.deal_name}</p>
-                      {deal.sales_companies?.name && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (deal.company_id) {
-                              setSelectedCustomerId(deal.company_id);
-                              setShowCustomerDetail(true);
-                            }
-                          }}
-                          className="text-xs text-muted-foreground flex items-center gap-1 mt-1 hover:text-primary transition-colors"
-                        >
-                          <Building2 className="h-3 w-3" />
-                          <span className="underline decoration-dotted">{deal.sales_companies.name}</span>
-                        </button>
-                      )}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{deal.deal_name}</p>
+                        {deal.sales_companies?.name && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (deal.company_id) {
+                                setSelectedCustomerId(deal.company_id);
+                                setShowCustomerDetail(true);
+                              }
+                            }}
+                            className="text-xs text-muted-foreground flex items-center gap-1 mt-1 hover:text-primary transition-colors"
+                          >
+                            <Building2 className="h-3 w-3" />
+                            <span className="underline decoration-dotted">{deal.sales_companies.name}</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     <DropdownMenu>
@@ -209,8 +287,11 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
             ))}
 
             {getStageDeals(stage.key).length === 0 && (
-              <div className="text-center py-8 text-muted-foreground text-xs border-2 border-dashed rounded-lg">
-                No deals
+              <div className={cn(
+                "text-center py-8 text-muted-foreground text-xs border-2 border-dashed rounded-lg transition-colors",
+                dragOverStage === stage.key ? "border-primary bg-primary/5" : ""
+              )}>
+                {dragOverStage === stage.key ? "Drop here" : "No deals"}
               </div>
             )}
           </div>
