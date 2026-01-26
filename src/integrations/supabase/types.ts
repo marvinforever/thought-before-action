@@ -1773,6 +1773,107 @@ export type Database = {
           },
         ]
       }
+      customer_purchase_history: {
+        Row: {
+          address_1: string | null
+          address_2: string | null
+          amount: number | null
+          avg_price: number | null
+          bonus_amount: number | null
+          bonus_category: string | null
+          category_11_4: string | null
+          city: string | null
+          company_id: string | null
+          created_at: string | null
+          customer_code: string | null
+          customer_name: string
+          epa_number: string | null
+          id: string
+          imported_at: string | null
+          phone: string | null
+          product_code: string | null
+          product_description: string | null
+          quantity: number | null
+          quantity_11_4: number | null
+          rep_name: string | null
+          sale_date: string | null
+          season: string | null
+          sort_category: string | null
+          source_file: string | null
+          state: string | null
+          unit_of_measure: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address_1?: string | null
+          address_2?: string | null
+          amount?: number | null
+          avg_price?: number | null
+          bonus_amount?: number | null
+          bonus_category?: string | null
+          category_11_4?: string | null
+          city?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          customer_code?: string | null
+          customer_name: string
+          epa_number?: string | null
+          id?: string
+          imported_at?: string | null
+          phone?: string | null
+          product_code?: string | null
+          product_description?: string | null
+          quantity?: number | null
+          quantity_11_4?: number | null
+          rep_name?: string | null
+          sale_date?: string | null
+          season?: string | null
+          sort_category?: string | null
+          source_file?: string | null
+          state?: string | null
+          unit_of_measure?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address_1?: string | null
+          address_2?: string | null
+          amount?: number | null
+          avg_price?: number | null
+          bonus_amount?: number | null
+          bonus_category?: string | null
+          category_11_4?: string | null
+          city?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          customer_code?: string | null
+          customer_name?: string
+          epa_number?: string | null
+          id?: string
+          imported_at?: string | null
+          phone?: string | null
+          product_code?: string | null
+          product_description?: string | null
+          quantity?: number | null
+          quantity_11_4?: number | null
+          rep_name?: string | null
+          sale_date?: string | null
+          season?: string | null
+          sort_category?: string | null
+          source_file?: string | null
+          state?: string | null
+          unit_of_measure?: string | null
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_purchase_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_industry_news: {
         Row: {
           capability_context: string | null

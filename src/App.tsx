@@ -44,6 +44,8 @@ import NotFound from "./pages/NotFound";
 import { RegistrationWizard } from "./components/RegistrationWizard";
 import PersonalAssistant from "./pages/PersonalAssistant";
 import CareerPath from "./pages/CareerPath";
+import AdminCustomerHistoryImport from "./pages/AdminCustomerHistoryImport";
+import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +72,8 @@ const App = () => (
             <Route path="/super-admin" element={<SuperAdminLayout />}>
               <Route index element={<SuperAdmin />} />
               <Route path="demo" element={<SuperAdminDemo />} />
+              <Route path="customer-history" element={<AdminCustomerHistoryImport />} />
+              <Route path="diagnostic-import" element={<AdminDiagnosticImport />} />
             </Route>
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route

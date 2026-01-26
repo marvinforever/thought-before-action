@@ -8,7 +8,9 @@ import {
   Rocket,
   LogOut,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  FileSpreadsheet,
+  ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +83,8 @@ const SuperAdminLayout = () => {
   const navItems = [
     { icon: Building2, label: "Overview", path: "/super-admin" },
     { icon: Rocket, label: "Demo Setup", path: "/super-admin/demo" },
+    { icon: FileSpreadsheet, label: "Customer History", path: "/super-admin/customer-history" },
+    { icon: ClipboardList, label: "Diagnostic Import", path: "/super-admin/diagnostic-import" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
