@@ -296,26 +296,26 @@ export function SalesAgentHeader({
                   </TabsList>
                   <div className="flex-1 overflow-auto mt-4 pb-6">
                     <TabsContent value="pipeline" className="mt-0 h-full">
-                      <PipelineView userId={user?.id} stages={stages} companyId={viewAsCompanyId} />
+                      <PipelineView userId={viewAsUserId || user?.id} stages={stages} companyId={viewAsCompanyId} />
                     </TabsContent>
                     <TabsContent value="deals" className="mt-0">
-                      <DealsTable userId={user?.id} />
+                      <DealsTable userId={viewAsUserId || user?.id} />
                     </TabsContent>
                     <TabsContent value="companies" className="mt-0">
-                      <CompaniesManager userId={user?.id} />
+                      <CompaniesManager userId={viewAsUserId || user?.id} />
                     </TabsContent>
                     <TabsContent value="contacts" className="mt-0">
-                      <ContactsManager userId={user?.id} />
+                      <ContactsManager userId={viewAsUserId || user?.id} />
                     </TabsContent>
                     <TabsContent value="knowledge" className="mt-0">
                       <SalesKnowledgeManager 
-                        userId={user?.id} 
+                        userId={viewAsUserId || user?.id} 
                         companyId={viewAsCompanyId || profile?.company_id} 
                       />
                     </TabsContent>
                     <TabsContent value="podcasts" className="mt-0">
                       <SalesKnowledgePodcasts 
-                        userId={user?.id} 
+                        userId={viewAsUserId || user?.id} 
                         companyId={profile?.company_id} 
                       />
                     </TabsContent>

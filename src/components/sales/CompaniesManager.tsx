@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Building2, Search, Trash2, Edit, Globe, MapPin } from "lucide-react";
+import { Plus, Building2, Search, Trash2, Edit, Globe, MapPin, DollarSign, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CustomerDetailDialog } from "./CustomerDetailDialog";
+import { AddDealDialog } from "./AddDealDialog";
 
 interface CompaniesManagerProps {
   userId: string;
@@ -34,6 +36,8 @@ export const CompaniesManager = ({ userId }: CompaniesManagerProps) => {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [showAddDeal, setShowAddDeal] = useState(false);
   
   const [form, setForm] = useState({
     name: "",
@@ -44,6 +48,33 @@ export const CompaniesManager = ({ userId }: CompaniesManagerProps) => {
     employee_count: "",
     notes: "",
   });
+
+  // Parse grower_history to extract total revenue
+  const parseGrowerHistory = (history: string | null): number => {
+    if (!history) return 0;
+    try {
+      const parsed = JSON.parse(history);
+      if (Array.isArray(parsed)) {
+        return parsed.reduce((sum, item) => sum + (item.total_revenue || 0), 0);
+      }
+    } catch {
+      const matches = history.match(/\$[\d,]+/g);
+      if (matches) {
+        return matches.reduce((sum, match) => sum + parseFloat(match.replace(/[$,]/g, '')), 0);
+      }
+    }
+    return 0;
+  };
+
+  const formatCurrency = (value: number) => {
+    if (value === 0) return "-";
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
 
   const fetchCompanies = async () => {
     const { data, error } = await supabase
@@ -272,6 +303,25 @@ export const CompaniesManager = ({ userId }: CompaniesManagerProps) => {
         </DialogContent>
       </Dialog>
 
+      {/* Customer Detail Dialog */}
+      <CustomerDetailDialog
+        open={!!selectedCompany}
+        onOpenChange={(open) => !open && setSelectedCompany(null)}
+        customerId={selectedCompany?.id || null}
+        companyId={undefined}
+      />
+
+      {/* Add Deal Dialog */}
+      <AddDealDialog
+        open={showAddDeal}
+        onOpenChange={setShowAddDeal}
+        userId={userId}
+        onSuccess={() => {
+          setShowAddDeal(false);
+          toast({ title: "Deal created successfully" });
+        }}
+      />
+
       {/* Table */}
       <div className="border rounded-lg">
         <Table>
@@ -280,8 +330,13 @@ export const CompaniesManager = ({ userId }: CompaniesManagerProps) => {
               <TableHead>Company</TableHead>
               <TableHead>Industry</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Revenue</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
+              <TableHead>
+                <span className="flex items-center gap-1">
+                  <DollarSign className="h-3 w-3" />
+                  History
+                </span>
+              </TableHead>
+              <TableHead className="w-[120px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -292,61 +347,99 @@ export const CompaniesManager = ({ userId }: CompaniesManagerProps) => {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCompanies.map((company) => (
-                <TableRow key={company.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{company.name}</p>
-                        {company.website && (
-                          <a
-                            href={company.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline flex items-center gap-1"
-                          >
-                            <Globe className="h-3 w-3" />
-                            Website
-                          </a>
-                        )}
+              filteredCompanies.map((company) => {
+                const historyRevenue = parseGrowerHistory(company.grower_history);
+                return (
+                  <TableRow 
+                    key={company.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setSelectedCompany(company)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{company.name}</p>
+                          {company.website && (
+                            <a
+                              href={company.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Globe className="h-3 w-3" />
+                              Website
+                            </a>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{company.industry || "-"}</TableCell>
-                  <TableCell>
-                    {company.location ? (
-                      <span className="flex items-center gap-1 text-sm">
-                        <MapPin className="h-3 w-3" />
-                        {company.location}
-                      </span>
-                    ) : "-"}
-                  </TableCell>
-                  <TableCell>{company.annual_revenue || "-"}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => startEdit(company)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(company.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                    <TableCell>{company.industry || "-"}</TableCell>
+                    <TableCell>
+                      {company.location ? (
+                        <span className="flex items-center gap-1 text-sm">
+                          <MapPin className="h-3 w-3" />
+                          {company.location}
+                        </span>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {historyRevenue > 0 ? (
+                        <Badge variant="secondary" className="font-mono">
+                          {formatCurrency(historyRevenue)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="View Details"
+                          onClick={() => setSelectedCompany(company)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Edit"
+                          onClick={() => startEdit(company)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Delete"
+                          onClick={() => handleDelete(company.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Stats */}
+      {filteredCompanies.length > 0 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+          <span>{filteredCompanies.length} companies</span>
+          <span>
+            Total historical revenue: {formatCurrency(
+              filteredCompanies.reduce((sum, c) => sum + parseGrowerHistory(c.grower_history), 0)
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
