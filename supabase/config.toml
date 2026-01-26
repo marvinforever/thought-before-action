@@ -185,3 +185,6 @@ verify_jwt = true
 
 [functions.detect-career-aspirations]
 verify_jwt = true
+
+[functions.get-customer-purchase-summary]
+verify_jwt = true
