@@ -156,7 +156,58 @@ ${crmCustomers.map(c => {
       }).join('\n\n---\n\n')}`;
     }
 
-    const knowledgeContext = knowledge?.length 
+    // Fetch historical purchase data from customer_purchase_history
+    let historicalSalesContext = '';
+    if (effectiveCompanyId) {
+      // Get top customers by revenue (last 3 years)
+      const { data: topCustomers } = await supabase
+        .from('customer_purchase_history')
+        .select('customer_name, amount, product_description, sale_date, rep_name, bonus_category, season')
+        .eq('company_id', effectiveCompanyId)
+        .order('sale_date', { ascending: false })
+        .limit(500);
+
+      if (topCustomers && topCustomers.length > 0) {
+        // Aggregate by customer
+        const customerAggregates: Record<string, { total: number; transactions: number; products: Set<string>; lastPurchase: string; seasons: Set<string> }> = {};
+        
+        topCustomers.forEach(row => {
+          const name = row.customer_name || 'Unknown';
+          if (!customerAggregates[name]) {
+            customerAggregates[name] = { total: 0, transactions: 0, products: new Set(), lastPurchase: '', seasons: new Set() };
+          }
+          customerAggregates[name].total += Number(row.amount) || 0;
+          customerAggregates[name].transactions++;
+          if (row.product_description) customerAggregates[name].products.add(row.product_description);
+          if (row.sale_date && (!customerAggregates[name].lastPurchase || row.sale_date > customerAggregates[name].lastPurchase)) {
+            customerAggregates[name].lastPurchase = row.sale_date;
+          }
+          if (row.season) customerAggregates[name].seasons.add(row.season);
+        });
+
+        // Sort by total revenue
+        const sortedCustomers = Object.entries(customerAggregates)
+          .sort((a, b) => b[1].total - a[1].total)
+          .slice(0, 25);
+
+        historicalSalesContext = `\n\n=== HISTORICAL PURCHASE DATA (${topCustomers.length} recent transactions) ===
+You have access to 3 years of customer purchase history. Use this to identify patterns, win-back opportunities, and product recommendations.
+
+TOP CUSTOMERS BY REVENUE:
+${sortedCustomers.map(([name, data]) => 
+  `- **${name}**: $${data.total.toLocaleString()} total (${data.transactions} orders) | Products: ${Array.from(data.products).slice(0, 3).join(', ')}${data.products.size > 3 ? '...' : ''} | Seasons: ${Array.from(data.seasons).join(', ')}`
+).join('\n')}
+
+WHEN ASKED ABOUT CUSTOMER HISTORY:
+- Show their purchase patterns and trends
+- Identify products they've bought vs. products they haven't
+- Highlight seasonal buying patterns
+- Suggest win-back opportunities for declining customers
+- Compare current year vs. previous years`;
+      }
+    }
+
+    const knowledgeContext = knowledge?.length
       ? `\n\nSALES METHODOLOGY & KNOWLEDGE:\n${knowledge.map(k => `### ${k.title}\n${k.content}`).join('\n\n')}`
       : '';
 
@@ -552,7 +603,7 @@ SPECIAL COMMANDS:
 - If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
 
 ${dealContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -633,7 +684,7 @@ WHEN THEY NEED HELP WITH A CUSTOMER:
 
 ${customerInfo}
 ${dealContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}${learnedPatternsContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}${learnedPatternsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
