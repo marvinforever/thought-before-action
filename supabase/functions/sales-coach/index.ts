@@ -185,9 +185,11 @@ ${crmCustomers.map(c => {
         historyQuery = historyQuery.ilike('rep_name', effectiveUserName.toUpperCase());
       }
       
+      // Fetch more records (2000) and order by amount to get the most important customers
+      // Many records have null sale_date, so ordering by date misses key customers
       const { data: topCustomers } = await historyQuery
-        .order('sale_date', { ascending: false })
-        .limit(500);
+        .order('amount', { ascending: false })
+        .limit(2000);
 
       if (topCustomers && topCustomers.length > 0) {
         // Aggregate by customer
@@ -207,10 +209,10 @@ ${crmCustomers.map(c => {
           if (row.season) customerAggregates[name].seasons.add(row.season);
         });
 
-        // Sort by total revenue
+        // Show top 50 customers by revenue for better coverage
         const sortedCustomers = Object.entries(customerAggregates)
           .sort((a, b) => b[1].total - a[1].total)
-          .slice(0, 25);
+          .slice(0, 50);
 
         historicalSalesContext = `\n\n=== HISTORICAL PURCHASE DATA (${topCustomers.length} recent transactions) ===
 You have access to 3 years of customer purchase history. When asked about a customer, give their COMPLETE product breakdown.
