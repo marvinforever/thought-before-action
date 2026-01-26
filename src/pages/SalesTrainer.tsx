@@ -24,6 +24,11 @@ interface Company {
   name: string;
 }
 
+interface CompanyUser {
+  id: string;
+  full_name: string;
+}
+
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 
 type ChatMode = "coach" | "rec";
@@ -45,8 +50,11 @@ const SalesTrainer = () => {
   const [hasMethodologyAccess, setHasMethodologyAccess] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
   const [viewAsCompanyId, setViewAsCompanyId] = useState<string | null>(null);
   const [viewAsCompanyName, setViewAsCompanyName] = useState<string | null>(null);
+  const [viewAsUserId, setViewAsUserId] = useState<string | null>(null);
+  const [viewAsUserName, setViewAsUserName] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<string>("");
   const [showPrepGenerator, setShowPrepGenerator] = useState(false);
@@ -315,6 +323,7 @@ const SalesTrainer = () => {
           userContext,
           generateCallPlan: isCallPlanRequest && hasMethodologyAccess,
           viewAsCompanyId: viewAsCompanyId || undefined,
+          viewAsUserId: viewAsUserId || undefined,
           chatMode,
           dealsCount: deals.length,
         },
@@ -342,11 +351,53 @@ const SalesTrainer = () => {
     }
   };
 
-  const handleViewAsChange = (companyId: string | null, companyName: string | null) => {
+  const handleViewAsChange = async (companyId: string | null, companyName: string | null) => {
     setViewAsCompanyId(companyId);
     setViewAsCompanyName(companyName);
+    setViewAsUserId(null);
+    setViewAsUserName(null);
     setMessages([]);
     setHasStarted(false);
+    
+    // Fetch users for the selected company
+    if (companyId) {
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('company_id', companyId)
+        .order('full_name');
+      setCompanyUsers(users || []);
+    } else {
+      setCompanyUsers([]);
+    }
+  };
+
+  const handleViewAsUserChange = async (userId: string | null, userName: string | null) => {
+    setViewAsUserId(userId);
+    setViewAsUserName(userName);
+    setMessages([]);
+    setHasStarted(false);
+    
+    // Fetch deals for the selected user
+    if (userId) {
+      await fetchDealsForUser(userId);
+    } else if (user?.id) {
+      await fetchDeals(user.id);
+    }
+  };
+
+  const fetchDealsForUser = async (userId: string) => {
+    const { data } = await supabase
+      .from("sales_deals")
+      .select(`
+        *, 
+        sales_companies(name),
+        sales_contacts(name, title)
+      `)
+      .eq("profile_id", userId)
+      .order("priority");
+    
+    setDeals(data || []);
   };
 
   const handleChatModeChange = (mode: ChatMode) => {
@@ -394,14 +445,18 @@ const SalesTrainer = () => {
         hasStarted={hasStarted}
         isSuperAdmin={isSuperAdmin}
         companies={companies}
+        companyUsers={companyUsers}
         viewAsCompanyId={viewAsCompanyId}
         viewAsCompanyName={viewAsCompanyName}
+        viewAsUserId={viewAsUserId}
+        viewAsUserName={viewAsUserName}
         chatMode={chatMode}
         onViewAsChange={handleViewAsChange}
+        onViewAsUserChange={handleViewAsUserChange}
         onChatModeChange={handleChatModeChange}
         onNewConversation={startNewConversation}
         onAddDeal={() => setShowAddDeal(true)}
-        onDealsRefresh={() => fetchDeals(user?.id)}
+        onDealsRefresh={() => viewAsUserId ? fetchDealsForUser(viewAsUserId) : fetchDeals(user?.id)}
       />
 
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col max-w-3xl">
