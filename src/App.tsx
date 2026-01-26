@@ -46,6 +46,7 @@ import PersonalAssistant from "./pages/PersonalAssistant";
 import CareerPath from "./pages/CareerPath";
 import AdminCustomerHistoryImport from "./pages/AdminCustomerHistoryImport";
 import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
+import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +75,7 @@ const App = () => (
               <Route path="demo" element={<SuperAdminDemo />} />
               <Route path="customer-history" element={<AdminCustomerHistoryImport />} />
               <Route path="diagnostic-import" element={<AdminDiagnosticImport />} />
+              <Route path="targeted-accounts" element={<AdminTargetedAccountsImport />} />
             </Route>
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route

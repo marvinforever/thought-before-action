@@ -10,7 +10,8 @@ import {
   Menu,
   ChevronLeft,
   FileSpreadsheet,
-  ClipboardList
+  ClipboardList,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +86,7 @@ const SuperAdminLayout = () => {
     { icon: Rocket, label: "Demo Setup", path: "/super-admin/demo" },
     { icon: FileSpreadsheet, label: "Customer History", path: "/super-admin/customer-history" },
     { icon: ClipboardList, label: "Diagnostic Import", path: "/super-admin/diagnostic-import" },
+    { icon: Target, label: "Targeted Accounts", path: "/super-admin/targeted-accounts" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
