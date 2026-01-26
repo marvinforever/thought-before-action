@@ -47,7 +47,14 @@ async function fetchAllPurchaseHistory(params: {
   seasonYear?: string | null;
 }) {
   const { supabase, companyId, repName, customerNameQuery, seasonYear } = params;
-  const like = `%${escapeLike(customerNameQuery.toUpperCase())}%`;
+  const normalized = customerNameQuery
+    .replace(/[,']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const parts = normalized.split(' ').filter(Boolean);
+  const lastName = (parts[parts.length - 1] || normalized).toUpperCase();
+  const firstName = (parts[0] || '').toUpperCase();
+  const lastLike = `%${escapeLike(lastName)}%`;
 
   // PostgREST defaults to 1k rows; page through everything.
   const pageSize = 1000;
@@ -59,9 +66,8 @@ async function fetchAllPurchaseHistory(params: {
       .from('customer_purchase_history')
       .select('customer_name, amount, product_description, sale_date, rep_name, bonus_category, season')
       .eq('company_id', companyId)
-      // Stored format is typically "LAST, FIRST"; but user types "First Last".
-      // Use a broad contains match, plus a fallback without spaces.
-      .or(`customer_name.ilike.${like},customer_name.ilike.%${escapeLike(customerNameQuery.replace(/\s+/g, '').toUpperCase())}%`);
+      // Most data is stored as "LAST, FIRST". Start broad on LAST NAME to guarantee we pull the right customer.
+      .ilike('customer_name', lastLike);
 
     if (repName) {
       q = q.eq('rep_name', repName);
@@ -73,7 +79,12 @@ async function fetchAllPurchaseHistory(params: {
     const { data, error } = await q.range(from, from + pageSize - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
-    rows.push(...data);
+    // Narrow down client-side to ensure FIRST name is also present when provided.
+    const filtered = firstName
+      ? data.filter((r: any) => String(r.customer_name || '').toUpperCase().includes(firstName))
+      : data;
+
+    rows.push(...filtered);
     if (data.length < pageSize) break;
     from += pageSize;
   }
