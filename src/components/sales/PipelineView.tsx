@@ -39,22 +39,19 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
   const [showCustomerDetail, setShowCustomerDetail] = useState(false);
 
   const fetchDeals = async () => {
-    let query = supabase
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    
+    const { data, error } = await supabase
       .from("sales_deals")
       .select(`
         *,
         sales_companies(name)
       `)
+      .eq("profile_id", userId)
       .order("priority", { ascending: true });
-
-    // If viewing as a company, filter by company_id; otherwise filter by profile_id
-    if (companyId) {
-      query = query.eq("company_id", companyId);
-    } else {
-      query = query.eq("profile_id", userId);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       toast({ title: "Error loading deals", variant: "destructive" });
@@ -65,8 +62,8 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
   };
 
   useEffect(() => {
-    if (userId || companyId) fetchDeals();
-  }, [userId, companyId]);
+    fetchDeals();
+  }, [userId]);
 
   const moveDeal = async (dealId: string, newStage: string) => {
     const { error } = await supabase
