@@ -5693,6 +5693,71 @@ export type Database = {
           },
         ]
       }
+      user_integrations: {
+        Row: {
+          access_token: string | null
+          connected_at: string | null
+          created_at: string | null
+          external_email: string | null
+          external_user_id: string | null
+          id: string
+          integration_type: string
+          last_sync_at: string | null
+          metadata: Json | null
+          profile_id: string
+          refresh_token: string | null
+          scopes: string[] | null
+          sync_error: string | null
+          sync_status: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string | null
+          created_at?: string | null
+          external_email?: string | null
+          external_user_id?: string | null
+          id?: string
+          integration_type: string
+          last_sync_at?: string | null
+          metadata?: Json | null
+          profile_id: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          sync_error?: string | null
+          sync_status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string | null
+          created_at?: string | null
+          external_email?: string | null
+          external_user_id?: string | null
+          id?: string
+          integration_type?: string
+          last_sync_at?: string | null
+          metadata?: Json | null
+          profile_id?: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          sync_error?: string | null
+          sync_status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_integrations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_projects: {
         Row: {
           color: string | null

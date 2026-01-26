@@ -9,6 +9,7 @@ import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail, Headphones, Send, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SMSOptInCard } from "@/components/SMSOptInCard";
+import { IntegrationsSection } from "@/components/IntegrationsSection";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -640,6 +641,9 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+
+      {/* Integrations Section */}
+      <IntegrationsSection />
 
       {/* SMS Notifications Card - only shown when feature is enabled */}
       {isSmsEnabled && <SMSOptInCard />}
