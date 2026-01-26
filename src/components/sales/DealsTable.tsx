@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Trash2, Edit, MessageSquare } from "lucide-react";
+import { Search, Trash2, Edit, MessageSquare, Leaf } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { EditDealDialog } from "./EditDealDialog";
@@ -143,16 +143,17 @@ export const DealsTable = ({ userId }: DealsTableProps) => {
               <TableHead>Deal Name</TableHead>
               <TableHead>Company</TableHead>
               <TableHead>Stage</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">Acres</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead className="text-right">Value</TableHead>
-              <TableHead>Close Date</TableHead>
-              <TableHead>Priority</TableHead>
               <TableHead className="w-[120px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredDeals.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   No deals found. Add your first deal to get started!
                 </TableCell>
               </TableRow>
@@ -166,16 +167,26 @@ export const DealsTable = ({ userId }: DealsTableProps) => {
                       {stageLabels[deal.stage]}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    {deal.customer_type ? (
+                      <Badge variant={deal.customer_type === 'prospect' ? 'outline' : 'default'}>
+                        {deal.customer_type === 'prospect' ? 'Prospect' : 'Customer'}
+                      </Badge>
+                    ) : "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {deal.estimated_acres ? deal.estimated_acres.toLocaleString() : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {deal.target_categories?.primary ? (
+                      <Badge variant="secondary" className="text-xs">
+                        <Leaf className="h-3 w-3 mr-1" />
+                        {deal.target_categories.primary}
+                      </Badge>
+                    ) : "-"}
+                  </TableCell>
                   <TableCell className="text-right">
                     {deal.value ? `$${Number(deal.value).toLocaleString()}` : "-"}
-                  </TableCell>
-                  <TableCell>
-                    {deal.expected_close_date
-                      ? format(new Date(deal.expected_close_date), "MMM d, yyyy")
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">P{deal.priority || 3}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">

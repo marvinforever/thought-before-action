@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Building2, DollarSign, Calendar, ArrowRight } from "lucide-react";
+import { MoreHorizontal, Building2, DollarSign, Calendar, ArrowRight, Leaf, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { CustomerDetailDialog } from "./CustomerDetailDialog";
@@ -20,6 +20,12 @@ interface PipelineViewProps {
   companyId?: string | null;
 }
 
+interface TargetCategories {
+  primary?: string;
+  secondary?: string;
+  tertiary?: string;
+}
+
 interface Deal {
   id: string;
   deal_name: string;
@@ -28,6 +34,9 @@ interface Deal {
   expected_close_date: string | null;
   company_id: string | null;
   priority: number;
+  estimated_acres: number | null;
+  customer_type: string | null;
+  target_categories: TargetCategories | null;
   sales_companies?: { name: string } | null;
 }
 
@@ -56,7 +65,8 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
     if (error) {
       toast({ title: "Error loading deals", variant: "destructive" });
     } else {
-      setDeals(data || []);
+      // Cast to Deal[] since target_categories from DB is Json type
+      setDeals((data || []) as unknown as Deal[]);
     }
     setLoading(false);
   };
@@ -154,7 +164,33 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
                     </DropdownMenu>
                   </div>
 
+                  {/* Target categories and customer type badges */}
+                  {(deal.target_categories?.primary || deal.customer_type) && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {deal.target_categories?.primary && (
+                        <Badge variant="secondary" className="text-xs py-0 h-5">
+                          <Leaf className="h-3 w-3 mr-1" />
+                          {deal.target_categories.primary}
+                        </Badge>
+                      )}
+                      {deal.customer_type && (
+                        <Badge 
+                          variant={deal.customer_type === 'prospect' ? 'outline' : 'default'}
+                          className="text-xs py-0 h-5"
+                        >
+                          {deal.customer_type === 'prospect' ? 'Prospect' : 'Customer'}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                    {deal.estimated_acres && (
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {deal.estimated_acres.toLocaleString()} ac
+                      </span>
+                    )}
                     {deal.value && (
                       <span className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3" />

@@ -323,7 +323,9 @@ WHEN ASKED ABOUT CUSTOMER HISTORY:
       : '';
 
     // Build deal context
-    const dealContext = deal ? `
+    let dealContext = '';
+    if (deal) {
+      dealContext = `
 CURRENT DEAL:
 - Name: ${deal.deal_name || 'Unknown'}
 - Company: ${deal.sales_companies?.name || 'Unknown'}
@@ -332,8 +334,26 @@ CURRENT DEAL:
 - Expected Close: ${deal.expected_close_date || 'Not set'}
 - Priority: ${deal.priority || 3}/5
 - Probability: ${deal.probability || 50}%
-- Notes: ${deal.notes || 'None'}
-` : '';
+- Notes: ${deal.notes || 'None'}`;
+      
+      // Add targeted account data if present
+      if (deal.customer_type) {
+        dealContext += `\n- Account Type: ${deal.customer_type === 'prospect' ? 'PROSPECT (new business opportunity)' : 'CURRENT CUSTOMER (growth opportunity)'}`;
+      }
+      if (deal.estimated_acres) {
+        dealContext += `\n- Operation Size: ${deal.estimated_acres.toLocaleString()} acres`;
+      }
+      if (deal.target_categories) {
+        const categories = deal.target_categories;
+        let targetText = '\n- GROWTH TARGETS: ';
+        if (categories.primary) targetText += `Primary: ${categories.primary}`;
+        if (categories.secondary) targetText += `, Secondary: ${categories.secondary}`;
+        if (categories.tertiary) targetText += `, Tertiary: ${categories.tertiary}`;
+        dealContext += targetText;
+        dealContext += `\n\nIMPORTANT: This is a TARGETED ACCOUNT with specific growth goals. Focus your recommendations on ${categories.primary || 'the primary category'}${categories.secondary ? ` and ${categories.secondary}` : ''} products that fit their ${deal.estimated_acres ? `${deal.estimated_acres.toLocaleString()}-acre` : ''} operation.`;
+      }
+      dealContext += '\n';
+    }
 
     // Build customer context if provided (farm info, challenges, etc.)
     const customerInfo = customerContext ? `

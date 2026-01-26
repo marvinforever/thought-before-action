@@ -5160,7 +5160,9 @@ export type Database = {
         Row: {
           company_id: string | null
           created_at: string
+          customer_type: string | null
           deal_name: string
+          estimated_acres: number | null
           expected_close_date: string | null
           id: string
           last_activity_at: string | null
@@ -5171,6 +5173,7 @@ export type Database = {
           probability: number | null
           profile_id: string
           stage: Database["public"]["Enums"]["deal_stage"]
+          target_categories: Json | null
           updated_at: string
           value: number | null
           win_notes: string | null
@@ -5178,7 +5181,9 @@ export type Database = {
         Insert: {
           company_id?: string | null
           created_at?: string
+          customer_type?: string | null
           deal_name: string
+          estimated_acres?: number | null
           expected_close_date?: string | null
           id?: string
           last_activity_at?: string | null
@@ -5189,6 +5194,7 @@ export type Database = {
           probability?: number | null
           profile_id: string
           stage?: Database["public"]["Enums"]["deal_stage"]
+          target_categories?: Json | null
           updated_at?: string
           value?: number | null
           win_notes?: string | null
@@ -5196,7 +5202,9 @@ export type Database = {
         Update: {
           company_id?: string | null
           created_at?: string
+          customer_type?: string | null
           deal_name?: string
+          estimated_acres?: number | null
           expected_close_date?: string | null
           id?: string
           last_activity_at?: string | null
@@ -5207,6 +5215,7 @@ export type Database = {
           probability?: number | null
           profile_id?: string
           stage?: Database["public"]["Enums"]["deal_stage"]
+          target_categories?: Json | null
           updated_at?: string
           value?: number | null
           win_notes?: string | null
