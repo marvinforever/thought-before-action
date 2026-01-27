@@ -374,12 +374,14 @@ export function FourCallPlanTracker({
                 <CustomerCallCard
                   key={customer.customer_name}
                   customer={customer}
+                  companyId={companyId}
+                  userId={userId}
                   onUpdate={(updates) => handleUpdateCustomer(customer.customer_name, updates)}
                 />
               ))}
             </div>
-            </div>
-          )}
+          </div>
+        )}
 
           <AddCustomerToTrackerDialog
             open={addDialogOpen}
