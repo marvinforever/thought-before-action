@@ -303,8 +303,11 @@ export function InitialPlanningExpanded({
             <Sparkles className="h-4 w-4 text-primary" />
             AI Pre-Call Plan
           </h4>
-          <div className="max-h-64 overflow-y-auto">
-            <div className="prose prose-sm max-w-none dark:prose-invert pr-2">
+          <div 
+            className="h-80 overflow-y-auto border rounded-md bg-background p-3"
+            style={{ overflowY: 'scroll' }}
+          >
+            <div className="prose prose-sm max-w-none dark:prose-invert">
               <ReactMarkdown>{generatedPlan}</ReactMarkdown>
             </div>
           </div>
