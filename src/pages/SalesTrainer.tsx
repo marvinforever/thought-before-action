@@ -67,6 +67,17 @@ const SalesTrainer = () => {
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
   });
 
+  // Derive methodology access from the *effective* company (View As company overrides profile company).
+  // This prevents the 4-Call buttons from disappearing due to stale state.
+  const effectiveCompanyId = viewAsCompanyId || profile?.company_id || null;
+  const effectiveHasMethodologyAccess =
+    effectiveCompanyId === STATELINE_COMPANY_ID || effectiveCompanyId === MOMENTUM_COMPANY_ID;
+
+  useEffect(() => {
+    // Keep existing state in sync for any other callers.
+    setHasMethodologyAccess(effectiveHasMethodologyAccess);
+  }, [effectiveHasMethodologyAccess]);
+
   const loadConversation = async (userId: string, companyId: string | null) => {
     if (!companyId) return;
     
@@ -327,7 +338,7 @@ const SalesTrainer = () => {
           deal: null,
           conversationHistory,
           userContext,
-          generateCallPlan: isCallPlanRequest && hasMethodologyAccess,
+          generateCallPlan: isCallPlanRequest && effectiveHasMethodologyAccess,
           viewAsCompanyId: viewAsCompanyId || undefined,
           viewAsUserId: viewAsUserId || undefined,
           chatMode,
@@ -478,11 +489,11 @@ const SalesTrainer = () => {
           input={input}
           chatLoading={chatLoading}
           hasStarted={hasStarted}
-          hasMethodologyAccess={hasMethodologyAccess}
+          hasMethodologyAccess={effectiveHasMethodologyAccess}
           chatMode={chatMode}
           deals={deals}
           profile={profile}
-          companyId={viewAsCompanyId || profile?.company_id || ""}
+          companyId={effectiveCompanyId || ""}
           userId={user?.id || ""}
           onInputChange={setInput}
           onSendMessage={sendMessage}
