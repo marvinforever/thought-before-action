@@ -14,6 +14,7 @@ import {
   CalendarDays,
   FileText,
   LayoutGrid,
+  ClipboardList,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -39,6 +40,7 @@ interface SalesChatInterfaceProps {
   onStartCoaching: () => void;
   onAddDeal: () => void;
   onShowProposalWizard: () => void;
+  onShowCallPlanTracker: () => void;
 }
 
 export function SalesChatInterface({
@@ -57,6 +59,7 @@ export function SalesChatInterface({
   onStartCoaching,
   onAddDeal,
   onShowProposalWizard,
+  onShowCallPlanTracker,
 }: SalesChatInterfaceProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -255,8 +258,17 @@ export function SalesChatInterface({
             <Button 
               variant="default" 
               size="sm"
-              onClick={() => onSendMessage("Generate a 4-call plan for a grower I'm working with")}
+              onClick={onShowCallPlanTracker}
               className="gap-1 bg-accent text-primary hover:bg-accent/90"
+            >
+              <ClipboardList className="h-3 w-3" />
+              4-Call Tracker
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => onSendMessage("Generate a 4-call plan for a grower I'm working with")}
+              className="gap-1"
             >
               <CalendarDays className="h-3 w-3" />
               Generate 4-Call Plan

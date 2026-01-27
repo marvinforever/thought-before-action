@@ -11,6 +11,7 @@ import { AddDealDialog } from "@/components/sales/AddDealDialog";
 import { DealCoachDialog } from "@/components/sales/DealCoachDialog";
 import { PrepDocumentGenerator } from "@/components/sales/PrepDocumentGenerator";
 import { SalesProposalWizard } from "@/components/sales/SalesProposalWizard";
+import { FourCallPlanTracker } from "@/components/sales/FourCallPlanTracker";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -59,6 +60,7 @@ const SalesTrainer = () => {
   const [userContext, setUserContext] = useState<string>("");
   const [showPrepGenerator, setShowPrepGenerator] = useState(false);
   const [showProposalWizard, setShowProposalWizard] = useState(false);
+  const [showCallPlanTracker, setShowCallPlanTracker] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = localStorage.getItem('salesTrainerChatMode');
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
@@ -476,6 +478,7 @@ const SalesTrainer = () => {
           onStartCoaching={startCoaching}
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
+          onShowCallPlanTracker={() => setShowCallPlanTracker(true)}
         />
       </main>
 
@@ -511,6 +514,14 @@ const SalesTrainer = () => {
         onOpenChange={setShowProposalWizard}
         conversationContext={messages.slice(-10).map(m => `${m.role}: ${m.content}`).join("\n")}
         companyId={viewAsCompanyId || profile?.company_id}
+      />
+
+      <FourCallPlanTracker
+        open={showCallPlanTracker}
+        onOpenChange={setShowCallPlanTracker}
+        companyId={viewAsCompanyId || profile?.company_id || ""}
+        userId={viewAsUserId || user?.id || ""}
+        userName={viewAsUserName || profile?.full_name}
       />
     </div>
   );
