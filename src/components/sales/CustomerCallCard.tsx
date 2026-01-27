@@ -16,6 +16,7 @@ interface CallPlanData {
   total_revenue: number;
   acreage?: number;
   crops?: string;
+  precall_plan?: string;
   call_1_completed: boolean;
   call_1_date?: string;
   call_1_notes?: string;
@@ -209,6 +210,8 @@ function CustomerCallCardInner({ customer, companyId, userId, onUpdate }: Custom
                       totalRevenue={customer.total_revenue}
                       notes={callNotesLocal}
                       onNotesChange={(notes) => handleNotesChange(1, notes)}
+                      savedPrecallPlan={customer.precall_plan}
+                      onPrecallPlanChange={(plan) => onUpdate({ precall_plan: plan })}
                     />
                   )}
                   
