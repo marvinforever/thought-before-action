@@ -56,6 +56,9 @@ export function FourCallPlanTracker({
   const fetchParetoCustomers = useCallback(async () => {
     setLoading(true);
     try {
+      // Helpful debug context when troubleshooting customer load issues
+      console.debug("[FourCallPlanTracker] Loading customers", { companyId, userId, currentYear });
+
       // Fetch ALL customer purchase history for this company
       const allTransactions: any[] = [];
       let page = 0;
@@ -98,11 +101,13 @@ export function FourCallPlanTracker({
       const paretoCustomers = sorted.slice(0, paretoCount);
 
       // Fetch existing tracking data
-      const { data: existingTracking } = await supabase
+      const { data: existingTracking, error: trackingError } = await supabase
         .from("call_plan_tracking")
         .select("*")
         .eq("profile_id", userId)
         .eq("plan_year", currentYear);
+
+      if (trackingError) throw trackingError;
 
       const trackingMap = new Map(
         (existingTracking || []).map((t) => [t.customer_name, t])
@@ -133,11 +138,16 @@ export function FourCallPlanTracker({
       });
 
       setCustomers(merged);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
+    } catch (error: any) {
+      const message =
+        error?.message ||
+        error?.error_description ||
+        (typeof error === "string" ? error : "Unknown error");
+
+      console.error("[FourCallPlanTracker] Error fetching customers:", error);
       toast({
         title: "Error loading customers",
-        description: "Failed to fetch customer data",
+        description: message,
         variant: "destructive",
       });
     } finally {
