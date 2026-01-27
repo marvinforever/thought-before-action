@@ -365,6 +365,13 @@ const SalesTrainer = () => {
     setMessages([]);
     setHasStarted(false);
     
+    // Update methodology access based on viewed company
+    const effectiveCompanyId = companyId || profile?.company_id;
+    setHasMethodologyAccess(
+      effectiveCompanyId === STATELINE_COMPANY_ID || 
+      effectiveCompanyId === MOMENTUM_COMPANY_ID
+    );
+    
     // Fetch users for the selected company
     if (companyId) {
       const { data: users } = await supabase
