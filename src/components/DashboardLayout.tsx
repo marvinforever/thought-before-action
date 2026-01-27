@@ -156,7 +156,7 @@ const DashboardLayout = () => {
         { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
         { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
         { icon: LayoutDashboard, label: "Personal Assistant", path: "/dashboard/personal-assistant" },
-        { icon: TrendingUp, label: "Sales Trainer", path: "/sales-trainer" },
+        { icon: TrendingUp, label: "Sales Agent", path: "/sales-trainer" },
         ...(isManager ? [{ icon: Users, label: "My Team", path: "/dashboard/manager" }] : []),
         { icon: Users, label: "Employees", path: "/dashboard/employees" },
         { icon: Target, label: "Capabilities", path: "/dashboard/capabilities" },
@@ -170,7 +170,7 @@ const DashboardLayout = () => {
         { icon: Target, label: "My Capabilities", path: "/dashboard/my-capabilities" },
         { icon: BookOpen, label: "My Resources", path: "/dashboard/my-resources" },
         { icon: LayoutDashboard, label: "Personal Assistant", path: "/dashboard/personal-assistant" },
-        { icon: TrendingUp, label: "Sales Trainer", path: "/sales-trainer" },
+        { icon: TrendingUp, label: "Sales Agent", path: "/sales-trainer" },
         { icon: Handshake, label: "Partner Portal", path: "/partner" },
         { icon: Settings, label: "Settings", path: "/dashboard/settings" },
       ];
