@@ -1,14 +1,13 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, MapPin, Leaf } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Leaf, Save, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { InitialPlanningExpanded } from "./InitialPlanningExpanded";
-import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
 interface CallPlanData {
   id?: string;
@@ -35,7 +34,8 @@ interface CustomerCallCardProps {
   customer: CallPlanData;
   companyId: string;
   userId: string;
-  onUpdate: (updates: Partial<CallPlanData>) => void;
+  onUpdate: (updates: Partial<CallPlanData>) => Promise<void>;
+  onUnsavedChange?: (customerName: string, hasChanges: boolean) => void;
 }
 
 const CALL_STAGES = [
@@ -45,33 +45,73 @@ const CALL_STAGES = [
   { key: "4", label: "Strategic Recs", description: "Post-harvest planning" },
 ] as const;
 
-function CustomerCallCardInner({ customer, companyId, userId, onUpdate }: CustomerCallCardProps) {
+function CustomerCallCardInner({ customer, companyId, userId, onUpdate, onUnsavedChange }: CustomerCallCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [initialPlanningExpanded, setInitialPlanningExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
   
-  // Local state for notes to prevent lag while typing
-  const [localNotes, setLocalNotes] = useState<Record<number, string>>({
-    1: customer.call_1_notes || "",
-    2: customer.call_2_notes || "",
-    3: customer.call_3_notes || "",
-    4: customer.call_4_notes || "",
+  // Local state for ALL editable fields
+  const [localData, setLocalData] = useState({
+    call_1_completed: customer.call_1_completed,
+    call_1_date: customer.call_1_date || "",
+    call_1_notes: customer.call_1_notes || "",
+    call_2_completed: customer.call_2_completed,
+    call_2_date: customer.call_2_date || "",
+    call_2_notes: customer.call_2_notes || "",
+    call_3_completed: customer.call_3_completed,
+    call_3_date: customer.call_3_date || "",
+    call_3_notes: customer.call_3_notes || "",
+    call_4_completed: customer.call_4_completed,
+    call_4_date: customer.call_4_date || "",
+    call_4_notes: customer.call_4_notes || "",
+    precall_plan: customer.precall_plan || "",
   });
 
-  // Sync local notes when customer prop changes (e.g., after refresh)
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = 
+    localData.call_1_completed !== customer.call_1_completed ||
+    localData.call_1_date !== (customer.call_1_date || "") ||
+    localData.call_1_notes !== (customer.call_1_notes || "") ||
+    localData.call_2_completed !== customer.call_2_completed ||
+    localData.call_2_date !== (customer.call_2_date || "") ||
+    localData.call_2_notes !== (customer.call_2_notes || "") ||
+    localData.call_3_completed !== customer.call_3_completed ||
+    localData.call_3_date !== (customer.call_3_date || "") ||
+    localData.call_3_notes !== (customer.call_3_notes || "") ||
+    localData.call_4_completed !== customer.call_4_completed ||
+    localData.call_4_date !== (customer.call_4_date || "") ||
+    localData.call_4_notes !== (customer.call_4_notes || "") ||
+    localData.precall_plan !== (customer.precall_plan || "");
+
+  // Notify parent of unsaved changes
   useEffect(() => {
-    setLocalNotes({
-      1: customer.call_1_notes || "",
-      2: customer.call_2_notes || "",
-      3: customer.call_3_notes || "",
-      4: customer.call_4_notes || "",
+    onUnsavedChange?.(customer.customer_name, hasUnsavedChanges);
+  }, [hasUnsavedChanges, customer.customer_name, onUnsavedChange]);
+
+  // Sync local data when customer prop changes (e.g., after refresh)
+  useEffect(() => {
+    setLocalData({
+      call_1_completed: customer.call_1_completed,
+      call_1_date: customer.call_1_date || "",
+      call_1_notes: customer.call_1_notes || "",
+      call_2_completed: customer.call_2_completed,
+      call_2_date: customer.call_2_date || "",
+      call_2_notes: customer.call_2_notes || "",
+      call_3_completed: customer.call_3_completed,
+      call_3_date: customer.call_3_date || "",
+      call_3_notes: customer.call_3_notes || "",
+      call_4_completed: customer.call_4_completed,
+      call_4_date: customer.call_4_date || "",
+      call_4_notes: customer.call_4_notes || "",
+      precall_plan: customer.precall_plan || "",
     });
-  }, [customer.call_1_notes, customer.call_2_notes, customer.call_3_notes, customer.call_4_notes]);
+  }, [customer]);
 
   const completedCalls = [
-    customer.call_1_completed,
-    customer.call_2_completed,
-    customer.call_3_completed,
-    customer.call_4_completed,
+    localData.call_1_completed,
+    localData.call_2_completed,
+    localData.call_3_completed,
+    localData.call_4_completed,
   ].filter(Boolean).length;
 
   const formatCurrency = (value: number) => {
@@ -81,38 +121,52 @@ function CustomerCallCardInner({ customer, companyId, userId, onUpdate }: Custom
   };
 
   const handleCheckChange = (callNumber: 1 | 2 | 3 | 4, checked: boolean) => {
-    const dateField = `call_${callNumber}_date` as 'call_1_date' | 'call_2_date' | 'call_3_date' | 'call_4_date';
-    const completedField = `call_${callNumber}_completed` as 'call_1_completed' | 'call_2_completed' | 'call_3_completed' | 'call_4_completed';
+    const completedField = `call_${callNumber}_completed` as keyof typeof localData;
+    const dateField = `call_${callNumber}_date` as keyof typeof localData;
     
-    const updates: Partial<CallPlanData> = {};
-    updates[completedField] = checked;
-    
-    if (checked && !customer[dateField]) {
-      updates[dateField] = format(new Date(), "yyyy-MM-dd");
-    }
-    onUpdate(updates);
+    setLocalData(prev => ({
+      ...prev,
+      [completedField]: checked,
+      // Auto-fill date if checking and no date set
+      [dateField]: checked && !prev[dateField] ? format(new Date(), "yyyy-MM-dd") : prev[dateField],
+    }));
   };
 
   const handleDateChange = (callNumber: 1 | 2 | 3 | 4, date: string) => {
-    const dateField = `call_${callNumber}_date` as 'call_1_date' | 'call_2_date' | 'call_3_date' | 'call_4_date';
-    const updates: Partial<CallPlanData> = {};
-    updates[dateField] = date || undefined;
-    onUpdate(updates);
+    const dateField = `call_${callNumber}_date` as keyof typeof localData;
+    setLocalData(prev => ({ ...prev, [dateField]: date }));
   };
 
-  // Debounced save for notes - only saves after user stops typing for 500ms
-  const debouncedSaveNotes = useDebouncedCallback((callNumber: number, notes: string) => {
-    const notesField = `call_${callNumber}_notes` as 'call_1_notes' | 'call_2_notes' | 'call_3_notes' | 'call_4_notes';
-    const updates: Partial<CallPlanData> = {};
-    updates[notesField] = notes || undefined;
-    onUpdate(updates);
-  }, 500);
-
   const handleNotesChange = (callNumber: 1 | 2 | 3 | 4, notes: string) => {
-    // Update local state immediately for responsive typing
-    setLocalNotes(prev => ({ ...prev, [callNumber]: notes }));
-    // Debounce the actual save
-    debouncedSaveNotes(callNumber, notes);
+    const notesField = `call_${callNumber}_notes` as keyof typeof localData;
+    setLocalData(prev => ({ ...prev, [notesField]: notes }));
+  };
+
+  const handlePrecallPlanChange = (plan: string) => {
+    setLocalData(prev => ({ ...prev, precall_plan: plan }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onUpdate({
+        call_1_completed: localData.call_1_completed,
+        call_1_date: localData.call_1_date || undefined,
+        call_1_notes: localData.call_1_notes || undefined,
+        call_2_completed: localData.call_2_completed,
+        call_2_date: localData.call_2_date || undefined,
+        call_2_notes: localData.call_2_notes || undefined,
+        call_3_completed: localData.call_3_completed,
+        call_3_date: localData.call_3_date || undefined,
+        call_3_notes: localData.call_3_notes || undefined,
+        call_4_completed: localData.call_4_completed,
+        call_4_date: localData.call_4_date || undefined,
+        call_4_notes: localData.call_4_notes || undefined,
+        precall_plan: localData.precall_plan || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
 
@@ -160,9 +214,9 @@ function CustomerCallCardInner({ customer, companyId, userId, onUpdate }: Custom
       <CardContent className="space-y-3 print:space-y-2">
         {CALL_STAGES.map((stage) => {
           const callNum = parseInt(stage.key) as 1 | 2 | 3 | 4;
-          const isCompleted = customer[`call_${callNum}_completed` as keyof CallPlanData] as boolean;
-          const callDate = customer[`call_${callNum}_date` as keyof CallPlanData] as string | undefined;
-          const callNotesLocal = localNotes[callNum] || "";
+          const isCompleted = localData[`call_${callNum}_completed` as keyof typeof localData] as boolean;
+          const callDate = localData[`call_${callNum}_date` as keyof typeof localData] as string;
+          const callNotesLocal = localData[`call_${callNum}_notes` as keyof typeof localData] as string;
           
           return (
             <div 
@@ -210,8 +264,8 @@ function CustomerCallCardInner({ customer, companyId, userId, onUpdate }: Custom
                       totalRevenue={customer.total_revenue}
                       notes={callNotesLocal}
                       onNotesChange={(notes) => handleNotesChange(1, notes)}
-                      savedPrecallPlan={customer.precall_plan}
-                      onPrecallPlanChange={(plan) => onUpdate({ precall_plan: plan })}
+                      savedPrecallPlan={localData.precall_plan}
+                      onPrecallPlanChange={handlePrecallPlanChange}
                     />
                   )}
                   
@@ -234,6 +288,29 @@ function CustomerCallCardInner({ customer, companyId, userId, onUpdate }: Custom
             </div>
           );
         })}
+        
+        {/* Save Button */}
+        <div className="flex justify-end pt-2 print:hidden">
+          <Button
+            onClick={handleSave}
+            disabled={saving || !hasUnsavedChanges}
+            variant={hasUnsavedChanges ? "default" : "secondary"}
+            size="sm"
+            className="gap-2"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                {hasUnsavedChanges ? "Save Changes" : "Saved"}
+              </>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
