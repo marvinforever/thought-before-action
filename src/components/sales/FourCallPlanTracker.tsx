@@ -73,9 +73,14 @@ export function FourCallPlanTracker({
     });
   }, []);
 
-  const handleCloseAttempt = (shouldClose: boolean) => {
-    if (!shouldClose) return;
+  const handleCloseAttempt = (open: boolean) => {
+    // If trying to open (true), just pass through
+    if (open) {
+      onOpenChange(true);
+      return;
+    }
     
+    // If trying to close (false), check for unsaved changes
     if (hasUnsavedChanges) {
       setShowCloseWarning(true);
     } else {
