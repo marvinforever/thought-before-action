@@ -92,6 +92,92 @@ async function fetchAllPurchaseHistory(params: {
   return rows;
 }
 
+// Pareto Revenue Analysis - finds customers that make up X% of total revenue
+async function fetchParetoAnalysis(params: {
+  supabase: any;
+  companyId: string;
+  repName?: string | null;
+  thresholdPercent: number;
+  seasonYear?: string | null;
+}) {
+  const { supabase, companyId, repName, thresholdPercent, seasonYear } = params;
+  
+  // Page through ALL transactions for accurate aggregation
+  const pageSize = 1000;
+  let from = 0;
+  const allRows: any[] = [];
+
+  while (true) {
+    let q = supabase
+      .from('customer_purchase_history')
+      .select('customer_name, amount, season')
+      .eq('company_id', companyId);
+
+    if (repName) {
+      q = q.ilike('rep_name', repName);
+    }
+    if (seasonYear) {
+      q = q.eq('season', seasonYear);
+    }
+
+    const { data, error } = await q.range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allRows.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  if (allRows.length === 0) {
+    return { customers: [], totalRevenue: 0, totalCustomers: 0, thresholdRevenue: 0 };
+  }
+
+  // Aggregate revenue by customer
+  const customerTotals: Record<string, number> = {};
+  for (const row of allRows) {
+    const name = row.customer_name || 'Unknown';
+    const amount = Number(row.amount) || 0;
+    customerTotals[name] = (customerTotals[name] || 0) + amount;
+  }
+
+  // Sort by revenue descending
+  const sorted = Object.entries(customerTotals)
+    .map(([name, revenue]) => ({ name, revenue }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const totalRevenue = sorted.reduce((sum, c) => sum + c.revenue, 0);
+  const thresholdAmount = totalRevenue * (thresholdPercent / 100);
+  const totalCustomers = sorted.length;
+
+  // Find customers that make up the threshold
+  let cumulative = 0;
+  const thresholdCustomers: { name: string; revenue: number; percentOfTotal: number; cumulativePercent: number }[] = [];
+  
+  for (const customer of sorted) {
+    cumulative += customer.revenue;
+    const percentOfTotal = (customer.revenue / totalRevenue) * 100;
+    const cumulativePercent = (cumulative / totalRevenue) * 100;
+    
+    thresholdCustomers.push({
+      name: customer.name,
+      revenue: customer.revenue,
+      percentOfTotal,
+      cumulativePercent,
+    });
+    
+    if (cumulative >= thresholdAmount) {
+      break;
+    }
+  }
+
+  return {
+    customers: thresholdCustomers,
+    totalRevenue,
+    totalCustomers,
+    thresholdRevenue: cumulative,
+  };
+}
+
 // Companies with access to proprietary Stateline methodologies
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
 const STREAMLINE_AG_COMPANY_ID = 'd23e3007-254d-429a-a7e2-329bc1bf2afb';
@@ -503,6 +589,106 @@ Use this information to make SPECIFIC product recommendations from your catalog 
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // --- PARETO REVENUE ANALYSIS ---
+      // Detect requests like "which customers make up 80% of my revenue" or "top 20% customers"
+      const paretoPatterns = [
+        /(?:customers?|accounts?|clients?)\s+(?:that\s+)?(?:make\s+up|represent|comprise|account\s+for|are)\s+(?:the\s+)?(?:top\s+)?(\d+)\s*%/i,
+        /(?:which|what|who)\s+(?:customers?|accounts?|clients?)\s+(?:are|make|represent)\s+(\d+)\s*%/i,
+        /top\s+(\d+)\s*%\s+(?:of\s+)?(?:my\s+)?(?:revenue|sales|business|customers?)/i,
+        /(\d+)\s*%\s+(?:of\s+)?(?:my\s+)?(?:revenue|sales|business)/i,
+        /pareto|80[\/\-]?20|eighty.?twenty/i,
+        /(?:my\s+)?(?:biggest|largest|top)\s+(?:revenue\s+)?customers?(?:\s+by\s+revenue)?/i,
+      ];
+      
+      let paretoMatch = null;
+      let paretoThreshold = 80; // Default to 80%
+      
+      for (const pattern of paretoPatterns) {
+        paretoMatch = message.match(pattern);
+        if (paretoMatch) {
+          // Extract percentage if captured
+          if (paretoMatch[1]) {
+            paretoThreshold = parseInt(paretoMatch[1], 10);
+          }
+          break;
+        }
+      }
+      
+      // Check if this is a Pareto-style question
+      const isParetoQuestion = paretoMatch || 
+        /make\s+up\s+\d+%/i.test(message) ||
+        /represent\s+\d+%/i.test(message) ||
+        /pareto/i.test(message) ||
+        /80.?20/i.test(message);
+      
+      if (isParetoQuestion) {
+        console.log(`[REC][pareto] Detected Pareto analysis request, threshold: ${paretoThreshold}%`);
+        const seasonYear = detectSeasonYear(message);
+        
+        const repNameFilter = (isSuperAdmin && effectiveUserId !== user.id)
+          ? (effectiveUserName ? effectiveUserName.toUpperCase() : null)
+          : null;
+        
+        try {
+          const result = await fetchParetoAnalysis({
+            supabase,
+            companyId: effectiveCompanyId,
+            repName: repNameFilter,
+            thresholdPercent: paretoThreshold,
+            seasonYear,
+          });
+          
+          if (result.totalCustomers === 0) {
+            return new Response(
+              JSON.stringify({
+                message: `No customer purchase data found${seasonYear ? ` for season ${seasonYear}` : ''}. Make sure historical data has been imported.`,
+                hasMethodologyAccess,
+                isStreamlineAg,
+                dealCreated: false,
+                pipelineActions: [],
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          const customersInThreshold = result.customers.length;
+          const percentOfCustomers = ((customersInThreshold / result.totalCustomers) * 100).toFixed(1);
+          
+          // Build the customer table
+          const customerLines = result.customers.map((c, i) => 
+            `| ${i + 1}. ${c.name} | ${formatCurrency(c.revenue)} | ${c.percentOfTotal.toFixed(1)}% |`
+          ).join('\n');
+          
+          const responseMessage = `🏆 **TOP ${paretoThreshold}% REVENUE ANALYSIS**${seasonYear ? ` (Season ${seasonYear})` : ''}
+${repNameFilter ? `Rep: ${repNameFilter}` : 'All reps'}
+
+These **${customersInThreshold} customers** generate ${paretoThreshold}% of your total revenue (${formatCurrency(result.thresholdRevenue)}).
+That's only **${percentOfCustomers}%** of your ${result.totalCustomers.toLocaleString()} total customers!
+
+| Customer | Revenue | % of Total |
+|----------|---------|------------|
+${customerLines}
+
+**Total Revenue:** ${formatCurrency(result.totalRevenue)}
+
+💡 **The Pareto Principle in action:** ${percentOfCustomers}% of your customers drive ${paretoThreshold}% of your business. These are your key accounts—give them your best attention!`;
+          
+          return new Response(
+            JSON.stringify({
+              message: responseMessage,
+              hasMethodologyAccess,
+              isStreamlineAg,
+              dealCreated: false,
+              pipelineActions: [],
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (paretoError) {
+          console.error('[REC][pareto] Error:', paretoError);
+          // Fall through to LLM if analysis fails
+        }
       }
 
       // --- DEAL MOVE COMMAND ---
