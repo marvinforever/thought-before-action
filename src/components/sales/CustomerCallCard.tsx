@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, memo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, MapPin, Leaf } from "lucide-react";
 import { format } from "date-fns";
 import { InitialPlanningExpanded } from "./InitialPlanningExpanded";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
 interface CallPlanData {
   id?: string;
@@ -43,9 +44,28 @@ const CALL_STAGES = [
   { key: "4", label: "Strategic Recs", description: "Post-harvest planning" },
 ] as const;
 
-export function CustomerCallCard({ customer, companyId, userId, onUpdate }: CustomerCallCardProps) {
+function CustomerCallCardInner({ customer, companyId, userId, onUpdate }: CustomerCallCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [initialPlanningExpanded, setInitialPlanningExpanded] = useState(false);
+  
+  // Local state for notes to prevent lag while typing
+  const [localNotes, setLocalNotes] = useState<Record<number, string>>({
+    1: customer.call_1_notes || "",
+    2: customer.call_2_notes || "",
+    3: customer.call_3_notes || "",
+    4: customer.call_4_notes || "",
+  });
+
+  // Sync local notes when customer prop changes (e.g., after refresh)
+  useEffect(() => {
+    setLocalNotes({
+      1: customer.call_1_notes || "",
+      2: customer.call_2_notes || "",
+      3: customer.call_3_notes || "",
+      4: customer.call_4_notes || "",
+    });
+  }, [customer.call_1_notes, customer.call_2_notes, customer.call_3_notes, customer.call_4_notes]);
+
   const completedCalls = [
     customer.call_1_completed,
     customer.call_2_completed,
@@ -79,12 +99,21 @@ export function CustomerCallCard({ customer, companyId, userId, onUpdate }: Cust
     onUpdate(updates);
   };
 
-  const handleNotesChange = (callNumber: 1 | 2 | 3 | 4, notes: string) => {
+  // Debounced save for notes - only saves after user stops typing for 500ms
+  const debouncedSaveNotes = useDebouncedCallback((callNumber: number, notes: string) => {
     const notesField = `call_${callNumber}_notes` as 'call_1_notes' | 'call_2_notes' | 'call_3_notes' | 'call_4_notes';
     const updates: Partial<CallPlanData> = {};
     updates[notesField] = notes || undefined;
     onUpdate(updates);
+  }, 500);
+
+  const handleNotesChange = (callNumber: 1 | 2 | 3 | 4, notes: string) => {
+    // Update local state immediately for responsive typing
+    setLocalNotes(prev => ({ ...prev, [callNumber]: notes }));
+    // Debounce the actual save
+    debouncedSaveNotes(callNumber, notes);
   };
+
 
   return (
     <Card className="print:break-inside-avoid print:shadow-none print:border-2 print:border-foreground/20">
@@ -132,7 +161,7 @@ export function CustomerCallCard({ customer, companyId, userId, onUpdate }: Cust
           const callNum = parseInt(stage.key) as 1 | 2 | 3 | 4;
           const isCompleted = customer[`call_${callNum}_completed` as keyof CallPlanData] as boolean;
           const callDate = customer[`call_${callNum}_date` as keyof CallPlanData] as string | undefined;
-          const callNotes = customer[`call_${callNum}_notes` as keyof CallPlanData] as string | undefined;
+          const callNotesLocal = localNotes[callNum] || "";
           
           return (
             <div 
@@ -178,23 +207,23 @@ export function CustomerCallCard({ customer, companyId, userId, onUpdate }: Cust
                       companyId={companyId}
                       userId={userId}
                       totalRevenue={customer.total_revenue}
-                      notes={callNotes || ""}
+                      notes={callNotesLocal}
                       onNotesChange={(notes) => handleNotesChange(1, notes)}
                     />
                   )}
                   
                   {/* Regular notes for non-Call-1 or when Initial Planning is collapsed */}
-                  {(callNum !== 1 || !initialPlanningExpanded) && (expanded || callNotes) && (
+                  {(callNum !== 1 || !initialPlanningExpanded) && (expanded || callNotesLocal) && (
                     <Textarea
                       placeholder="Notes..."
-                      value={callNotes || ""}
+                      value={callNotesLocal}
                       onChange={(e) => handleNotesChange(callNum, e.target.value)}
                       className="mt-2 min-h-[60px] text-sm resize-none print:min-h-[40px] print:text-xs"
                     />
                   )}
                   
                   {/* Print-only notes line */}
-                  {!callNotes && (
+                  {!callNotesLocal && (
                     <div className="hidden print:block mt-1 border-b border-dashed border-muted-foreground/40 h-6" />
                   )}
                 </div>
@@ -206,3 +235,7 @@ export function CustomerCallCard({ customer, companyId, userId, onUpdate }: Cust
     </Card>
   );
 }
+
+// Memoized export to prevent unnecessary re-renders of entire list
+export const CustomerCallCard = memo(CustomerCallCardInner);
+
