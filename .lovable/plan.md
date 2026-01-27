@@ -1,157 +1,173 @@
 
-# Auto-Link Purchase History to Pipeline Deals
+# Pareto Revenue Analysis & Unrestricted Historical Data Access
 
-## Overview
-When a deal's customer matches someone in the historical purchase data, the system should automatically pull and display their purchase history. This gives reps instant access to buying patterns, product preferences, and revenue data right from the pipeline.
+## Understanding Your Request
 
----
+You want two things:
 
-## The Matching Challenge
+1. **No restrictions on historical data** - Jericho must see ALL customers and their complete purchase history for sales planning
+2. **Pareto analysis** - "Show me which customers make up 80% of my total revenue" (then tell you what % of total customers that represents)
 
-The data exists in two different formats:
-
-| Source | Example Name Format |
-|--------|---------------------|
-| Pipeline deals (sales_companies) | `Tim Murray`, `Zierke Bros` |
-| Purchase history (customer_purchase_history) | `MURRAY, TIM`, `ZIERKE, BRAD` |
-
-The system needs fuzzy matching to connect these records.
+Example: If 80% of your $328M revenue ($262M) comes from just 210 of your 1,046 customers, that's 20% of your customer base generating 80% of your revenue.
 
 ---
 
-## Implementation Phases
+## Current Limitations
 
-### Phase 1: Backend - History Lookup Helper
-
-Create a new helper function in the `sales-coach` edge function to fetch purchase history by customer name with fuzzy matching:
-
-**Matching Logic:**
-1. Extract first/last name parts from the company name
-2. Handle multi-person entries (e.g., "Zierke Bros" → search all Zierkes)
-3. Search both "LAST, FIRST" and "FIRST LAST" patterns
-4. Return aggregated purchase data (total revenue, products, seasons)
-
-This reuses the existing `fetchAllPurchaseHistory` function with the same name normalization logic.
+| What | Current State | Problem |
+|------|---------------|---------|
+| Historical data for AI context | 2,000 rows, top 50 customers | Misses 996 customers |
+| Direct history lookup | Unlimited (pages through all) | Works correctly |
+| Pareto analysis | Does not exist | Cannot answer "who makes up 80% of revenue" |
 
 ---
 
-### Phase 2: Auto-Include History in Deal Context
+## Solution
 
-Update the `sales-coach` edge function to automatically fetch purchase history when a deal is provided:
+### Part 1: New Pareto Analysis Command
 
-**When a deal object is passed:**
-1. Get the company name from `deal.sales_companies.name`
-2. Call the purchase history lookup
-3. Include the results in the deal context sent to the AI
-4. Jericho now knows their full buying history without being asked
+Add a direct data handler (like the purchase history lookup) that:
+1. Detects phrases like "top 80%", "make up 80%", "80/20", "pareto", "my biggest customers"
+2. Fetches ALL transactions for the user's company (using pagination)
+3. Aggregates revenue by customer
+4. Sorts customers highest to lowest
+5. Walks down the list, accumulating revenue until hitting the requested threshold (e.g., 80%)
+6. Returns those customers and calculates what % of total customers they represent
 
-**Example context addition:**
-```text
-HISTORICAL PURCHASE DATA FOR THIS CUSTOMER:
-- Total Revenue: $45,230 (23 transactions)
-- Products: Fertilizer, Nitrogen, Specialty Chem
-- Seasons Active: 2022, 2023, 2024
-- Top Products: [detailed list]
+**Example Response:**
+```
+YOUR TOP REVENUE CUSTOMERS (80% of $2.4M)
+
+These 17 customers generate 80% of your total revenue.
+That's only 21% of your 81 total customers.
+
+| Customer          | Revenue     | % of Total |
+|-------------------|-------------|------------|
+| JOHNSON, TIM      | $182,450    | 7.6%       |
+| SMITH BROS        | $156,200    | 6.5%       |
+| MURRAY, SCOTT     | $134,800    | 5.6%       |
+... (all 17 customers listed)
+
+💡 The Pareto Principle in action: 21% of your customers 
+drive 80% of your business.
 ```
 
----
+### Part 2: Remove AI Context Restrictions
 
-### Phase 3: UI - Display History in Deal Views
-
-Add a "Purchase History" section to multiple locations:
-
-**A. DealCoachDialog (src/components/sales/DealCoachDialog.tsx)**
-- Add a collapsible "Purchase History" card below the deal summary
-- Show: Total revenue, transaction count, top products, last purchase date
-- Indicate if no history found (prospect vs. data gap)
-
-**B. CustomerDetailDialog (src/components/sales/CustomerDetailDialog.tsx)**
-- Enhance the existing "History" tab to pull from `customer_purchase_history`
-- Add a "Transactions" sub-section with product breakdown
-- Show year-over-year trends
-
-**C. PipelineView Deal Cards (src/components/sales/PipelineView.tsx)**
-- Add a small indicator badge showing if historical data exists
-- On hover or click, show quick revenue summary
+For the general AI context (when NOT doing a direct lookup), increase visibility:
+- Increase transaction fetch from 2,000 to unlimited (paginated)
+- Show all customers in aggregated summary, not just top 50
+- This ensures Jericho knows about every customer relationship
 
 ---
 
-### Phase 4: New API Endpoint (Optional Enhancement)
+## Technical Implementation
 
-Create a dedicated edge function `get-customer-purchase-summary` that:
-- Takes a customer name as input
-- Returns structured JSON with purchase summary
-- Can be called directly from UI components
-- Caches results for performance
+### File: `supabase/functions/sales-coach/index.ts`
 
-This allows the frontend to fetch history independently without going through the full coaching flow.
+**1. Add Pareto Detection (near line 441)**
 
----
+Detect patterns like:
+- "customers that make up 80%"
+- "who represents 80% of my revenue"
+- "pareto" or "80/20"
+- "which customers are 80% of my business"
 
-## Technical Details
-
-### Fuzzy Name Matching Algorithm
+**2. Create `fetchParetoAnalysis` Function**
 
 ```text
-Input: "Zierke Bros"
+function fetchParetoAnalysis({
+  supabase, companyId, repName, thresholdPercent = 80
+})
+
 Steps:
-1. Normalize: Remove common suffixes (Bros, Farms, Inc)
-2. Extract key name: "Zierke"
-3. Query: WHERE customer_name ILIKE '%ZIERKE%'
-4. Return all matching records aggregated
-
-Input: "Tim Murray"
-Steps:
-1. Split: first="Tim", last="Murray"
-2. Query: WHERE customer_name ILIKE '%MURRAY%' AND customer_name ILIKE '%TIM%'
-3. Catches: "MURRAY, TIM" and "TIM MURRAY"
+1. Page through ALL customer_purchase_history rows (same pagination pattern as fetchAllPurchaseHistory)
+2. Aggregate: customerTotals[customer_name] += amount
+3. Sort by revenue descending
+4. Walk through, accumulating until cumulative >= threshold%
+5. Return:
+   - Customers in the threshold group
+   - Total revenue for company/rep
+   - Count stats (X of Y customers = Z%)
 ```
 
-### Files to Modify
+**3. Format Response**
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/sales-coach/index.ts` | Add auto-history lookup when deal is provided |
-| `src/components/sales/DealCoachDialog.tsx` | Display purchase history summary |
-| `src/components/sales/CustomerDetailDialog.tsx` | Add transactions tab with history data |
-| `src/components/sales/PipelineView.tsx` | Add history indicator badge |
-| (new) `supabase/functions/get-customer-purchase-summary/index.ts` | Dedicated history lookup API |
+Clean markdown table with:
+- Customer name
+- Revenue
+- Percentage of total
+- Summary insight (e.g., "17 customers (21%) generate 80% of your revenue")
 
-### Data Flow
+**4. Expand Historical Context for AI**
+
+For the general chat context (when not doing a direct lookup):
+- Remove the 2,000 row limit on historical data fetch
+- Aggregate ALL customers, show more in the context
+- The AI will have complete visibility for planning conversations
+
+---
+
+## Data Flow
 
 ```text
-User clicks deal in pipeline
-        ↓
-DealCoachDialog opens
-        ↓
-Calls sales-coach with deal object
-        ↓
-sales-coach extracts company name
-        ↓
-Fuzzy matches against customer_purchase_history
-        ↓
-Returns AI response with embedded history context
-        ↓
-UI displays history summary in dialog
+User: "Which customers make up 80% of my revenue?"
+                    |
+                    v
+     ┌─────────────────────────────────┐
+     │ Detect "make up X%" pattern     │
+     │ Extract threshold (80)          │
+     └─────────────────────────────────┘
+                    |
+                    v
+     ┌─────────────────────────────────┐
+     │ fetchParetoAnalysis()           │
+     │ - Page through ALL transactions │
+     │ - Aggregate by customer_name    │
+     │ - Sort by revenue DESC          │
+     │ - Find cumulative 80% cutoff    │
+     └─────────────────────────────────┘
+                    |
+                    v
+     ┌─────────────────────────────────┐
+     │ Format Response:                │
+     │ - List all qualifying customers │
+     │ - Show revenue & percentage     │
+     │ - Calculate customer count %    │
+     │ - Add Pareto insight            │
+     └─────────────────────────────────┘
 ```
 
 ---
 
-## Edge Cases
+## Variations Supported
 
-1. **No match found**: Display "No purchase history found - this appears to be a new prospect"
-2. **Multiple matches**: Aggregate all matching records (handles family operations like Zierke Bros)
-3. **Name variations**: The fuzzy matching handles common variations (Tim/Timothy, etc.)
-4. **Prospects vs. current customers**: Use `customer_type` field to set expectations
+| User Says | What Happens |
+|-----------|--------------|
+| "Which customers make up 80% of my revenue?" | Lists customers comprising 80% of revenue |
+| "Show me my top 20% revenue customers" | Lists customers in top 20% of revenue (different question!) |
+| "Who are my biggest customers?" | Shows Pareto analysis defaulting to 80% threshold |
+| "Pareto analysis" or "80/20 rule" | Same as 80% threshold |
+| "Which customers are 90% of my business?" | Uses 90% threshold |
+| "Top 80% customers from last year" | Filters to 2024 season |
+
+---
+
+## Why Direct Data Lookup (No LLM)
+
+Same pattern used for purchase history:
+- **Speed**: No waiting for AI to process
+- **Accuracy**: No hallucination risk
+- **Completeness**: Every customer is included
+- **Precision**: Exact dollar amounts, not approximations
 
 ---
 
 ## Summary
 
-This gives reps:
-1. **Automatic context** - Jericho knows their purchase history without being asked
-2. **Visual indicators** - See at a glance which deals have historical data
-3. **Quick access** - View full transaction history from any deal dialog
-4. **Smarter coaching** - AI recommendations based on actual buying patterns
-
-The existing name-matching logic from the "Rec mode" direct history lookup is reused, ensuring consistency across chat queries and automated lookups.
+| Change | Impact |
+|--------|--------|
+| New Pareto detection pattern | Understands "make up 80%" requests |
+| New `fetchParetoAnalysis` function | Calculates threshold customers |
+| Remove row limits on history context | Jericho sees ALL customers |
+| Direct response (bypass LLM) | Fast, accurate, complete |
