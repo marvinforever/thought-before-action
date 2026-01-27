@@ -183,9 +183,11 @@ export function InitialPlanningExpanded({
 
       setGeneratedPlan(data.plan);
       setEditablePlan(data.plan);
+      // Immediately notify parent that precall plan changed so it marks as unsaved
+      onPrecallPlanChange?.(data.plan);
       toast({
         title: "Plan generated",
-        description: "Your pre-call plan is ready. Click Edit to customize it.",
+        description: "Your pre-call plan is ready. Click 'Save Changes' below to persist it.",
       });
     } catch (error: any) {
       console.error("Error generating plan:", error);
@@ -400,12 +402,12 @@ export function InitialPlanningExpanded({
       onPrecallPlanChange(editablePlan);
       setGeneratedPlan(editablePlan);
       toast({
-        title: "Plan saved",
-        description: "Your pre-call plan has been saved to this customer's record",
+        title: "Edits applied",
+        description: "Click 'Save Changes' on the customer card to persist to database.",
       });
     } catch (error) {
       toast({
-        title: "Error saving plan",
+        title: "Error applying edits",
         variant: "destructive",
       });
     } finally {
