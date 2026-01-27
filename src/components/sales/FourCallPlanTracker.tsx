@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { CustomerCallCard } from "./CustomerCallCard";
-import { Printer, RefreshCw, Loader2, Users, TrendingUp, CheckCircle2 } from "lucide-react";
+import { AddCustomerToTrackerDialog } from "./AddCustomerToTrackerDialog";
+import { Printer, RefreshCw, Loader2, Users, TrendingUp, CheckCircle2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CallPlanData {
@@ -51,6 +52,7 @@ export function FourCallPlanTracker({
   const [customers, setCustomers] = useState<CallPlanData[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("pareto");
   const [saving, setSaving] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const currentYear = new Date().getFullYear();
 
   const fetchParetoCustomers = useCallback(async () => {
@@ -237,6 +239,18 @@ export function FourCallPlanTracker({
     window.print();
   };
 
+  const handleCustomerAdded = (customer: { customer_name: string; total_revenue: number }) => {
+    const newCustomer: CallPlanData = {
+      customer_name: customer.customer_name,
+      total_revenue: customer.total_revenue,
+      call_1_completed: false,
+      call_2_completed: false,
+      call_3_completed: false,
+      call_4_completed: false,
+    };
+    setCustomers((prev) => [...prev, newCustomer].sort((a, b) => b.total_revenue - a.total_revenue));
+  };
+
   // Filter customers based on mode
   const filteredCustomers = customers.filter((c) => {
     if (filterMode === "completed") {
@@ -278,6 +292,10 @@ export function FourCallPlanTracker({
             </span>
             <div className="flex items-center gap-2 print:hidden">
               {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
               <Button variant="outline" size="sm" onClick={fetchParetoCustomers} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
                 Refresh
@@ -360,9 +378,18 @@ export function FourCallPlanTracker({
                 />
               ))}
             </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
+            </div>
+          )}
+
+          <AddCustomerToTrackerDialog
+            open={addDialogOpen}
+            onOpenChange={setAddDialogOpen}
+            companyId={companyId}
+            userId={userId}
+            existingCustomerNames={customers.map((c) => c.customer_name)}
+            onCustomerAdded={handleCustomerAdded}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
