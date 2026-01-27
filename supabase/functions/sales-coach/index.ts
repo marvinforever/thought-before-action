@@ -561,16 +561,28 @@ Use this information to make SPECIFIC product recommendations from your catalog 
         // Common phrasing: "list of customers that get me 80% of my revenue"
         /(customers?|accounts?)\b.*\b(\d+)\s*(?:%|percent|per\s*cent)\b.*\b(revenue|sales|business)\b/i.test(message);
 
+      // --- COMPLETE/FULL SALES REPORT (all customers) ---
+      // Detect: "complete sales report", "full report on all customers", "show all customers", "list all customers"
+      const isCompleteReportQuery = !isEarlyParetoQuestion && (
+        /(?:complete|full|entire|whole)\s+(?:sales\s+)?report/i.test(message) ||
+        /(?:all|every)\s+customers?/i.test(message) ||
+        /(?:list|show|give me)\s+(?:all|every)\s+(?:my\s+)?customers?/i.test(message) ||
+        /customer\s+(?:list|report)\s+(?:for\s+)?\d{4}/i.test(message) ||
+        /(?:all|every)\s+(?:my\s+)?(?:sales|customers?)\s+(?:for|in)\s+\d{4}/i.test(message)
+      );
+
       // --- REP SUMMARY (total revenue for a rep/season) ---
-      // Only trigger if NOT a Pareto question
+      // Only trigger if NOT a Pareto question and NOT a complete report
       // Detect: "how much business did I do in 2025", "total revenue", "my sales in 2024"
-      const isRepSummaryQuery = !isEarlyParetoQuestion && !/\bcustomers?\b|\bcustomer\s+list\b|\blist\s+of\b/i.test(message) && (
+      const isRepSummaryQuery = !isEarlyParetoQuestion && !isCompleteReportQuery && !/\bcustomers?\b|\bcustomer\s+list\b|\blist\s+of\b/i.test(message) && (
         /(?:how much|total)\s+(?:business|revenue|sales|did\s+(?:i|we|adam|he|she))/i.test(message) ||
         /(?:revenue|business|sales)\s+(?:in|for)\s+\d{4}/i.test(message)
       );
       
-      if (isRepSummaryQuery && !customerNameQuery) {
-        console.log(`[REC][rep-summary] Direct rep summary path engaged, season=${seasonYear}`);
+      // Handle both complete report and rep summary with same data fetching
+      if ((isCompleteReportQuery || isRepSummaryQuery) && !customerNameQuery) {
+        const showAllCustomers = isCompleteReportQuery;
+        console.log(`[REC][${showAllCustomers ? 'complete-report' : 'rep-summary'}] Direct path engaged, season=${seasonYear}, showAll=${showAllCustomers}`);
         
         // Fetch all transactions for this rep/company with optional season filter
         const pageSize = 1000;
@@ -626,24 +638,36 @@ Use this information to make SPECIFIC product recommendations from your catalog 
         const totalRevenue = sorted.reduce((sum, [, amt]) => sum + amt, 0);
         const customerCount = sorted.length;
         
-        // Top 20 customers
-        const topCustomerLines = sorted.slice(0, 20).map(([name, amt], i) => 
-          `| ${i + 1}. ${name} | ${formatCurrency(amt)} | ${((amt / totalRevenue) * 100).toFixed(1)}% |`
-        ).join('\n');
+        let customerLines: string;
+        let reportTitle: string;
         
-        const responseMessage = `📊 **SALES SUMMARY${seasonYear ? ` — Season ${seasonYear}` : ' — All Time'}**
+        if (showAllCustomers) {
+          // Show ALL customers for complete report
+          customerLines = sorted.map(([name, amt], i) => 
+            `| ${i + 1}. ${name} | ${formatCurrency(amt)} | ${((amt / totalRevenue) * 100).toFixed(1)}% |`
+          ).join('\n');
+          reportTitle = `📋 **COMPLETE SALES REPORT${seasonYear ? ` — Season ${seasonYear}` : ' — All Time'}**`;
+        } else {
+          // Show top 20 for summary
+          customerLines = sorted.slice(0, 20).map(([name, amt], i) => 
+            `| ${i + 1}. ${name} | ${formatCurrency(amt)} | ${((amt / totalRevenue) * 100).toFixed(1)}% |`
+          ).join('\n');
+          reportTitle = `📊 **SALES SUMMARY${seasonYear ? ` — Season ${seasonYear}` : ' — All Time'}**`;
+        }
+        
+        const responseMessage = `${reportTitle}
 Rep: ${effectiveUserName || 'All reps'}
 
 **Total Revenue:** ${formatCurrency(totalRevenue)}
 **Total Customers:** ${customerCount.toLocaleString()}
 **Total Transactions:** ${allRows.length.toLocaleString()}
 
-### Top 20 Customers by Revenue
+### ${showAllCustomers ? `All ${customerCount} Customers` : 'Top 20 Customers'} by Revenue
 | Customer | Revenue | % of Total |
 |----------|---------|------------|
-${topCustomerLines}
+${customerLines}
 
-💡 For detailed product breakdown, ask about a specific customer by name.`;
+💡 ${showAllCustomers ? 'Ask about any customer for their detailed product breakdown.' : 'For complete customer list, ask for "complete sales report". For product breakdown, ask about a specific customer.'}`;
         
         return new Response(
           JSON.stringify({
