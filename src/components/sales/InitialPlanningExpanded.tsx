@@ -303,11 +303,11 @@ export function InitialPlanningExpanded({
             <Sparkles className="h-4 w-4 text-primary" />
             AI Pre-Call Plan
           </h4>
-          <ScrollArea className="max-h-64">
-            <div className="prose prose-sm max-w-none dark:prose-invert">
+          <div className="max-h-64 overflow-y-auto">
+            <div className="prose prose-sm max-w-none dark:prose-invert pr-2">
               <ReactMarkdown>{generatedPlan}</ReactMarkdown>
             </div>
-          </ScrollArea>
+          </div>
         </div>
       )}
 
