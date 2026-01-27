@@ -182,9 +182,10 @@ export function InitialPlanningExpanded({
       if (data?.error) throw new Error(data.error);
 
       setGeneratedPlan(data.plan);
+      setEditablePlan(data.plan);
       toast({
         title: "Plan generated",
-        description: "Your pre-call plan is ready",
+        description: "Your pre-call plan is ready. Click Edit to customize it.",
       });
     } catch (error: any) {
       console.error("Error generating plan:", error);
