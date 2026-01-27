@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, DollarSign, MapPin, Leaf } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Leaf } from "lucide-react";
 import { format } from "date-fns";
 
 interface CallPlanData {
@@ -90,10 +90,7 @@ export function CustomerCallCard({ customer, onUpdate }: CustomerCallCardProps) 
           <div className="space-y-1">
             <h3 className="font-bold text-lg print:text-base">{customer.customer_name}</h3>
             <div className="flex flex-wrap gap-2 text-sm text-muted-foreground print:text-xs">
-              <span className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />
-                {formatCurrency(customer.total_revenue)} lifetime
-              </span>
+              <span>{formatCurrency(customer.total_revenue)} 2025</span>
               {customer.acreage && (
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
