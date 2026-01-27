@@ -328,9 +328,13 @@ const SalesTrainer = () => {
 
       const conversationHistory = messages.map(m => `${m.role}: ${m.content}`).join("\n\n");
 
-      const isCallPlanRequest = text.toLowerCase().includes('4-call') || 
-                                text.toLowerCase().includes('generate') && text.toLowerCase().includes('plan') ||
-                                text.toLowerCase().includes('call plan');
+      const lowerText = text.toLowerCase();
+      const isCallPlanRequest = lowerText.includes('4-call') || 
+                                lowerText.includes('4 call') ||
+                                lowerText.includes('four call') ||
+                                lowerText.includes('four-call') ||
+                                (lowerText.includes('generate') && lowerText.includes('call plan')) ||
+                                (lowerText.includes('create') && lowerText.includes('call plan'));
 
       const response = await supabase.functions.invoke("sales-coach", {
         body: {
