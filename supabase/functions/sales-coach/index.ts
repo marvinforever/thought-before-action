@@ -535,10 +535,13 @@ Use this information to make SPECIFIC product recommendations from your catalog 
         /(?:which|what|who)\s+(?:customers?|accounts?|clients?)\s+(?:are|make|represent)\s+(\d+)\s*%/i,
         /top\s+(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business|customers?)/i,
         /(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business)/i,
+        /top\s+(\d+)\s*(?:percent|per\s*cent)\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business|customers?)/i,
+        /(\d+)\s*(?:percent|per\s*cent)\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business)/i,
         /pareto|80[\/\-]?20|eighty.?twenty/i,
         /(?:my\s+)?(?:biggest|largest|top)\s+(?:revenue\s+)?customers?(?:\s+by\s+revenue)?/i,
         /customer\s+list\s+(?:and\s+)?(?:how\s+much|what)/i,
         /list\s+(?:of\s+)?customers?\s+(?:that\s+)?make/i, // "list of customers that make up"
+        /gets?\s+me\s+(\d+)\s*%/i, // "gets me 80%"
       ];
       
       let earlyParetoMatch = null;
@@ -551,14 +554,17 @@ Use this information to make SPECIFIC product recommendations from your catalog 
         }
       }
       const isEarlyParetoQuestion = earlyParetoMatch || 
-        /make\s+up\s+\d+%/i.test(message) ||
-        /represent\s+\d+%/i.test(message) ||
-        /grower(?:s)?\s+spent/i.test(message);
+        /make\s+up\s+\d+\s*(?:%|percent|per\s*cent)/i.test(message) ||
+        /represent\s+\d+\s*(?:%|percent|per\s*cent)/i.test(message) ||
+        /gets?\s+me\s+\d+\s*(?:%|percent|per\s*cent)/i.test(message) ||
+        /grower(?:s)?\s+spent/i.test(message) ||
+        // Common phrasing: "list of customers that get me 80% of my revenue"
+        /(customers?|accounts?)\b.*\b(\d+)\s*(?:%|percent|per\s*cent)\b.*\b(revenue|sales|business)\b/i.test(message);
 
       // --- REP SUMMARY (total revenue for a rep/season) ---
       // Only trigger if NOT a Pareto question
       // Detect: "how much business did I do in 2025", "total revenue", "my sales in 2024"
-      const isRepSummaryQuery = !isEarlyParetoQuestion && (
+      const isRepSummaryQuery = !isEarlyParetoQuestion && !/\bcustomers?\b|\bcustomer\s+list\b|\blist\s+of\b/i.test(message) && (
         /(?:how much|total)\s+(?:business|revenue|sales|did\s+(?:i|we|adam|he|she))/i.test(message) ||
         /(?:revenue|business|sales)\s+(?:in|for)\s+\d{4}/i.test(message)
       );
