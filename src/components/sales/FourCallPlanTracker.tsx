@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { CustomerCallCard } from "./CustomerCallCard";
 import { Printer, RefreshCw, Loader2, Users, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -78,7 +78,8 @@ export function FourCallPlanTracker({
         let query = supabase
           .from("customer_purchase_history")
           .select("customer_name, amount")
-          .eq("company_id", companyId);
+          .eq("company_id", companyId)
+          .eq("season", "2025"); // Only current season
         
         // Filter by rep name if we have one
         if (repName) {
@@ -273,7 +274,7 @@ export function FourCallPlanTracker({
         <DialogHeader className="print:text-center print:border-b print:pb-4 print:mb-4">
           <DialogTitle className="flex items-center justify-between print:block">
             <span className="text-xl font-bold">
-              4-Call Plan Tracker {userName ? `- ${userName}` : ""} - {currentYear}
+              4-Call Plan Tracker {userName ? `- ${userName}` : ""} - 2025 Season
             </span>
             <div className="flex items-center gap-2 print:hidden">
               {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -297,9 +298,9 @@ export function FourCallPlanTracker({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">
-                <strong>{formatCurrency(totalRevenue)}</strong> total revenue
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm">
+              <strong>{formatCurrency(totalRevenue)}</strong> 2025 revenue
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -349,7 +350,7 @@ export function FourCallPlanTracker({
             </div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 -mx-6 px-6 print:overflow-visible">
+          <div className="flex-1 overflow-y-auto -mx-6 px-6 print:overflow-visible">
             <div className="space-y-4 pb-4 print:space-y-6">
               {filteredCustomers.map((customer) => (
                 <CustomerCallCard
@@ -359,7 +360,7 @@ export function FourCallPlanTracker({
                 />
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </DialogContent>
     </Dialog>
