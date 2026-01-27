@@ -1,173 +1,223 @@
 
-# Pareto Revenue Analysis & Unrestricted Historical Data Access
+# 4-Call Plan Tracker for Top Customers
 
-## Understanding Your Request
+## Overview
 
-You want two things:
+Create a visual scheduling and tracking feature in the Sales Agent that helps reps manage their 4-Call Plan execution for top-priority customers. This will include:
 
-1. **No restrictions on historical data** - Jericho must see ALL customers and their complete purchase history for sales planning
-2. **Pareto analysis** - "Show me which customers make up 80% of my total revenue" (then tell you what % of total customers that represents)
-
-Example: If 80% of your $328M revenue ($262M) comes from just 210 of your 1,046 customers, that's 20% of your customer base generating 80% of your revenue.
-
----
-
-## Current Limitations
-
-| What | Current State | Problem |
-|------|---------------|---------|
-| Historical data for AI context | 2,000 rows, top 50 customers | Misses 996 customers |
-| Direct history lookup | Unlimited (pages through all) | Works correctly |
-| Pareto analysis | Does not exist | Cannot answer "who makes up 80% of revenue" |
+1. **A new "4-Call Tracker" tab/view** that shows the top 20% revenue customers (or any user-defined list)
+2. **Visual checklist per customer** with the 4 call stages tracked
+3. **Print-friendly layout** so reps can take it into the field
+4. **Persistence** so progress is saved between sessions
 
 ---
 
-## Solution
+## User Experience
 
-### Part 1: New Pareto Analysis Command
+### Accessing the Tracker
 
-Add a direct data handler (like the purchase history lookup) that:
-1. Detects phrases like "top 80%", "make up 80%", "80/20", "pareto", "my biggest customers"
-2. Fetches ALL transactions for the user's company (using pagination)
-3. Aggregates revenue by customer
-4. Sorts customers highest to lowest
-5. Walks down the list, accumulating revenue until hitting the requested threshold (e.g., 80%)
-6. Returns those customers and calculates what % of total customers they represent
+- Add a new tab or button in the Sales Agent interface: **"4-Call Tracker"**
+- When clicked, it opens a dedicated view showing:
+  - List of priority customers (defaults to Pareto top 20% from historical revenue)
+  - Each customer has 4 checkboxes representing the call stages
+  - Dates/notes per call (optional)
+  - A "Print Checklist" button
 
-**Example Response:**
+### The Checklist View
+
+Each customer row shows:
+
 ```
-YOUR TOP REVENUE CUSTOMERS (80% of $2.4M)
-
-These 17 customers generate 80% of your total revenue.
-That's only 21% of your 81 total customers.
-
-| Customer          | Revenue     | % of Total |
-|-------------------|-------------|------------|
-| JOHNSON, TIM      | $182,450    | 7.6%       |
-| SMITH BROS        | $156,200    | 6.5%       |
-| MURRAY, SCOTT     | $134,800    | 5.6%       |
-... (all 17 customers listed)
-
-💡 The Pareto Principle in action: 21% of your customers 
-drive 80% of your business.
+┌────────────────────────────────────────────────────────────────────────────┐
+│ JOHNSON, TIM                                           $182,450 lifetime   │
+│ 1,200 acres | Corn/Beans | Current Customer                                │
+├────────────────────────────────────────────────────────────────────────────┤
+│ ☐ Call 1: Initial Planning     │ Date: _______ │ Notes: ____________      │
+│ ☐ Call 2: Pre-Plant Check-in   │ Date: _______ │ Notes: ____________      │
+│ ☐ Call 3: Season Review        │ Date: _______ │ Notes: ____________      │
+│ ☐ Call 4: Strategic Recs       │ Date: _______ │ Notes: ____________      │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Part 2: Remove AI Context Restrictions
+### Filtering Options
 
-For the general AI context (when NOT doing a direct lookup), increase visibility:
-- Increase transaction fetch from 2,000 to unlimited (paginated)
-- Show all customers in aggregated summary, not just top 50
-- This ensures Jericho knows about every customer relationship
+- **Top 20% by Revenue** (default, uses Pareto analysis)
+- **All Customers** 
+- **Custom Selection** (manually pick which customers to track)
+- **Filter by completion** (show only incomplete, show completed, show all)
+
+### Print View
+
+- Clean, black-and-white optimized layout
+- One customer per "card" or row
+- Checkboxes are printable squares
+- Space for handwritten notes
+- Date fields pre-filled or left blank
 
 ---
 
 ## Technical Implementation
 
-### File: `supabase/functions/sales-coach/index.ts`
+### Database Changes
 
-**1. Add Pareto Detection (near line 441)**
+**New Table: `call_plan_tracking`**
 
-Detect patterns like:
-- "customers that make up 80%"
-- "who represents 80% of my revenue"
-- "pareto" or "80/20"
-- "which customers are 80% of my business"
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| profile_id | uuid | The sales rep |
+| customer_name | text | Customer being tracked |
+| customer_id | uuid (nullable) | Link to sales_companies if exists |
+| plan_year | integer | Year for this plan (e.g., 2025) |
+| call_1_completed | boolean | Default false |
+| call_1_date | date | When call 1 was made |
+| call_1_notes | text | Notes from call 1 |
+| call_2_completed | boolean | Default false |
+| call_2_date | date | When call 2 was made |
+| call_2_notes | text | Notes from call 2 |
+| call_3_completed | boolean | Default false |
+| call_3_date | date | When call 3 was made |
+| call_3_notes | text | Notes from call 3 |
+| call_4_completed | boolean | Default false |
+| call_4_date | date | When call 4 was made |
+| call_4_notes | text | Notes from call 4 |
+| created_at | timestamptz | Created timestamp |
+| updated_at | timestamptz | Last updated |
 
-**2. Create `fetchParetoAnalysis` Function**
+**RLS Policies:**
+- Users can only read/write their own tracking records
 
-```text
-function fetchParetoAnalysis({
-  supabase, companyId, repName, thresholdPercent = 80
-})
+### Frontend Components
 
-Steps:
-1. Page through ALL customer_purchase_history rows (same pagination pattern as fetchAllPurchaseHistory)
-2. Aggregate: customerTotals[customer_name] += amount
-3. Sort by revenue descending
-4. Walk through, accumulating until cumulative >= threshold%
-5. Return:
-   - Customers in the threshold group
-   - Total revenue for company/rep
-   - Count stats (X of Y customers = Z%)
+**1. New Component: `FourCallPlanTracker.tsx`**
+
+Main container component that:
+- Fetches the user's top customers (via Pareto analysis or custom list)
+- Fetches existing tracking data from `call_plan_tracking`
+- Renders the `CustomerCallCard` for each customer
+- Provides filter controls and print button
+
+**2. New Component: `CustomerCallCard.tsx`**
+
+Individual card for each customer showing:
+- Customer name, revenue, metadata
+- 4 checkboxes with date pickers
+- Notes input for each call
+- Auto-saves on change
+
+**3. Print Stylesheet**
+
+Add print-specific CSS to render a clean, professional checklist when printing:
+- Hide navigation and chrome
+- Black/white optimized
+- Proper page breaks between customers
+
+### Integration Points
+
+**1. SalesChatInterface.tsx**
+- Add a button: "📋 4-Call Tracker" that opens the tracker view
+
+**2. Sales Agent Header**
+- Could also add quick access here
+
+**3. Jericho Integration (Optional)**
+- Allow natural language: "Show me my 4-call tracker" or "How many calls have I completed this year?"
+- Jericho could report on completion status
+
+### Data Flow
+
+```
+User clicks "4-Call Tracker"
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ Fetch top customers                 │
+│ - Query customer_purchase_history   │
+│ - Run Pareto analysis (top 20%)     │
+│ - Or fetch user's saved list        │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ Fetch tracking data                 │
+│ - Query call_plan_tracking          │
+│ - Match by customer_name + year     │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ Render tracker UI                   │
+│ - Customer cards with checkboxes    │
+│ - Progress summary at top           │
+│ - Print button                      │
+└─────────────────────────────────────┘
+         │
+         ▼
+User checks a box or adds a note
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ Auto-save to call_plan_tracking     │
+│ - Upsert the record                 │
+│ - Update UI optimistically          │
+└─────────────────────────────────────┘
 ```
 
-**3. Format Response**
+---
 
-Clean markdown table with:
-- Customer name
-- Revenue
-- Percentage of total
-- Summary insight (e.g., "17 customers (21%) generate 80% of your revenue")
+## Files to Create/Modify
 
-**4. Expand Historical Context for AI**
-
-For the general chat context (when not doing a direct lookup):
-- Remove the 2,000 row limit on historical data fetch
-- Aggregate ALL customers, show more in the context
-- The AI will have complete visibility for planning conversations
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/sales/FourCallPlanTracker.tsx` | Create | Main tracker component |
+| `src/components/sales/CustomerCallCard.tsx` | Create | Individual customer card |
+| `src/components/sales/SalesChatInterface.tsx` | Modify | Add button to open tracker |
+| `src/pages/SalesTrainer.tsx` | Modify | Add state and dialog for tracker |
+| `src/index.css` | Modify | Add print styles |
+| Database migration | Create | Add `call_plan_tracking` table |
 
 ---
 
-## Data Flow
+## Print Layout Preview
 
-```text
-User: "Which customers make up 80% of my revenue?"
-                    |
-                    v
-     ┌─────────────────────────────────┐
-     │ Detect "make up X%" pattern     │
-     │ Extract threshold (80)          │
-     └─────────────────────────────────┘
-                    |
-                    v
-     ┌─────────────────────────────────┐
-     │ fetchParetoAnalysis()           │
-     │ - Page through ALL transactions │
-     │ - Aggregate by customer_name    │
-     │ - Sort by revenue DESC          │
-     │ - Find cumulative 80% cutoff    │
-     └─────────────────────────────────┘
-                    |
-                    v
-     ┌─────────────────────────────────┐
-     │ Format Response:                │
-     │ - List all qualifying customers │
-     │ - Show revenue & percentage     │
-     │ - Calculate customer count %    │
-     │ - Add Pareto insight            │
-     └─────────────────────────────────┘
+When user clicks "Print Checklist":
+
 ```
+╔══════════════════════════════════════════════════════════════╗
+║         4-CALL PLAN TRACKER - ANDREW SMITH - 2025            ║
+║              28 Priority Customers | 7 Completed             ║
+╚══════════════════════════════════════════════════════════════╝
 
----
+┌──────────────────────────────────────────────────────────────┐
+│ JOHNSON, TIM                                 Revenue: $182K  │
+│ 1,200 ac | Corn & Beans                                      │
+├──────────────────────────────────────────────────────────────┤
+│ □ Call 1: Initial Planning        Date: _________            │
+│   Notes: ________________________________________________    │
+│                                                              │
+│ □ Call 2: Pre-Plant Check-in      Date: _________            │
+│   Notes: ________________________________________________    │
+│                                                              │
+│ □ Call 3: Season Review           Date: _________            │
+│   Notes: ________________________________________________    │
+│                                                              │
+│ □ Call 4: Strategic Recs          Date: _________            │
+│   Notes: ________________________________________________    │
+└──────────────────────────────────────────────────────────────┘
 
-## Variations Supported
-
-| User Says | What Happens |
-|-----------|--------------|
-| "Which customers make up 80% of my revenue?" | Lists customers comprising 80% of revenue |
-| "Show me my top 20% revenue customers" | Lists customers in top 20% of revenue (different question!) |
-| "Who are my biggest customers?" | Shows Pareto analysis defaulting to 80% threshold |
-| "Pareto analysis" or "80/20 rule" | Same as 80% threshold |
-| "Which customers are 90% of my business?" | Uses 90% threshold |
-| "Top 80% customers from last year" | Filters to 2024 season |
-
----
-
-## Why Direct Data Lookup (No LLM)
-
-Same pattern used for purchase history:
-- **Speed**: No waiting for AI to process
-- **Accuracy**: No hallucination risk
-- **Completeness**: Every customer is included
-- **Precision**: Exact dollar amounts, not approximations
+[Page break between customers or 2-3 per page]
+```
 
 ---
 
 ## Summary
 
-| Change | Impact |
-|--------|--------|
-| New Pareto detection pattern | Understands "make up 80%" requests |
-| New `fetchParetoAnalysis` function | Calculates threshold customers |
-| Remove row limits on history context | Jericho sees ALL customers |
-| Direct response (bypass LLM) | Fast, accurate, complete |
+This feature transforms the 4-Call Plan from an AI-generated suggestion into a persistent, trackable workflow:
+
+1. **Auto-populates** with top 20% revenue customers (28 in Andrew's case)
+2. **Tracks progress** through the 4 stages per customer
+3. **Prints beautifully** for field use
+4. **Syncs to database** so progress is never lost
+5. **Integrates with Jericho** for status queries
+
+The rep can see at a glance: "I've completed Call 1 with 12 customers, Call 2 with 8, and I'm behind on my Season Reviews."
