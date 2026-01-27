@@ -394,21 +394,19 @@ ${crmCustomers.map(c => {
           .sort((a, b) => b[1].total - a[1].total)
           .slice(0, 50);
 
-        historicalSalesContext = `\n\n=== HISTORICAL PURCHASE DATA (${topCustomers.length} recent transactions) ===
-You have access to 3 years of customer purchase history. When asked about a customer, give their COMPLETE product breakdown.
+        historicalSalesContext = `\n\n=== HISTORICAL PURCHASE DATA SAMPLE (${topCustomers.length} top transactions) ===
+IMPORTANT: This is a SAMPLE of the top transactions across ALL seasons. For accurate single-season totals or complete customer breakdowns, the user should ask specifically (e.g., "show me Jensen's 2025 purchases" or "my 2025 sales summary").
 
-TOP CUSTOMERS BY REVENUE:
+TOP CUSTOMERS BY TOTAL REVENUE (ALL SEASONS COMBINED):
 ${sortedCustomers.map(([name, data]) => 
-  `- **${name}**: $${data.total.toLocaleString()} total (${data.transactions} orders)
-    Products: ${Array.from(data.products).join(', ')}
-    Seasons: ${Array.from(data.seasons).join(', ')}`
+  `- **${name}**: $${data.total.toLocaleString()} (${data.transactions} orders across seasons: ${Array.from(data.seasons).join(', ')})
+    Top Products: ${Array.from(data.products).slice(0, 5).join(', ')}`
 ).join('\n')}
 
-WHEN ASKED ABOUT CUSTOMER HISTORY:
-- List ALL products they've purchased with amounts if available
-- Show their complete purchase breakdown
-- Identify seasonal buying patterns
-- Compare year-over-year if asked`;
+WHEN ASKED ABOUT SPECIFIC NUMBERS:
+- If asked about a SPECIFIC YEAR or customer, tell the user you'll look it up precisely (the direct query will handle it)
+- For general coaching, trends, or comparisons, use this data
+- NEVER claim exact totals for a single season from this sample - it's multi-year data`;
       }
     }
 
@@ -530,7 +528,101 @@ Use this information to make SPECIFIC product recommendations from your catalog 
 
       console.log(`[REC][history] message="${message}" extractedCustomer="${customerNameQuery}" season="${seasonYear}"`);
 
-      if (customerNameQuery && /purchase history|\bhistory\b|orders|purchases|what did/i.test(message)) {
+      // --- REP SUMMARY (total revenue for a rep/season) ---
+      // Detect: "how much business did I do in 2025", "total revenue", "my sales in 2024"
+      const isRepSummaryQuery = /(?:how much|total|my)\s+(?:business|revenue|sales|did\s+(?:i|we|adam|he|she))/i.test(message) ||
+        /(?:revenue|business|sales)\s+(?:in|for)\s+\d{4}/i.test(message);
+      
+      if (isRepSummaryQuery && !customerNameQuery) {
+        console.log(`[REC][rep-summary] Direct rep summary path engaged, season=${seasonYear}`);
+        
+        // Fetch all transactions for this rep/company with optional season filter
+        const pageSize = 1000;
+        let from = 0;
+        const allRows: any[] = [];
+        
+        while (true) {
+          let q = supabase
+            .from('customer_purchase_history')
+            .select('customer_name, amount, season')
+            .eq('company_id', effectiveCompanyId);
+          
+          // Filter by rep if viewing as specific user
+          if (effectiveUserName) {
+            q = q.ilike('rep_name', effectiveUserName.toUpperCase());
+          }
+          if (seasonYear) {
+            q = q.eq('season', seasonYear);
+          }
+          
+          const { data, error } = await q.range(from, from + pageSize - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          allRows.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        
+        if (allRows.length === 0) {
+          return new Response(
+            JSON.stringify({
+              message: `No sales data found${seasonYear ? ` for season ${seasonYear}` : ''}.`,
+              hasMethodologyAccess,
+              isStreamlineAg,
+              dealCreated: false,
+              pipelineActions: [],
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Aggregate by customer
+        const customerTotals: Record<string, number> = {};
+        for (const row of allRows) {
+          const name = row.customer_name || 'Unknown';
+          const amount = Number(row.amount) || 0;
+          customerTotals[name] = (customerTotals[name] || 0) + amount;
+        }
+        
+        const sorted = Object.entries(customerTotals)
+          .sort((a, b) => b[1] - a[1]);
+        
+        const totalRevenue = sorted.reduce((sum, [, amt]) => sum + amt, 0);
+        const customerCount = sorted.length;
+        
+        // Top 20 customers
+        const topCustomerLines = sorted.slice(0, 20).map(([name, amt], i) => 
+          `| ${i + 1}. ${name} | ${formatCurrency(amt)} | ${((amt / totalRevenue) * 100).toFixed(1)}% |`
+        ).join('\n');
+        
+        const responseMessage = `📊 **SALES SUMMARY${seasonYear ? ` — Season ${seasonYear}` : ' — All Time'}**
+Rep: ${effectiveUserName || 'All reps'}
+
+**Total Revenue:** ${formatCurrency(totalRevenue)}
+**Total Customers:** ${customerCount.toLocaleString()}
+**Total Transactions:** ${allRows.length.toLocaleString()}
+
+### Top 20 Customers by Revenue
+| Customer | Revenue | % of Total |
+|----------|---------|------------|
+${topCustomerLines}
+
+💡 For detailed product breakdown, ask about a specific customer by name.`;
+        
+        return new Response(
+          JSON.stringify({
+            message: responseMessage,
+            hasMethodologyAccess,
+            isStreamlineAg,
+            dealCreated: false,
+            pipelineActions: [],
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // --- CUSTOMER PURCHASE HISTORY ---
+      if (customerNameQuery && /purchase history|\bhistory\b|orders|purchases|what did|bought|buy/i.test(message)) {
         console.log('[REC][history] Direct history path engaged');
         const repNameFilter = (isSuperAdmin && effectiveUserId !== user.id)
           ? (effectiveUserName ? effectiveUserName.toUpperCase() : null)
