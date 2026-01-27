@@ -56,21 +56,36 @@ export function FourCallPlanTracker({
   const fetchParetoCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      // Helpful debug context when troubleshooting customer load issues
-      console.debug("[FourCallPlanTracker] Loading customers", { companyId, userId, currentYear });
+      // Get the user's name to filter by rep
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .single();
 
-      // Fetch ALL customer purchase history for this company
+      const repName = profile?.full_name?.toUpperCase() || "";
+      
+      // Helpful debug context when troubleshooting customer load issues
+      console.debug("[FourCallPlanTracker] Loading customers", { companyId, userId, repName, currentYear });
+
+      // Fetch customer purchase history for this rep
       const allTransactions: any[] = [];
       let page = 0;
       const pageSize = 1000;
       let hasMore = true;
 
       while (hasMore) {
-        const { data, error } = await supabase
+        let query = supabase
           .from("customer_purchase_history")
           .select("customer_name, amount")
-          .eq("company_id", companyId)
-          .range(page * pageSize, (page + 1) * pageSize - 1);
+          .eq("company_id", companyId);
+        
+        // Filter by rep name if we have one
+        if (repName) {
+          query = query.ilike("rep_name", repName);
+        }
+        
+        const { data, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
 
         if (error) throw error;
         if (data && data.length > 0) {
@@ -306,7 +321,7 @@ export function FourCallPlanTracker({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pareto">Top 20% (Pareto)</SelectItem>
+                <SelectItem value="pareto">Top 20% by Revenue</SelectItem>
                 <SelectItem value="incomplete">Incomplete only</SelectItem>
                 <SelectItem value="completed">Completed only</SelectItem>
               </SelectContent>
