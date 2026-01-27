@@ -126,3 +126,74 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles for 4-Call Plan Tracker */
+@media print {
+  /* Hide non-essential UI elements */
+  header,
+  nav,
+  footer,
+  .print\\:hidden,
+  [data-radix-scroll-area-viewport] > div > button,
+  button:not(.print-visible) {
+    display: none !important;
+  }
+
+  /* Reset dialog positioning for print */
+  [role="dialog"] {
+    position: static !important;
+    transform: none !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  [data-radix-scroll-area-viewport] {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Page settings */
+  @page {
+    size: letter;
+    margin: 0.5in;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt !important;
+  }
+
+  /* Card styling for print */
+  .print\\:break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure checkboxes are visible */
+  [data-state="checked"] {
+    background: black !important;
+    border-color: black !important;
+  }
+
+  [data-state="unchecked"] {
+    background: white !important;
+    border: 2px solid black !important;
+  }
+
+  /* Input fields for print */
+  input[type="date"] {
+    border: 1px solid #ccc !important;
+    background: white !important;
+  }
+
+  textarea {
+    border: 1px solid #ccc !important;
+    background: white !important;
+  }
+}

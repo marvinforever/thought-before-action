@@ -538,6 +538,96 @@ export type Database = {
         }
         Relationships: []
       }
+      call_plan_tracking: {
+        Row: {
+          acreage: number | null
+          call_1_completed: boolean | null
+          call_1_date: string | null
+          call_1_notes: string | null
+          call_2_completed: boolean | null
+          call_2_date: string | null
+          call_2_notes: string | null
+          call_3_completed: boolean | null
+          call_3_date: string | null
+          call_3_notes: string | null
+          call_4_completed: boolean | null
+          call_4_date: string | null
+          call_4_notes: string | null
+          created_at: string | null
+          crops: string | null
+          customer_id: string | null
+          customer_name: string
+          id: string
+          plan_year: number
+          profile_id: string
+          total_revenue: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          acreage?: number | null
+          call_1_completed?: boolean | null
+          call_1_date?: string | null
+          call_1_notes?: string | null
+          call_2_completed?: boolean | null
+          call_2_date?: string | null
+          call_2_notes?: string | null
+          call_3_completed?: boolean | null
+          call_3_date?: string | null
+          call_3_notes?: string | null
+          call_4_completed?: boolean | null
+          call_4_date?: string | null
+          call_4_notes?: string | null
+          created_at?: string | null
+          crops?: string | null
+          customer_id?: string | null
+          customer_name: string
+          id?: string
+          plan_year?: number
+          profile_id: string
+          total_revenue?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          acreage?: number | null
+          call_1_completed?: boolean | null
+          call_1_date?: string | null
+          call_1_notes?: string | null
+          call_2_completed?: boolean | null
+          call_2_date?: string | null
+          call_2_notes?: string | null
+          call_3_completed?: boolean | null
+          call_3_date?: string | null
+          call_3_notes?: string | null
+          call_4_completed?: boolean | null
+          call_4_date?: string | null
+          call_4_notes?: string | null
+          created_at?: string | null
+          crops?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          id?: string
+          plan_year?: number
+          profile_id?: string
+          total_revenue?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_plan_tracking_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_plan_tracking_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capabilities: {
         Row: {
           approved_at: string | null
