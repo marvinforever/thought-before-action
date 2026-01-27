@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { CustomerCallCard } from "./CustomerCallCard";
 import { AddCustomerToTrackerDialog } from "./AddCustomerToTrackerDialog";
-import { Printer, RefreshCw, Loader2, Users, TrendingUp, CheckCircle2, Plus } from "lucide-react";
+import { Printer, RefreshCw, Loader2, Users, TrendingUp, CheckCircle2, Plus, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CallPlanData {
@@ -54,7 +55,39 @@ export function FourCallPlanTracker({
   const [filterMode, setFilterMode] = useState<FilterMode>("pareto");
   const [saving, setSaving] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [unsavedCustomers, setUnsavedCustomers] = useState<Set<string>>(new Set());
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
   const currentYear = new Date().getFullYear();
+
+  const hasUnsavedChanges = unsavedCustomers.size > 0;
+
+  const handleUnsavedChange = useCallback((customerName: string, hasChanges: boolean) => {
+    setUnsavedCustomers(prev => {
+      const next = new Set(prev);
+      if (hasChanges) {
+        next.add(customerName);
+      } else {
+        next.delete(customerName);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCloseAttempt = (shouldClose: boolean) => {
+    if (!shouldClose) return;
+    
+    if (hasUnsavedChanges) {
+      setShowCloseWarning(true);
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowCloseWarning(false);
+    setUnsavedCustomers(new Set());
+    onOpenChange(false);
+  };
 
   const fetchParetoCustomers = useCallback(async () => {
     setLoading(true);
@@ -179,7 +212,7 @@ export function FourCallPlanTracker({
     }
   }, [open, companyId, userId, fetchParetoCustomers]);
 
-  const handleUpdateCustomer = async (customerName: string, updates: Partial<CallPlanData>) => {
+  const handleUpdateCustomer = async (customerName: string, updates: Partial<CallPlanData>): Promise<void> => {
     setSaving(true);
     try {
       const customer = customers.find((c) => c.customer_name === customerName);
@@ -197,17 +230,21 @@ export function FourCallPlanTracker({
 
       if (customer.id) {
         // Update existing
-        await supabase
+        const { error } = await supabase
           .from("call_plan_tracking")
           .update(upsertData)
           .eq("id", customer.id);
+        
+        if (error) throw error;
       } else {
         // Insert new
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("call_plan_tracking")
           .insert(upsertData)
           .select("id")
           .single();
+        
+        if (error) throw error;
         
         if (data) {
           setCustomers((prev) =>
@@ -215,6 +252,10 @@ export function FourCallPlanTracker({
               c.customer_name === customerName ? { ...c, ...updates, id: data.id } : c
             )
           );
+          toast({
+            title: "Saved",
+            description: `${customerName} saved successfully`,
+          });
           return;
         }
       }
@@ -225,6 +266,11 @@ export function FourCallPlanTracker({
           c.customer_name === customerName ? { ...c, ...updates } : c
         )
       );
+      
+      toast({
+        title: "Saved",
+        description: `${customerName} saved successfully`,
+      });
     } catch (error) {
       console.error("Error updating tracking:", error);
       toast({
@@ -232,6 +278,7 @@ export function FourCallPlanTracker({
         description: "Failed to save your changes",
         variant: "destructive",
       });
+      throw error; // Re-throw to let the card know it failed
     } finally {
       setSaving(false);
     }
@@ -285,19 +332,28 @@ export function FourCallPlanTracker({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col print:max-w-none print:max-h-none print:h-auto">
-        <DialogHeader className="print:text-center print:border-b print:pb-4 print:mb-4">
-          <DialogTitle className="flex items-center justify-between print:block">
-            <span className="text-xl font-bold">
-              4-Call Plan Tracker {userName ? `- ${userName}` : ""} - 2025 Season
-            </span>
-            <div className="flex items-center gap-2 print:hidden">
-              {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add
-              </Button>
+    <>
+      <Dialog open={open} onOpenChange={handleCloseAttempt}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col print:max-w-none print:max-h-none print:h-auto">
+          <DialogHeader className="print:text-center print:border-b print:pb-4 print:mb-4">
+            <DialogTitle className="flex items-center justify-between print:block">
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold">
+                  4-Call Plan Tracker {userName ? `- ${userName}` : ""} - 2025 Season
+                </span>
+                {hasUnsavedChanges && (
+                  <Badge variant="destructive" className="text-xs gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Unsaved
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2 print:hidden">
+                {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
               <Button variant="outline" size="sm" onClick={fetchParetoCustomers} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
                 Refresh
@@ -379,21 +435,42 @@ export function FourCallPlanTracker({
                   companyId={companyId}
                   userId={userId}
                   onUpdate={(updates) => handleUpdateCustomer(customer.customer_name, updates)}
+                  onUnsavedChange={handleUnsavedChange}
                 />
               ))}
             </div>
           </div>
         )}
 
-          <AddCustomerToTrackerDialog
-            open={addDialogOpen}
-            onOpenChange={setAddDialogOpen}
-            companyId={companyId}
-            userId={userId}
-            existingCustomerNames={customers.map((c) => c.customer_name)}
-            onCustomerAdded={handleCustomerAdded}
-          />
-        </DialogContent>
-      </Dialog>
-    );
-  }
+        <AddCustomerToTrackerDialog
+          open={addDialogOpen}
+          onOpenChange={setAddDialogOpen}
+          companyId={companyId}
+          userId={userId}
+          existingCustomerNames={customers.map((c) => c.customer_name)}
+          onCustomerAdded={handleCustomerAdded}
+        />
+      </DialogContent>
+    </Dialog>
+
+    {/* Unsaved Changes Warning */}
+    <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved changes for {unsavedCustomers.size} customer{unsavedCustomers.size > 1 ? 's' : ''}. 
+            If you close now, your changes will be lost.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Go Back</AlertDialogCancel>
+          <AlertDialogAction onClick={handleForceClose} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Discard Changes
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
+  );
+}
