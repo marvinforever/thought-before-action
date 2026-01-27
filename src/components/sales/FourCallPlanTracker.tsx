@@ -51,6 +51,7 @@ export function FourCallPlanTracker({
   const [customers, setCustomers] = useState<CallPlanData[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("pareto");
   const [saving, setSaving] = useState(false);
+  const [lifetimeRevenue, setLifetimeRevenue] = useState(0);
   const currentYear = new Date().getFullYear();
 
   const fetchParetoCustomers = useCallback(async () => {
@@ -98,7 +99,37 @@ export function FourCallPlanTracker({
         }
       }
 
-      // Aggregate by customer
+      // Also fetch lifetime revenue (all seasons) for the same rep
+      const lifetimeTransactions: any[] = [];
+      let lifetimePage = 0;
+      let hasMoreLifetime = true;
+
+      while (hasMoreLifetime) {
+        let lifetimeQuery = supabase
+          .from("customer_purchase_history")
+          .select("customer_name, amount")
+          .eq("company_id", companyId);
+        
+        if (repName) {
+          lifetimeQuery = lifetimeQuery.ilike("rep_name", repName);
+        }
+        
+        const { data, error } = await lifetimeQuery.range(lifetimePage * pageSize, (lifetimePage + 1) * pageSize - 1);
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          lifetimeTransactions.push(...data);
+          lifetimePage++;
+          hasMoreLifetime = data.length === pageSize;
+        } else {
+          hasMoreLifetime = false;
+        }
+      }
+
+      // Calculate lifetime total
+      const lifetimeTotal = lifetimeTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+      // Aggregate 2025 by customer
       const customerTotals = new Map<string, { revenue: number }>();
       for (const t of allTransactions) {
         const existing = customerTotals.get(t.customer_name) || { revenue: 0 };
@@ -152,6 +183,7 @@ export function FourCallPlanTracker({
       });
 
       setCustomers(merged);
+      setLifetimeRevenue(lifetimeTotal);
     } catch (error: any) {
       const message =
         error?.message ||
@@ -298,9 +330,9 @@ export function FourCallPlanTracker({
               </span>
             </div>
             <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">
-              <strong>{formatCurrency(totalRevenue)}</strong> 2025 revenue
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">
+                <strong>{formatCurrency(totalRevenue)}</strong> 2025 &bull; <strong>{formatCurrency(lifetimeRevenue)}</strong> lifetime
               </span>
             </div>
             <div className="flex items-center gap-2">
