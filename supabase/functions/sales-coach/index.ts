@@ -596,10 +596,11 @@ Use this information to make SPECIFIC product recommendations from your catalog 
       const paretoPatterns = [
         /(?:customers?|accounts?|clients?)\s+(?:that\s+)?(?:make\s+up|represent|comprise|account\s+for|are)\s+(?:the\s+)?(?:top\s+)?(\d+)\s*%/i,
         /(?:which|what|who)\s+(?:customers?|accounts?|clients?)\s+(?:are|make|represent)\s+(\d+)\s*%/i,
-        /top\s+(\d+)\s*%\s+(?:of\s+)?(?:my\s+)?(?:revenue|sales|business|customers?)/i,
-        /(\d+)\s*%\s+(?:of\s+)?(?:my\s+)?(?:revenue|sales|business)/i,
+        /top\s+(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business|customers?)/i, // matches "top 80% of Adam's business"
+        /(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business)/i, // matches "80% of my revenue" or "80% of Adam's business"
         /pareto|80[\/\-]?20|eighty.?twenty/i,
         /(?:my\s+)?(?:biggest|largest|top)\s+(?:revenue\s+)?customers?(?:\s+by\s+revenue)?/i,
+        /customer\s+list\s+(?:and\s+)?(?:how\s+much|what)/i, // matches "customer list and how much each spent"
       ];
       
       let paretoMatch = null;
@@ -621,7 +622,8 @@ Use this information to make SPECIFIC product recommendations from your catalog 
         /make\s+up\s+\d+%/i.test(message) ||
         /represent\s+\d+%/i.test(message) ||
         /pareto/i.test(message) ||
-        /80.?20/i.test(message);
+        /80.?20/i.test(message) ||
+        /grower(?:s)?\s+spent/i.test(message);
       
       if (isParetoQuestion) {
         console.log(`[REC][pareto] Detected Pareto analysis request, threshold: ${paretoThreshold}%`);
