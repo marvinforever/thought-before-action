@@ -231,16 +231,24 @@ ${learnings.map(l => `- ${l.pattern_type.replace(/_/g, ' ').toUpperCase()}: "${l
 
     // Fetch CRM customers (sales_companies) for context - use effectiveUserId for impersonation
     let crmCustomerContext = '';
+    
+    // First get the TOTAL count of customers
+    const { count: totalCustomerCount } = await supabase
+      .from('sales_companies')
+      .select('id', { count: 'exact', head: true })
+      .eq('profile_id', effectiveUserId);
+    
+    // Then fetch a sample for context
     const { data: crmCustomers } = await supabase
       .from('sales_companies')
       .select('id, name, location, grower_history, operation_details, customer_since, notes')
       .eq('profile_id', effectiveUserId)
       .order('updated_at', { ascending: false })
-      .limit(20);
+      .limit(30);
 
     if (crmCustomers && crmCustomers.length > 0) {
-      crmCustomerContext = `\n\n=== CRM CUSTOMER DIRECTORY (sample: ${crmCustomers.length}) ===
-This is a RECENT sample of CRM customer records for context only (not an access limit).
+      crmCustomerContext = `\n\n=== CRM CUSTOMER DIRECTORY ===
+**TOTAL CUSTOMERS: ${totalCustomerCount ?? crmCustomers.length}** (showing ${crmCustomers.length} most recently updated for context)
 
 ${crmCustomers.map(c => {
         let customerInfo = `### ${c.name}`;
