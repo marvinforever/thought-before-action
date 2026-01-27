@@ -140,14 +140,14 @@ export const AddDealDialog = ({ open, onOpenChange, userId, onSuccess }: AddDeal
             <div className="space-y-2">
               <Label>Company</Label>
               <Select
-                value={form.company_id}
-                onValueChange={(v) => setForm({ ...form, company_id: v, primary_contact_id: "" })}
+                value={form.company_id || "none"}
+                onValueChange={(v) => setForm({ ...form, company_id: v === "none" ? "" : v, primary_contact_id: "" })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select company" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {companies.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
@@ -159,14 +159,14 @@ export const AddDealDialog = ({ open, onOpenChange, userId, onSuccess }: AddDeal
             <div className="space-y-2">
               <Label>Primary Contact</Label>
               <Select
-                value={form.primary_contact_id}
-                onValueChange={(v) => setForm({ ...form, primary_contact_id: v })}
+                value={form.primary_contact_id || "none"}
+                onValueChange={(v) => setForm({ ...form, primary_contact_id: v === "none" ? "" : v })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select contact" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {filteredContacts.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
