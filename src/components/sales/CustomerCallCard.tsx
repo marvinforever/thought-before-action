@@ -37,7 +37,7 @@ interface CustomerCallCardProps {
 }
 
 const CALL_STAGES = [
-  { key: "1", label: "Initial Planning", description: "Pre-season strategic discussion" },
+  { key: "1", label: "Prepay Review", description: "Pre-season strategic discussion" },
   { key: "2", label: "Pre-Plant Check-in", description: "Final inputs and timing" },
   { key: "3", label: "Season Review", description: "Mid-season assessment" },
   { key: "4", label: "Strategic Recs", description: "Post-harvest planning" },
