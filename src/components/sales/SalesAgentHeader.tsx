@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
   Eye,
   RotateCcw,
   BookOpen,
+  BarChart3,
 } from "lucide-react";
 import { PipelineView } from "./PipelineView";
 import { DealsTable } from "./DealsTable";
@@ -34,6 +35,7 @@ import { ContactsManager } from "./ContactsManager";
 import { SalesKnowledgePodcasts } from "./SalesKnowledgePodcasts";
 import { SalesKnowledgeManager } from "./SalesKnowledgeManager";
 import { AddDealDialog } from "./AddDealDialog";
+import { SalesManagerDashboard } from "./SalesManagerDashboard";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
@@ -102,6 +104,33 @@ export function SalesAgentHeader({
   const { toast } = useToast();
   const [showDataPanel, setShowDataPanel] = useState(false);
   const [showAddDeal, setShowAddDeal] = useState(false);
+  const [showManagerDashboard, setShowManagerDashboard] = useState(false);
+  const [isManager, setIsManager] = useState(false);
+
+  // Check if user has manager/admin role
+  useEffect(() => {
+    const checkManagerRole = async () => {
+      if (!user?.id) return;
+      
+      // Super admins always see the button
+      if (isSuperAdmin) {
+        setIsManager(true);
+        return;
+      }
+      
+      // Check for manager/admin role in user_roles
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .in("role", ["manager", "admin"])
+        .limit(1);
+      
+      setIsManager(data && data.length > 0);
+    };
+    
+    checkManagerRole();
+  }, [user?.id, isSuperAdmin]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -247,6 +276,19 @@ export function SalesAgentHeader({
               </Button>
             )}
 
+            {/* Manager Dashboard Button */}
+            {isManager && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowManagerDashboard(true)} 
+                className="gap-1 text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Team</span>
+              </Button>
+            )}
+
             <Dialog open={showDataPanel} onOpenChange={setShowDataPanel}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2 text-primary-foreground hover:bg-primary-foreground/10">
@@ -376,6 +418,14 @@ export function SalesAgentHeader({
           setShowAddDeal(false);
           onDealsRefresh();
         }}
+      />
+
+      {/* Manager Dashboard */}
+      <SalesManagerDashboard
+        open={showManagerDashboard}
+        onOpenChange={setShowManagerDashboard}
+        viewAsCompanyId={viewAsCompanyId}
+        viewAsUserId={viewAsUserId}
       />
     </>
   );
