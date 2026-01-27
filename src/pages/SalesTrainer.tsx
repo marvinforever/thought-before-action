@@ -31,6 +31,7 @@ interface CompanyUser {
 }
 
 const STATELINE_COMPANY_ID = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd';
+const MOMENTUM_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 type ChatMode = "coach" | "rec";
 
@@ -190,7 +191,10 @@ const SalesTrainer = () => {
         .single();
       
       setProfile(profileData);
-      setHasMethodologyAccess(profileData?.company_id === STATELINE_COMPANY_ID);
+      setHasMethodologyAccess(
+        profileData?.company_id === STATELINE_COMPANY_ID || 
+        profileData?.company_id === MOMENTUM_COMPANY_ID
+      );
       
       const { data: superAdminRole } = await supabase.rpc('has_role', { 
         _user_id: session.user.id, 
