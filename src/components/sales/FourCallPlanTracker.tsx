@@ -68,7 +68,7 @@ export function FourCallPlanTracker({
       while (hasMore) {
         const { data, error } = await supabase
           .from("customer_purchase_history")
-          .select("customer_name, amount, acreage, crops")
+          .select("customer_name, amount")
           .eq("company_id", companyId)
           .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -83,12 +83,10 @@ export function FourCallPlanTracker({
       }
 
       // Aggregate by customer
-      const customerTotals = new Map<string, { revenue: number; acreage?: number; crops?: string }>();
+      const customerTotals = new Map<string, { revenue: number }>();
       for (const t of allTransactions) {
         const existing = customerTotals.get(t.customer_name) || { revenue: 0 };
         existing.revenue += Number(t.amount) || 0;
-        if (t.acreage) existing.acreage = t.acreage;
-        if (t.crops) existing.crops = t.crops;
         customerTotals.set(t.customer_name, existing);
       }
 
@@ -120,8 +118,8 @@ export function FourCallPlanTracker({
           id: tracking?.id,
           customer_name: name,
           total_revenue: data.revenue,
-          acreage: data.acreage,
-          crops: data.crops,
+          acreage: tracking?.acreage ?? undefined,
+          crops: tracking?.crops ?? undefined,
           call_1_completed: tracking?.call_1_completed || false,
           call_1_date: tracking?.call_1_date,
           call_1_notes: tracking?.call_1_notes,
