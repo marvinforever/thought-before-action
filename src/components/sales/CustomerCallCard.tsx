@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, MapPin, Leaf } from "lucide-react";
 import { format } from "date-fns";
+import { InitialPlanningExpanded } from "./InitialPlanningExpanded";
 
 interface CallPlanData {
   id?: string;
@@ -30,6 +31,8 @@ interface CallPlanData {
 
 interface CustomerCallCardProps {
   customer: CallPlanData;
+  companyId: string;
+  userId: string;
   onUpdate: (updates: Partial<CallPlanData>) => void;
 }
 
@@ -40,9 +43,9 @@ const CALL_STAGES = [
   { key: "4", label: "Strategic Recs", description: "Post-harvest planning" },
 ] as const;
 
-export function CustomerCallCard({ customer, onUpdate }: CustomerCallCardProps) {
+export function CustomerCallCard({ customer, companyId, userId, onUpdate }: CustomerCallCardProps) {
   const [expanded, setExpanded] = useState(false);
-  
+  const [initialPlanningExpanded, setInitialPlanningExpanded] = useState(false);
   const completedCalls = [
     customer.call_1_completed,
     customer.call_2_completed,
@@ -148,15 +151,40 @@ export function CustomerCallCard({ customer, onUpdate }: CustomerCallCardProps) 
                       <span className="font-medium text-sm">Call {stage.key}: {stage.label}</span>
                       <p className="text-xs text-muted-foreground print:hidden">{stage.description}</p>
                     </div>
-                    <Input
-                      type="date"
-                      value={callDate || ""}
-                      onChange={(e) => handleDateChange(callNum, e.target.value)}
-                      className="w-36 h-8 text-sm print:w-28 print:h-6 print:text-xs"
-                    />
+                    <div className="flex items-center gap-2">
+                      {callNum === 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setInitialPlanningExpanded(!initialPlanningExpanded)}
+                          className="h-7 text-xs print:hidden"
+                        >
+                          {initialPlanningExpanded ? "Hide Products" : "Show Products"}
+                        </Button>
+                      )}
+                      <Input
+                        type="date"
+                        value={callDate || ""}
+                        onChange={(e) => handleDateChange(callNum, e.target.value)}
+                        className="w-36 h-8 text-sm print:w-28 print:h-6 print:text-xs"
+                      />
+                    </div>
                   </div>
                   
-                  {(expanded || callNotes) && (
+                  {/* Initial Planning Expanded Section - only for Call 1 */}
+                  {callNum === 1 && initialPlanningExpanded && (
+                    <InitialPlanningExpanded
+                      customerName={customer.customer_name}
+                      companyId={companyId}
+                      userId={userId}
+                      totalRevenue={customer.total_revenue}
+                      notes={callNotes || ""}
+                      onNotesChange={(notes) => handleNotesChange(1, notes)}
+                    />
+                  )}
+                  
+                  {/* Regular notes for non-Call-1 or when Initial Planning is collapsed */}
+                  {(callNum !== 1 || !initialPlanningExpanded) && (expanded || callNotes) && (
                     <Textarea
                       placeholder="Notes..."
                       value={callNotes || ""}
