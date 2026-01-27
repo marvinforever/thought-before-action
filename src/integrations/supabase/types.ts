@@ -559,6 +559,7 @@ export type Database = {
           customer_name: string
           id: string
           plan_year: number
+          precall_plan: string | null
           profile_id: string
           total_revenue: number | null
           updated_at: string | null
@@ -583,6 +584,7 @@ export type Database = {
           customer_name: string
           id?: string
           plan_year?: number
+          precall_plan?: string | null
           profile_id: string
           total_revenue?: number | null
           updated_at?: string | null
@@ -607,6 +609,7 @@ export type Database = {
           customer_name?: string
           id?: string
           plan_year?: number
+          precall_plan?: string | null
           profile_id?: string
           total_revenue?: number | null
           updated_at?: string | null

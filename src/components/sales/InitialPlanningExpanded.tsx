@@ -3,11 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Sparkles, Package, ChevronDown, ChevronUp, Save, Edit2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
 interface ProductSummary {
   product_description: string;
@@ -22,6 +22,8 @@ interface InitialPlanningExpandedProps {
   totalRevenue: number;
   notes: string;
   onNotesChange: (notes: string) => void;
+  savedPrecallPlan?: string;
+  onPrecallPlanChange?: (plan: string) => void;
 }
 
 export function InitialPlanningExpanded({
@@ -31,14 +33,27 @@ export function InitialPlanningExpanded({
   totalRevenue,
   notes,
   onNotesChange,
+  savedPrecallPlan,
+  onPrecallPlanChange,
 }: InitialPlanningExpandedProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [generatingPlan, setGeneratingPlan] = useState(false);
-  const [generatedPlan, setGeneratedPlan] = useState<string | null>(null);
+  const [generatedPlan, setGeneratedPlan] = useState<string | null>(savedPrecallPlan || null);
   const [showAllProducts, setShowAllProducts] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editablePlan, setEditablePlan] = useState(savedPrecallPlan || "");
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  // Sync with saved plan when prop changes
+  useEffect(() => {
+    if (savedPrecallPlan) {
+      setGeneratedPlan(savedPrecallPlan);
+      setEditablePlan(savedPrecallPlan);
+    }
+  }, [savedPrecallPlan]);
 
   useEffect(() => {
     fetchProducts();
@@ -299,18 +314,68 @@ export function InitialPlanningExpanded({
       {/* Generated Plan Display */}
       {generatedPlan && (
         <div className="bg-muted/50 rounded-lg p-4 border">
-          <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            AI Pre-Call Plan
-          </h4>
-          <div 
-            className="h-80 overflow-y-auto border rounded-md bg-background p-3"
-            style={{ overflowY: 'scroll' }}
-          >
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              <ReactMarkdown>{generatedPlan}</ReactMarkdown>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              AI Pre-Call Plan
+            </h4>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(!isEditing)}
+                className="h-7 text-xs"
+              >
+                {isEditing ? (
+                  <>
+                    <Eye className="h-3 w-3 mr-1" />
+                    Preview
+                  </>
+                ) : (
+                  <>
+                    <Edit2 className="h-3 w-3 mr-1" />
+                    Edit
+                  </>
+                )}
+              </Button>
+              {onPrecallPlanChange && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSavePlan}
+                  disabled={savingPlan}
+                  className="h-7 text-xs"
+                >
+                  {savingPlan ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="h-3 w-3 mr-1" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
+          
+          {isEditing ? (
+            <Textarea
+              value={editablePlan}
+              onChange={(e) => setEditablePlan(e.target.value)}
+              className="h-80 text-sm font-mono resize-none"
+              placeholder="Edit your pre-call plan..."
+            />
+          ) : (
+            <div 
+              className="h-80 overflow-y-auto border rounded-md bg-background p-3"
+              style={{ overflowY: 'scroll' }}
+            >
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <ReactMarkdown>{editablePlan || generatedPlan}</ReactMarkdown>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -326,4 +391,24 @@ export function InitialPlanningExpanded({
       </div>
     </div>
   );
+
+  async function handleSavePlan() {
+    if (!onPrecallPlanChange) return;
+    setSavingPlan(true);
+    try {
+      onPrecallPlanChange(editablePlan);
+      setGeneratedPlan(editablePlan);
+      toast({
+        title: "Plan saved",
+        description: "Your pre-call plan has been saved to this customer's record",
+      });
+    } catch (error) {
+      toast({
+        title: "Error saving plan",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPlan(false);
+    }
+  }
 }

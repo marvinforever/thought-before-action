@@ -16,6 +16,7 @@ interface CallPlanData {
   total_revenue: number;
   acreage?: number;
   crops?: string;
+  precall_plan?: string;
   call_1_completed: boolean;
   call_1_date?: string;
   call_1_notes?: string;
@@ -138,6 +139,7 @@ export function FourCallPlanTracker({
           total_revenue: data.revenue,
           acreage: tracking?.acreage ?? undefined,
           crops: tracking?.crops ?? undefined,
+          precall_plan: tracking?.precall_plan ?? undefined,
           call_1_completed: tracking?.call_1_completed || false,
           call_1_date: tracking?.call_1_date,
           call_1_notes: tracking?.call_1_notes,
