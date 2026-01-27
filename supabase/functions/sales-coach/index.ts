@@ -528,10 +528,40 @@ Use this information to make SPECIFIC product recommendations from your catalog 
 
       console.log(`[REC][history] message="${message}" extractedCustomer="${customerNameQuery}" season="${seasonYear}"`);
 
+      // --- CHECK FOR PARETO FIRST (more specific than rep summary) ---
+      // We check if this is a Pareto-style question BEFORE rep summary to avoid false matches
+      const paretoPatterns = [
+        /(?:customers?|accounts?|clients?)\s+(?:that\s+)?(?:make\s+up|represent|comprise|account\s+for|are)\s+(?:the\s+)?(?:top\s+)?(\d+)\s*%/i,
+        /(?:which|what|who)\s+(?:customers?|accounts?|clients?)\s+(?:are|make|represent)\s+(\d+)\s*%/i,
+        /top\s+(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business|customers?)/i,
+        /(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business)/i,
+        /pareto|80[\/\-]?20|eighty.?twenty/i,
+        /(?:my\s+)?(?:biggest|largest|top)\s+(?:revenue\s+)?customers?(?:\s+by\s+revenue)?/i,
+        /customer\s+list\s+(?:and\s+)?(?:how\s+much|what)/i,
+        /list\s+(?:of\s+)?customers?\s+(?:that\s+)?make/i, // "list of customers that make up"
+      ];
+      
+      let earlyParetoMatch = null;
+      let earlyParetoThreshold = 80;
+      for (const pattern of paretoPatterns) {
+        earlyParetoMatch = message.match(pattern);
+        if (earlyParetoMatch) {
+          if (earlyParetoMatch[1]) earlyParetoThreshold = parseInt(earlyParetoMatch[1], 10);
+          break;
+        }
+      }
+      const isEarlyParetoQuestion = earlyParetoMatch || 
+        /make\s+up\s+\d+%/i.test(message) ||
+        /represent\s+\d+%/i.test(message) ||
+        /grower(?:s)?\s+spent/i.test(message);
+
       // --- REP SUMMARY (total revenue for a rep/season) ---
+      // Only trigger if NOT a Pareto question
       // Detect: "how much business did I do in 2025", "total revenue", "my sales in 2024"
-      const isRepSummaryQuery = /(?:how much|total|my)\s+(?:business|revenue|sales|did\s+(?:i|we|adam|he|she))/i.test(message) ||
-        /(?:revenue|business|sales)\s+(?:in|for)\s+\d{4}/i.test(message);
+      const isRepSummaryQuery = !isEarlyParetoQuestion && (
+        /(?:how much|total)\s+(?:business|revenue|sales|did\s+(?:i|we|adam|he|she))/i.test(message) ||
+        /(?:revenue|business|sales)\s+(?:in|for)\s+\d{4}/i.test(message)
+      );
       
       if (isRepSummaryQuery && !customerNameQuery) {
         console.log(`[REC][rep-summary] Direct rep summary path engaged, season=${seasonYear}`);
@@ -684,40 +714,9 @@ ${topCustomerLines}
       }
 
       // --- PARETO REVENUE ANALYSIS ---
-      // Detect requests like "which customers make up 80% of my revenue" or "top 20% customers"
-      const paretoPatterns = [
-        /(?:customers?|accounts?|clients?)\s+(?:that\s+)?(?:make\s+up|represent|comprise|account\s+for|are)\s+(?:the\s+)?(?:top\s+)?(\d+)\s*%/i,
-        /(?:which|what|who)\s+(?:customers?|accounts?|clients?)\s+(?:are|make|represent)\s+(\d+)\s*%/i,
-        /top\s+(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business|customers?)/i, // matches "top 80% of Adam's business"
-        /(\d+)\s*%\s+(?:of\s+)?(?:\w+(?:'s)?\s+)?(?:revenue|sales|business)/i, // matches "80% of my revenue" or "80% of Adam's business"
-        /pareto|80[\/\-]?20|eighty.?twenty/i,
-        /(?:my\s+)?(?:biggest|largest|top)\s+(?:revenue\s+)?customers?(?:\s+by\s+revenue)?/i,
-        /customer\s+list\s+(?:and\s+)?(?:how\s+much|what)/i, // matches "customer list and how much each spent"
-      ];
-      
-      let paretoMatch = null;
-      let paretoThreshold = 80; // Default to 80%
-      
-      for (const pattern of paretoPatterns) {
-        paretoMatch = message.match(pattern);
-        if (paretoMatch) {
-          // Extract percentage if captured
-          if (paretoMatch[1]) {
-            paretoThreshold = parseInt(paretoMatch[1], 10);
-          }
-          break;
-        }
-      }
-      
-      // Check if this is a Pareto-style question
-      const isParetoQuestion = paretoMatch || 
-        /make\s+up\s+\d+%/i.test(message) ||
-        /represent\s+\d+%/i.test(message) ||
-        /pareto/i.test(message) ||
-        /80.?20/i.test(message) ||
-        /grower(?:s)?\s+spent/i.test(message);
-      
-      if (isParetoQuestion) {
+      // Use the early detection from above to avoid duplicate pattern matching
+      if (isEarlyParetoQuestion) {
+        const paretoThreshold = earlyParetoThreshold;
         console.log(`[REC][pareto] Detected Pareto analysis request, threshold: ${paretoThreshold}%`);
         const seasonYear = detectSeasonYear(message);
         
