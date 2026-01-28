@@ -1,183 +1,114 @@
 
+# Filter Sales Manager Dashboard to Salespeople Only
 
-# Sales Manager Reporting Dashboard
+## Problem
+The Pipeline Health and other charts currently show **all employees** in a company, including non-sales staff (accounting, operations, etc.). Only users with actual sales activity should appear.
 
-## Overview
-
-Build a comprehensive reporting dashboard that allows sales managers to monitor their direct reports' Sales Agent activity, 4-Call Tracker progress, pipeline health, and AI coaching engagement.
-
-## Access Control
-
-| User Type | Access Level |
-|-----------|-------------|
-| Super Admin | Can view any company's dashboard via existing "View As" selector |
-| Manager (with role in `user_roles`) | Can view dashboard for their assigned direct reports via `manager_assignments` |
-| Regular User | No access to this dashboard |
+## Solution
+Use activity-based filtering in the edge function to only return users who have records in sales-related tables.
 
 ---
 
-## Features to Implement
+## Implementation Details
 
-### 1. Team Activity Overview (Summary Cards)
+### Edge Function Changes (`get-sales-team-report/index.ts`)
 
-Quick-glance metrics at the top of the dashboard:
-
-- **Active Sellers**: Count of direct reports with recent activity
-- **Total Pipeline Value**: Sum of `sales_deals.value` across all direct reports
-- **Avg 4-Call Completion**: Percentage of completed calls across all growers
-- **AI Coaching Sessions**: Count of `sales_coach_conversations` in last 30 days
-- **Last Activity**: Most recent activity timestamp across the team
-
-### 2. 4-Call Tracker Progress Report
-
-A table showing each rep's 4-Call Plan progress:
-
-| Rep Name | Customers Tracked | Call 1 % | Call 2 % | Call 3 % | Call 4 % | Overall % |
-|----------|------------------|----------|----------|----------|----------|-----------|
-
-Expandable rows to show individual customer-level progress with ability to drill into notes.
-
-### 3. Pipeline Health by Rep
-
-Per-rep breakdown of their deal pipeline:
-
-- Deals by stage (stacked bar chart)
-- Total value per rep (horizontal bar chart)
-- Average deal age in current stage
-- Stale deals alert (deals with no activity in 14+ days)
-
-### 4. AI Coaching Engagement Leaderboard
-
-Ranking of reps by their Sales Agent usage:
-
-- Number of coaching conversations
-- Total messages exchanged
-- Average conversation length
-- Most recent coaching session date
-- Conversation topics (extracted from titles)
-
-### 5. Rep Detail Drill-Down
-
-Clicking on any rep opens a detailed view:
-
-- Their full 4-Call Tracker (read-only view)
-- Their pipeline (read-only)
-- Recent coaching conversation summaries
-- Activity timeline (calls, meetings, notes)
-
----
-
-## Technical Implementation
-
-### New Database Views (No Schema Changes Needed)
-
-All data exists in current tables. We'll create efficient queries using:
-
-- `manager_assignments` → get employee_ids for current manager
-- `call_plan_tracking` → 4-Call progress data
-- `sales_deals` → Pipeline data
-- `sales_coach_conversations` + `sales_coach_messages` → AI engagement
-- `sales_activities` → Activity timeline
-
-### New Files to Create
-
-```text
-src/components/sales/
-├── SalesManagerDashboard.tsx       # Main dashboard component
-├── SalesTeamOverviewCards.tsx      # Summary metric cards
-├── FourCallProgressTable.tsx       # Team 4-Call tracker table
-├── PipelineHealthChart.tsx         # Rep pipeline visualization
-├── CoachingEngagementTable.tsx     # AI usage leaderboard
-└── RepDetailDialog.tsx             # Drill-down dialog for individual rep
+Currently, when a super admin views a company, the function fetches all users:
+```typescript
+const { data: companyUsers } = await supabase
+  .from("profiles")
+  .select("id, full_name")
+  .eq("company_id", viewAsCompanyId);
 ```
 
-### Route & Navigation
+We will change this to query users who have activity in any of these tables:
+- `call_plan_tracking` (4-Call activity)
+- `sales_deals` (Pipeline deals)
+- `sales_coach_conversations` (AI coaching sessions)
 
-Add new route accessible from Sales Trainer header:
-- Route: `/sales-trainer/manager` or dialog within existing page
-- Entry point: Button in `SalesAgentHeader.tsx` visible only to managers
+### Query Strategy
 
-### Access Control Implementation
+Instead of getting all company users first, we will:
 
-```text
-1. Check if user has 'manager', 'admin', or 'super_admin' role via has_role() RPC
-2. If super admin: show company/user selector (existing)
-3. If manager: fetch direct reports via manager_assignments
-4. Query all sales data filtering by direct report profile_ids
-```
+1. Query distinct `profile_id` values from the three sales tables, filtered by users in the target company
+2. Combine into a unique set of "salespeople"
+3. Only return data for those salespeople
 
-### RLS Policy Updates
-
-The existing RLS policies already support super admin bypass via `is_super_admin()`. For managers viewing their direct reports' data, we have two options:
-
-**Option A**: Create database functions that return data for manager's reports (SECURITY DEFINER)
-**Option B**: Query via edge function that validates manager relationship server-side
-
-Recommendation: Option B (edge function) for flexibility and clearer audit trail.
-
-### New Edge Function
+### Modified Logic Flow
 
 ```text
-supabase/functions/get-sales-team-report/index.ts
-
-- Validates caller is manager of the requested employees
-- Returns aggregated data for:
-  - 4-Call completion rates
-  - Pipeline summary by rep
-  - Coaching engagement metrics
-- Prevents unauthorized access to other teams' data
+1. Get target company ID (existing logic)
+2. Query distinct profile_ids who have sales activity:
+   - UNION of profile_ids from call_plan_tracking, sales_deals, sales_coach_conversations
+   - Joined with profiles to filter by company_id
+3. Use this filtered list as directReportIds
+4. Proceed with existing aggregation logic
 ```
+
+### SQL Approach (executed via Supabase client)
+
+```sql
+-- Get all profile_ids with sales activity in target company
+SELECT DISTINCT p.id, p.full_name
+FROM profiles p
+WHERE p.company_id = $targetCompanyId
+AND (
+  EXISTS (SELECT 1 FROM call_plan_tracking cpt WHERE cpt.profile_id = p.id)
+  OR EXISTS (SELECT 1 FROM sales_deals sd WHERE sd.profile_id = p.id)
+  OR EXISTS (SELECT 1 FROM sales_coach_conversations scc WHERE scc.profile_id = p.id)
+)
+```
+
+This approach:
+- Returns only users with at least one sales activity record
+- Preserves the existing data aggregation logic
+- Works for both super admin "View As" and regular manager queries
 
 ---
 
-## UI Design
+## Changes Required
 
-### Dashboard Layout
+### File: `supabase/functions/get-sales-team-report/index.ts`
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ Sales Team Dashboard                        [Refresh] [Print]│
-├─────────────────────────────────────────────────────────────┤
-│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐         │
-│ │ Active   │ │ Pipeline │ │ 4-Call   │ │ Coaching │         │
-│ │ Sellers  │ │ Value    │ │ Complete │ │ Sessions │         │
-│ │    5     │ │  $1.2M   │ │   67%    │ │    23    │         │
-│ └──────────┘ └──────────┘ └──────────┘ └──────────┘         │
-├─────────────────────────────────────────────────────────────┤
-│ [4-Call Progress] [Pipeline Health] [Coaching] [Activity]   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   Tab Content (selected tab renders here)                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+1. Add a helper function to get salespeople by activity:
+   ```typescript
+   async function getSalespeopleByActivity(
+     supabase: any, 
+     companyId: string
+   ): Promise<{ id: string; full_name: string }[]>
+   ```
 
-### Color Coding
+2. Modify the super admin company view logic (around line 117-129) to:
+   - Instead of fetching all company users
+   - Fetch only users with sales activity using the new helper
 
-- Green: On track / Completed calls
-- Yellow: Needs attention / Overdue
-- Red: At risk / No recent activity
+3. For managers viewing direct reports:
+   - Keep existing `manager_assignments` logic
+   - Optionally filter to only show reports with sales activity
 
----
+### File: `src/components/sales/PipelineHealthChart.tsx`
 
-## Implementation Steps
+- No changes needed - will automatically show only salespeople once backend filters correctly
 
-1. **Create edge function** `get-sales-team-report` to securely fetch aggregated team data
-2. **Build SalesManagerDashboard.tsx** - main container with tabs and overview cards
-3. **Build FourCallProgressTable.tsx** - table showing per-rep 4-Call completion
-4. **Build PipelineHealthChart.tsx** - charts for deal distribution by rep/stage
-5. **Build CoachingEngagementTable.tsx** - leaderboard of AI coaching usage
-6. **Build RepDetailDialog.tsx** - drill-down view for individual rep details
-7. **Add manager access button** to SalesAgentHeader (visible to managers/admins)
-8. **Add route/dialog trigger** for accessing the dashboard
-9. **Test with Stateline manager** role to verify filtering works correctly
+### File: `src/components/sales/SalesManagerDashboard.tsx`
+
+- No changes needed
 
 ---
 
-## Security Considerations
+## Affected Users
 
-- Edge function validates manager relationship before returning any data
-- No direct database access for cross-team data
-- Super admin bypass uses existing `is_super_admin()` check
-- All queries filter by `profile_id IN (direct_report_ids)`
+| Scenario | Before | After |
+|----------|--------|-------|
+| Super admin views Stateline | Shows all 27 employees | Shows ~9 with sales activity |
+| Manager views their team | Shows all direct reports | Shows only sales-active reports |
+| Overview card "Active Sellers" | Counts all with any data | Counts all salespeople (unchanged) |
 
+---
+
+## Testing Approach
+
+1. As super admin, select "Stateline Cooperative" from View As
+2. Open Team Dashboard
+3. Verify Pipeline tab shows only salespeople (Ben, Blake, Christian, Ed, Joel, Kelli, Trevor, etc.)
+4. Verify non-sales employees (Amy, Andrew, Ani, Bill, etc.) are not shown
