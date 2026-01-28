@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PodcastEpisodeHistory } from "./PodcastEpisodeHistory";
 import { YesterdayChallengeCheckIn } from "./YesterdayChallengeCheckIn";
+import { PodcastFeedback } from "./PodcastFeedback";
 
 interface PodcastEpisode {
   id: string;
@@ -672,6 +673,18 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
             </div>
           </CollapsibleContent>
         </Collapsible>
+
+        {/* Feedback - show after episode has been listened to */}
+        {episode.listened_at && (
+          <div className="mt-4 pt-3 border-t border-border/50">
+            <PodcastFeedback
+              episodeId={episode.id}
+              profileId={profileId}
+              episodeTitle={episode.title}
+              topicsCovered={episode.topics_covered}
+            />
+          </div>
+        )}
 
         {/* Episode History */}
         <PodcastEpisodeHistory profileId={profileId} />
