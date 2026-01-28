@@ -67,9 +67,12 @@ const SalesTrainer = () => {
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
   });
 
-  // Derive methodology access from the *effective* company (View As company overrides profile company).
-  // This prevents the 4-Call buttons from disappearing due to stale state.
-  const effectiveCompanyId = viewAsCompanyId || profile?.company_id || null;
+  // Derive methodology access from the *effective* company.
+  // Super admins must "View As" a Stateline/Momentum user to see methodology features.
+  // Non-super-admins use their own profile's company_id.
+  const effectiveCompanyId = isSuperAdmin 
+    ? viewAsCompanyId  // Super admins only get access when viewing as a specific company
+    : (viewAsCompanyId || profile?.company_id || null);
   const effectiveHasMethodologyAccess =
     effectiveCompanyId === STATELINE_COMPANY_ID || effectiveCompanyId === MOMENTUM_COMPANY_ID;
 
