@@ -40,6 +40,44 @@ interface CoachingConversation {
   message_count?: number;
 }
 
+// Helper function to get salespeople by activity in a company
+async function getSalespeopleByActivity(
+  supabase: any,
+  companyId: string
+): Promise<{ id: string; full_name: string }[]> {
+  // Get all profile IDs with sales activity from the three tables
+  const [callPlanIds, dealIds, coachingIds] = await Promise.all([
+    supabase
+      .from("call_plan_tracking")
+      .select("profile_id")
+      .then((res: any) => res.data?.map((r: any) => r.profile_id) || []),
+    supabase
+      .from("sales_deals")
+      .select("profile_id")
+      .then((res: any) => res.data?.map((r: any) => r.profile_id) || []),
+    supabase
+      .from("sales_coach_conversations")
+      .select("profile_id")
+      .then((res: any) => res.data?.map((r: any) => r.profile_id) || []),
+  ]);
+
+  // Combine into unique set
+  const allActiveIds = [...new Set([...callPlanIds, ...dealIds, ...coachingIds])];
+
+  if (allActiveIds.length === 0) {
+    return [];
+  }
+
+  // Get profiles for these IDs that belong to the target company
+  const { data: salespeople } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("company_id", companyId)
+    .in("id", allActiveIds);
+
+  return salespeople || [];
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -114,18 +152,15 @@ Deno.serve(async (req) => {
           directReportIds = [specificUser.id];
         }
       } else {
-        // Get all users in the company
-        const { data: companyUsers } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .eq("company_id", viewAsCompanyId);
+        // Get only salespeople (users with sales activity) in the company
+        const salespeople = await getSalespeopleByActivity(supabase, viewAsCompanyId);
         
-        if (companyUsers) {
-          directReports = companyUsers.map(u => ({ 
+        if (salespeople.length > 0) {
+          directReports = salespeople.map(u => ({ 
             employee_id: u.id, 
             full_name: u.full_name || "Unknown" 
           }));
-          directReportIds = companyUsers.map(u => u.id);
+          directReportIds = salespeople.map(u => u.id);
         }
       }
     } else {
