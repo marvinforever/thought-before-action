@@ -16,6 +16,10 @@ import { CoachingEngagementTable } from "./CoachingEngagementTable";
 import { RepDetailDialog } from "./RepDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 
+// Company IDs with access to 4-Call methodology
+const STATELINE_COMPANY_ID = "d32f9a18-aba5-4836-aa66-1834b8cb8edd";
+const MOMENTUM_COMPANY_ID = "00000000-0000-0000-0000-000000000001";
+
 interface SalesManagerDashboardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -79,6 +83,8 @@ export function SalesManagerDashboard({
 }: SalesManagerDashboardProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [userCompanyId, setUserCompanyId] = useState<string | null>(null);
   const [overview, setOverview] = useState<OverviewData>({
     activeSellers: 0,
     totalPipelineValue: 0,
@@ -92,6 +98,43 @@ export function SalesManagerDashboard({
   
   const [selectedRepId, setSelectedRepId] = useState<string | null>(null);
   const [selectedRepName, setSelectedRepName] = useState<string | null>(null);
+
+  // Determine effective company for methodology access check
+  const effectiveCompanyId = viewAsCompanyId || userCompanyId;
+  const hasMethodologyAccess = 
+    isSuperAdmin || 
+    effectiveCompanyId === STATELINE_COMPANY_ID || 
+    effectiveCompanyId === MOMENTUM_COMPANY_ID;
+
+  // Check super admin status and user company on mount
+  useEffect(() => {
+    const checkAccess = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check super admin status
+      const { data: roleData } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "super_admin",
+      });
+      setIsSuperAdmin(!!roleData);
+
+      // Get user's company
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+      
+      if (profile) {
+        setUserCompanyId(profile.company_id);
+      }
+    };
+    
+    if (open) {
+      checkAccess();
+    }
+  }, [open]);
 
   const fetchData = useCallback(async () => {
     if (!open) return;
@@ -172,12 +215,14 @@ export function SalesManagerDashboard({
             <SalesTeamOverviewCards data={overview} isLoading={isLoading} />
 
             {/* Tabs */}
-            <Tabs defaultValue="four-call" className="flex-1">
-              <TabsList className="grid grid-cols-3 w-full max-w-md">
-                <TabsTrigger value="four-call" className="gap-1">
-                  <Phone className="h-4 w-4" />
-                  4-Call Progress
-                </TabsTrigger>
+            <Tabs defaultValue={hasMethodologyAccess ? "four-call" : "pipeline"} className="flex-1">
+              <TabsList className={`grid w-full max-w-md ${hasMethodologyAccess ? "grid-cols-3" : "grid-cols-2"}`}>
+                {hasMethodologyAccess && (
+                  <TabsTrigger value="four-call" className="gap-1">
+                    <Phone className="h-4 w-4" />
+                    4-Call Progress
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="pipeline" className="gap-1">
                   <Target className="h-4 w-4" />
                   Pipeline
@@ -189,13 +234,15 @@ export function SalesManagerDashboard({
               </TabsList>
 
               <div className="mt-4">
-                <TabsContent value="four-call">
-                  <FourCallProgressTable
-                    data={fourCallProgress}
-                    isLoading={isLoading}
-                    onRepClick={handleRepClick}
-                  />
-                </TabsContent>
+                {hasMethodologyAccess && (
+                  <TabsContent value="four-call">
+                    <FourCallProgressTable
+                      data={fourCallProgress}
+                      isLoading={isLoading}
+                      onRepClick={handleRepClick}
+                    />
+                  </TabsContent>
+                )}
 
                 <TabsContent value="pipeline">
                   <PipelineHealthChart
