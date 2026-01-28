@@ -108,15 +108,6 @@ interface PodcastContext {
   }[];
   recentConversationSummary: string | null;
   inspirationalQuote: { quote: string; author: string };
-  // Diagnostic scores for closing summary
-  diagnosticScores: {
-    clarity: number | null;
-    engagement: number | null;
-    burnout: number | null;
-    career: number | null;
-    manager: number | null;
-    retention: number | null;
-  } | null;
   // Badges and achievements
   badges: {
     name: string;
@@ -129,6 +120,12 @@ interface PodcastContext {
   totalEmployees: number | null;
   // System usage tips
   underutilizedFeatures: string[];
+  // Streak pattern analysis
+  streakPattern: {
+    recentStreaks: number[];
+    capOutAt: number | null;
+    coaching: string | null;
+  };
 }
 
 interface DayTheme {
@@ -272,13 +269,40 @@ serve(async (req) => {
     // Fetch habit data with current streak (include id for content tracking)
     const { data: habits } = await supabase
       .from('leading_indicators')
-      .select('id, habit_name, current_streak, longest_streak')
+      .select('id, habit_name, current_streak, longest_streak, streak_history')
       .eq('profile_id', profileId)
       .eq('is_active', true)
       .order('current_streak', { ascending: false })
       .limit(1);
 
     const topHabit = habits?.[0];
+    
+    // Analyze streak patterns for coaching challenges
+    let streakPattern: { recentStreaks: number[]; capOutAt: number | null; coaching: string | null } = {
+      recentStreaks: [],
+      capOutAt: null,
+      coaching: null
+    };
+    
+    if (topHabit) {
+      const history = (topHabit.streak_history as number[]) || [];
+      streakPattern.recentStreaks = history.slice(-10);
+      
+      // Detect "cap out" patterns - if 3+ of the last 5 streaks ended at the same number
+      if (streakPattern.recentStreaks.length >= 3) {
+        const lastFive = streakPattern.recentStreaks.slice(-5);
+        const counts: Record<number, number> = {};
+        lastFive.forEach(n => { counts[n] = (counts[n] || 0) + 1; });
+        
+        const capOutEntry = Object.entries(counts).find(([_, count]) => count >= 3);
+        if (capOutEntry) {
+          const capNum = parseInt(capOutEntry[0]);
+          streakPattern.capOutAt = capNum;
+          const targetStreak = Math.min(capNum * 3, 30); // Challenge them to 3x their cap, max 30
+          streakPattern.coaching = `User keeps capping out at ${capNum}-day streaks. Challenge them to break through to ${targetStreak} days and earn a consistency key.`;
+        }
+      }
+    }
 
     // Fetch recent achievements (last 7 days, up to 3)
     const sevenDaysAgo = new Date();
@@ -639,25 +663,6 @@ serve(async (req) => {
     const diagnosticStrength = diagnostic?.[0]?.natural_strength || null;
     const diagnosticGrowthArea = diagnostic?.[0]?.skill_to_master || null;
 
-    // Fetch diagnostic scores for closing summary
-    const { data: diagnosticScoresData } = await supabase
-      .from('diagnostic_scores')
-      .select('clarity_score, engagement_score, burnout_score, career_score, manager_score, retention_score')
-      .eq('profile_id', profileId)
-      .order('calculated_at', { ascending: false })
-      .limit(1);
-
-    const diagnosticScores = diagnosticScoresData?.[0] ? {
-      clarity: diagnosticScoresData[0].clarity_score,
-      engagement: diagnosticScoresData[0].engagement_score,
-      burnout: diagnosticScoresData[0].burnout_score,
-      career: diagnosticScoresData[0].career_score,
-      manager: diagnosticScoresData[0].manager_score,
-      retention: diagnosticScoresData[0].retention_score,
-    } : null;
-
-    console.log('Diagnostic scores:', diagnosticScores);
-
     // Fetch recognition GIVEN by the user (last 14 days)
     const { data: recognitionGivenData } = await supabase
       .from('recognition_notes')
@@ -762,9 +767,6 @@ serve(async (req) => {
     if (recentRecognitions.length === 0 && recognitionGiven.length === 0) {
       underutilizedFeatures.push('Use the Recognition feature to celebrate your teammates and build team culture');
     }
-    if (!diagnosticScores) {
-      underutilizedFeatures.push('Complete your diagnostic assessment to unlock personalized insights and track your growth scores');
-    }
 
     console.log(`Underutilized features: ${underutilizedFeatures.length}`);
 
@@ -807,64 +809,70 @@ serve(async (req) => {
       pendingFollowUps,
       recentConversationSummary,
       inspirationalQuote: todayQuote,
-      diagnosticScores,
       badges,
       nextBadgeHint,
       leaderboardPosition,
       totalEmployees,
       underutilizedFeatures,
+      streakPattern,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
 
-    // Duration-based parameters - INCREASED word counts by ~20%
+    // Duration-based parameters - REDUCED word counts for economy of language
     const durationConfig: Record<number, { words: string; structure: string; maxTokens: number }> = {
-      2: {
-        words: '400-480 words',
-        structure: `Structure (keep to ~400-480 words total for 2-2.5 minute audio):
-1. Opening (15 sec, ~35 words): Greet by name with genuine warmth and energy
-2. Accountability Check (15 sec, ~30 words): Quick reference to yesterday's challenge or their consistency
-3. Personal Win (20 sec, ~45 words): Celebrate a specific achievement or progress
-4. Growth Insight (40 sec, ~85 words): One punchy insight related to today's capability focus
-5. Daily Challenge (20 sec, ~45 words): Specific, SHORT micro-challenge - one sentence max
-6. Quick Pulse Check (25 sec, ~55 words): Quick rundown of their diagnostic scores if available - keep it encouraging
-7. Recognition Shoutout (15 sec, ~35 words): If they gave recognition to others, acknowledge their leadership in lifting others up
-8. Warm Closing (20 sec, ~45 words): Genuine, warm sign-off - make them feel seen and supported
+      1: {
+        words: '180-220 words',
+        structure: `Structure (~180-220 words for 1 minute):
+1. Opening (10 sec, ~20 words): Quick, energetic greeting by name
+2. One Big Win (15 sec, ~35 words): Single most important achievement, streak, or progress
+3. Power Insight (20 sec, ~45 words): One punchy growth insight with immediate takeaway
+4. Daily Challenge (10 sec, ~25 words): Ultra-short, specific challenge - one sentence
+5. Closing (5 sec, ~15 words): Quick, warm sign-off
 
-PACING: Keep the energy UP! Quick transitions, punchy delivery. Emphasize key words. End on a HIGH note with genuine warmth - not cold or abrupt.`,
-        maxTokens: 1400
+PACING: Fast, punchy, no filler. Every word counts.`,
+        maxTokens: 600
+      },
+      2: {
+        words: '340-400 words',
+        structure: `Structure (~340-400 words for 2-2.5 minute audio):
+1. Opening (10 sec, ~25 words): Greet by name with energy - no fluff
+2. Accountability Check (10 sec, ~25 words): Quick nod to yesterday's challenge or consistency
+3. Personal Win (15 sec, ~35 words): Celebrate ONE specific achievement or progress
+4. Growth Insight (30 sec, ~70 words): One punchy insight for today's capability focus
+5. Daily Challenge (15 sec, ~35 words): Specific, SHORT challenge - one sentence max
+6. Warm Closing (15 sec, ~35 words): Genuine sign-off - make them feel supported
+
+PACING: Keep it tight! No rambling. End on a HIGH note with genuine warmth.`,
+        maxTokens: 1200
       },
       5: {
-        words: '550-650 words',  // Target ~3.5 min actual audio
-        structure: `Structure (keep to ~550-650 words total for ~3.5 minute audio - keep the pace MOVING):
-1. Opening (15 sec, ~35 words): Energetic greeting by name, quick ${dayTheme.name} theme hook
-2. Quick Win (20 sec, ~45 words): ONE highlight - best achievement, recognition, or streak
-3. Capability Focus (60 sec, ~120 words): Punchy insight on today's capability with ONE actionable tip
-4. Goal Progress (45 sec, ~90 words): Current quarter goal status - focus on next sprint/benchmark, not the 90-day outcome
-5. Daily Challenge (25 sec, ~50 words): Clear, specific, SHORT challenge for today
-6. Pulse Check (20 sec, ~45 words): Quick diagnostic scores rundown if available
-7. Recognition Shoutout (15 sec, ~35 words): Acknowledge any recognition they gave to teammates
-8. Warm Closing (25 sec, ~55 words): Connect to vision, genuinely warm sign-off - leave them feeling supported
+        words: '480-560 words',
+        structure: `Structure (~480-560 words for ~3.5 minute audio):
+1. Opening (10 sec, ~25 words): Energetic greeting by name, quick theme hook
+2. Quick Win (15 sec, ~35 words): ONE highlight - best achievement, recognition, or streak
+3. Capability Focus (45 sec, ~100 words): Punchy insight on today's capability with ONE actionable tip
+4. Goal Progress (35 sec, ~80 words): Current quarter goal status - focus on next sprint/benchmark
+5. Daily Challenge (20 sec, ~45 words): Clear, specific, SHORT challenge
+6. Warm Closing (20 sec, ~45 words): Connect to vision, genuine warm sign-off
 
-PACING: Keep it punchy! No rambling. Each section should feel tight and purposeful. End warm, not cold.`,
-        maxTokens: 1800
+PACING: Keep it punchy! No rambling. Each section tight and purposeful.`,
+        maxTokens: 1600
       },
       10: {
-        words: '1700-2000 words',
-        structure: `Structure (keep to ~1700-2000 words total for 10-minute audio):
-1. Opening (30 sec, ~70 words): Warm, personal greeting with ${dayTheme.name} theme and energy setting
-2. Accountability Review (45 sec, ~90 words): Detailed check-in on yesterday's challenge and recent commitments
-3. Weekly Wins Recap (90 sec, ~180 words): Comprehensive celebration of achievements and progress
-4. Habit & Streak Analysis (60 sec, ~120 words): Deep dive into habit performance with encouragement
-5. Capability Masterclass (4 min, ~480 words): Extensive educational content with frameworks, examples, and application tips for today's focus capability
-6. Goal Strategy Session (90 sec, ~180 words): Detailed goal review with benchmark tracking and strategic adjustments
-7. Skill-Building Exercise (60 sec, ~120 words): Interactive thought exercise or reflection prompt
-8. Daily Challenge (60 sec, ~120 words): Well-defined actionable challenge with success criteria and why it matters
-9. Vision & Purpose Connection (60 sec, ~120 words): Deep connection to their personal vision and bigger aspirations
-10. Mindset & Motivation (45 sec, ~90 words): Practical wisdom on growth and leadership
-11. Week Ahead Preview (30 sec, ~60 words): What to focus on and anticipate
-12. Closing (30 sec, ~70 words): Inspiring, highly personalized sign-off`,
-        maxTokens: 5000
+        words: '1400-1600 words',
+        structure: `Structure (~1400-1600 words for 10-minute audio):
+1. Opening (25 sec, ~60 words): Warm, personal greeting with theme and energy
+2. Accountability Review (35 sec, ~75 words): Check-in on yesterday's challenge and commitments
+3. Weekly Wins Recap (75 sec, ~150 words): Celebrate achievements and progress
+4. Habit & Streak Analysis (45 sec, ~100 words): Habit performance with encouragement
+5. Capability Masterclass (3 min, ~400 words): Educational content with frameworks and application tips
+6. Goal Strategy Session (75 sec, ~150 words): Goal review with benchmark tracking
+7. Skill-Building Exercise (45 sec, ~100 words): Interactive thought exercise or reflection
+8. Daily Challenge (45 sec, ~100 words): Well-defined actionable challenge with success criteria
+9. Vision & Purpose Connection (45 sec, ~100 words): Connection to personal vision
+10. Closing (25 sec, ~60 words): Inspiring, personalized sign-off`,
+        maxTokens: 4500
       }
     };
 
@@ -989,15 +997,12 @@ ${!context.personalVision && !context.professionalVision ? `💡 TIP: Encourage 
 Strength: ${context.diagnosticStrength || 'Not assessed'}
 Growth area: ${context.diagnosticGrowthArea || 'Not assessed'}
 
-${context.diagnosticScores ? `DIAGNOSTIC PULSE (HIGHER SCORES = BETTER! This is positive data):
-- Role Clarity: ${context.diagnosticScores.clarity ?? 'N/A'}% ${(context.diagnosticScores.clarity ?? 0) >= 70 ? '✨ Strong!' : ''}
-- Engagement: ${context.diagnosticScores.engagement ?? 'N/A'}% ${(context.diagnosticScores.engagement ?? 0) >= 70 ? '✨ Strong!' : ''}
-- Burnout RESILIENCE: ${context.diagnosticScores.burnout ?? 'N/A'}% ${(context.diagnosticScores.burnout ?? 0) >= 70 ? '✨ Healthy!' : '(higher = more resilient)'}
-- Career Growth: ${context.diagnosticScores.career ?? 'N/A'}% ${(context.diagnosticScores.career ?? 0) >= 70 ? '✨ On track!' : ''}
-- Manager Support: ${context.diagnosticScores.manager ?? 'N/A'}% ${(context.diagnosticScores.manager ?? 0) >= 70 ? '✨ Great support!' : ''}
-- Retention Confidence: ${context.diagnosticScores.retention ?? 'N/A'}% ${(context.diagnosticScores.retention ?? 0) >= 70 ? '✨ Committed!' : ''}
-IMPORTANT: ALL scores are positive - higher is ALWAYS better. Celebrate high scores! For lower scores, frame as "opportunities we're building together."
-Only mention 2-3 scores - pick a mix of their strongest and one growth area.` : `NO DIAGNOSTIC DATA - encourage them to complete their assessment to unlock personalized growth insights!`}
+${context.streakPattern.coaching 
+  ? `🎯 STREAK CHALLENGE COACHING:
+${context.streakPattern.coaching}
+Recent streak history: ${context.streakPattern.recentStreaks.join(', ')}
+Be direct but encouraging: "${context.streakPattern.capOutAt}-day streak again? I've noticed a pattern... let's break that ceiling together!"`
+  : ''}
 
 ${context.badges.length > 0 
   ? `🏆 BADGES EARNED:
@@ -1030,12 +1035,16 @@ SCRIPT FORMAT REQUIREMENTS:
 3. Solo monologue format - speak directly to the listener throughout
 4. Deliver coaching insights with warmth and authority
 5. Give the daily challenge - KEEP IT SHORT (1 sentence, under 15 words)
-6. If diagnostic scores exist, mention 2-3 highlights - CELEBRATE the high ones!
-7. If no diagnostics, encourage completing the assessment
-8. Reference badges, leaderboard position, or vision when relevant (don't force all of them)
-9. If they gave recognition, acknowledge them for lifting up their teammates
-10. Optionally drop ONE system tip if there's something they're underutilizing
-11. Close with GENUINE WARMTH - make them feel seen, supported, and cheered on. NOT cold or abrupt.
+6. Reference badges, leaderboard position, or vision when relevant (don't force all of them)
+7. If they gave recognition, acknowledge them for lifting up their teammates
+8. Optionally drop ONE system tip if there's something they're underutilizing
+9. Close with GENUINE WARMTH - make them feel seen, supported, and cheered on. NOT cold or abrupt.
+
+ECONOMY OF LANGUAGE:
+- Be direct and punchy - cut filler words ("just", "really", "actually")
+- Don't over-explain or repeat yourself
+- One strong statement > three weak ones
+- Challenge directly when needed: "2-day streak again? Let's break that pattern."
 
 VARIETY: Don't hit everything every day! Rotate focus based on what's most relevant:
 - Some days focus on vision and purpose

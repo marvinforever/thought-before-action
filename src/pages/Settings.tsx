@@ -425,6 +425,13 @@ export default function Settings() {
               className="grid gap-3"
             >
               <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="1" id="duration-1" />
+                <Label htmlFor="duration-1" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Power Brief (1 min)</div>
+                  <div className="text-sm text-muted-foreground">Ultra-quick hit: one win, one insight, one challenge. Perfect when you're short on time.</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
                 <RadioGroupItem value="2" id="duration-2" />
                 <Label htmlFor="duration-2" className="flex-1 cursor-pointer">
                   <div className="font-medium">Quick Brief (2 min)</div>

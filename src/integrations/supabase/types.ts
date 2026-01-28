@@ -3129,6 +3129,7 @@ export type Database = {
           linked_goal_id: string | null
           longest_streak: number
           profile_id: string
+          streak_history: Json | null
           target_frequency: string
           updated_at: string
         }
@@ -3145,6 +3146,7 @@ export type Database = {
           linked_goal_id?: string | null
           longest_streak?: number
           profile_id: string
+          streak_history?: Json | null
           target_frequency?: string
           updated_at?: string
         }
@@ -3161,6 +3163,7 @@ export type Database = {
           linked_goal_id?: string | null
           longest_streak?: number
           profile_id?: string
+          streak_history?: Json | null
           target_frequency?: string
           updated_at?: string
         }
@@ -3827,6 +3830,95 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      podcast_feedback: {
+        Row: {
+          context_snapshot: Json | null
+          created_at: string
+          episode_id: string
+          feedback_text: string | null
+          id: string
+          profile_id: string
+          rating: string
+        }
+        Insert: {
+          context_snapshot?: Json | null
+          created_at?: string
+          episode_id: string
+          feedback_text?: string | null
+          id?: string
+          profile_id: string
+          rating: string
+        }
+        Update: {
+          context_snapshot?: Json | null
+          created_at?: string
+          episode_id?: string
+          feedback_text?: string | null
+          id?: string
+          profile_id?: string
+          rating?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_feedback_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "podcast_episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podcast_feedback_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      podcast_learning: {
+        Row: {
+          company_id: string | null
+          confidence_score: number | null
+          created_at: string
+          feedback_count: number | null
+          id: string
+          learned_response: string
+          pattern_key: string
+          pattern_type: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          feedback_count?: number | null
+          id?: string
+          learned_response: string
+          pattern_key: string
+          pattern_type: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          feedback_count?: number | null
+          id?: string
+          learned_response?: string
+          pattern_key?: string
+          pattern_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_learning_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
