@@ -1,133 +1,174 @@
 
+# Sales Page Rewrite: "Systems > Goals" Hero Concept
 
-# Daily Brief Podcast Improvements
+## Overview
 
-## Summary
-This plan addresses four key improvements to the Daily Growth Brief:
-1. **Economy of Language** - Make the podcast more concise and direct
-2. **Streak Challenges** - Add dynamic coaching that calls out streak patterns and challenges users
-3. **Feedback System** - Add thumbs up/down with text feedback for self-learning
-4. **1-Minute Version** - Add a new ultra-quick duration option
-5. **Remove Diagnostic Scores** - Stop reading out engagement/burnout scores since not everyone has access
+Rewrite the askjericho.com home page (`src/pages/Sales.tsx`) with the new hero hook that positions Jericho as the system that catches you when motivation fails.
 
 ---
 
-## Part 1: Economy of Language + Streak Challenges
+## New Hero Section
 
-### What Changes
-The podcast script generation prompts will be updated to:
-- Use fewer words with more impact
-- Detect when users keep "capping out" at certain streak lengths (e.g., 2 days, 3 days repeatedly)
-- Challenge them directly: *"2-day streak again? Seems like you keep capping out there... Let's make it 7 this time and earn yourself a consistency key."*
-
-### Database Changes
-A new column will be added to track streak history:
-- Add `streak_history` jsonb column to `leading_indicators` table
-- This stores the last 10 streak lengths so Jericho can detect patterns like "keeps hitting 2 days then resetting"
-
-### Script Generation Updates
-The system prompt and user context will be enhanced to:
-- Pass streak pattern data (e.g., "last 5 streaks: 2, 2, 1, 3, 2")
-- Include specific coaching instructions to call out repeated cap-outs
-- Reduce word counts by ~15% across all duration configs
-- Add stronger variety rules to prevent repetitive praise
-
----
-
-## Part 2: User Feedback System
-
-### New Database Table
-Create `podcast_feedback` table:
-- `id` (uuid)
-- `profile_id` (uuid, references profiles)
-- `episode_id` (uuid, references podcast_episodes)
-- `rating` (text: "up" or "down")
-- `feedback_text` (text, optional)
-- `created_at` (timestamp)
-
-### New UI Component
-Add a `PodcastFeedback` component that appears after the episode is played:
-- Thumbs up / Thumbs down buttons (same pattern as `MessageFeedback` in Sales Coach)
-- When thumbs down is clicked, show a text input: "What could be better?"
-- Store feedback with context (episode script preview, topics covered)
-
-### Learning Aggregation
-Create `podcast_learning` table (mirrors `sales_coach_learning`):
-- `pattern_type` (e.g., "pacing", "too_wordy", "challenge_quality")
-- `pattern_key` (specific issue)
-- `learned_response` (what to do differently)
-- `confidence_score` / `feedback_count`
-
-This feedback will be incorporated into the system prompt for future episodes.
-
----
-
-## Part 3: 1-Minute Version
-
-### Settings Update
-Add new duration option in Settings page:
-- "Power Brief (1 min)" - *Ultra-quick hit: one win, one insight, one challenge.*
-
-### Script Generation Config
-Add new duration configuration for 1 minute:
+### Headline Structure
 ```
-1: {
-  words: '180-220 words',
-  structure: `Structure (~180-220 words for 1 minute):
-  1. Opening (10 sec, ~20 words): Quick, energetic greeting
-  2. One Big Win (15 sec, ~30 words): Single most important achievement or progress
-  3. Power Insight (20 sec, ~40 words): One punchy growth insight
-  4. Daily Challenge (10 sec, ~20 words): Ultra-short, specific challenge
-  5. Closing (5 sec, ~10 words): Quick, warm sign-off`,
-  maxTokens: 600
-}
+"You don't rise to your goals.
+You fall to your systems."
+
+Welcome to Jericho.
 ```
 
----
+### Supporting Copy
+The AI-powered system that shows up for your team every single day—with personalized coaching, daily audio briefs, and the accountability that actually sticks.
 
-## Part 4: Remove Diagnostic Scores
-
-### What Changes
-- Remove the "Pulse Check" section from the podcast script prompts
-- Remove all references to engagement, burnout, clarity, career, manager, and retention scores
-- Update the user prompt to exclude the `DIAGNOSTIC PULSE` section entirely
-
----
-
-## Implementation Files
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/generate-podcast-script/index.ts` | Update prompts, add 1-min config, remove diagnostics, add streak challenge logic |
-| `src/components/DailyPodcastPlayer.tsx` | Add PodcastFeedback component after playback |
-| `src/components/PodcastFeedback.tsx` | New component (based on MessageFeedback pattern) |
-| `src/pages/Settings.tsx` | Add 1-minute duration option |
-| Database migration | Add `podcast_feedback`, `podcast_learning` tables, add `streak_history` column |
+### Visual Treatment
+- Keep the navy background with gold accent blurs
+- Remove current "For Growth minded leaders looking to..." pill badge
+- Add a new subtle badge: "The System That Shows Up Daily"
+- Animate "Welcome to Jericho." with a slight delay for dramatic effect
+- Keep single "Book a Demo" CTA button
 
 ---
 
-## Technical Details
+## Page Flow Updates
 
-### Streak Pattern Detection Logic
-When fetching habit data, the system will:
-1. Query the last 10 completed streaks from `streak_history`
-2. Detect "cap out" patterns (3+ similar low numbers)
-3. Pass this to the AI: *"Streak pattern: 2, 2, 1, 3, 2 - user keeps capping at 2-3 days"*
-4. AI generates a challenge: *"Let's break that ceiling and hit 7 this time"*
+### Section 2: "Who This Is For" (Keep + Minor Update)
+Keep the current structure but update opening to connect to the hook:
 
-### Feedback Learning Loop
-1. User provides feedback after listening
-2. Feedback stored with episode context
-3. Aggregation job (or inline logic) identifies patterns:
-   - "too wordy" feedback → increase conciseness instructions
-   - "loved the challenge" → reinforce challenge style
-4. Learnings injected into system prompt for future episodes
+**Before:** "This Is For Leaders Who Are..."
+**After:** "This Is For Leaders Who Know Goals Aren't Enough"
 
-### Duration Word Counts (Updated)
-| Duration | Current Words | New Words | Sections |
-|----------|--------------|-----------|----------|
-| 1 min | N/A | 180-220 | 5 sections |
-| 2 min | 400-480 | 340-400 | 6 sections (no pulse check) |
-| 5 min | 550-650 | 480-560 | 7 sections (no pulse check) |
-| 10 min | 1700-2000 | 1400-1600 | 10 sections (no pulse check) |
+Update the 4 bullet points to reference systems thinking:
+- "Have ambitious goals but inconsistent follow-through across the team"
+- "Know that motivation fades—and need something that doesn't"
+- "Want their people to grow without carrying the development load"
+- "Ready to install a daily system that builds momentum over time"
 
+### Section 3: "The Real Problem" (Keep Structure)
+Keep current content—it flows well from "goals aren't enough" into "talent on paper, chaos in reality"
+
+### Section 4: "The Transformation" (Update From/To)
+Update to emphasize systems vs goals:
+
+**From:**
+- Goal-setting without follow-through
+- Motivation that fades by February
+- Training that's forgotten in a week
+- Development that depends on leader bandwidth
+
+**To:**
+- Daily coaching that never misses a day
+- Personalized audio briefs every morning
+- Habit tracking that builds real momentum
+- An AI that knows your goals and helps you hit them
+
+### Section 5: "How It Works" (Major Update - AI Features)
+Restructure around the NEW capabilities:
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | Daily Growth Podcast | Wake up to a personalized audio brief about YOUR wins, YOUR goals, and YOUR next move |
+| 2 | Conversational Coaching | Chat or talk to Jericho anytime—it knows your pipeline, your habits, and your history |
+| 3 | Habit & Streak Tracking | Daily behaviors drive results. Watch your streaks grow and your momentum compound |
+| 4 | AI-Powered 1:1 Prep | Data-backed agendas replace guesswork. Know exactly what to discuss |
+| 5 | Career Path Intelligence | See where you are, where you're going, and exactly how to get there |
+| 6 | Sales Intelligence (if applicable) | Customer history, call prep, and proposals—all from a conversation |
+
+### Section 6: "For Leaders" (Keep + Update Copy)
+Update the "More of this" list:
+- Daily accountability without daily effort
+- A system that remembers everything
+- Team development on autopilot
+- Your leadership capacity back
+
+### Section 7: "Why It Works" (Update to Systems Theme)
+Update the 4 proof points:
+- "Systems beat willpower—Jericho shows up every day, even when motivation doesn't"
+- "Personalization beats generic—every podcast, every nudge is tailored to the individual"
+- "AI beats bandwidth—your team gets coaching without draining your time"
+- "Data beats subjectivity—progress is visible, objective, and trackable"
+
+### Section 8: "The Product" (Update Feature List)
+Update to reflect current capabilities:
+- Personalized daily audio coaching
+- Conversational AI with voice support
+- Habit tracking with streak gamification
+- Career path and capability mapping
+- 1:1 meeting preparation
+- Sales intelligence and customer history
+
+### Section 9: Final CTA (Update Headline)
+**Current:** "Ready to Stop Carrying Everything?"
+**New:** "Ready to Build a System That Never Stops?"
+
+Update supporting copy:
+"Your goals inspire. Your system delivers. Let Jericho be the daily engine that moves your team forward—one day, one habit, one win at a time."
+
+---
+
+## Technical Implementation
+
+### Files to Modify
+- `src/pages/Sales.tsx` - Complete rewrite of content sections
+
+### Changes Summary
+
+1. **Lines 281-326 (Hero Section)**
+   - Replace headline with systems quote
+   - Add "Welcome to Jericho." with animation delay
+   - Update supporting copy
+   - Update badge text
+
+2. **Lines 328-363 (Who This Is For)**
+   - Update section title
+   - Update 4 bullet points to systems theme
+
+3. **Lines 433-462 (From/To Transformation)**
+   - Update both columns with new content
+
+4. **Lines 475-535 (How It Works)**
+   - Replace 6 feature cards with AI-native features
+   - Add new icons: Headphones, Mic, Flame (streaks), etc.
+
+5. **Lines 539-587 (For Leaders)**
+   - Update "More of this" list
+
+6. **Lines 591-640 (Why It Works)**
+   - Update 4 proof points to systems theme
+
+7. **Lines 644-684 (The Product)**
+   - Update 6 feature items
+
+8. **Lines 687-734 (Final CTA)**
+   - Update headline and supporting copy
+
+### New Imports Needed
+```typescript
+import { Headphones, Mic, Flame } from "lucide-react";
+```
+
+---
+
+## Visual Enhancements
+
+- Keep existing animation system (fadeIn, staggerContainer)
+- Keep FlowArrow transitions between sections
+- Keep SideFlowArrows for visual movement
+- Keep client logos section unchanged
+- Keep Demo Form Dialog unchanged
+
+---
+
+## Copy Summary
+
+### Key Phrases to Thread Throughout
+- "The system that shows up daily"
+- "Your goals inspire. Your system delivers."
+- "Accountability that actually sticks"
+- "Personalized coaching, every single day"
+- "An AI that knows your business"
+
+### Tone
+- Confident but not arrogant
+- Systems-focused, not feature-focused
+- Emphasize daily consistency over one-time training
+- Position Jericho as infrastructure, not just software
