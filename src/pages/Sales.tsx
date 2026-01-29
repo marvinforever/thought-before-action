@@ -27,7 +27,12 @@ import {
   Sparkles,
   Shield,
   ChevronDown,
-  MoveDown
+  MoveDown,
+  Headphones,
+  Mic,
+  Flame,
+  Route,
+  FileText
 } from "lucide-react";
 
 // Client logos
@@ -291,24 +296,30 @@ const Sales = () => {
             className="space-y-6"
           >
             <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/30">
-              <Users className="w-4 h-4 text-accent" />
-              <span className="text-accent font-medium text-sm">For Growth minded leaders looking to...</span>
+              <Zap className="w-4 h-4 text-accent" />
+              <span className="text-accent font-medium text-sm">The System That Shows Up Daily</span>
             </motion.div>
             
-            <motion.h1 
-              variants={fadeIn}
-              className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-primary-foreground"
-            >
-              Scale Clarity.<br />
-              Scale Ownership.<br />
-              <span className="text-accent">Scale Leadership.</span>
-            </motion.h1>
+            <motion.div variants={fadeIn} className="space-y-4">
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight text-primary-foreground/80 italic">
+                "You don't rise to your goals.<br />
+                You fall to your systems."
+              </h1>
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8, duration: 0.6 }}
+                className="text-4xl md:text-6xl lg:text-7xl font-bold text-accent"
+              >
+                Welcome to Jericho.
+              </motion.p>
+            </motion.div>
             
             <motion.p 
               variants={fadeIn}
               className="text-xl md:text-2xl text-primary-foreground/80 max-w-3xl mx-auto leading-relaxed"
             >
-              Jericho is an AI-powered performance management system that teaches people how to define success, execute with clarity, and grow into mastery — <span className="text-primary-foreground font-medium">without leaders having to carry everything.</span>
+              The AI-powered system that shows up for your team every single day—with personalized coaching, daily audio briefs, and the <span className="text-primary-foreground font-medium">accountability that actually sticks.</span>
             </motion.p>
 
             <motion.div variants={fadeIn} className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
@@ -337,15 +348,15 @@ const Sales = () => {
           >
             <motion.div variants={fadeIn} className="text-center space-y-2">
               <p className="text-accent-foreground font-semibold uppercase tracking-wide text-sm">Who This Is For</p>
-              <h2 className="text-3xl md:text-4xl font-bold text-primary">This Is For Leaders Who Are...</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-primary">This Is For Leaders Who Know Goals Aren't Enough</h2>
             </motion.div>
 
             <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-4">
               {[
-                "Running a growing organization, but need to drive up accountability",
-                "Values-driven, growth-minded, and serious about execution",
-                "Tired of being the bottleneck for clarity, accountability, and development",
-                "Carrying too much in their head because systems haven't caught up to scale"
+                "Have ambitious goals but inconsistent follow-through across the team",
+                "Know that motivation fades—and need something that doesn't",
+                "Want their people to grow without carrying the development load",
+                "Ready to install a daily system that builds momentum over time"
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-3 p-5 bg-background/80 backdrop-blur-sm rounded-xl border border-primary/10 shadow-sm hover:shadow-md hover:bg-background transition-all duration-300">
                   <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
@@ -356,7 +367,7 @@ const Sales = () => {
 
             <motion.div variants={fadeIn} className="bg-gradient-to-r from-primary to-primary/90 rounded-2xl p-6 text-center shadow-lg">
               <p className="text-primary-foreground/80 mb-1">You're not struggling because you're a bad leader.</p>
-              <p className="text-lg text-primary-foreground font-semibold">You're struggling because your people don't yet have a system that teaches them how to lead themselves.</p>
+              <p className="text-lg text-primary-foreground font-semibold">You're struggling because your people don't yet have a system that shows up for them every single day.</p>
             </motion.div>
           </motion.div>
         </div>
@@ -427,7 +438,7 @@ const Sales = () => {
                 <Sparkles className="w-4 h-4 text-accent" />
                 <span className="text-accent font-semibold uppercase tracking-wide text-xs">The Transformation</span>
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold">From Carrying Everything → To Scaling Leadership</h2>
+              <h2 className="text-3xl md:text-4xl font-bold">From Hoping They'll Change → To a System That Delivers</h2>
             </motion.div>
 
             <motion.div variants={fadeIn} className="grid md:grid-cols-2 gap-6">
@@ -437,7 +448,7 @@ const Sales = () => {
                   From:
                 </h3>
                 <ul className="space-y-3">
-                  {["Ambiguity", "Leader-dependence", "Reactive execution", "Subjective performance conversations"].map((item, i) => (
+                  {["Goal-setting without follow-through", "Motivation that fades by February", "Training that's forgotten in a week", "Development that depends on leader bandwidth"].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-primary-foreground/70 text-sm">
                       <span className="w-1.5 h-1.5 bg-primary-foreground/40 rounded-full" />
                       {item}
@@ -451,7 +462,7 @@ const Sales = () => {
                   To:
                 </h3>
                 <ul className="space-y-3">
-                  {["Clear role ownership", "Focused execution", "Objective growth paths", "People who think, plan, and progress independently"].map((item, i) => (
+                  {["Daily coaching that never misses a day", "Personalized audio briefs every morning", "Habit tracking that builds real momentum", "An AI that knows your goals and helps you hit them"].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-primary-foreground font-medium text-sm">
                       <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
                       {item}
@@ -463,7 +474,7 @@ const Sales = () => {
 
             <motion.div variants={fadeIn} className="text-center">
               <p className="text-xl font-medium max-w-3xl mx-auto">
-                Jericho gives your people clarity — and gives you your <span className="text-accent">leadership capacity back.</span>
+                Your goals inspire. <span className="text-accent">Your system delivers.</span>
               </p>
             </motion.div>
           </motion.div>
@@ -485,40 +496,40 @@ const Sales = () => {
           >
             <motion.div variants={fadeIn} className="text-center space-y-2">
               <p className="text-accent font-semibold uppercase tracking-wide text-sm">How It Works</p>
-              <h2 className="text-3xl md:text-4xl font-bold">A Simple, Repeatable System for Clarity & Momentum</h2>
+              <h2 className="text-3xl md:text-4xl font-bold">AI-Powered Coaching That Shows Up Every Day</h2>
             </motion.div>
 
             <motion.div variants={fadeIn} className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {[
                 {
+                  icon: Headphones,
+                  title: "1. Daily Growth Podcast",
+                  description: "Wake up to a personalized audio brief about YOUR wins, YOUR goals, and YOUR next move."
+                },
+                {
+                  icon: Mic,
+                  title: "2. Conversational Coaching",
+                  description: "Chat or talk to Jericho anytime—it knows your pipeline, your habits, and your history."
+                },
+                {
+                  icon: Flame,
+                  title: "3. Habit & Streak Tracking",
+                  description: "Daily behaviors drive results. Watch your streaks grow and your momentum compound."
+                },
+                {
+                  icon: FileText,
+                  title: "4. AI-Powered 1:1 Prep",
+                  description: "Data-backed agendas replace guesswork. Know exactly what to discuss with every team member."
+                },
+                {
+                  icon: Route,
+                  title: "5. Career Path Intelligence",
+                  description: "See where you are, where you're going, and exactly how to get there with phased roadmaps."
+                },
+                {
                   icon: Target,
-                  title: "1. Define Success Clearly",
-                  description: "Each employee knows what they own, what 'great' looks like, and how success is measured."
-                },
-                {
-                  icon: TrendingUp,
-                  title: "2. Build Vision at the Right Altitude",
-                  description: "Employees create 1–3 year role visions and quarterly targets. They learn how to choose the right priorities."
-                },
-                {
-                  icon: Calendar,
-                  title: "3. Execute with Rhythm",
-                  description: "Quarterly targets → 30-day benchmarks → 7-day sprints. Always the next right move."
-                },
-                {
-                  icon: BarChart3,
-                  title: "4. Track the Habits That Matter",
-                  description: "Daily behaviors drive real results. Leading indicators replace reactive firefighting."
-                },
-                {
-                  icon: Sparkles,
-                  title: "5. Grow Into Mastery",
-                  description: "Clear capability levels show where someone is, what 'better' looks like, and what to work on next."
-                },
-                {
-                  icon: MessageSquare,
-                  title: "6. Transform 1:1s",
-                  description: "Data-backed performance agendas replace emotional check-ins. Conversations become focused and developmental."
+                  title: "6. Sales Intelligence",
+                  description: "Customer history, call prep, and proposals—all from a conversation with Jericho."
                 }
               ].map((step, i) => (
                 <div key={i} className="group p-5 bg-card rounded-xl border border-border hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300">
@@ -567,7 +578,7 @@ const Sales = () => {
               <div className="bg-gradient-to-br from-primary to-primary/95 rounded-xl p-6 border border-accent/30 shadow-lg">
                 <h3 className="text-lg font-semibold text-accent mb-4">More of this:</h3>
                 <ul className="space-y-3">
-                  {["Ownership", "Consistency", "Faster development", "Stronger execution"].map((item, i) => (
+                  {["Daily accountability without daily effort", "A system that remembers everything", "Team development on autopilot", "Your leadership capacity back"].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 font-medium text-primary-foreground">
                       <Zap className="h-4 w-4 text-accent" />
                       {item}
@@ -600,15 +611,15 @@ const Sales = () => {
           >
             <motion.div variants={fadeIn} className="text-center space-y-2">
               <p className="text-accent font-semibold uppercase tracking-wide text-sm">Why It Works</p>
-              <h2 className="text-3xl md:text-4xl font-bold">Jericho Solves What Most Systems Avoid</h2>
+              <h2 className="text-3xl md:text-4xl font-bold">Systems Beat Willpower. Every Time.</h2>
             </motion.div>
 
             <motion.div variants={fadeIn} className="grid sm:grid-cols-2 gap-4">
               {[
-                "Removes subjectivity from performance",
-                "Gives leaders and employees shared language",
-                "Replaces emotional conversations with objective clarity",
-                "Turns development into something people can actually see"
+                "Systems beat willpower—Jericho shows up every day, even when motivation doesn't",
+                "Personalization beats generic—every podcast, every nudge is tailored to the individual",
+                "AI beats bandwidth—your team gets coaching without draining your time",
+                "Data beats subjectivity—progress is visible, objective, and trackable"
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-3 p-4 bg-gradient-to-r from-accent/10 to-accent/5 rounded-xl border border-accent/20 hover:border-accent/40 transition-colors">
                   <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
@@ -619,9 +630,9 @@ const Sales = () => {
 
             <motion.div variants={fadeIn} className="bg-gradient-to-br from-primary via-primary to-primary/95 rounded-2xl p-8 text-center space-y-3 shadow-xl">
               <p className="text-primary-foreground/70 text-sm">Instead of asking:</p>
-              <p className="text-lg text-primary-foreground/80 italic">"How do I get my people to care more?"</p>
+              <p className="text-lg text-primary-foreground/80 italic">"How do I get my people to stay motivated?"</p>
               <p className="text-primary-foreground/70 text-sm">Leaders start saying:</p>
-              <p className="text-xl font-bold text-accent">"My people finally know how to move themselves forward."</p>
+              <p className="text-xl font-bold text-accent">"My people have a system that moves them forward—every single day."</p>
             </motion.div>
 
             {/* Customer Logos */}
@@ -656,18 +667,18 @@ const Sales = () => {
           >
             <motion.div variants={fadeIn} className="text-center space-y-2">
               <p className="text-accent font-semibold uppercase tracking-wide text-sm">The Product</p>
-              <h2 className="text-3xl md:text-4xl font-bold">A Performance Management & Growth System</h2>
-              <p className="text-primary-foreground/70">Not another task tool.</p>
+              <h2 className="text-3xl md:text-4xl font-bold">Your Team's Daily Operating System</h2>
+              <p className="text-primary-foreground/70">Not another task tool. An AI coach that never takes a day off.</p>
             </motion.div>
 
             <motion.div variants={fadeIn} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {[
-                { icon: Target, text: "Role-specific success definitions" },
-                { icon: TrendingUp, text: "Vision and execution planning tools" },
-                { icon: BarChart3, text: "Habit tracking for leading indicators" },
-                { icon: Sparkles, text: "Capability mastery pathways" },
-                { icon: Brain, text: "Hyper-personalized AI insights and training" },
-                { icon: MessageSquare, text: "Structured, data-backed 1:1 agendas" }
+                { icon: Headphones, text: "Personalized daily audio coaching" },
+                { icon: Mic, text: "Conversational AI with voice support" },
+                { icon: Flame, text: "Habit tracking with streak gamification" },
+                { icon: Route, text: "Career path and capability mapping" },
+                { icon: FileText, text: "1:1 meeting preparation" },
+                { icon: Target, text: "Sales intelligence and customer history" }
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 p-3.5 bg-primary-foreground/5 backdrop-blur-sm rounded-lg border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-colors">
                   <item.icon className="h-5 w-5 text-accent flex-shrink-0" />
@@ -699,10 +710,10 @@ const Sales = () => {
           >
             <motion.div variants={fadeIn} className="space-y-3">
               <h2 className="text-3xl md:text-5xl font-bold text-primary-foreground">
-                Ready to Stop Carrying Everything?
+                Ready to Build a System That Never Stops?
               </h2>
               <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto">
-                Build a team that knows what success looks like, executes without constant oversight, and grows into mastery over time.
+                Your goals inspire. Your system delivers. Let Jericho be the daily engine that moves your team forward—one day, one habit, one win at a time.
               </p>
             </motion.div>
 
@@ -748,7 +759,7 @@ const Sales = () => {
             <a href="#" className="hover:text-foreground transition-colors">Contact</a>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2025 Jericho. Scale leadership, not stress.
+            © 2025 Jericho. Your goals inspire. Your system delivers.
           </p>
         </div>
       </footer>
