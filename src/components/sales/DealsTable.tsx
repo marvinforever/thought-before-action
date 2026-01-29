@@ -241,6 +241,7 @@ export const DealsTable = ({ userId, onDealsChange }: DealsTableProps) => {
           deal={coachingDeal}
           open={!!coachingDeal}
           onOpenChange={(open) => !open && setCoachingDeal(null)}
+          userId={userId}
         />
       )}
     </div>
