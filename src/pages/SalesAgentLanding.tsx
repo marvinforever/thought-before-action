@@ -455,6 +455,7 @@ export default function SalesAgentLanding() {
                           <SelectItem value="vp_agronomy">VP of Agronomy</SelectItem>
                           <SelectItem value="ceo">CEO / Owner</SelectItem>
                           <SelectItem value="sales_manager">Sales Manager</SelectItem>
+                          <SelectItem value="sales_agent">Sales Agent</SelectItem>
                           <SelectItem value="agronomist">Agronomist</SelectItem>
                           <SelectItem value="sales_rep">Sales Representative</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
