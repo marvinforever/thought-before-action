@@ -400,6 +400,42 @@ ${crmCustomers.map(c => {
       }).join('\n\n---\n\n')}`;
     }
 
+    // Fetch PIPELINE DEALS for context - this is critical for deal detection
+    let pipelineContext = '';
+    if (effectiveUserId) {
+      const { data: pipelineDeals } = await supabase
+        .from('sales_deals')
+        .select(`
+          id,
+          deal_name,
+          stage,
+          value,
+          notes,
+          sales_companies(name)
+        `)
+        .eq('profile_id', effectiveUserId)
+        .not('stage', 'in', '("won","lost")')
+        .order('updated_at', { ascending: false })
+        .limit(50);
+      
+      if (pipelineDeals && pipelineDeals.length > 0) {
+        pipelineContext = `\n\n=== YOUR CURRENT PIPELINE (${pipelineDeals.length} active deals) ===
+CHECK THIS LIST when the user mentions a deal or customer to see if it already exists!
+
+${pipelineDeals.map(d => {
+          const compName = (d.sales_companies as any)?.name || 'Unknown Company';
+          return `• **${d.deal_name}** (${compName}) - Stage: ${d.stage}, Value: $${d.value?.toLocaleString() || 'TBD'}`;
+        }).join('\n')}
+
+If a user mentions a deal/customer NOT in this list, CREATE IT with [DEAL_DETECTED].`;
+      } else {
+        pipelineContext = `\n\n=== YOUR CURRENT PIPELINE ===
+**No active deals in pipeline yet.**
+When the user mentions ANY opportunity, customer, or deal - CREATE IT using [DEAL_DETECTED] block.`;
+      }
+      console.log(`[pipeline-context] Found ${pipelineDeals?.length || 0} active deals for user`);
+    }
+
     // Fetch historical purchase data from customer_purchase_history
     let historicalSalesContext = '';
     if (effectiveCompanyId) {
@@ -1170,7 +1206,7 @@ ${knowledgeContext}${productKnowledge}`;
 === YOUR CONTEXT ===
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}${uploadedDocumentsContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${pipelineContext}${uploadedDocumentsContext}
 
 CONVERSATION SO FAR (includes your previous recommendation):
 ${conversationHistory}
@@ -1185,7 +1221,7 @@ Answer their question directly without regenerating the full pre-call plan.`;
 === YOUR CONTEXT ===
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}${uploadedDocumentsContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${pipelineContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -1248,7 +1284,7 @@ This pairs well with [complementary product] because..."
 
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${productKnowledge}${crmCustomerContext}${uploadedDocumentsContext}
+${productKnowledge}${crmCustomerContext}${pipelineContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -1331,7 +1367,7 @@ SPECIAL COMMANDS:
 - If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
 
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}${uploadedDocumentsContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${pipelineContext}${historicalSalesContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -1419,7 +1455,7 @@ WHEN THEY NEED HELP WITH A CUSTOMER:
 
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}${learnedPatternsContext}${uploadedDocumentsContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${pipelineContext}${historicalSalesContext}${learnedPatternsContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
