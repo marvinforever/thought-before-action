@@ -251,6 +251,9 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
           message: text,
           conversationHistory,
           userContext, // Pass the rich user context
+          // IMPORTANT: This chat is a conversational coach experience.
+          // REC mode is optimized for direct data lookups and may not reliably emit deal-tracking blocks.
+          chatMode: "coach",
         },
       });
 
