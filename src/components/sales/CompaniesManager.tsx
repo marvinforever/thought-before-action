@@ -27,9 +27,10 @@ import { AddDealDialog } from "./AddDealDialog";
 
 interface CompaniesManagerProps {
   userId: string;
+  enableFieldMaps?: boolean;
 }
 
-export const CompaniesManager = ({ userId }: CompaniesManagerProps) => {
+export const CompaniesManager = ({ userId, enableFieldMaps = false }: CompaniesManagerProps) => {
   const { toast } = useToast();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -309,6 +310,7 @@ export const CompaniesManager = ({ userId }: CompaniesManagerProps) => {
         onOpenChange={(open) => !open && setSelectedCompany(null)}
         customerId={selectedCompany?.id || null}
         companyId={undefined}
+        enableFieldMaps={enableFieldMaps}
       />
 
       {/* Add Deal Dialog */}

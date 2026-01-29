@@ -32,6 +32,7 @@ interface PipelineViewProps {
   stages: { key: string; label: string; color: string }[];
   companyId?: string | null;
   onDealsChange?: () => void;
+  enableFieldMaps?: boolean;
 }
 
 interface TargetCategories {
@@ -54,7 +55,7 @@ interface Deal {
   sales_companies?: { name: string } | null;
 }
 
-export const PipelineView = ({ userId, stages, companyId, onDealsChange }: PipelineViewProps) => {
+export const PipelineView = ({ userId, stages, companyId, onDealsChange, enableFieldMaps = false }: PipelineViewProps) => {
   const { toast } = useToast();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -347,6 +348,7 @@ export const PipelineView = ({ userId, stages, companyId, onDealsChange }: Pipel
         onOpenChange={setShowCustomerDetail}
         customerId={selectedCustomerId}
         companyId={companyId || undefined}
+        enableFieldMaps={enableFieldMaps}
       />
 
       {/* Delete Confirmation Dialog */}

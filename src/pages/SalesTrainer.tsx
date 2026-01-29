@@ -65,6 +65,7 @@ const SalesTrainer = () => {
   const [showCallPlanTracker, setShowCallPlanTracker] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
+  const [enableFieldMaps, setEnableFieldMaps] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = localStorage.getItem('salesTrainerChatMode');
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
@@ -99,6 +100,36 @@ const SalesTrainer = () => {
 
   useEffect(() => {
     fetchCustomers();
+  }, [effectiveCompanyId]);
+
+  // Fetch company settings (including field maps gating)
+  const fetchCompanySettings = async (companyId: string) => {
+    try {
+      const { data } = await supabase
+        .from("companies")
+        .select("settings")
+        .eq("id", companyId)
+        .single();
+      
+      if (data?.settings && typeof data.settings === 'object') {
+        const settings = data.settings as Record<string, boolean>;
+        setEnableFieldMaps(settings.enable_field_maps === true);
+      } else {
+        setEnableFieldMaps(false);
+      }
+    } catch (error) {
+      console.error("Error fetching company settings:", error);
+      setEnableFieldMaps(false);
+    }
+  };
+
+  // Fetch settings when effective company changes
+  useEffect(() => {
+    if (effectiveCompanyId) {
+      fetchCompanySettings(effectiveCompanyId);
+    } else {
+      setEnableFieldMaps(false);
+    }
   }, [effectiveCompanyId]);
 
   useEffect(() => {
@@ -249,8 +280,24 @@ const SalesTrainer = () => {
         setCompanies(companiesData || []);
       }
       
+      // Auto-default to user's own company for context persistence (especially for Momentum)
+      // This ensures chat history loads correctly between sessions
+      if (profileData?.company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name')
+          .eq('id', profileData.company_id)
+          .single();
+        
+        // Set default context to user's own company
+        setViewAsCompanyId(profileData.company_id);
+        setViewAsCompanyName(companyData?.name || 'Your Company');
+        
+        // Load conversation with correct company context
+        await loadConversation(session.user.id, profileData.company_id);
+      }
+      
       await fetchDeals(session.user.id);
-      await loadConversation(session.user.id, profileData?.company_id);
       await fetchUserContext(session.user.id);
       setLoading(false);
     };
@@ -511,6 +558,7 @@ const SalesTrainer = () => {
         viewAsUserId={viewAsUserId}
         viewAsUserName={viewAsUserName}
         chatMode={chatMode}
+        enableFieldMaps={enableFieldMaps}
         onViewAsChange={handleViewAsChange}
         onViewAsUserChange={handleViewAsUserChange}
         onChatModeChange={handleChatModeChange}
