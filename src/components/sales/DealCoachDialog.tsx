@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FormattedMessage } from "@/components/ui/formatted-message";
-import { Send, Loader2, Building2, DollarSign, Target, Calendar } from "lucide-react";
+import { Send, Loader2, Building2, DollarSign, Target, Calendar, History, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { PurchaseHistoryCard } from "./PurchaseHistoryCard";
@@ -21,11 +21,19 @@ interface DealCoachDialogProps {
   deal: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  userId?: string;
 }
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  id?: string;
+}
+
+interface RelevantContext {
+  content: string;
+  created_at: string;
+  role: string;
 }
 
 const stageLabels: Record<string, string> = {
@@ -64,26 +72,102 @@ const stagePrompts: Record<string, string[]> = {
   ],
 };
 
-export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogProps) => {
+export const DealCoachDialog = ({ deal, open, onOpenChange, userId }: DealCoachDialogProps) => {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [relevantContext, setRelevantContext] = useState<RelevantContext[]>([]);
+  const [showContext, setShowContext] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      setMessages([]);
-      // Auto-generate initial analysis
-      generateInitialAnalysis();
+    if (open && deal?.id) {
+      hasLoadedRef.current = false;
+      loadExistingMessages();
+      loadRelevantContext();
     }
   }, [open, deal?.id]);
 
-  const generateInitialAnalysis = async () => {
+  // Load persisted coaching messages for this deal
+  const loadExistingMessages = async () => {
+    if (!deal?.id || hasLoadedRef.current) return;
+    
+    hasLoadedRef.current = true;
     setLoading(true);
+    
     try {
+      const { data, error } = await supabase
+        .from("deal_coaching_messages")
+        .select("id, role, content, created_at")
+        .eq("deal_id", deal.id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setMessages(data.map(m => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })));
+      } else {
+        // No existing messages, generate initial analysis
+        await generateInitialAnalysis();
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+      await generateInitialAnalysis();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load relevant context from main conversation about this customer/deal
+  const loadRelevantContext = async () => {
+    if (!deal?.sales_companies?.name && !deal?.deal_name) return;
+    
+    const customerName = deal?.sales_companies?.name || deal?.deal_name;
+    
+    try {
+      // Search conversation_messages for mentions of this customer
+      const { data, error } = await supabase
+        .from("conversation_messages")
+        .select("content, created_at, role")
+        .or(`content.ilike.%${customerName}%`)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (!error && data && data.length > 0) {
+        setRelevantContext(data);
+      }
+    } catch (error) {
+      console.error("Error loading context:", error);
+    }
+  };
+
+  // Save a message to the database
+  const saveMessage = async (role: "user" | "assistant", content: string) => {
+    if (!deal?.id || !userId) return;
+    
+    try {
+      await supabase.from("deal_coaching_messages").insert({
+        deal_id: deal.id,
+        profile_id: userId,
+        role,
+        content,
+      });
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
+  };
+
+  const generateInitialAnalysis = async () => {
+    try {
+      // Build context string from relevant main chat history
+      const contextStr = relevantContext.length > 0
+        ? `\n\nRelevant context from previous conversations:\n${relevantContext.map(c => `${c.role}: ${c.content}`).join("\n")}`
+        : "";
+
       const response = await supabase.functions.invoke("sales-coach", {
         body: {
-          message: `Analyze this deal and give me 3-4 specific, actionable recommendations for moving it forward. Consider the current stage (${stageLabels[deal.stage]}) and any notes provided.`,
+          message: `Analyze this deal and give me 3-4 specific, actionable recommendations for moving it forward. Consider the current stage (${stageLabels[deal.stage]}) and any notes provided.${contextStr}`,
           deal,
         },
       });
@@ -92,6 +176,9 @@ export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogPro
 
       const assistantMessage = response.data?.message || "Let me analyze this deal for you...";
       setMessages([{ role: "assistant", content: assistantMessage }]);
+      
+      // Persist the initial analysis
+      await saveMessage("assistant", assistantMessage);
     } catch (error) {
       console.error("Initial analysis error:", error);
       toast({ 
@@ -99,9 +186,9 @@ export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogPro
         description: "Couldn't connect to the sales coach. Please try again.",
         variant: "destructive" 
       });
-      setMessages([{ role: "assistant", content: "I'm ready to help you with this deal. What would you like to know?" }]);
-    } finally {
-      setLoading(false);
+      const fallbackMsg = "I'm ready to help you with this deal. What would you like to know?";
+      setMessages([{ role: "assistant", content: fallbackMsg }]);
+      await saveMessage("assistant", fallbackMsg);
     }
   };
 
@@ -113,12 +200,20 @@ export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogPro
     setMessages(prev => [...prev, { role: "user", content: text }]);
     setLoading(true);
 
+    // Persist user message
+    await saveMessage("user", text);
+
     try {
       const conversationHistory = messages.map(m => `${m.role}: ${m.content}`).join("\n\n");
+      
+      // Include relevant context from main chat
+      const contextStr = relevantContext.length > 0
+        ? `\n\nRelevant context from previous conversations about this customer:\n${relevantContext.slice(0, 5).map(c => `${c.role}: ${c.content}`).join("\n")}`
+        : "";
 
       const response = await supabase.functions.invoke("sales-coach", {
         body: {
-          message: text,
+          message: text + contextStr,
           deal,
           conversationHistory,
         },
@@ -128,6 +223,9 @@ export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogPro
 
       const assistantMessage = response.data?.message || "I'm having trouble responding. Please try again.";
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage }]);
+      
+      // Persist assistant response
+      await saveMessage("assistant", assistantMessage);
     } catch (error) {
       console.error("Chat error:", error);
       toast({ title: "Error getting response", variant: "destructive" });
@@ -179,6 +277,39 @@ export const DealCoachDialog = ({ deal, open, onOpenChange }: DealCoachDialogPro
             )}
           </div>
         </Card>
+
+        {/* Relevant Context from Main Chat */}
+        {relevantContext.length > 0 && (
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs flex items-center gap-1 text-muted-foreground"
+              onClick={() => setShowContext(!showContext)}
+            >
+              <History className="h-3 w-3" />
+              {showContext ? "Hide" : "Show"} {relevantContext.length} related conversations
+            </Button>
+            {showContext && (
+              <Card className="p-3 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200/50">
+                <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />
+                  Previous mentions of {deal?.sales_companies?.name || deal?.deal_name}:
+                </p>
+                <ScrollArea className="max-h-32">
+                  <div className="space-y-2">
+                    {relevantContext.slice(0, 5).map((ctx, idx) => (
+                      <div key={idx} className="text-xs text-muted-foreground">
+                        <span className="font-medium">{ctx.role === 'user' ? 'You' : 'Jericho'}:</span>{' '}
+                        {ctx.content.length > 150 ? ctx.content.slice(0, 150) + '...' : ctx.content}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </Card>
+            )}
+          </div>
+        )}
 
         {/* Purchase History */}
         {deal?.sales_companies?.name && (

@@ -611,6 +611,7 @@ const SalesTrainer = () => {
           deal={selectedDeal}
           open={!!selectedDeal}
           onOpenChange={(open) => !open && setSelectedDeal(null)}
+          userId={effectiveUserId}
         />
       )}
 
