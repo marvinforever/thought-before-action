@@ -12,6 +12,7 @@ import { DealCoachDialog } from "@/components/sales/DealCoachDialog";
 import { PrepDocumentGenerator } from "@/components/sales/PrepDocumentGenerator";
 import { SalesProposalWizard } from "@/components/sales/SalesProposalWizard";
 import { FourCallPlanTracker } from "@/components/sales/FourCallPlanTracker";
+import { DocumentUploadDialog } from "@/components/sales/DocumentUploadDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -62,6 +63,8 @@ const SalesTrainer = () => {
   const [showPrepGenerator, setShowPrepGenerator] = useState(false);
   const [showProposalWizard, setShowProposalWizard] = useState(false);
   const [showCallPlanTracker, setShowCallPlanTracker] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = localStorage.getItem('salesTrainerChatMode');
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
@@ -75,6 +78,28 @@ const SalesTrainer = () => {
     : (viewAsCompanyId || profile?.company_id || null);
   const effectiveHasMethodologyAccess =
     effectiveCompanyId === STATELINE_COMPANY_ID || effectiveCompanyId === MOMENTUM_COMPANY_ID;
+  const effectiveUserId = viewAsUserId || user?.id || null;
+
+  // Fetch customers for the upload dialog
+  const fetchCustomers = async () => {
+    if (!effectiveCompanyId) return;
+    try {
+      const { data } = await (supabase as any)
+        .from("sales_companies")
+        .select("id, name")
+        .eq("company_id", effectiveCompanyId)
+        .order("name");
+      if (data) {
+        setCustomers(data.map((c: any) => ({ id: c.id as string, name: c.name as string })));
+      }
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [effectiveCompanyId]);
 
   useEffect(() => {
     // Keep existing state in sync for any other callers.
@@ -506,6 +531,7 @@ const SalesTrainer = () => {
           profile={profile}
           companyId={effectiveCompanyId || ""}
           userId={user?.id || ""}
+          onUploadDocument={() => setShowUploadDialog(true)}
           onInputChange={setInput}
           onSendMessage={sendMessage}
           onStartCoaching={startCoaching}
@@ -559,6 +585,17 @@ const SalesTrainer = () => {
         companyId={viewAsCompanyId || profile?.company_id || ""}
         userId={viewAsUserId || user?.id || ""}
         userName={viewAsUserName || profile?.full_name}
+      />
+
+      <DocumentUploadDialog
+        open={showUploadDialog}
+        onOpenChange={setShowUploadDialog}
+        userId={effectiveUserId || ""}
+        companyId={effectiveCompanyId || ""}
+        customers={customers}
+        onUploadComplete={() => {
+          if (effectiveUserId) fetchUserContext(effectiveUserId);
+        }}
       />
     </div>
   );

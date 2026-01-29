@@ -15,6 +15,7 @@ import {
   FileText,
   LayoutGrid,
   ClipboardList,
+  Paperclip,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -35,6 +36,7 @@ interface SalesChatInterfaceProps {
   profile: any;
   companyId: string;
   userId: string;
+  onUploadDocument: () => void;
   onInputChange: (value: string) => void;
   onSendMessage: (message?: string) => void;
   onStartCoaching: () => void;
@@ -54,6 +56,7 @@ export function SalesChatInterface({
   profile,
   companyId,
   userId,
+  onUploadDocument,
   onInputChange,
   onSendMessage,
   onStartCoaching,
@@ -330,6 +333,17 @@ export function SalesChatInterface({
       {/* Input */}
       <div className="pt-4 border-t bg-background/80 backdrop-blur-sm -mx-4 px-4 pb-2 space-y-2">
         <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onUploadDocument}
+            disabled={chatLoading}
+            className="self-end shrink-0"
+            title="Upload document"
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
           <Textarea
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
