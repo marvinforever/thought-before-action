@@ -1,261 +1,311 @@
 
 
-# 🤖 JARVIS: The Complete AI Executive Assistant
+# Enhanced 4-Call Plan Email Reminder System
 
 ## Overview
 
-You're asking: **"Can we actually build this? Including Alexa-style voice commands?"**
-
-**The answer is HELL YES.** And here's the exciting part - you already have **75% of the infrastructure built**:
+Building on the original plan, this enhanced version pulls **all available customer intelligence** into each coaching email, making Jericho a true sales guru with real-time context.
 
 ---
 
-## What You Already Have (Existing Foundation)
+## Complete Data Sources for Each Email
 
-| Capability | Status | Details |
-|------------|--------|---------|
-| **Voice Agent (OpenAI Realtime)** | ✅ Built | Full WebRTC voice chat with tool execution |
-| **Voice Agent (ElevenLabs)** | ✅ Built | Alternative voice engine with custom voices |
-| **Tool Execution Framework** | ✅ Built | 15+ tools: add goals, habits, deals, tasks, recognition |
-| **Coaching Memory** | ✅ Built | `coaching_insights` persists what Jericho learns about users |
-| **Integration Schema** | ✅ Built | `user_integrations` table ready for OAuth tokens |
-| **Settings UI** | ✅ Built | Integration management in Settings page |
-| **Sales Coach** | ✅ Built | Full sales coaching with product recommendations |
-| **Text Chat** | ✅ Built | `JerichoChat` component with context awareness |
+The reminder system will aggregate data from **7 different tables** to build the most informed coaching possible:
 
----
-
-## The "Alexa-Style" Wake Word Question
-
-**Can we do always-listening with a wake word like "Hey Jericho"?**
-
-### YES, with **Picovoice Porcupine** - here's how:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                     WAKE WORD FLOW                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   Browser Audio Stream                                      │
-│          │                                                  │
-│          ▼                                                  │
-│   ┌─────────────────┐                                      │
-│   │ Picovoice       │  Runs locally in browser             │
-│   │ Porcupine SDK   │  No audio sent to server             │
-│   │ (WASM + Worker) │  Custom wake word: "Hey Jericho"     │
-│   └────────┬────────┘                                      │
-│            │                                                │
-│            ▼ Wake word detected                            │
-│   ┌─────────────────┐                                      │
-│   │ OpenAI Realtime │  WebRTC connection opens             │
-│   │ Voice Agent     │  Full conversation begins            │
-│   └─────────────────┘                                      │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Requirements:**
-- Picovoice API key (free tier: 3 monthly devices)
-- Custom wake word trained on "Hey Jericho" (takes 2-3 days for training)
-- OR use built-in keywords like "Hey Google" / "Alexa" / "Computer" as placeholder
+| Data Source | Table | What It Provides |
+|-------------|-------|------------------|
+| **Purchase History** | `customer_purchase_history` | 2025 revenue, products, quantities, bonus categories |
+| **4-Call Tracker** | `call_plan_tracking` | Prior call notes (1-3), precall_plan, acreage, crops, dates |
+| **CRM Company** | `sales_companies` | grower_history, operation_details, customer_since, notes |
+| **Pipeline Deals** | `sales_deals` | Active deals, stage, value, expected close, notes |
+| **Sales Activities** | `sales_activities` | Recent calls/emails, outcomes, activity notes |
+| **Customer Documents** | `customer_documents` | Uploaded docs, summaries, extracted insights |
+| **Sales Contacts** | `sales_contacts` | Contact names, decision makers, contact-level notes |
 
 ---
 
-## Complete Jarvis Feature Roadmap
-
-### Phase 1: Ambient Voice Mode (2-3 days)
-What we build:
-- "Always Listening" toggle in Settings
-- Picovoice wake word detection ("Hey Jericho" or "Computer")
-- Auto-connect to OpenAI Realtime when triggered
-- Visual indicator showing listening state
-- Keyboard shortcut alternative (Cmd+J)
-
-### Phase 2: Morning Command Briefing (1-2 days)
-What we build:
-- Audio summary generated on demand: "Jericho, what's my day look like?"
-- Pulls from: calendar (when integrated), pipeline, goals, habits
-- Executive snapshot: "You have 4 meetings, 3 deals need follow-up, and you're on a 12-day habit streak"
-
-### Phase 3: Integration Layer (3-5 days per integration)
-**Google Workspace:**
-- OAuth flow to connect Calendar + Gmail
-- Sync upcoming meetings to `work_calendar_events`
-- Parse email threads for relationship context
-- Meeting prep: "What do I need to know about my 2pm?"
-
-**Microsoft 365:**
-- Same as above for Outlook users
-
-**Slack:**
-- Channel awareness and DM context
-- "Summarize what I missed in #sales"
-
-**CRM (Salesforce/HubSpot):**
-- Pipeline sync to existing sales infrastructure
-- Customer history context
-
-### Phase 4: Relationship Intelligence (2-3 days)
-What we build:
-- `user_contacts` table tracking touchpoints
-- Relationship health scoring
-- Proactive alerts: "You haven't talked to your top 5 customers in 23 days"
-- Meeting prep with interaction history
-
-### Phase 5: Pattern Detection (2-3 days)
-What we build:
-- `detected_patterns` table for recurring behaviors
-- Positive patterns: "You close 40% more deals after sending a recap email"
-- Gap detection: "You haven't followed up with leads older than 7 days"
-- Weekly pattern report
-
-### Phase 6: Agent Factory - Autonomous Workflows (3-5 days)
-What we build:
-- `user_agents` table for user-approved automations
-- Agent types:
-  - **Meeting Recap Agent**: Auto-drafts summaries after calendar events
-  - **Follow-up Agent**: Detects missed follow-ups and drafts responses
-  - **1:1 Prep Agent**: Generates coaching notes before manager meetings
-  - **Deal Alert Agent**: Notifies on stalled pipeline movement
-- User control panel to enable/disable agents
-
----
-
-## Technical Architecture
+## Data Aggregation Flow
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        USER DEVICE                                  │
+│              CUSTOMER INTELLIGENCE AGGREGATION                      │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│   ┌──────────────────┐    ┌──────────────────┐                     │
-│   │ Wake Word Engine │    │  Voice UI        │                     │
-│   │ (Porcupine WASM) │───▶│  Component       │                     │
-│   └──────────────────┘    └────────┬─────────┘                     │
-│                                    │                                │
-│   ┌──────────────────┐             │                                │
-│   │ Keyboard Shortcut│─────────────┤                                │
-│   │ (Cmd+J fallback) │             │                                │
-│   └──────────────────┘             ▼                                │
-│                           ┌──────────────────┐                      │
-│                           │ OpenAI Realtime  │                      │
-│                           │ WebRTC Session   │                      │
-│                           └────────┬─────────┘                      │
-└────────────────────────────────────┼────────────────────────────────┘
-                                     │
-┌────────────────────────────────────┼────────────────────────────────┐
-│                          EDGE FUNCTIONS                             │
-├────────────────────────────────────┼────────────────────────────────┤
-│                                    ▼                                │
-│   ┌──────────────────┐    ┌──────────────────┐                     │
-│   │ openai-voice-    │    │ Tool Execution   │                     │
-│   │ agent            │───▶│ (goals, habits,  │                     │
-│   │ (context + tools)│    │  deals, tasks)   │                     │
-│   └──────────────────┘    └──────────────────┘                     │
+│   Input: customer_name from call_plan_tracking                      │
 │                                                                     │
-│   ┌──────────────────┐    ┌──────────────────┐                     │
-│   │ Integration      │    │ Agent Executor   │                     │
-│   │ Sync Functions   │    │ (autonomous      │                     │
-│   │ (calendar, email)│    │  workflows)      │                     │
-│   └──────────────────┘    └──────────────────┘                     │
-└─────────────────────────────────────────────────────────────────────┘
-                                     │
-┌────────────────────────────────────┼────────────────────────────────┐
-│                          DATABASE                                   │
-├────────────────────────────────────┼────────────────────────────────┤
-│                                    ▼                                │
-│   ┌──────────────────┐    ┌──────────────────┐                     │
-│   │ user_integrations│    │ coaching_insights│                     │
-│   │ (OAuth tokens)   │    │ (memory)         │                     │
-│   └──────────────────┘    └──────────────────┘                     │
+│   ┌────────────────────────────────────────────────────────────┐    │
+│   │  Step 1: Fuzzy Match to Find Customer Entities             │    │
+│   │                                                            │    │
+│   │  call_plan_tracking.customer_name                          │    │
+│   │       ↓ fuzzy match (ILIKE)                                │    │
+│   │  sales_companies.name → get company_id                     │    │
+│   │  customer_purchase_history.customer_name                   │    │
+│   └────────────────────────────────────────────────────────────┘    │
+│                         │                                           │
+│                         ▼                                           │
+│   ┌────────────────────────────────────────────────────────────┐    │
+│   │  Step 2: Gather All Related Data                           │    │
+│   │                                                            │    │
+│   │  ├── sales_companies (grower_history, operation_details)   │    │
+│   │  ├── sales_deals (active deals for this customer)          │    │
+│   │  ├── sales_activities (recent touchpoints)                 │    │
+│   │  ├── sales_contacts (contacts & notes)                     │    │
+│   │  ├── customer_documents (docs & summaries)                 │    │
+│   │  └── customer_purchase_history (2025 + prior years)        │    │
+│   └────────────────────────────────────────────────────────────┘    │
+│                         │                                           │
+│                         ▼                                           │
+│   ┌────────────────────────────────────────────────────────────┐    │
+│   │  Step 3: Compile Context for AI                            │    │
+│   │                                                            │    │
+│   │  - Aggregate into structured JSON                          │    │
+│   │  - Include all prior call notes from tracker               │    │
+│   │  - Recent activity timeline (last 30 days)                 │    │
+│   │  - Product purchase patterns (YoY comparison)              │    │
+│   │  - Open deal status and pipeline position                  │    │
+│   └────────────────────────────────────────────────────────────┘    │
+│                         │                                           │
+│                         ▼                                           │
+│   ┌────────────────────────────────────────────────────────────┐    │
+│   │  Step 4: Generate Stage-Specific Coaching                  │    │
+│   │                                                            │    │
+│   │  AI receives complete customer context + call stage        │    │
+│   │  Outputs personalized coaching email                       │    │
+│   └────────────────────────────────────────────────────────────┘    │
 │                                                                     │
-│   ┌──────────────────┐    ┌──────────────────┐                     │
-│   │ user_contacts    │    │ detected_patterns│                     │
-│   │ (relationships)  │    │ (behavior intel) │                     │
-│   └──────────────────┘    └──────────────────┘                     │
-│                                                                     │
-│   ┌──────────────────┐    ┌──────────────────┐                     │
-│   │ work_calendar_   │    │ user_agents      │                     │
-│   │ events           │    │ (automations)    │                     │
-│   └──────────────────┘    └──────────────────┘                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Voice Commands Jericho Would Handle
+## Enhanced Email Content
 
-**Immediate (what's built now):**
-- "Add a goal to close the Johnson deal by Friday"
-- "Mark my prospecting habit as done"
-- "Give recognition to Sarah for her help on the proposal"
-- "Add a task to review the contract tomorrow"
-- "Update the Thompson deal to proposal stage"
+Each email will now include contextual sections based on available data:
 
-**With Integrations:**
-- "What's on my calendar today?"
-- "Prep me for my 2pm with Acme Corp"
-- "Summarize emails from my top 5 customers"
-- "Who haven't I talked to in 2 weeks?"
-- "Schedule a follow-up with John for next Tuesday"
-- "What did I miss in Slack this morning?"
+```text
+Subject: [7-Day Reminder] Pre-Plant Check-in with JOHNSON FARMS - Feb 15
 
-**Executive Intelligence:**
-- "How's my pipeline looking this quarter?"
-- "Which deals are at risk of stalling?"
-- "What patterns do you see in my closed deals?"
-- "Run my morning briefing"
-- "What should I focus on today?"
+Hey Mike,
+
+Your PRE-PLANT CHECK-IN with JOHNSON FARMS is coming up on Saturday, February 15th.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 CUSTOMER SNAPSHOT
+• 2025 Revenue: $47,250 (up 12% from 2024)
+• Operation: 1,200 acres - Corn/Soybean rotation
+• Customer Since: 2019
+• Key Quote: "We're always looking to increase yields on the back 40"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 FROM YOUR PREPAY REVIEW (Call 1 - Jan 8)
+You noted: "They're interested in trying the new fungicide this season.
+Wife mentioned drainage issues in the north field."
+
+Your precall plan mentioned pushing the premium seed treatment.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📞 RECENT ACTIVITY
+• Jan 22: Email sent about prepay deadline extension
+• Jan 15: Phone call - discussed fertilizer timing
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📦 PRODUCTS TO DISCUSS
+Based on their 2024 purchases and what they DIDN'T buy:
+• ✅ They bought: Liberty herbicide (12 gal) - confirm same volume
+• ⚠️ Opportunity: No fungicide last year - they mentioned interest!
+• ⚠️ Opportunity: Seed treatment upgrade - 40% of similar ops use this
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 COACHING FOR PRE-PLANT CHECK-IN
+
+1. **Confirm timing**: When are they planning to start planting? Weather looks...
+2. **Follow up on fungicide interest**: "Last time you mentioned wanting to try..."
+3. **Address the drainage concern**: Their wife mentioned north field issues...
+4. **Application planning**: Do they need custom application scheduling?
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💬 QUESTIONS TO ASK
+• "How did the seed treatment perform last season?"
+• "Any changes to your planting plan with the wet forecast?"
+• "Did you end up addressing that drainage in the north field?"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You've got this. Go make an impact! 🌾
+
+— Jericho
+```
 
 ---
 
-## What We Need to Add
+## "Recently Updated" Logic
 
-### New Secrets Required
-| Secret | Purpose | Required For |
-|--------|---------|--------------|
-| `PICOVOICE_ACCESS_KEY` | Wake word detection | Ambient voice mode |
-| Google OAuth credentials | Calendar/Gmail | Google integration |
-| Microsoft OAuth credentials | Outlook/365 | Microsoft integration |
+The system will flag **recently changed data** so the rep knows what's new:
 
-### New Tables Required
-- `user_contacts` - Relationship graph
-- `detected_patterns` - Behavioral insights
-- `user_agents` - Autonomous workflows
-- `work_calendar_events` - Synced calendar
-- `work_email_threads` - Email context
-
-### New Components
-- `AmbientVoiceListener` - Always-on wake word detection
-- `VoiceCommandBar` - Visual feedback for voice state
-- `ExecutiveDashboard` - Command center view
-- `AgentManager` - Configure autonomous agents
+| Data Type | "Recent" Definition | Flag Text |
+|-----------|---------------------|-----------|
+| Call Notes | Updated in last 7 days | "📝 Updated [X days ago]" |
+| CRM Notes | Updated in last 14 days | "🆕 New note added" |
+| Activities | Created in last 7 days | Full activity included |
+| Documents | Uploaded in last 30 days | "📄 New document: [title]" |
+| Deals | Stage changed in 7 days | "📊 Deal moved to [stage]" |
 
 ---
 
-## Implementation Priority (What to Build First)
+## Implementation Steps
 
-**Recommended order based on impact:**
+### Step 1: Database Migration
 
-1. **Ambient Wake Word Mode** - The "wow factor" that makes it feel like Jarvis
-2. **Morning Briefing Command** - Immediate executive value
-3. **Google Calendar Integration** - Most requested integration
-4. **Relationship Intelligence** - Unique differentiator
-5. **Agent Factory** - Autonomous value-add
+Create `call_plan_reminders` table:
+
+```sql
+CREATE TABLE public.call_plan_reminders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  call_plan_tracking_id UUID REFERENCES call_plan_tracking(id) ON DELETE CASCADE NOT NULL,
+  call_number INTEGER NOT NULL CHECK (call_number BETWEEN 1 AND 4),
+  reminder_type TEXT NOT NULL CHECK (reminder_type IN ('7_day', '1_day')),
+  customer_name TEXT NOT NULL,
+  meeting_date DATE NOT NULL,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  subject TEXT,
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  
+  -- Prevent duplicate reminders
+  UNIQUE(call_plan_tracking_id, call_number, reminder_type)
+);
+
+-- RLS: users see only their own reminders
+ALTER TABLE public.call_plan_reminders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own reminders"
+ON public.call_plan_reminders
+FOR SELECT USING (profile_id = auth.uid());
+```
+
+### Step 2: Edge Function - `send-call-plan-reminder`
+
+This function does the heavy lifting:
+
+1. **Input**: `profile_id`, `call_tracking_id`, `call_number`, `reminder_type`
+
+2. **Customer Matching**:
+   - Query `sales_companies` with fuzzy match on customer_name
+   - Query `customer_purchase_history` for 2024 + 2025 data
+
+3. **Data Aggregation**:
+   - Fetch `call_plan_tracking` record (all notes, dates, precall_plan)
+   - Fetch matched `sales_companies` (grower_history, operation_details, notes)
+   - Fetch `sales_deals` WHERE name ILIKE customer_name
+   - Fetch `sales_activities` from those deals (last 30 days)
+   - Fetch `sales_contacts` linked to matched company
+   - Fetch `customer_documents` (recent uploads, summaries)
+
+4. **AI Generation**:
+   - Call Lovable AI with stage-specific system prompt
+   - Include complete customer context JSON
+   - Generate HTML email with coaching
+
+5. **Send & Log**:
+   - Send via Resend
+   - Insert into `call_plan_reminders` to prevent duplicates
+
+### Step 3: Edge Function - `process-call-plan-reminders`
+
+Daily cron job (7 AM CST):
+
+1. Query `call_plan_tracking` for:
+   - `call_X_date = CURRENT_DATE + 7` (7-day reminder)
+   - `call_X_date = CURRENT_DATE + 1` (1-day reminder)
+   - `call_X_completed = false`
+   - Profile belongs to Stateline Cooperative
+
+2. For each match:
+   - Check `call_plan_reminders` for existing record
+   - Skip if already sent
+   - Invoke `send-call-plan-reminder`
+
+3. Error handling with retries and logging
+
+### Step 4: Cron Job Setup
+
+```sql
+SELECT cron.schedule(
+  'call-plan-reminders-daily',
+  '0 13 * * *',  -- 7 AM CST = 13:00 UTC
+  $$
+  SELECT net.http_post(
+    url := 'https://aiihzjkspwsriktvrdle.supabase.co/functions/v1/process-call-plan-reminders',
+    headers := '{"Authorization": "Bearer SERVICE_ROLE_KEY"}'::jsonb
+  )
+  $$
+);
+```
+
+---
+
+## Technical Details
+
+### Customer Matching Strategy
+
+Since `call_plan_tracking.customer_name` may not directly link to `sales_companies.id`, we use fuzzy matching:
+
+```typescript
+// Normalize names for matching
+const normalizedName = customerName.toUpperCase().replace(/[,\s]+/g, ' ').trim();
+
+// Try exact match first
+const { data: exactMatch } = await supabase
+  .from('sales_companies')
+  .select('*')
+  .eq('profile_id', profileId)
+  .ilike('name', customerName)
+  .single();
+
+// Fallback to fuzzy match
+if (!exactMatch) {
+  const { data: fuzzyMatches } = await supabase
+    .from('sales_companies')
+    .select('*')
+    .eq('profile_id', profileId)
+    .or(`name.ilike.%${normalizedName.split(' ')[0]}%`);
+}
+```
+
+### Stage-Specific AI Prompts
+
+| Call | System Prompt Focus |
+|------|---------------------|
+| **1 - Prepay Review** | Pre-season planning, prepay programs, review last year, new opportunities |
+| **2 - Pre-Plant** | Timing decisions, final inputs, weather considerations, application scheduling |
+| **3 - Season Review** | Crop health check, in-season products, problem solving, yield outlook |
+| **4 - Strategic Recs** | Post-harvest recap, next year planning, loyalty programs, relationship building |
+
+### Security
+
+- RLS on `call_plan_reminders` restricts to own records
+- Edge function uses service role for cross-table queries
+- Stateline-only filter: `company_id = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd'`
 
 ---
 
 ## Summary
 
-**Can we build this?** Absolutely. You have the core infrastructure. The voice agent exists, the tool framework exists, the coaching memory exists.
+This system transforms Jericho from a reminder tool into a **true sales intelligence assistant** that:
 
-**What's new:**
-- Wake word detection via Picovoice (npm package, runs in browser)
-- Integration OAuth flows (Google first, then Microsoft)
-- New database tables for relationship/pattern intelligence
-- Agent execution layer for autonomous workflows
+1. Knows when you have customer meetings scheduled
+2. Aggregates ALL available data about that customer
+3. Highlights recently updated information so you know what's new
+4. Provides stage-appropriate coaching based on real data
+5. Remembers your prior notes and plans from earlier calls
+6. Sends proactive 7-day and 1-day reminders
 
-**Timeline estimate:** Full Jarvis experience = 3-4 weeks of focused development
-
-Ready to start with Ambient Wake Word Mode?
+The result: Reps walk into every meeting with complete context and data-driven talking points.
 
