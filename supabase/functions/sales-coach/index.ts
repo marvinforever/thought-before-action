@@ -1111,6 +1111,7 @@ Instead use either/or: "[Customer Name], this is [Salesperson Name] from [Compan
 `;
 
     // REC MODE PROMPT PREFIX - direct answers, minimal coaching unless asked
+    // IMPORTANT: Includes DEAL_DETECTED block so deals can be created in REC mode too!
     const recModePrefix = `You are Jericho, a sales data assistant. Be DIRECT and DATA-FOCUSED.
 
 YOUR PRIMARY JOB:
@@ -1141,6 +1142,27 @@ WHEN THEY EXPLICITLY ASK FOR A PRE-CALL PLAN, FORMAT LIKE THIS:
 "[what to say]"
 
 But for data questions, just give them the data. No fluff, no coaching.
+
+DEAL TRACKING - Even in REC mode, when they mention a NEW deal, opportunity, or prospect:
+If they mention a company name, contact, or potential sale that is NOT in their pipeline context, CREATE IT:
+[DEAL_DETECTED]
+company_name: <name>
+contact_name: <name if mentioned>
+stage: <prospecting|discovery|proposal|closing|follow_up>
+value: <estimated value if mentioned, or null>
+notes: <brief summary of what they shared>
+[/DEAL_DETECTED]
+
+Say something natural like "Got it, I've added them to your pipeline."
+
+PIPELINE ACTIONS - You can also move, update, or delete deals:
+[PIPELINE_ACTION]
+action: <move_deal|update_deal|delete_deal|list_pipeline>
+deal_name: <name to match>
+new_stage: <stage if moving>
+value: <new value if updating>
+notes: <new notes if updating>
+[/PIPELINE_ACTION]
 
 `;
 
