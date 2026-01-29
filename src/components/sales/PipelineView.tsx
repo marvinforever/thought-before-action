@@ -31,6 +31,7 @@ interface PipelineViewProps {
   userId: string;
   stages: { key: string; label: string; color: string }[];
   companyId?: string | null;
+  onDealsChange?: () => void;
 }
 
 interface TargetCategories {
@@ -53,7 +54,7 @@ interface Deal {
   sales_companies?: { name: string } | null;
 }
 
-export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) => {
+export const PipelineView = ({ userId, stages, companyId, onDealsChange }: PipelineViewProps) => {
   const { toast } = useToast();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +103,7 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
     } else {
       toast({ title: "Deal moved" });
       fetchDeals();
+      onDealsChange?.();
     }
   };
 
@@ -116,6 +118,7 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
     } else {
       toast({ title: "Deal deleted" });
       fetchDeals();
+      onDealsChange?.();
     }
     setDealToDelete(null);
   };

@@ -338,10 +338,15 @@ export function SalesAgentHeader({
                   </TabsList>
                   <div className="flex-1 overflow-auto mt-4 pb-6">
                     <TabsContent value="pipeline" className="mt-0 h-full">
-                      <PipelineView userId={viewAsUserId || user?.id} stages={stages} companyId={viewAsCompanyId} />
+                      <PipelineView 
+                        userId={viewAsUserId || user?.id} 
+                        stages={stages} 
+                        companyId={viewAsCompanyId}
+                        onDealsChange={onDealsRefresh}
+                      />
                     </TabsContent>
                     <TabsContent value="deals" className="mt-0">
-                      <DealsTable userId={viewAsUserId || user?.id} />
+                      <DealsTable userId={viewAsUserId || user?.id} onDealsChange={onDealsRefresh} />
                     </TabsContent>
                     <TabsContent value="companies" className="mt-0">
                       <CompaniesManager userId={viewAsUserId || user?.id} />
@@ -413,7 +418,7 @@ export function SalesAgentHeader({
       <AddDealDialog 
         open={showAddDeal} 
         onOpenChange={setShowAddDeal}
-        userId={user?.id}
+        userId={viewAsUserId || user?.id}
         onSuccess={() => {
           setShowAddDeal(false);
           onDealsRefresh();
