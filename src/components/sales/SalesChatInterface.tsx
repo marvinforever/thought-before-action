@@ -335,14 +335,14 @@ export function SalesChatInterface({
         <div className="flex gap-2">
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={onUploadDocument}
             disabled={chatLoading}
-            className="self-end shrink-0"
+            className="self-end shrink-0 border-primary/30 hover:bg-primary/10"
             title="Upload document"
           >
-            <Paperclip className="h-4 w-4" />
+            <Paperclip className="h-5 w-5 text-primary" />
           </Button>
           <Textarea
             value={input}
