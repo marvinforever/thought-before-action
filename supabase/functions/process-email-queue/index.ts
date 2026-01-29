@@ -17,10 +17,9 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const utcNow = now.toISOString();
 
-    console.log(`Processing email queue at ${now.toISOString()}`);
+    console.log(`Processing email queue at ${utcNow}`);
 
     // Fetch all users with email preferences
     const { data: preferences, error: prefError } = await supabase
@@ -48,32 +47,49 @@ serve(async (req) => {
     const eligibleUsers: any[] = [];
 
     for (const pref of preferences) {
+      // Get current time in user's timezone (default to America/New_York if not set)
+      const userTimezone = pref.timezone || 'America/New_York';
+      const userLocalTime = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
+      const currentHourInUserTz = userLocalTime.getHours();
+      const currentDayInUserTz = userLocalTime.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        timeZone: userTimezone 
+      });
+      
       // Parse preferred time (format: HH:MM:SS)
       const [prefHour] = pref.preferred_time.split(':').map(Number);
       
+      console.log(`User ${pref.profile?.email}: timezone=${userTimezone}, localHour=${currentHourInUserTz}, prefHour=${prefHour}, frequency=${pref.frequency}`);
+      
       // Check if it's time to send based on frequency
       if (pref.frequency === 'daily') {
-        // For daily, check if current hour matches preferred hour
-        if (currentHour === prefHour) {
-          // Check if already sent today
+        // For daily, check if current hour in USER'S TIMEZONE matches preferred hour
+        if (currentHourInUserTz === prefHour) {
+          // Check if already sent today (using UTC for database comparison)
+          const todayStart = new Date(now);
+          todayStart.setUTCHours(0, 0, 0, 0);
+          
           const { data: todayEmails } = await supabase
             .from("email_deliveries")
             .select("id")
             .eq("profile_id", pref.profile_id)
-            .gte("sent_at", new Date(now.setHours(0, 0, 0, 0)).toISOString())
+            .gte("sent_at", todayStart.toISOString())
             .limit(1);
 
           if (!todayEmails || todayEmails.length === 0) {
+            console.log(`Eligible: ${pref.profile?.email} - matched daily at ${currentHourInUserTz}:00 ${userTimezone}`);
             eligibleUsers.push(pref.profile);
+          } else {
+            console.log(`Skipping ${pref.profile?.email} - already sent today`);
           }
         }
       } else if (pref.frequency === 'weekly') {
-        // For weekly, check if current day matches preferred day AND hour matches
-        if (currentDay.toLowerCase() === pref.preferred_day?.toLowerCase() && currentHour === prefHour) {
+        // For weekly, check if current day AND hour in USER'S TIMEZONE match preferences
+        if (currentDayInUserTz.toLowerCase() === pref.preferred_day?.toLowerCase() && currentHourInUserTz === prefHour) {
           // Check if already sent this week
           const weekStart = new Date(now);
           weekStart.setDate(now.getDate() - now.getDay());
-          weekStart.setHours(0, 0, 0, 0);
+          weekStart.setUTCHours(0, 0, 0, 0);
 
           const { data: weekEmails } = await supabase
             .from("email_deliveries")
@@ -83,7 +99,10 @@ serve(async (req) => {
             .limit(1);
 
           if (!weekEmails || weekEmails.length === 0) {
+            console.log(`Eligible: ${pref.profile?.email} - matched weekly on ${currentDayInUserTz} at ${currentHourInUserTz}:00 ${userTimezone}`);
             eligibleUsers.push(pref.profile);
+          } else {
+            console.log(`Skipping ${pref.profile?.email} - already sent this week`);
           }
         }
       }
