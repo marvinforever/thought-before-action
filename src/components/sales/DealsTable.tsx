@@ -26,6 +26,7 @@ import { DealCoachDialog } from "./DealCoachDialog";
 
 interface DealsTableProps {
   userId: string;
+  onDealsChange?: () => void;
 }
 
 const stageColors: Record<string, string> = {
@@ -44,7 +45,7 @@ const stageLabels: Record<string, string> = {
   follow_up: "Follow Up",
 };
 
-export const DealsTable = ({ userId }: DealsTableProps) => {
+export const DealsTable = ({ userId, onDealsChange }: DealsTableProps) => {
   const { toast } = useToast();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,7 @@ export const DealsTable = ({ userId }: DealsTableProps) => {
     } else {
       toast({ title: "Deal deleted" });
       fetchDeals();
+      onDealsChange?.();
     }
   };
 
@@ -229,6 +231,7 @@ export const DealsTable = ({ userId }: DealsTableProps) => {
           onSuccess={() => {
             setEditingDeal(null);
             fetchDeals();
+            onDealsChange?.();
           }}
         />
       )}

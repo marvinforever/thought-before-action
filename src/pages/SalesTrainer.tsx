@@ -364,8 +364,12 @@ const SalesTrainer = () => {
       
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId }]);
       
-      if ((response.data?.dealCreated || response.data?.pipelineActions?.length > 0) && user?.id) {
-        fetchDeals(user.id);
+      // Refresh deals for the effective user (impersonated or logged-in)
+      if ((response.data?.dealCreated || response.data?.pipelineActions?.length > 0)) {
+        const effectiveUserId = viewAsUserId || user?.id;
+        if (effectiveUserId) {
+          viewAsUserId ? fetchDealsForUser(effectiveUserId) : fetchDeals(effectiveUserId);
+        }
       }
     } catch (error) {
       console.error("Chat error:", error);
@@ -514,10 +518,14 @@ const SalesTrainer = () => {
       <AddDealDialog 
         open={showAddDeal} 
         onOpenChange={setShowAddDeal}
-        userId={user?.id}
+        userId={viewAsUserId || user?.id}
         onSuccess={() => {
           setShowAddDeal(false);
-          fetchDeals(user?.id);
+          // Refresh deals for the effective user
+          const effectiveUserId = viewAsUserId || user?.id;
+          if (effectiveUserId) {
+            viewAsUserId ? fetchDealsForUser(effectiveUserId) : fetchDeals(effectiveUserId);
+          }
           if (hasStarted) {
             sendMessage("I just added a new deal to my pipeline. What should I focus on first?");
           }
