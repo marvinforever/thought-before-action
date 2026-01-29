@@ -1805,6 +1805,88 @@ export type Database = {
           },
         ]
       }
+      customer_documents: {
+        Row: {
+          company_id: string
+          created_at: string
+          customer_id: string | null
+          document_type: string | null
+          extracted_text: string | null
+          extraction_error: string | null
+          extraction_status: string | null
+          file_name: string
+          file_size: number | null
+          file_type: string
+          id: string
+          storage_path: string
+          summary: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          customer_id?: string | null
+          document_type?: string | null
+          extracted_text?: string | null
+          extraction_error?: string | null
+          extraction_status?: string | null
+          file_name: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          storage_path: string
+          summary?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          customer_id?: string | null
+          document_type?: string | null
+          extracted_text?: string | null
+          extraction_error?: string | null
+          extraction_status?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          storage_path?: string
+          summary?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_documents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_insights: {
         Row: {
           company_id: string | null
