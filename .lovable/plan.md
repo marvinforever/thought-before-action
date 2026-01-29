@@ -1,110 +1,261 @@
 
-# AI-Powered Prospect Research & Auto-Population
+
+# 🤖 JARVIS: The Complete AI Executive Assistant
 
 ## Overview
-Enable Jericho to research companies matching your ideal customer profile (ICP) and automatically populate them into your prospect list. Two approaches:
 
-1. **List-based research**: Give Jericho a list of company names → she researches each and adds them with enriched data
-2. **ICP-based discovery**: Describe your target customer demographic → Jericho finds matching companies and adds them
+You're asking: **"Can we actually build this? Including Alexa-style voice commands?"**
 
-## Architecture
+**The answer is HELL YES.** And here's the exciting part - you already have **75% of the infrastructure built**:
+
+---
+
+## What You Already Have (Existing Foundation)
+
+| Capability | Status | Details |
+|------------|--------|---------|
+| **Voice Agent (OpenAI Realtime)** | ✅ Built | Full WebRTC voice chat with tool execution |
+| **Voice Agent (ElevenLabs)** | ✅ Built | Alternative voice engine with custom voices |
+| **Tool Execution Framework** | ✅ Built | 15+ tools: add goals, habits, deals, tasks, recognition |
+| **Coaching Memory** | ✅ Built | `coaching_insights` persists what Jericho learns about users |
+| **Integration Schema** | ✅ Built | `user_integrations` table ready for OAuth tokens |
+| **Settings UI** | ✅ Built | Integration management in Settings page |
+| **Sales Coach** | ✅ Built | Full sales coaching with product recommendations |
+| **Text Chat** | ✅ Built | `JerichoChat` component with context awareness |
+
+---
+
+## The "Alexa-Style" Wake Word Question
+
+**Can we do always-listening with a wake word like "Hey Jericho"?**
+
+### YES, with **Picovoice Porcupine** - here's how:
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    User Interaction Flow                        │
-├─────────────────────────────────────────────────────────────────┤
-│  User: "Find me ag co-ops in Iowa with $10M+ revenue"          │
-│                            ↓                                    │
-│  Jericho detects research request                               │
-│                            ↓                                    │
-│  [PROSPECT_RESEARCH] block triggers edge function               │
-│                            ↓                                    │
-│  Perplexity API → Real company data with citations              │
-│                            ↓                                    │
-│  Companies auto-created in sales_companies table                │
-│                            ↓                                    │
-│  Jericho responds: "Found 8 co-ops matching your criteria..."   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     WAKE WORD FLOW                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Browser Audio Stream                                      │
+│          │                                                  │
+│          ▼                                                  │
+│   ┌─────────────────┐                                      │
+│   │ Picovoice       │  Runs locally in browser             │
+│   │ Porcupine SDK   │  No audio sent to server             │
+│   │ (WASM + Worker) │  Custom wake word: "Hey Jericho"     │
+│   └────────┬────────┘                                      │
+│            │                                                │
+│            ▼ Wake word detected                            │
+│   ┌─────────────────┐                                      │
+│   │ OpenAI Realtime │  WebRTC connection opens             │
+│   │ Voice Agent     │  Full conversation begins            │
+│   └─────────────────┘                                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Implementation Details
+**Requirements:**
+- Picovoice API key (free tier: 3 monthly devices)
+- Custom wake word trained on "Hey Jericho" (takes 2-3 days for training)
+- OR use built-in keywords like "Hey Google" / "Alexa" / "Computer" as placeholder
 
-### 1. New Edge Function: `research-prospects`
-- Uses Perplexity API (already configured with `PERPLEXITY_API_KEY`)
-- Accepts either a list of company names OR an ICP description
-- Returns structured company data with web citations
-- Handles both search modes:
-  - **Named search**: `{ companies: ["ABC Co-op", "XYZ Farms"] }`
-  - **ICP search**: `{ icp: "Agricultural cooperatives in the Midwest with 50+ employees" }`
+---
 
-### 2. Extend `sales-coach` Function
-- Add new detection block: `[PROSPECT_RESEARCH]`
-- When detected, call `research-prospects` function
-- Parse results and auto-create `sales_companies` records
-- Return friendly summary to user with what was found
+## Complete Jarvis Feature Roadmap
 
-### 3. Database Additions
-- Add `source` column to `sales_companies` (values: `manual`, `ai_research`, `import`)
-- Add `research_citations` JSONB column for storing source URLs
-- Add `research_date` timestamp to track when data was gathered
+### Phase 1: Ambient Voice Mode (2-3 days)
+What we build:
+- "Always Listening" toggle in Settings
+- Picovoice wake word detection ("Hey Jericho" or "Computer")
+- Auto-connect to OpenAI Realtime when triggered
+- Visual indicator showing listening state
+- Keyboard shortcut alternative (Cmd+J)
 
-### 4. Enhanced System Prompt
-Update Jericho's instructions to recognize prospect research requests:
-- "Find me companies that..."
-- "Research these prospects: ..."
-- "I need leads in the [industry] space"
-- "Who are potential customers in [location]?"
+### Phase 2: Morning Command Briefing (1-2 days)
+What we build:
+- Audio summary generated on demand: "Jericho, what's my day look like?"
+- Pulls from: calendar (when integrated), pipeline, goals, habits
+- Executive snapshot: "You have 4 meetings, 3 deals need follow-up, and you're on a 12-day habit streak"
 
-## Sample Conversations
+### Phase 3: Integration Layer (3-5 days per integration)
+**Google Workspace:**
+- OAuth flow to connect Calendar + Gmail
+- Sync upcoming meetings to `work_calendar_events`
+- Parse email threads for relationship context
+- Meeting prep: "What do I need to know about my 2pm?"
 
-**ICP-Based Discovery:**
-> User: "Find me agricultural retailers in Nebraska with at least 5 locations"
->
-> Jericho: "I found 6 ag retailers in Nebraska matching your criteria:
-> 1. **Central Valley Ag** - 12 locations, $180M revenue, headquarters in York
-> 2. **CVA Cooperative** - 8 locations, $95M revenue, serves central Nebraska
-> ... (etc)
->
-> I've added all 6 to your prospect list. Would you like me to create deals for any of these?"
+**Microsoft 365:**
+- Same as above for Outlook users
 
-**List-Based Research:**
-> User: "Research these companies for me: Tidal Grow, AgriGold Partners, Heartland Seed"
->
-> Jericho: "Here's what I found:
-> - **Tidal Grow** - Specialty crop inputs, based in Des Moines, ~$25M revenue
-> - **AgriGold Partners** - Seed dealer network, 15 locations across Iowa
-> - **Heartland Seed** - Couldn't find detailed info - may be a local operation
->
-> Added the first two to your prospects. Want me to dig deeper on Heartland Seed?"
+**Slack:**
+- Channel awareness and DM context
+- "Summarize what I missed in #sales"
 
-## Technical Implementation
+**CRM (Salesforce/HubSpot):**
+- Pipeline sync to existing sales infrastructure
+- Customer history context
 
-### New Files
-- `supabase/functions/research-prospects/index.ts` - Perplexity-powered research engine
+### Phase 4: Relationship Intelligence (2-3 days)
+What we build:
+- `user_contacts` table tracking touchpoints
+- Relationship health scoring
+- Proactive alerts: "You haven't talked to your top 5 customers in 23 days"
+- Meeting prep with interaction history
 
-### Modified Files
-- `supabase/functions/sales-coach/index.ts` - Add `[PROSPECT_RESEARCH]` detection and handling
-- `supabase/config.toml` - Register new function
+### Phase 5: Pattern Detection (2-3 days)
+What we build:
+- `detected_patterns` table for recurring behaviors
+- Positive patterns: "You close 40% more deals after sending a recap email"
+- Gap detection: "You haven't followed up with leads older than 7 days"
+- Weekly pattern report
 
-### Database Migration
-```sql
-ALTER TABLE sales_companies 
-  ADD COLUMN source TEXT DEFAULT 'manual',
-  ADD COLUMN research_citations JSONB,
-  ADD COLUMN research_date TIMESTAMPTZ;
+### Phase 6: Agent Factory - Autonomous Workflows (3-5 days)
+What we build:
+- `user_agents` table for user-approved automations
+- Agent types:
+  - **Meeting Recap Agent**: Auto-drafts summaries after calendar events
+  - **Follow-up Agent**: Detects missed follow-ups and drafts responses
+  - **1:1 Prep Agent**: Generates coaching notes before manager meetings
+  - **Deal Alert Agent**: Notifies on stalled pipeline movement
+- User control panel to enable/disable agents
+
+---
+
+## Technical Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                        USER DEVICE                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌──────────────────┐    ┌──────────────────┐                     │
+│   │ Wake Word Engine │    │  Voice UI        │                     │
+│   │ (Porcupine WASM) │───▶│  Component       │                     │
+│   └──────────────────┘    └────────┬─────────┘                     │
+│                                    │                                │
+│   ┌──────────────────┐             │                                │
+│   │ Keyboard Shortcut│─────────────┤                                │
+│   │ (Cmd+J fallback) │             │                                │
+│   └──────────────────┘             ▼                                │
+│                           ┌──────────────────┐                      │
+│                           │ OpenAI Realtime  │                      │
+│                           │ WebRTC Session   │                      │
+│                           └────────┬─────────┘                      │
+└────────────────────────────────────┼────────────────────────────────┘
+                                     │
+┌────────────────────────────────────┼────────────────────────────────┐
+│                          EDGE FUNCTIONS                             │
+├────────────────────────────────────┼────────────────────────────────┤
+│                                    ▼                                │
+│   ┌──────────────────┐    ┌──────────────────┐                     │
+│   │ openai-voice-    │    │ Tool Execution   │                     │
+│   │ agent            │───▶│ (goals, habits,  │                     │
+│   │ (context + tools)│    │  deals, tasks)   │                     │
+│   └──────────────────┘    └──────────────────┘                     │
+│                                                                     │
+│   ┌──────────────────┐    ┌──────────────────┐                     │
+│   │ Integration      │    │ Agent Executor   │                     │
+│   │ Sync Functions   │    │ (autonomous      │                     │
+│   │ (calendar, email)│    │  workflows)      │                     │
+│   └──────────────────┘    └──────────────────┘                     │
+└─────────────────────────────────────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────┼────────────────────────────────┐
+│                          DATABASE                                   │
+├────────────────────────────────────┼────────────────────────────────┤
+│                                    ▼                                │
+│   ┌──────────────────┐    ┌──────────────────┐                     │
+│   │ user_integrations│    │ coaching_insights│                     │
+│   │ (OAuth tokens)   │    │ (memory)         │                     │
+│   └──────────────────┘    └──────────────────┘                     │
+│                                                                     │
+│   ┌──────────────────┐    ┌──────────────────┐                     │
+│   │ user_contacts    │    │ detected_patterns│                     │
+│   │ (relationships)  │    │ (behavior intel) │                     │
+│   └──────────────────┘    └──────────────────┘                     │
+│                                                                     │
+│   ┌──────────────────┐    ┌──────────────────┐                     │
+│   │ work_calendar_   │    │ user_agents      │                     │
+│   │ events           │    │ (automations)    │                     │
+│   └──────────────────┘    └──────────────────┘                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Key Features
+---
 
-1. **Web-grounded research** - Perplexity provides real, citable company information
-2. **Duplicate detection** - Won't add companies already in your list
-3. **Quality scoring** - Ranks prospects by ICP fit
-4. **Citation tracking** - Links to sources so you can verify data
-5. **Conversational flow** - Natural back-and-forth with Jericho
-6. **Batch or single** - Research one company or discover many at once
+## Voice Commands Jericho Would Handle
 
-## Security & Limits
-- Rate limiting on Perplexity calls (5 researches per minute)
-- Results capped at 15 companies per search to avoid noise
-- Citations stored for audit trail
-- Only adds to the requesting user's profile
+**Immediate (what's built now):**
+- "Add a goal to close the Johnson deal by Friday"
+- "Mark my prospecting habit as done"
+- "Give recognition to Sarah for her help on the proposal"
+- "Add a task to review the contract tomorrow"
+- "Update the Thompson deal to proposal stage"
+
+**With Integrations:**
+- "What's on my calendar today?"
+- "Prep me for my 2pm with Acme Corp"
+- "Summarize emails from my top 5 customers"
+- "Who haven't I talked to in 2 weeks?"
+- "Schedule a follow-up with John for next Tuesday"
+- "What did I miss in Slack this morning?"
+
+**Executive Intelligence:**
+- "How's my pipeline looking this quarter?"
+- "Which deals are at risk of stalling?"
+- "What patterns do you see in my closed deals?"
+- "Run my morning briefing"
+- "What should I focus on today?"
+
+---
+
+## What We Need to Add
+
+### New Secrets Required
+| Secret | Purpose | Required For |
+|--------|---------|--------------|
+| `PICOVOICE_ACCESS_KEY` | Wake word detection | Ambient voice mode |
+| Google OAuth credentials | Calendar/Gmail | Google integration |
+| Microsoft OAuth credentials | Outlook/365 | Microsoft integration |
+
+### New Tables Required
+- `user_contacts` - Relationship graph
+- `detected_patterns` - Behavioral insights
+- `user_agents` - Autonomous workflows
+- `work_calendar_events` - Synced calendar
+- `work_email_threads` - Email context
+
+### New Components
+- `AmbientVoiceListener` - Always-on wake word detection
+- `VoiceCommandBar` - Visual feedback for voice state
+- `ExecutiveDashboard` - Command center view
+- `AgentManager` - Configure autonomous agents
+
+---
+
+## Implementation Priority (What to Build First)
+
+**Recommended order based on impact:**
+
+1. **Ambient Wake Word Mode** - The "wow factor" that makes it feel like Jarvis
+2. **Morning Briefing Command** - Immediate executive value
+3. **Google Calendar Integration** - Most requested integration
+4. **Relationship Intelligence** - Unique differentiator
+5. **Agent Factory** - Autonomous value-add
+
+---
+
+## Summary
+
+**Can we build this?** Absolutely. You have the core infrastructure. The voice agent exists, the tool framework exists, the coaching memory exists.
+
+**What's new:**
+- Wake word detection via Picovoice (npm package, runs in browser)
+- Integration OAuth flows (Google first, then Microsoft)
+- New database tables for relationship/pattern intelligence
+- Agent execution layer for autonomous workflows
+
+**Timeline estimate:** Full Jarvis experience = 3-4 weeks of focused development
+
+Ready to start with Ambient Wake Word Mode?
+
