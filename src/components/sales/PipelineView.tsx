@@ -7,9 +7,20 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Building2, DollarSign, Calendar, ArrowRight, Leaf, Users, GripVertical } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { MoreHorizontal, Building2, DollarSign, Calendar, ArrowRight, Leaf, Users, GripVertical, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { CustomerDetailDialog } from "./CustomerDetailDialog";
@@ -50,6 +61,7 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
   const [showCustomerDetail, setShowCustomerDetail] = useState(false);
   const [draggedDealId, setDraggedDealId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [dealToDelete, setDealToDelete] = useState<Deal | null>(null);
 
   const fetchDeals = async () => {
     if (!userId) {
@@ -88,9 +100,24 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
     if (error) {
       toast({ title: "Error moving deal", variant: "destructive" });
     } else {
-      toast({ title: "Deal moved successfully" });
+      toast({ title: "Deal moved" });
       fetchDeals();
     }
+  };
+
+  const deleteDeal = async (dealId: string) => {
+    const { error } = await supabase
+      .from("sales_deals")
+      .delete()
+      .eq("id", dealId);
+
+    if (error) {
+      toast({ title: "Error deleting deal", variant: "destructive" });
+    } else {
+      toast({ title: "Deal deleted" });
+      fetchDeals();
+    }
+    setDealToDelete(null);
   };
 
   // Drag and Drop handlers
@@ -239,6 +266,14 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
                             Move to {s.label}
                           </DropdownMenuItem>
                         ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => setDealToDelete(deal)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Deal
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -310,6 +345,27 @@ export const PipelineView = ({ userId, stages, companyId }: PipelineViewProps) =
         customerId={selectedCustomerId}
         companyId={companyId || undefined}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!dealToDelete} onOpenChange={(open) => !open && setDealToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Deal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{dealToDelete?.deal_name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => dealToDelete && deleteDeal(dealToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
