@@ -36,6 +36,17 @@ serve(async (req) => {
       throw new Error("Profile not found");
     }
 
+    // Fetch email preferences to determine frequency
+    const { data: emailPrefs } = await supabase
+      .from("email_preferences")
+      .select("frequency")
+      .eq("profile_id", profileId)
+      .single();
+    
+    const emailFrequency = emailPrefs?.frequency || 'weekly';
+    const isDaily = emailFrequency === 'daily';
+    console.log(`Generating ${emailFrequency} email for ${profile.full_name}`);
+
     // Fetch employee capabilities with gaps
     const { data: capabilities } = await supabase
       .from("employee_capabilities")
@@ -200,7 +211,39 @@ serve(async (req) => {
       })) || [];
 
     // Generate email content via Lovable AI using tool calling for structured output
-    const systemPrompt = `You are Jericho, a firm but encouraging executive coach writing a weekly growth prescription email. 
+    // Use different prompts based on daily vs weekly frequency
+    const dailySystemPrompt = `You are Jericho, a firm but encouraging executive coach writing a DAILY growth check-in email. 
+
+TONE: Quick, energizing, and actionable. Like a morning huddle with a coach who keeps you sharp.
+
+CRITICAL - THIS IS A DAILY CHECK-IN (NOT WEEKLY):
+- This is a quick daily touch point - keep it SHORT and punchy
+- Focus on TODAY: what happened yesterday, what's ahead today
+- Reference their habits/streaks with specific numbers
+- Give ONE clear action for TODAY (not "this week")
+- Use language like "today", "this morning", "right now" - NEVER "this week"
+
+CRITICAL - USE ACTUAL DATA, NO PLACEHOLDERS:
+- The user provides JSON with actual capability names and resource details
+- You MUST extract and use the actual values from this JSON
+- NEVER write placeholders like "[Capability Name]" or "[Resource Title]"
+- If data is missing or empty, acknowledge briefly without making up details
+
+CONTENT RULES:
+- Open with energy - acknowledge yesterday's wins or streaks
+- Keep the main content to 2-3 SHORT paragraphs max
+- Today's challenge should be specific and completable TODAY
+- Be brief - this is a daily nudge, not a deep dive
+- Keep it conversational and direct
+- No weekly language ("this week", "weekly focus", etc.)
+
+EXAMPLE DAILY LANGUAGE:
+- "Good morning! Let's make today count."
+- "Yesterday you knocked out 3 habits - keep that momentum going today."
+- "Today's focus: spend 15 minutes on..."
+- "Your challenge for today is..."`;
+
+    const weeklySystemPrompt = `You are Jericho, a firm but encouraging executive coach writing a WEEKLY growth prescription email. 
 
 TONE: Personal, specific, and actionable. Be direct but supportive - like a coach who believes in them but won't let them coast.
 
@@ -242,7 +285,25 @@ And resource JSON is: [{ "title": "Systems Thinking Fundamentals", "capabilityNa
 Then write: "This week, focus on Strategic Thinking... To develop this, start with Systems Thinking Fundamentals"
 NOT: "This week, focus on [Capability Name]... start with [Resource Title]"`;
 
-    const userPrompt = `Generate a personalized weekly growth email for ${profile.full_name || "this employee"}.
+    const systemPrompt = isDaily ? dailySystemPrompt : weeklySystemPrompt;
+
+    const dailyUserPrompt = `Generate a personalized DAILY growth check-in email for ${profile.full_name || "this employee"}.
+
+TODAY'S FOCUS CAPABILITY:
+${JSON.stringify(topCapability)}
+
+THEIR CURRENT STATUS:
+90-Day Targets: ${JSON.stringify(targetsContext)}
+Habit Progress (recent): ${JSON.stringify(habitsContext)}
+Recent Conversation Themes: ${JSON.stringify(conversationContext)}
+${voiceConversationSummary ? `\nVOICE COACHING INSIGHTS:\n${voiceConversationSummary}` : ''}
+
+SUGGESTED RESOURCE:
+${JSON.stringify(resourceForTopCap)}
+
+Keep this SHORT and punchy - it's a daily check-in, not a weekly deep-dive. Focus on TODAY's action.`;
+
+    const weeklyUserPrompt = `Generate a personalized WEEKLY growth prescription email for ${profile.full_name || "this employee"}.
 
 THIS WEEK'S FOCUS: This is their TOP priority capability to work on this week:
 ${JSON.stringify(topCapability)}
@@ -258,6 +319,8 @@ ${JSON.stringify(resourceForTopCap)}
 
 Frame this as a proactive weekly assignment focused on this one priority. They may not log into the app - this email should be their complete growth experience for the week.
 ${voiceConversationSummary ? '\n\nNOTE: They had voice conversations with you this week - acknowledge topics they discussed verbally and connect them to this week\'s focus.' : ''}`;
+
+    const userPrompt = isDaily ? dailyUserPrompt : weeklyUserPrompt;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
