@@ -364,11 +364,11 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
             <Sparkles className="h-8 w-8 text-primary" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Hey{userName ? `, ${userName.split(' ')[0]}` : ''}!</h2>
-          <p className="text-muted-foreground mb-8 max-w-md">
+          <p className="text-muted-foreground mb-6 max-w-md">
             I'm Jericho, your sales coach. I already know your pipeline, goals, and 90-day habits. Tell me what you're working on and I'll help you move it forward.
           </p>
           
-          <div className="flex flex-wrap justify-center gap-3 mb-8">
+          <div className="flex flex-wrap justify-center gap-3 mb-6">
             {conversationStarters.map((starter, idx) => (
               <Button
                 key={idx}
@@ -380,19 +380,41 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
                 {starter.label}
               </Button>
             ))}
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => setShowUploadDialog(true)}
-            >
-              <Paperclip className="h-4 w-4" />
-              Upload a document
-            </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Pro tip: When you tell me about deals, I'll automatically add them to your pipeline ✨
-          </p>
+          {/* Input area on welcome screen */}
+          <div className="w-full max-w-2xl px-4">
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowUploadDialog(true)}
+                className="rounded-xl shrink-0"
+                title="Upload document"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type a message to get started..."
+                className="resize-none rounded-xl"
+                rows={1}
+              />
+              <Button
+                onClick={() => sendMessage()}
+                disabled={loading || !input.trim()}
+                size="icon"
+                className="rounded-xl shrink-0"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Pro tip: When you tell me about deals, I'll automatically add them to your pipeline ✨
+            </p>
+          </div>
         </div>
       ) : (
         // Chat state
