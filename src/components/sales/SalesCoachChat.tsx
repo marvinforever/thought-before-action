@@ -380,6 +380,14 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
                 {starter.label}
               </Button>
             ))}
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setShowUploadDialog(true)}
+            >
+              <Paperclip className="h-4 w-4" />
+              Upload a document
+            </Button>
           </div>
 
           <p className="text-xs text-muted-foreground">
