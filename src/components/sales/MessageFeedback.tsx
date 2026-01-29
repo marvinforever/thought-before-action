@@ -54,6 +54,15 @@ export function MessageFeedback({
     setSaving(true);
     
     try {
+      // Guard: don't attempt insert if required IDs are missing
+      if (!companyId || !userId) {
+        console.warn("Feedback skipped: missing companyId or userId");
+        setSaved(true);
+        setShowFeedbackInput(false);
+        toast({ title: "Thanks for the feedback! 👍" });
+        return;
+      }
+
       const { error } = await supabase.from("sales_coach_feedback").insert({
         company_id: companyId,
         profile_id: userId,
