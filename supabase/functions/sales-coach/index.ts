@@ -315,6 +315,55 @@ ${learnings.map(l => `- ${l.pattern_type.replace(/_/g, ' ').toUpperCase()}: "${l
       }
     }
 
+    // Fetch uploaded customer documents for context
+    let uploadedDocumentsContext = '';
+    if (effectiveCompanyId) {
+      // First fetch general documents (not tied to specific customer)
+      const { data: generalDocs } = await supabase
+        .from('customer_documents')
+        .select('title, summary, extracted_text, document_type, file_name')
+        .eq('company_id', effectiveCompanyId)
+        .eq('extraction_status', 'completed')
+        .is('customer_id', null)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Then fetch customer-specific documents (will be contextual based on deal)
+      let customerDocs: any[] = [];
+      if (deal?.sales_companies?.id) {
+        const { data: custDocs } = await supabase
+          .from('customer_documents')
+          .select('title, summary, extracted_text, document_type, file_name')
+          .eq('company_id', effectiveCompanyId)
+          .eq('customer_id', deal.sales_companies.id)
+          .eq('extraction_status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        customerDocs = custDocs || [];
+      }
+
+      const allDocs = [...(generalDocs || []), ...customerDocs];
+      
+      if (allDocs.length > 0) {
+        uploadedDocumentsContext = `\n\n=== UPLOADED DOCUMENTS ===
+You have access to ${allDocs.length} uploaded documents. Reference these when relevant:
+
+${allDocs.map(doc => {
+          let docInfo = `### ${doc.title || doc.file_name} (${doc.document_type || 'document'})`;
+          if (doc.summary) docInfo += `\nSummary: ${doc.summary}`;
+          // Include first 2000 chars of extracted text for context
+          if (doc.extracted_text) {
+            const preview = doc.extracted_text.substring(0, 2000);
+            docInfo += `\nContent:\n${preview}${doc.extracted_text.length > 2000 ? '...(truncated)' : ''}`;
+          }
+          return docInfo;
+        }).join('\n\n---\n\n')}
+
+Use these documents to provide informed, specific answers. If a customer has associated documents, prioritize that information.
+`;
+      }
+    }
+
     // Fetch CRM customers (sales_companies) for context - use effectiveUserId for impersonation
     let crmCustomerContext = '';
     
@@ -1121,7 +1170,7 @@ ${knowledgeContext}${productKnowledge}`;
 === YOUR CONTEXT ===
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${uploadedDocumentsContext}
 
 CONVERSATION SO FAR (includes your previous recommendation):
 ${conversationHistory}
@@ -1136,7 +1185,7 @@ Answer their question directly without regenerating the full pre-call plan.`;
 === YOUR CONTEXT ===
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -1199,7 +1248,7 @@ This pairs well with [complementary product] because..."
 
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${productKnowledge}${crmCustomerContext}
+${productKnowledge}${crmCustomerContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -1282,7 +1331,7 @@ SPECIAL COMMANDS:
 - If they say "generate a 4-call plan" or "plan my calls" - offer to create a full year cadence for a specific grower
 
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 
@@ -1370,7 +1419,7 @@ WHEN THEY NEED HELP WITH A CUSTOMER:
 
 ${customerInfo}
 ${dealContext}${dealPurchaseHistoryContext}
-${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}${learnedPatternsContext}
+${knowledgeContext}${productKnowledge}${crmCustomerContext}${historicalSalesContext}${learnedPatternsContext}${uploadedDocumentsContext}
 
 ${conversationHistory ? `CONVERSATION SO FAR:\n${conversationHistory}` : ''}
 

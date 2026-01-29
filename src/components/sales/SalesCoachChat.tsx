@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FormattedMessage } from "@/components/ui/formatted-message";
-import { Send, Loader2, MessageCircle, Sparkles, Plus, RotateCcw } from "lucide-react";
+import { Send, Loader2, MessageCircle, Sparkles, Plus, RotateCcw, Paperclip } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { DocumentUploadDialog } from "./DocumentUploadDialog";
 
 interface SalesCoachChatProps {
   userId: string;
@@ -35,6 +36,8 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
   const [initialLoading, setInitialLoading] = useState(true);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<string>("");
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load existing conversation and user context on mount
@@ -42,10 +45,28 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
     if (userId && companyId) {
       Promise.all([
         loadConversation(),
-        fetchUserContext()
+        fetchUserContext(),
+        fetchCustomers()
       ]).finally(() => setInitialLoading(false));
     }
   }, [userId, companyId]);
+
+  const fetchCustomers = async () => {
+    if (!companyId) return;
+    try {
+      // Use any cast to avoid deep type instantiation error with Supabase types
+      const { data } = await (supabase as any)
+        .from("sales_companies")
+        .select("id, name")
+        .eq("company_id", companyId)
+        .order("name");
+      if (data) {
+        setCustomers(data.map((c: any) => ({ id: c.id as string, name: c.name as string })));
+      }
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    }
+  };
 
   // Helper to get the actual scrollable viewport inside Radix ScrollArea
   const getScrollViewport = () => {
@@ -423,6 +444,15 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
           {/* Input - clean, simple */}
           <div className="p-4 border-t">
             <div className="flex gap-2 max-w-2xl mx-auto">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowUploadDialog(true)}
+                className="rounded-xl shrink-0"
+                title="Upload document"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
               <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -443,6 +473,16 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
           </div>
         </>
       )}
+
+      {/* Document Upload Dialog */}
+      <DocumentUploadDialog
+        open={showUploadDialog}
+        onOpenChange={setShowUploadDialog}
+        userId={userId}
+        companyId={companyId || ""}
+        customers={customers}
+        onUploadComplete={fetchUserContext}
+      />
     </Card>
   );
 };
