@@ -63,6 +63,7 @@ interface SalesAgentHeaderProps {
   viewAsUserId: string | null;
   viewAsUserName: string | null;
   chatMode: "coach" | "rec";
+  enableFieldMaps?: boolean;
   onViewAsChange: (companyId: string | null, companyName: string | null) => void;
   onViewAsUserChange: (userId: string | null, userName: string | null) => void;
   onChatModeChange: (mode: "coach" | "rec") => void;
@@ -93,6 +94,7 @@ export function SalesAgentHeader({
   viewAsUserId,
   viewAsUserName,
   chatMode,
+  enableFieldMaps = false,
   onViewAsChange,
   onViewAsUserChange,
   onChatModeChange,
@@ -343,13 +345,14 @@ export function SalesAgentHeader({
                         stages={stages} 
                         companyId={viewAsCompanyId}
                         onDealsChange={onDealsRefresh}
+                        enableFieldMaps={enableFieldMaps}
                       />
                     </TabsContent>
                     <TabsContent value="deals" className="mt-0">
                       <DealsTable userId={viewAsUserId || user?.id} onDealsChange={onDealsRefresh} />
                     </TabsContent>
                     <TabsContent value="companies" className="mt-0">
-                      <CompaniesManager userId={viewAsUserId || user?.id} />
+                      <CompaniesManager userId={viewAsUserId || user?.id} enableFieldMaps={enableFieldMaps} />
                     </TabsContent>
                     <TabsContent value="contacts" className="mt-0">
                       <ContactsManager userId={viewAsUserId || user?.id} />

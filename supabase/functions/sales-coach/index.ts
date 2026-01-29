@@ -1591,11 +1591,12 @@ Remember: You're their sales coach AND pipeline partner. Help them sell better w
       
       const companyName = dealBlock.match(/company[_\s]*name:\s*(.+)/i)?.[1]?.trim();
       const contactName = dealBlock.match(/contact[_\s]*name:\s*(.+)/i)?.[1]?.trim();
+      const contactsLine = dealBlock.match(/contacts?:\s*(.+)/i)?.[1]?.trim(); // NEW: Parse multiple contacts
       const stage = dealBlock.match(/stage:\s*(.+)/i)?.[1]?.trim()?.toLowerCase() || 'prospecting';
       const valueStr = dealBlock.match(/value:\s*(.+)/i)?.[1]?.trim();
       const notes = dealBlock.match(/notes:\s*(.+)/i)?.[1]?.trim();
       
-      console.log('Parsed deal info:', { companyName, contactName, stage, valueStr, notes });
+      console.log('Parsed deal info:', { companyName, contactName, contactsLine, stage, valueStr, notes });
       
       if (companyName && companyName !== 'null' && companyName !== '<name>' && !companyName.includes('<')) {
         try {
@@ -1603,7 +1604,7 @@ Remember: You're their sales coach AND pipeline partner. Help them sell better w
           let { data: existingCompany, error: companyError } = await supabase
             .from('sales_companies')
             .select('id')
-            .eq('profile_id', user.id)
+            .eq('profile_id', effectiveUserId)
             .ilike('name', companyName)
             .maybeSingle();
           
@@ -1614,7 +1615,7 @@ Remember: You're their sales coach AND pipeline partner. Help them sell better w
           if (!companyId) {
             const { data: newCompany, error: createCompanyError } = await supabase
               .from('sales_companies')
-              .insert({ name: companyName, profile_id: user.id })
+              .insert({ name: companyName, profile_id: effectiveUserId })
               .select('id')
               .single();
             
@@ -1627,6 +1628,75 @@ Remember: You're their sales coach AND pipeline partner. Help them sell better w
             throw new Error('Failed to get company ID');
           }
           
+          // AUTO-CREATE CONTACTS from "contacts:" line (comma-separated, with optional titles)
+          // Format: "John Smith (CEO), Mary Johnson (VP Sales), Tim Brown"
+          if (contactsLine && !contactsLine.includes('<')) {
+            const contactEntries = contactsLine.split(',').map((c: string) => c.trim()).filter(Boolean);
+            for (let i = 0; i < contactEntries.length; i++) {
+              const entry = contactEntries[i];
+              // Parse "Name (Title)" format - title is optional
+              const match = entry.match(/^([^(]+)(?:\(([^)]+)\))?$/);
+              if (match) {
+                const contactFullName = match[1].trim();
+                const title = match[2]?.trim() || null;
+                
+                // Check if contact already exists for this company
+                const { data: existingContact } = await supabase
+                  .from('sales_contacts')
+                  .select('id')
+                  .eq('company_id', companyId)
+                  .ilike('name', contactFullName)
+                  .maybeSingle();
+                
+                if (!existingContact) {
+                  const { error: contactError } = await supabase
+                    .from('sales_contacts')
+                    .insert({
+                      company_id: companyId,
+                      profile_id: effectiveUserId,
+                      name: contactFullName,
+                      title: title,
+                      role: title,
+                      is_primary: i === 0, // First contact is primary
+                    });
+                  
+                  if (contactError) {
+                    console.error(`Error creating contact ${contactFullName}:`, contactError);
+                  } else {
+                    console.log(`Auto-created contact: ${contactFullName} (${title || 'no title'})`);
+                  }
+                } else {
+                  console.log(`Contact ${contactFullName} already exists, skipping`);
+                }
+              }
+            }
+          }
+          
+          // Also create single contact if specified with contact_name (legacy format)
+          if (contactName && contactName !== 'null' && !contactName.includes('<')) {
+            const { data: existingContact } = await supabase
+              .from('sales_contacts')
+              .select('id')
+              .eq('company_id', companyId)
+              .ilike('name', contactName)
+              .maybeSingle();
+            
+            if (!existingContact) {
+              const { error: contactError } = await supabase
+                .from('sales_contacts')
+                .insert({
+                  company_id: companyId,
+                  profile_id: effectiveUserId,
+                  name: contactName,
+                  is_primary: true,
+                });
+              
+              if (!contactError) {
+                console.log(`Auto-created contact: ${contactName}`);
+              }
+            }
+          }
+          
           // Parse value - handle various formats like "$50,000" or "50000"
           let value = null;
           if (valueStr && valueStr !== 'null' && !valueStr.includes('<')) {
@@ -1634,31 +1704,41 @@ Remember: You're their sales coach AND pipeline partner. Help them sell better w
             value = numericValue ? parseInt(numericValue) || null : null;
           }
           
-          // Create the deal
-          const dealName = contactName && contactName !== 'null' && !contactName.includes('<')
-            ? `${contactName} - ${companyName}` 
-            : companyName;
+          // Create the deal - USE COMPANY NAME ONLY (not contact name)
+          const dealName = companyName;
           
-          const { data: newDeal, error: dealError } = await supabase
+          // Check if deal already exists for this company
+          const { data: existingDeal } = await supabase
             .from('sales_deals')
-            .insert({
-              deal_name: dealName,
-              company_id: companyId,
-              stage: ['prospecting', 'discovery', 'proposal', 'closing', 'follow_up'].includes(stage) ? stage : 'prospecting',
-              value: value,
-              notes: notes && !notes.includes('<') ? notes : null,
-              profile_id: user.id,
-              priority: 3,
-              probability: stage === 'prospecting' ? 20 : stage === 'discovery' ? 40 : stage === 'proposal' ? 60 : 80,
-            })
             .select('id')
-            .single();
+            .eq('profile_id', effectiveUserId)
+            .eq('company_id', companyId)
+            .maybeSingle();
           
-          if (dealError) {
-            console.error('Error creating deal:', dealError);
+          if (existingDeal) {
+            console.log(`Deal already exists for ${companyName}, skipping creation`);
           } else {
-            dealCreated = true;
-            console.log(`Auto-created deal: ${dealName} (ID: ${newDeal?.id})`);
+            const { data: newDeal, error: dealError } = await supabase
+              .from('sales_deals')
+              .insert({
+                deal_name: dealName,
+                company_id: companyId,
+                stage: ['prospecting', 'discovery', 'proposal', 'closing', 'follow_up'].includes(stage) ? stage : 'prospecting',
+                value: value,
+                notes: notes && !notes.includes('<') ? notes : null,
+                profile_id: effectiveUserId,
+                priority: 3,
+                probability: stage === 'prospecting' ? 20 : stage === 'discovery' ? 40 : stage === 'proposal' ? 60 : 80,
+              })
+              .select('id')
+              .single();
+            
+            if (dealError) {
+              console.error('Error creating deal:', dealError);
+            } else {
+              dealCreated = true;
+              console.log(`Auto-created deal: ${dealName} (ID: ${newDeal?.id})`);
+            }
           }
         } catch (dealError) {
           console.error('Error auto-creating deal:', dealError);

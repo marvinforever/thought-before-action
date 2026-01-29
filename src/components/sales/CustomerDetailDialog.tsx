@@ -15,6 +15,7 @@ interface CustomerDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   customerId: string | null;
   companyId?: string;
+  enableFieldMaps?: boolean;
 }
 
 interface Customer {
@@ -64,7 +65,7 @@ interface PurchaseSummary {
   hasHistory: boolean;
 }
 
-export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId }: CustomerDetailDialogProps) => {
+export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId, enableFieldMaps = false }: CustomerDetailDialogProps) => {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -147,14 +148,16 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
           </div>
         ) : customer ? (
           <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-5 w-full">
+            <TabsList className={`grid w-full ${enableFieldMaps ? 'grid-cols-5' : 'grid-cols-4'}`}>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="contacts">Contacts</TabsTrigger>
               <TabsTrigger value="deals">Deals</TabsTrigger>
-              <TabsTrigger value="fieldmaps" className="flex items-center gap-1">
-                <Map className="h-3 w-3" />
-                Field Maps
-              </TabsTrigger>
+              {enableFieldMaps && (
+                <TabsTrigger value="fieldmaps" className="flex items-center gap-1">
+                  <Map className="h-3 w-3" />
+                  Field Maps
+                </TabsTrigger>
+              )}
               <TabsTrigger value="history" className="flex items-center gap-1">
                 <ShoppingCart className="h-3 w-3" />
                 Purchases
@@ -330,24 +333,26 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
                 )}
               </TabsContent>
 
-              <TabsContent value="fieldmaps" className="mt-0">
-                {customerId && companyId && (
-                  <FieldMapAnalyzer
-                    customerId={customerId}
-                    customerName={customer.name}
-                    companyId={companyId}
-                    customerContext={{
-                      name: customer.name,
-                      location: customer.location,
-                      operationDetails: customer.operation_details,
-                      crops: (customer.operation_details as Record<string, any>)?.crops 
-                        ? JSON.stringify((customer.operation_details as Record<string, any>).crops)
-                        : undefined,
-                      totalAcres: (customer.operation_details as Record<string, any>)?.total_acres,
-                    }}
-                  />
-                )}
-              </TabsContent>
+              {enableFieldMaps && (
+                <TabsContent value="fieldmaps" className="mt-0">
+                  {customerId && companyId && (
+                    <FieldMapAnalyzer
+                      customerId={customerId}
+                      customerName={customer.name}
+                      companyId={companyId}
+                      customerContext={{
+                        name: customer.name,
+                        location: customer.location,
+                        operationDetails: customer.operation_details,
+                        crops: (customer.operation_details as Record<string, any>)?.crops 
+                          ? JSON.stringify((customer.operation_details as Record<string, any>).crops)
+                          : undefined,
+                        totalAcres: (customer.operation_details as Record<string, any>)?.total_acres,
+                      }}
+                    />
+                  )}
+                </TabsContent>
+              )}
 
               <TabsContent value="history" className="mt-0 space-y-4">
                 {/* Purchase History from customer_purchase_history */}
