@@ -538,6 +538,70 @@ export type Database = {
         }
         Relationships: []
       }
+      call_plan_reminders: {
+        Row: {
+          call_number: number
+          call_plan_tracking_id: string
+          company_id: string | null
+          created_at: string
+          customer_name: string
+          id: string
+          meeting_date: string
+          profile_id: string
+          reminder_type: string
+          sent_at: string
+          subject: string | null
+        }
+        Insert: {
+          call_number: number
+          call_plan_tracking_id: string
+          company_id?: string | null
+          created_at?: string
+          customer_name: string
+          id?: string
+          meeting_date: string
+          profile_id: string
+          reminder_type: string
+          sent_at?: string
+          subject?: string | null
+        }
+        Update: {
+          call_number?: number
+          call_plan_tracking_id?: string
+          company_id?: string | null
+          created_at?: string
+          customer_name?: string
+          id?: string
+          meeting_date?: string
+          profile_id?: string
+          reminder_type?: string
+          sent_at?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_plan_reminders_call_plan_tracking_id_fkey"
+            columns: ["call_plan_tracking_id"]
+            isOneToOne: false
+            referencedRelation: "call_plan_tracking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_plan_reminders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_plan_reminders_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_plan_tracking: {
         Row: {
           acreage: number | null
