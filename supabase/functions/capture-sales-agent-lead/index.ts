@@ -46,6 +46,7 @@ serve(async (req) => {
       vp_agronomy: 'VP of Agronomy',
       ceo: 'CEO / Owner',
       sales_manager: 'Sales Manager',
+      sales_agent: 'Sales Agent',
       agronomist: 'Agronomist',
       sales_rep: 'Sales Representative',
       other: 'Other'
