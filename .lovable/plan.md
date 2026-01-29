@@ -1,311 +1,144 @@
 
 
-# Enhanced 4-Call Plan Email Reminder System
+# Multi-Issue Fix Plan: Sales Agent Improvements
 
-## Overview
+## Issues Identified
 
-Building on the original plan, this enhanced version pulls **all available customer intelligence** into each coaching email, making Jericho a true sales guru with real-time context.
-
----
-
-## Complete Data Sources for Each Email
-
-The reminder system will aggregate data from **7 different tables** to build the most informed coaching possible:
-
-| Data Source | Table | What It Provides |
-|-------------|-------|------------------|
-| **Purchase History** | `customer_purchase_history` | 2025 revenue, products, quantities, bonus categories |
-| **4-Call Tracker** | `call_plan_tracking` | Prior call notes (1-3), precall_plan, acreage, crops, dates |
-| **CRM Company** | `sales_companies` | grower_history, operation_details, customer_since, notes |
-| **Pipeline Deals** | `sales_deals` | Active deals, stage, value, expected close, notes |
-| **Sales Activities** | `sales_activities` | Recent calls/emails, outcomes, activity notes |
-| **Customer Documents** | `customer_documents` | Uploaded docs, summaries, extracted insights |
-| **Sales Contacts** | `sales_contacts` | Contact names, decision makers, contact-level notes |
+| # | Issue | Root Cause |
+|---|-------|------------|
+| 1 | **Chat history lost after logout** | Conversation loads based on `company_id` - when no company is selected, messages from last night's session aren't loaded |
+| 2 | **Default to Momentum Company** | When logged in as Mark (without "View As"), the system should auto-default to "The Momentum Company" context |
+| 3 | **Deal formatting shows "VP of HR"** | Contact titles are being included in deal names instead of just company name |
+| 4 | **Auto-create contacts when entering company + people** | When Jericho detects people mentioned with a company, create them as CRM contacts automatically |
+| 5 | **Hide Field Maps by default** | Field Maps tab is always visible - should be gated by company/user setting |
+| 6 | **Pipeline not saving overnight** | Related to Issue #1 - deals were likely being saved but loaded under wrong context |
 
 ---
 
-## Data Aggregation Flow
+## Solution Architecture
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│              CUSTOMER INTELLIGENCE AGGREGATION                      │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   Input: customer_name from call_plan_tracking                      │
-│                                                                     │
-│   ┌────────────────────────────────────────────────────────────┐    │
-│   │  Step 1: Fuzzy Match to Find Customer Entities             │    │
-│   │                                                            │    │
-│   │  call_plan_tracking.customer_name                          │    │
-│   │       ↓ fuzzy match (ILIKE)                                │    │
-│   │  sales_companies.name → get company_id                     │    │
-│   │  customer_purchase_history.customer_name                   │    │
-│   └────────────────────────────────────────────────────────────┘    │
-│                         │                                           │
-│                         ▼                                           │
-│   ┌────────────────────────────────────────────────────────────┐    │
-│   │  Step 2: Gather All Related Data                           │    │
-│   │                                                            │    │
-│   │  ├── sales_companies (grower_history, operation_details)   │    │
-│   │  ├── sales_deals (active deals for this customer)          │    │
-│   │  ├── sales_activities (recent touchpoints)                 │    │
-│   │  ├── sales_contacts (contacts & notes)                     │    │
-│   │  ├── customer_documents (docs & summaries)                 │    │
-│   │  └── customer_purchase_history (2025 + prior years)        │    │
-│   └────────────────────────────────────────────────────────────┘    │
-│                         │                                           │
-│                         ▼                                           │
-│   ┌────────────────────────────────────────────────────────────┐    │
-│   │  Step 3: Compile Context for AI                            │    │
-│   │                                                            │    │
-│   │  - Aggregate into structured JSON                          │    │
-│   │  - Include all prior call notes from tracker               │    │
-│   │  - Recent activity timeline (last 30 days)                 │    │
-│   │  - Product purchase patterns (YoY comparison)              │    │
-│   │  - Open deal status and pipeline position                  │    │
-│   └────────────────────────────────────────────────────────────┘    │
-│                         │                                           │
-│                         ▼                                           │
-│   ┌────────────────────────────────────────────────────────────┐    │
-│   │  Step 4: Generate Stage-Specific Coaching                  │    │
-│   │                                                            │    │
-│   │  AI receives complete customer context + call stage        │    │
-│   │  Outputs personalized coaching email                       │    │
-│   └────────────────────────────────────────────────────────────┘    │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+### Issue 1 & 2: Conversation Loading + Default Momentum Context
+
+**Problem**: When you log in, the conversation loads based on `profile.company_id`, but your conversations last night may have been with a "View As" company context. Also, as a super admin with The Momentum Company, you should default to that context.
+
+**Fix**:
+- When a super admin logs in with `company_id = '00000000-0000-0000-0000-000000000001'` (Momentum), automatically set `viewAsCompanyId` to that value
+- Load conversation based on the user's ACTUAL company (Momentum) instead of requiring manual selection
+- This ensures continuity between sessions
+
+**Files to modify**:
+- `src/pages/SalesTrainer.tsx` - Add logic to auto-set Momentum as default context for Momentum employees
+
+---
+
+### Issue 3: Deal Name Formatting
+
+**Problem**: When Jericho creates deals, it sometimes uses contact titles (like "VP of HR") in the deal name.
+
+**Fix**: Change deal name format to prioritize company name only:
+- Deal name: `{Company Name}` (not `{Contact} - {Company}`)
+- Store contact name in the `notes` field or link to a separate contact record
+
+**Files to modify**:
+- `supabase/functions/sales-coach/index.ts` - Update deal creation logic
+
+---
+
+### Issue 4: Auto-Create Contacts from Conversation
+
+**Problem**: When you mention people in a company (e.g., "I'm working with Cooperative Producers and talking to John Smith and Mary Johnson"), Jericho should automatically create those as contacts in the CRM.
+
+**Solution**: Extend the `[DEAL_DETECTED]` block to include multiple contacts, then create them in `sales_contacts` table.
+
+**New block format**:
+```
+[DEAL_DETECTED]
+company_name: Cooperative Producers
+contacts: John Smith (CEO), Mary Johnson (Ops Manager), Tim Brown
+stage: discovery
+value: 50000
+notes: Initial meeting scheduled
+[/DEAL_DETECTED]
 ```
 
+**Backend changes**:
+- Parse the `contacts` field (comma-separated list with optional titles in parentheses)
+- Create each person in `sales_contacts` linked to the `sales_companies` record
+- Mark the first contact as `is_primary = true`
+
+**Files to modify**:
+- `supabase/functions/sales-coach/index.ts` - Extend deal detection to parse and create contacts
+
 ---
 
-## Enhanced Email Content
+### Issue 5: Field Maps Feature Gating
 
-Each email will now include contextual sections based on available data:
+**Problem**: The "Field Maps" tab appears for all users, but it should only be visible for companies that use this feature (e.g., agricultural companies).
 
-```text
-Subject: [7-Day Reminder] Pre-Plant Check-in with JOHNSON FARMS - Feb 15
+**Solution**: Add a company-level setting `enable_field_maps` and check it before rendering the tab.
 
-Hey Mike,
+**Database changes**:
+```sql
+-- Add settings JSONB column to companies if not exists
+ALTER TABLE companies 
+ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}';
 
-Your PRE-PLANT CHECK-IN with JOHNSON FARMS is coming up on Saturday, February 15th.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 CUSTOMER SNAPSHOT
-• 2025 Revenue: $47,250 (up 12% from 2024)
-• Operation: 1,200 acres - Corn/Soybean rotation
-• Customer Since: 2019
-• Key Quote: "We're always looking to increase yields on the back 40"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 FROM YOUR PREPAY REVIEW (Call 1 - Jan 8)
-You noted: "They're interested in trying the new fungicide this season.
-Wife mentioned drainage issues in the north field."
-
-Your precall plan mentioned pushing the premium seed treatment.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📞 RECENT ACTIVITY
-• Jan 22: Email sent about prepay deadline extension
-• Jan 15: Phone call - discussed fertilizer timing
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📦 PRODUCTS TO DISCUSS
-Based on their 2024 purchases and what they DIDN'T buy:
-• ✅ They bought: Liberty herbicide (12 gal) - confirm same volume
-• ⚠️ Opportunity: No fungicide last year - they mentioned interest!
-• ⚠️ Opportunity: Seed treatment upgrade - 40% of similar ops use this
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 COACHING FOR PRE-PLANT CHECK-IN
-
-1. **Confirm timing**: When are they planning to start planting? Weather looks...
-2. **Follow up on fungicide interest**: "Last time you mentioned wanting to try..."
-3. **Address the drainage concern**: Their wife mentioned north field issues...
-4. **Application planning**: Do they need custom application scheduling?
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💬 QUESTIONS TO ASK
-• "How did the seed treatment perform last season?"
-• "Any changes to your planting plan with the wet forecast?"
-• "Did you end up addressing that drainage in the north field?"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-You've got this. Go make an impact! 🌾
-
-— Jericho
+-- Enable for specific companies
+UPDATE companies 
+SET settings = jsonb_set(COALESCE(settings, '{}'), '{enable_field_maps}', 'true')
+WHERE id IN (
+  'd32f9a18-aba5-4836-aa66-1834b8cb8edd', -- Stateline
+  'd23e3007-254d-429a-a7e2-329bc1bf2afb'  -- Streamline Ag
+);
 ```
 
----
+**Frontend changes**:
+- Fetch company settings in SalesTrainer
+- Pass `enableFieldMaps` prop to CustomerDetailDialog
+- Conditionally render the Field Maps tab
 
-## "Recently Updated" Logic
-
-The system will flag **recently changed data** so the rep knows what's new:
-
-| Data Type | "Recent" Definition | Flag Text |
-|-----------|---------------------|-----------|
-| Call Notes | Updated in last 7 days | "📝 Updated [X days ago]" |
-| CRM Notes | Updated in last 14 days | "🆕 New note added" |
-| Activities | Created in last 7 days | Full activity included |
-| Documents | Uploaded in last 30 days | "📄 New document: [title]" |
-| Deals | Stage changed in 7 days | "📊 Deal moved to [stage]" |
+**Files to modify**:
+- Database migration to add settings column
+- `src/pages/SalesTrainer.tsx` - Fetch company settings
+- `src/components/sales/CustomerDetailDialog.tsx` - Accept `enableFieldMaps` prop and conditionally render tab
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Database Migration
+### Step 1: Database Migration (Field Maps gating)
+- Add `settings` JSONB column to `companies` table
+- Populate `enable_field_maps: true` for agricultural companies (Stateline, Streamline Ag)
 
-Create `call_plan_reminders` table:
+### Step 2: Update SalesTrainer.tsx
+- Auto-set `viewAsCompanyId` to user's own `company_id` when loading (for Momentum employees)
+- Fetch company settings including `enable_field_maps`
+- Pass settings to child components
 
-```sql
-CREATE TABLE public.call_plan_reminders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  call_plan_tracking_id UUID REFERENCES call_plan_tracking(id) ON DELETE CASCADE NOT NULL,
-  call_number INTEGER NOT NULL CHECK (call_number BETWEEN 1 AND 4),
-  reminder_type TEXT NOT NULL CHECK (reminder_type IN ('7_day', '1_day')),
-  customer_name TEXT NOT NULL,
-  meeting_date DATE NOT NULL,
-  sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  subject TEXT,
-  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  
-  -- Prevent duplicate reminders
-  UNIQUE(call_plan_tracking_id, call_number, reminder_type)
-);
+### Step 3: Update CustomerDetailDialog.tsx
+- Add `enableFieldMaps?: boolean` prop
+- Conditionally render the Field Maps tab based on this prop
 
--- RLS: users see only their own reminders
-ALTER TABLE public.call_plan_reminders ENABLE ROW LEVEL SECURITY;
+### Step 4: Update sales-coach Edge Function
+- Fix deal name format to use company name only
+- Parse `contacts:` field from DEAL_DETECTED block
+- Auto-create contacts in `sales_contacts` table linked to the company
 
-CREATE POLICY "Users can view their own reminders"
-ON public.call_plan_reminders
-FOR SELECT USING (profile_id = auth.uid());
-```
-
-### Step 2: Edge Function - `send-call-plan-reminder`
-
-This function does the heavy lifting:
-
-1. **Input**: `profile_id`, `call_tracking_id`, `call_number`, `reminder_type`
-
-2. **Customer Matching**:
-   - Query `sales_companies` with fuzzy match on customer_name
-   - Query `customer_purchase_history` for 2024 + 2025 data
-
-3. **Data Aggregation**:
-   - Fetch `call_plan_tracking` record (all notes, dates, precall_plan)
-   - Fetch matched `sales_companies` (grower_history, operation_details, notes)
-   - Fetch `sales_deals` WHERE name ILIKE customer_name
-   - Fetch `sales_activities` from those deals (last 30 days)
-   - Fetch `sales_contacts` linked to matched company
-   - Fetch `customer_documents` (recent uploads, summaries)
-
-4. **AI Generation**:
-   - Call Lovable AI with stage-specific system prompt
-   - Include complete customer context JSON
-   - Generate HTML email with coaching
-
-5. **Send & Log**:
-   - Send via Resend
-   - Insert into `call_plan_reminders` to prevent duplicates
-
-### Step 3: Edge Function - `process-call-plan-reminders`
-
-Daily cron job (7 AM CST):
-
-1. Query `call_plan_tracking` for:
-   - `call_X_date = CURRENT_DATE + 7` (7-day reminder)
-   - `call_X_date = CURRENT_DATE + 1` (1-day reminder)
-   - `call_X_completed = false`
-   - Profile belongs to Stateline Cooperative
-
-2. For each match:
-   - Check `call_plan_reminders` for existing record
-   - Skip if already sent
-   - Invoke `send-call-plan-reminder`
-
-3. Error handling with retries and logging
-
-### Step 4: Cron Job Setup
-
-```sql
-SELECT cron.schedule(
-  'call-plan-reminders-daily',
-  '0 13 * * *',  -- 7 AM CST = 13:00 UTC
-  $$
-  SELECT net.http_post(
-    url := 'https://aiihzjkspwsriktvrdle.supabase.co/functions/v1/process-call-plan-reminders',
-    headers := '{"Authorization": "Bearer SERVICE_ROLE_KEY"}'::jsonb
-  )
-  $$
-);
-```
-
----
-
-## Technical Details
-
-### Customer Matching Strategy
-
-Since `call_plan_tracking.customer_name` may not directly link to `sales_companies.id`, we use fuzzy matching:
-
-```typescript
-// Normalize names for matching
-const normalizedName = customerName.toUpperCase().replace(/[,\s]+/g, ' ').trim();
-
-// Try exact match first
-const { data: exactMatch } = await supabase
-  .from('sales_companies')
-  .select('*')
-  .eq('profile_id', profileId)
-  .ilike('name', customerName)
-  .single();
-
-// Fallback to fuzzy match
-if (!exactMatch) {
-  const { data: fuzzyMatches } = await supabase
-    .from('sales_companies')
-    .select('*')
-    .eq('profile_id', profileId)
-    .or(`name.ilike.%${normalizedName.split(' ')[0]}%`);
-}
-```
-
-### Stage-Specific AI Prompts
-
-| Call | System Prompt Focus |
-|------|---------------------|
-| **1 - Prepay Review** | Pre-season planning, prepay programs, review last year, new opportunities |
-| **2 - Pre-Plant** | Timing decisions, final inputs, weather considerations, application scheduling |
-| **3 - Season Review** | Crop health check, in-season products, problem solving, yield outlook |
-| **4 - Strategic Recs** | Post-harvest recap, next year planning, loyalty programs, relationship building |
-
-### Security
-
-- RLS on `call_plan_reminders` restricts to own records
-- Edge function uses service role for cross-table queries
-- Stateline-only filter: `company_id = 'd32f9a18-aba5-4836-aa66-1834b8cb8edd'`
+### Step 5: Deploy and Test
+- Deploy updated edge function
+- Verify conversation history loads correctly
+- Test auto-contact creation by mentioning people in chat
+- Confirm Field Maps tab is hidden for non-ag companies
 
 ---
 
 ## Summary
 
-This system transforms Jericho from a reminder tool into a **true sales intelligence assistant** that:
-
-1. Knows when you have customer meetings scheduled
-2. Aggregates ALL available data about that customer
-3. Highlights recently updated information so you know what's new
-4. Provides stage-appropriate coaching based on real data
-5. Remembers your prior notes and plans from earlier calls
-6. Sends proactive 7-day and 1-day reminders
-
-The result: Reps walk into every meeting with complete context and data-driven talking points.
+This plan addresses all 6 identified issues:
+1. Chat history loads correctly by defaulting to user's own company context
+2. Momentum employees automatically operate as "The Momentum Company"
+3. Deal names use company name only (not contact titles)
+4. Contacts are auto-created when mentioned in conversation
+5. Field Maps are hidden by default, enabled per-company
+6. Formatting is restored by having proper conversation context
 
