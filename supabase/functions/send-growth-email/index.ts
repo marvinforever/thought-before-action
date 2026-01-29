@@ -145,9 +145,33 @@ serve(async (req) => {
       .eq("profile_id", profileId)
       .eq("status", "pending")
       .order("match_score", { ascending: false })
-      .limit(5);
+      .limit(15); // Fetch more to allow filtering out recently sent
 
-    // Build context for AI - Focus on TOP 1 CAPABILITY
+    // For weekly emails: fetch recent emails to avoid repetition
+    const fourWeeksAgo = new Date();
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+    
+    const { data: recentEmails } = await supabase
+      .from("email_deliveries")
+      .select("resources_included, sent_at")
+      .eq("profile_id", profileId)
+      .gte("sent_at", fourWeeksAgo.toISOString())
+      .order("sent_at", { ascending: false })
+      .limit(4); // Last 4 weekly emails
+
+    // Extract recently sent resource IDs and capability IDs
+    const recentResourceIds = new Set<string>();
+    const recentCapabilityIds = new Set<string>();
+    
+    recentEmails?.forEach(email => {
+      const included = email.resources_included as any;
+      if (included?.resourceId) recentResourceIds.add(included.resourceId);
+      if (included?.capabilityId) recentCapabilityIds.add(included.capabilityId);
+    });
+
+    console.log(`Recent emails found: ${recentEmails?.length || 0}, excluding ${recentResourceIds.size} resources and ${recentCapabilityIds.size} capabilities`);
+
+    // Build context for AI - Rotate through capabilities
     const levelMap: Record<string, number> = {
       'foundational': 1,
       'advancing': 2,
@@ -164,10 +188,23 @@ serve(async (req) => {
       gapSize: (levelMap[c.target_level] || 4) - (levelMap[c.current_level] || 1)
     })) || [];
 
-    // Select top 1 capability by largest gap
-    const topCapability = allCapabilities
-      .sort((a, b) => b.gapSize - a.gapSize)
-      .slice(0, 1);
+    // Sort by gap, then filter out recently-featured capabilities for weekly emails
+    const sortedCapabilities = allCapabilities.sort((a, b) => b.gapSize - a.gapSize);
+    
+    let topCapability: typeof sortedCapabilities;
+    if (!isDaily && recentCapabilityIds.size > 0) {
+      // For weekly: prefer capabilities NOT recently featured
+      const freshCapabilities = sortedCapabilities.filter(c => !recentCapabilityIds.has(c.id));
+      if (freshCapabilities.length > 0) {
+        topCapability = freshCapabilities.slice(0, 1);
+        console.log(`Rotating to fresh capability: ${topCapability[0]?.name}`);
+      } else {
+        // All have been featured recently, pick top gap anyway
+        topCapability = sortedCapabilities.slice(0, 1);
+      }
+    } else {
+      topCapability = sortedCapabilities.slice(0, 1);
+    }
 
     const targetsContext = targets?.map(t => ({
       description: t.target_description,
@@ -195,12 +232,34 @@ serve(async (req) => {
       }))
     ) || [];
 
-    // Get 1 resource for the top capability or general resource
+    // Get resource for the selected capability, excluding recently sent ones
     const topCapId = topCapability[0]?.id;
-    const resourceForTopCap = recommendations
-      ?.filter(r => !topCapId || r.employee_capability_id === topCapId)
-      .slice(0, 1) // Just 1 resource
+    
+    // Filter recommendations: match capability AND exclude recently sent
+    let filteredRecommendations = recommendations?.filter(r => {
+      const matchesCap = !topCapId || r.employee_capability_id === topCapId;
+      const notRecentlySent = !recentResourceIds.has(r.resource?.id || '');
+      return matchesCap && notRecentlySent;
+    }) || [];
+
+    // If no fresh resources for this capability, try ANY fresh resource
+    if (filteredRecommendations.length === 0) {
+      filteredRecommendations = recommendations?.filter(r => 
+        !recentResourceIds.has(r.resource?.id || '')
+      ) || [];
+      console.log(`No fresh resources for ${topCapability[0]?.name}, using any fresh resource`);
+    }
+
+    // If still nothing, fall back to any recommendation
+    if (filteredRecommendations.length === 0) {
+      filteredRecommendations = recommendations || [];
+      console.log(`No fresh resources available, reusing from pool`);
+    }
+
+    const resourceForTopCap = filteredRecommendations
+      .slice(0, 1)
       .map(r => ({
+        resourceId: r.resource?.id,
         capabilityId: r.employee_capability_id,
         capabilityName: topCapability.find(c => c.id === r.employee_capability_id)?.name || "General",
         title: r.resource?.title || "Resource",
@@ -253,6 +312,18 @@ CRITICAL - THIS IS A PROACTIVE WEEKLY ASSIGNMENT:
 - Frame this as "here's what you're working on this week" not "here's what you've done"
 - The goal is to give them a complete, actionable growth plan they can execute from the email alone
 
+CRITICAL - FRESH CHALLENGES EVERY WEEK:
+- Create a UNIQUE, SPECIFIC weekly challenge that is DIFFERENT from generic advice
+- Vary the challenge TYPE each week. Rotate between:
+  * Practice challenges: "Have 3 conversations where you ask open-ended questions before giving advice"
+  * Observation challenges: "Notice when you default to telling vs asking this week"
+  * Reflection challenges: "Journal for 5 minutes each evening about one difficult conversation"
+  * Application challenges: "Apply [specific technique from the resource] in your next team meeting"
+  * Connection challenges: "Schedule a 15-minute coffee chat with someone outside your department"
+  * Experimentation challenges: "Try one completely different approach to [specific situation]"
+- Make challenges MEASURABLE and TIME-BOUND (this week, by Friday, 3 times, etc.)
+- Connect the challenge directly to the resource content when possible
+
 CRITICAL - USE ACTUAL DATA, NO PLACEHOLDERS:
 - The user provides JSON with actual capability names and resource details
 - You MUST extract and use the actual values from this JSON
@@ -267,23 +338,22 @@ FACT-CHECKING RULES:
 - When mentioning numbers, ONLY use exact numbers from the provided data
 - Extract and use the exact capability name from the capability object's "name" field
 - Extract and use the exact resource title from the resource object's "title" field
-- The top priority capability is already selected - focus your message on WHY this matters most this week
 
 CONTENT RULES:
 - Open with brief acknowledgment if they have recent activity data
-- Introduce the 1 focus capability by its actual name as this week's primary assignment
+- Introduce the focus capability by its actual name as this week's assignment
 - Connect the resource explicitly to the capability using both actual names
 - Frame the resource as "To develop [actual capability name], start with [actual resource title]"
-- Make the weekly challenge actionable without requiring app login
+- Make the weekly challenge actionable WITHOUT requiring app login
 - Be brief if data is sparse - focus on what you DO know
 - Keep it conversational but professional
 - No fluff or motivational poster talk
 
-EXAMPLE OF CORRECT USAGE:
-If capability JSON is: [{ "name": "Strategic Thinking", "currentLevel": "developing" }]
-And resource JSON is: [{ "title": "Systems Thinking Fundamentals", "capabilityName": "Strategic Thinking" }]
-Then write: "This week, focus on Strategic Thinking... To develop this, start with Systems Thinking Fundamentals"
-NOT: "This week, focus on [Capability Name]... start with [Resource Title]"`;
+EXAMPLE WEEKLY CHALLENGE VARIETY:
+Week 1: "Watch the video and identify 3 questioning techniques. Use at least one in every meeting this week."
+Week 2: "Before responding in any conversation, pause for 3 seconds. Track how this changes the dynamic."
+Week 3: "Schedule one skip-level conversation by Wednesday. Go in with only questions, no agenda."
+Week 4: "Write down your top 3 assumptions about a difficult colleague. Then test one assumption this week."`;
 
     const systemPrompt = isDaily ? dailySystemPrompt : weeklySystemPrompt;
 
@@ -303,6 +373,11 @@ ${JSON.stringify(resourceForTopCap)}
 
 Keep this SHORT and punchy - it's a daily check-in, not a weekly deep-dive. Focus on TODAY's action.`;
 
+    // Get current week number to help with challenge variety
+    const weekOfYear = Math.ceil((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const challengeTypes = ['practice', 'observation', 'reflection', 'application', 'connection', 'experimentation'];
+    const suggestedChallengeType = challengeTypes[weekOfYear % challengeTypes.length];
+
     const weeklyUserPrompt = `Generate a personalized WEEKLY growth prescription email for ${profile.full_name || "this employee"}.
 
 THIS WEEK'S FOCUS: This is their TOP priority capability to work on this week:
@@ -316,6 +391,9 @@ ${voiceConversationSummary ? `\nVOICE COACHING INSIGHTS:\n${voiceConversationSum
 
 CURATED RESOURCE (for their top capability):
 ${JSON.stringify(resourceForTopCap)}
+
+IMPORTANT - CHALLENGE VARIETY:
+This week, lean toward a "${suggestedChallengeType}" type challenge. Make it specific, measurable, and completable by end of week.
 
 Frame this as a proactive weekly assignment focused on this one priority. They may not log into the app - this email should be their complete growth experience for the week.
 ${voiceConversationSummary ? '\n\nNOTE: They had voice conversations with you this week - acknowledge topics they discussed verbally and connect them to this week\'s focus.' : ''}`;
@@ -564,7 +642,15 @@ ${voiceConversationSummary ? '\n\nNOTE: They had voice conversations with you th
 
     const emailData = await resendResponse.json();
 
-    // Log email delivery
+    // Log email delivery with capability and resource tracking for variety
+    const trackingData = {
+      resourceId: resourceForTopCap[0]?.resourceId || null,
+      capabilityId: topCapability[0]?.id || null,
+      capabilityName: topCapability[0]?.name || null,
+      resourceTitle: resourceForTopCap[0]?.title || null,
+      frequency: emailFrequency
+    };
+    
     const { error: logError } = await supabase
       .from("email_deliveries")
       .insert({
@@ -573,7 +659,7 @@ ${voiceConversationSummary ? '\n\nNOTE: They had voice conversations with you th
         subject: emailContent.subject,
         body: html,
         status: "sent",
-        resources_included: resourceForTopCap,
+        resources_included: trackingData,
       });
 
     if (logError) {
