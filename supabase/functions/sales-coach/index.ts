@@ -1436,6 +1436,26 @@ value: <new value if updating>
 notes: <new notes if updating>
 [/PIPELINE_ACTION]
 
+PROSPECT RESEARCH - When they ask you to find prospects or research companies:
+If they ask things like:
+- "Find me companies that..." or "Research these prospects..."
+- "Who are potential customers in [location/industry]?"
+- "I need leads in the [industry] space"
+- "Research XYZ Company, ABC Corp for me"
+
+Include this block at the END of your response:
+[PROSPECT_RESEARCH]
+mode: <named|icp>
+companies: <comma-separated list if named mode>
+icp: <ICP description if discovery mode>
+[/PROSPECT_RESEARCH]
+
+Examples:
+- "Research Tidal Grow and AgriGold for me" → mode: named, companies: Tidal Grow, AgriGold
+- "Find ag retailers in Nebraska with 5+ locations" → mode: icp, icp: Agricultural retailers in Nebraska with at least 5 locations
+
+After including this block, tell the user you're researching and will add matching companies to their prospect list.
+
 WHEN THEY ASK ABOUT THEIR PIPELINE:
 - Pull from the context and give them a conversational summary
 - Highlight what needs attention (stale deals, high-value opportunities, upcoming closes)
@@ -1778,6 +1798,76 @@ Remember: You're their sales coach AND pipeline partner. Help them sell better w
       .replace(/\[PIPELINE_ACTION\][\s\S]*?\[\/PIPELINE_ACTION\]/gi, '')
       .trim();
 
+    // Check for prospect research requests and execute them
+    const prospectResearchMatch = assistantMessage.match(/\[PROSPECT_RESEARCH\]([\s\S]*?)\[\/PROSPECT_RESEARCH\]/i);
+    let prospectResearchResult: { success: boolean; companiesCreated?: any[]; error?: string } | null = null;
+    
+    if (prospectResearchMatch) {
+      const researchBlock = prospectResearchMatch[1];
+      const mode = researchBlock.match(/mode:\s*(.+)/i)?.[1]?.trim()?.toLowerCase();
+      const companiesStr = researchBlock.match(/companies:\s*(.+)/i)?.[1]?.trim();
+      const icpStr = researchBlock.match(/icp:\s*(.+)/i)?.[1]?.trim();
+      
+      console.log('Prospect research detected:', { mode, companiesStr, icpStr });
+      
+      // Remove the block from the message
+      assistantMessage = assistantMessage
+        .replace(/\[PROSPECT_RESEARCH\][\s\S]*?\[\/PROSPECT_RESEARCH\]/gi, '')
+        .trim();
+      
+      try {
+        // Call the research-prospects function
+        const researchPayload: any = {
+          profileId: effectiveUserId,
+        };
+        
+        if (mode === 'named' && companiesStr) {
+          researchPayload.companies = companiesStr.split(',').map((c: string) => c.trim()).filter(Boolean);
+        } else if (mode === 'icp' && icpStr) {
+          researchPayload.icp = icpStr;
+        }
+        
+        if (researchPayload.companies?.length || researchPayload.icp) {
+          const researchResponse = await fetch(`${supabaseUrl}/functions/v1/research-prospects`, {
+            method: 'POST',
+            headers: {
+              'Authorization': req.headers.get('Authorization')!,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(researchPayload),
+          });
+          
+          if (researchResponse.ok) {
+            const researchData = await researchResponse.json();
+            prospectResearchResult = {
+              success: true,
+              companiesCreated: researchData.companiesCreated || [],
+            };
+            console.log(`Prospect research completed: ${researchData.companiesCreated?.length || 0} companies added`);
+            
+            // Append success message to assistant response
+            if (researchData.companiesCreated?.length > 0) {
+              const companyNames = researchData.companiesCreated.map((c: any) => c.name).join(', ');
+              assistantMessage += `\n\n✅ **Added to your prospect list:** ${companyNames}`;
+            }
+          } else {
+            const errorText = await researchResponse.text();
+            console.error('Research prospects failed:', errorText);
+            prospectResearchResult = {
+              success: false,
+              error: 'Research failed - please try again',
+            };
+          }
+        }
+      } catch (researchError) {
+        console.error('Error calling research-prospects:', researchError);
+        prospectResearchResult = {
+          success: false,
+          error: researchError instanceof Error ? researchError.message : 'Research failed',
+        };
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         message: assistantMessage,
@@ -1785,6 +1875,7 @@ Remember: You're their sales coach AND pipeline partner. Help them sell better w
         isStreamlineAg,
         dealCreated, // Let frontend know a deal was created (for refreshing pipeline)
         pipelineActions, // Let frontend know what pipeline actions were executed
+        prospectResearchResult, // Let frontend know about prospect research results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

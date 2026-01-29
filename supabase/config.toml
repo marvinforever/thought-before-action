@@ -191,3 +191,6 @@ verify_jwt = true
 
 [functions.extract-customer-document]
 verify_jwt = true
+
+[functions.research-prospects]
+verify_jwt = true

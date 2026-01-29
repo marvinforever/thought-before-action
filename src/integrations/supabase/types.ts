@@ -5318,6 +5318,9 @@ export type Database = {
           notes: string | null
           operation_details: Json | null
           profile_id: string
+          research_citations: Json | null
+          research_date: string | null
+          source: string | null
           updated_at: string
           website: string | null
         }
@@ -5334,6 +5337,9 @@ export type Database = {
           notes?: string | null
           operation_details?: Json | null
           profile_id: string
+          research_citations?: Json | null
+          research_date?: string | null
+          source?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -5350,6 +5356,9 @@ export type Database = {
           notes?: string | null
           operation_details?: Json | null
           profile_id?: string
+          research_citations?: Json | null
+          research_date?: string | null
+          source?: string | null
           updated_at?: string
           website?: string | null
         }
