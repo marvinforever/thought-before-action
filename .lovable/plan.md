@@ -1,126 +1,79 @@
 
-# Fix: Pipeline Additions Not Working
+
+# Fix: Product Catalog Upload Failing - RLS Policy Issue
 
 ## Problem Identified
 
-Jericho claims to add companies/deals to the pipeline but they're not being created. The logs show:
-
+Your product catalog upload is failing with:
 ```
-Error creating company: {
-  code: "PGRST204",
-  message: "Could not find the 'company_id' column of 'sales_companies' in the schema cache"
-}
+StorageApiError: new row violates row-level security policy
 ```
 
-**Root Cause:** The `sales-coach` edge function is using the wrong column name. It's trying to:
-- Query with `.eq("company_id", ...)` 
-- Insert `company_id` into the record
+**Root Cause:** The storage bucket `company-documents` only allows uploads from users with `is_admin = true`. Your profile shows:
+- Email: `jake.heitshusen@agpartners.net`
+- `is_admin: false`
 
-But the `sales_companies` table has **no `company_id` column** - it uses `profile_id` to link records to users.
-
----
-
-## Database Schema Reality
-
-| Table | How it links to user |
-|-------|---------------------|
-| `sales_companies` | `profile_id` (direct FK to profiles) |
-| `sales_contacts` | `profile_id` + `company_id` (FK to sales_companies.id) |
-| `sales_deals` | `profile_id` + `company_id` (FK to sales_companies.id) |
-
-The `company_id` column in `sales_contacts` and `sales_deals` refers to the **sales company** (customer), not the organization.
-
----
-
-## Fixes Required
-
-### 1. Edge Function: `supabase/functions/sales-coach/index.ts`
-
-**Context Gathering (line ~408):**
-```typescript
-// BEFORE (wrong)
-.eq("company_id", companyId)
-
-// AFTER (correct)
-.eq("profile_id", userId)
-```
-
-**Duplicate Check (lines ~461-465):**
-```typescript
-// BEFORE (wrong)
-.eq("company_id", companyId)
-
-// AFTER (correct)
-.eq("profile_id", userId)
-```
-
-**Company Insert (lines ~479-488):**
-```typescript
-// BEFORE (wrong)
-.insert({
-  company_id: companyId,
-  profile_id: userId,
-  name: name.trim(),
-  status: "active",
-})
-
-// AFTER (correct - remove company_id, remove non-existent status column)
-.insert({
-  profile_id: userId,
-  name: name.trim(),
-})
-```
-
-### 2. Frontend: `src/components/sales/SalesCoachChat.tsx` (line ~61)
-
-```typescript
-// BEFORE (wrong)
-.eq("company_id", companyId)
-
-// AFTER (correct)
-.eq("profile_id", userId)
-```
-
-### 3. Frontend: `src/pages/SalesTrainer.tsx` (line ~91)
-
-```typescript
-// BEFORE (wrong)
-.eq("company_id", effectiveCompanyId)
-
-// AFTER (correct)
-.eq("profile_id", effectiveUserId)
+The current policy:
+```sql
+-- Only admins can upload
+(bucket_id = 'company-documents') 
+  AND folder = company_id 
+  AND is_admin = true  ← This blocks you
 ```
 
 ---
 
-## Files to Modify
+## Solution
 
-| File | Lines | Change |
-|------|-------|--------|
-| `supabase/functions/sales-coach/index.ts` | ~408 | Change `.eq("company_id", companyId)` to `.eq("profile_id", userId)` |
-| `supabase/functions/sales-coach/index.ts` | ~464 | Change `.eq("company_id", companyId)` to `.eq("profile_id", userId)` |
-| `supabase/functions/sales-coach/index.ts` | ~481-486 | Remove `company_id` and `status` from insert |
-| `src/components/sales/SalesCoachChat.tsx` | ~61 | Fix query filter |
-| `src/pages/SalesTrainer.tsx` | ~91 | Fix query filter |
+Add an RLS policy that allows **all authenticated users** to upload documents to their company's folder in `company-documents`. Sales reps need this ability to add product catalogs and other sales materials.
+
+---
+
+## Database Changes Required
+
+### New Storage Policy: "Users can upload company documents"
+
+```sql
+CREATE POLICY "Users can upload company documents"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'company-documents'
+  AND (storage.foldername(name))[1] = (
+    SELECT company_id::text 
+    FROM profiles 
+    WHERE id = auth.uid()
+  )
+);
+```
+
+This allows any authenticated user to upload to their own company's folder (matching the existing view policy pattern).
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Database migration | Add new storage INSERT policy for authenticated users |
 
 ---
 
 ## What This Fixes
 
-After these changes:
-- Companies will actually be created when Jericho says "Added ABC Farms"
-- Contacts will be linked correctly
-- Deals will be created in the pipeline
-- Undo functionality will work
-- The customer dropdown in chat will populate correctly
+After this change:
+- Any logged-in user can upload files to their company's folder
+- Product catalogs from Streamline will save successfully
+- The existing admin-only policy remains (admins get upload rights via both policies)
+- View access remains unchanged (users can only see their company's documents)
 
 ---
 
-## Testing After Fix
+## Security Consideration
 
-1. Open Sales Agent chat
-2. Say "I just met John at ABC Farms about seed treatment"
-3. Verify:
-   - Toast shows "Company Added" with Undo button
-   - Company appears in Companies tab
-   - Deal appears in Pipeline
+This is safe because:
+1. Users can only upload to their own company's folder (`company_id` check)
+2. Files are private (bucket is not public)
+3. View policy already restricts access to same-company users
+4. Matches the intended use case for Sales Knowledge Base
+
