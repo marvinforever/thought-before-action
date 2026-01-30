@@ -90,7 +90,15 @@ serve(async (req) => {
         companyId = profile?.company_id || null;
 
         // Super admin impersonation support
+        console.log("Impersonation check:", { 
+          isSuperAdmin: profile?.is_super_admin, 
+          viewAsUserId, 
+          viewAsCompanyId,
+          originalUserId: userId 
+        });
+        
         if (profile?.is_super_admin && viewAsUserId) {
+          console.log("Applying impersonation - switching to user:", viewAsUserId);
           userId = viewAsUserId;
           const { data: impersonatedProfile } = await adminClient
             .from("profiles")
@@ -98,6 +106,7 @@ serve(async (req) => {
             .eq("id", viewAsUserId)
             .single();
           companyId = viewAsCompanyId || impersonatedProfile?.company_id || companyId;
+          console.log("Impersonated company:", companyId);
         } else if (viewAsCompanyId) {
           companyId = viewAsCompanyId;
         }
@@ -106,6 +115,7 @@ serve(async (req) => {
 
     const effectiveUserId = userId;
     const effectiveCompanyId = companyId;
+    console.log("Effective IDs for actions:", { effectiveUserId, effectiveCompanyId });
 
     // Handle undo action
     if (undoAction) {
