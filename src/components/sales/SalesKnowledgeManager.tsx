@@ -135,9 +135,9 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Maximum size is 10MB", variant: "destructive" });
+    // Validate file size (50MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum size is 50MB", variant: "destructive" });
       return;
     }
 
