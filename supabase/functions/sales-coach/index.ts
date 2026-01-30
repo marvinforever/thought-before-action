@@ -323,7 +323,7 @@ Rules:
         model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Recent conversation:\n${conversationHistory.slice(-2000)}\n\nNew message: ${message}` },
+          { role: "user", content: `Recent conversation:\n${conversationHistory.slice(-6000)}\n\nNew message: ${message}` },
         ],
         temperature: 0.1,
       }),
@@ -1195,7 +1195,7 @@ ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `${conversationHistory ? `Previous conversation:\n${conversationHistory.slice(-3000)}\n\n` : ""}User says: ${message}` },
+        { role: "user", content: `${conversationHistory ? `Previous conversation:\n${conversationHistory.slice(-8000)}\n\n` : ""}User says: ${message}` },
       ],
       temperature: 0.7,
     }),
