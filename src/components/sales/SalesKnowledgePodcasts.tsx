@@ -17,8 +17,16 @@ import {
   Target,
   Lightbulb,
   TrendingUp,
-  Download
+  Download,
+  Package
 } from "lucide-react";
+
+// Categories that are considered "product training" vs "sales training"
+const PRODUCT_CATEGORIES = ['product_catalog', 'product_sheet', 'technical', 'products', 'biologicals', 'seed', 'chemicals', 'crop_protection'];
+const isProductTraining = (category: string | null) => {
+  if (!category) return false;
+  return PRODUCT_CATEGORIES.some(pc => category.toLowerCase().includes(pc));
+};
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -652,15 +660,22 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
             const hasEpisodes = data?.episodes && data.episodes.length > 0;
             const isExpanded = expandedItem === item.id;
             const isGeneratingThis = generating === item.id;
+            const isProduct = isProductTraining(item.category);
             
             return (
-              <Card key={item.id} className="overflow-hidden">
+              <Card key={item.id} className={`overflow-hidden ${isProduct ? 'border-orange-500/30 bg-orange-500/5' : ''}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        {isProduct && <Package className="h-4 w-4 text-orange-500" />}
                         <h4 className="font-medium">{item.title}</h4>
-                        {item.stage && (
+                        {isProduct && (
+                          <Badge className="text-xs bg-orange-500/20 text-orange-600 border-orange-500/30">
+                            Product Training
+                          </Badge>
+                        )}
+                        {item.stage && !isProduct && (
                           <Badge variant="secondary" className="text-xs">
                             {stageLabels[item.stage] || item.stage}
                           </Badge>
@@ -693,7 +708,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                           size="sm"
                           onClick={() => generateEpisode(item, 0)}
                           disabled={isGeneratingThis}
-                          className="gap-1"
+                          className={`gap-1 ${isProduct ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
                         >
                           {isGeneratingThis ? (
                             <>
