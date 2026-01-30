@@ -401,11 +401,11 @@ async function gatherContext(
   context.deals = deals || [];
 
   // Fetch existing companies to prevent duplicates
-  if (companyId) {
+  if (userId) {
     const { data: companies } = await client
       .from("sales_companies")
       .select("id, name")
-      .eq("company_id", companyId)
+      .eq("profile_id", userId)
       .order("name")
       .limit(500);
     context.existingCompanies = companies || [];
@@ -461,7 +461,7 @@ async function createCompany(
     const { data: existing } = await client
       .from("sales_companies")
       .select("id, name")
-      .eq("company_id", companyId)
+      .eq("profile_id", userId)
       .ilike("name", name.trim());
 
     if (existing && existing.length > 0) {
@@ -479,10 +479,8 @@ async function createCompany(
     const { data: newCompany, error } = await client
       .from("sales_companies")
       .insert({
-        company_id: companyId,
         profile_id: userId,
         name: name.trim(),
-        status: "active",
       })
       .select("id")
       .single();

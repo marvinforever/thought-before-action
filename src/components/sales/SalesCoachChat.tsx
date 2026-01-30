@@ -52,13 +52,13 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
   }, [userId, companyId]);
 
   const fetchCustomers = async () => {
-    if (!companyId) return;
+    if (!userId) return;
     try {
       // Use any cast to avoid deep type instantiation error with Supabase types
       const { data } = await (supabase as any)
         .from("sales_companies")
         .select("id, name")
-        .eq("company_id", companyId)
+        .eq("profile_id", userId)
         .order("name");
       if (data) {
         setCustomers(data.map((c: any) => ({ id: c.id as string, name: c.name as string })));
