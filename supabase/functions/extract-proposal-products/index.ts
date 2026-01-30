@@ -44,6 +44,12 @@ serve(async (req) => {
     const systemPrompt = `You are a helpful assistant that extracts product recommendations from sales conversations.
 ${productCatalog ? `\nIMPORTANT: Only recommend products that exist in the company's product catalog provided below. Do not invent or suggest products not in the catalog.${productCatalog}` : ''}
 
+## CRITICAL PRICING RULES:
+- **NEVER FABRICATE PRICES** - Only include prices that were explicitly mentioned in the conversation OR appear in the product catalog above.
+- If no price was mentioned or found in the catalog, set price to empty string "".
+- Do NOT estimate, guess, or invent pricing information.
+- For revenue/ROI estimates in benefits, use phrases like "Potential increase (not guaranteed)" rather than specific dollar amounts.
+
 Analyze the conversation and extract:
 1. Any products or services recommended (MUST be from the company catalog if provided)
 2. Customer/prospect name if mentioned
@@ -57,7 +63,7 @@ Return a JSON object with this structure:
       "name": "Product Name",
       "pitch": "One-liner pitch or description",
       "benefits": ["Benefit 1", "Benefit 2", "Benefit 3"],
-      "price": "Price if mentioned, otherwise empty string"
+      "price": "Price if explicitly mentioned in conversation or catalog, otherwise empty string"
     }
   ],
   "customerName": "Customer name if mentioned",
@@ -70,7 +76,8 @@ Rules:
 - For benefits, focus on specific outcomes, not features
 - Keep pitches concise (1 sentence)
 - If no products found, return empty products array
-- Make the intro message personal and reference the conversation`;
+- Make the intro message personal and reference the conversation
+- **PRICING**: Only include price if it was EXPLICITLY stated - never fabricate prices`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
