@@ -116,7 +116,22 @@ serve(async (req) => {
     }
 
     // Step 1: Fast Intent Detection & Entity Extraction
-    const extracted = await detectIntentAndExtract(message, conversationHistory, lovableApiKey);
+    let extracted = await detectIntentAndExtract(message, conversationHistory, lovableApiKey);
+    console.log("AI extraction result:", JSON.stringify(extracted));
+    
+    // FALLBACK: If AI extraction missed obvious patterns, use regex as backup
+    if (extracted.companies.length === 0) {
+      const fallbackCompany = extractCompanyFallback(message);
+      if (fallbackCompany) {
+        console.log("Fallback extraction found company:", fallbackCompany);
+        extracted = {
+          ...extracted,
+          companies: [{ name: fallbackCompany, isNew: true, confidence: 0.7 }],
+          intentType: "pipeline_action",
+        };
+      }
+    }
+    
     console.log("Intent detected:", extracted.intentType, "| Companies:", extracted.companies.length, "| Contacts:", extracted.contacts.length);
     
     // Step 2: Gather Context
@@ -431,6 +446,69 @@ function getDefaultExtraction(): ExtractedEntities {
     dealSignals: {},
     intentType: "coaching",
   };
+}
+
+/**
+ * Fallback regex-based extractor for common pipeline addition patterns.
+ * This catches cases where the AI extraction model fails to identify obvious intents.
+ */
+function extractCompanyFallback(message: string): string | null {
+  const lowerMsg = message.toLowerCase();
+  
+  // Common patterns for adding to pipeline
+  const addPatterns = [
+    // "add X to my pipeline"
+    /\badd\s+([A-Z][a-zA-Z\s']+?)\s+to\s+(my\s+)?pipeline/i,
+    // "put X in the pipeline"
+    /\bput\s+([A-Z][a-zA-Z\s']+?)\s+in\s+(the\s+)?pipeline/i,
+    // "create a deal for X"
+    /\bcreate\s+(a\s+)?deal\s+for\s+([A-Z][a-zA-Z\s']+)/i,
+    // "log X as a prospect"
+    /\blog\s+([A-Z][a-zA-Z\s']+?)\s+as\s+(a\s+)?prospect/i,
+    // "new prospect: X" or "new deal: X"
+    /\bnew\s+(prospect|deal)[:\s]+([A-Z][a-zA-Z\s']+)/i,
+    // "track X"
+    /\btrack\s+([A-Z][a-zA-Z\s']+?)(?:\s|$|\.)/i,
+    // "I just met with X" or "just talked to X"
+    /\bjust\s+(met|talked|spoke)\s+(with|to)\s+([A-Z][a-zA-Z\s']+?)(?:\s+and|\s+about|\.|\s*$)/i,
+    // "met with X today"
+    /\bmet\s+with\s+([A-Z][a-zA-Z\s']+?)\s+(today|yesterday|this\s+week)/i,
+    // "add X" (simple - check for pipeline context)
+    /\badd\s+([A-Z][a-zA-Z\s']+?)(?:\s*$|\.|\s+to)/i,
+  ];
+  
+  // Check if message has pipeline-related context
+  const hasPipelineContext = 
+    lowerMsg.includes('pipeline') || 
+    lowerMsg.includes('deal') || 
+    lowerMsg.includes('prospect') ||
+    lowerMsg.includes('track') ||
+    lowerMsg.includes('add') ||
+    lowerMsg.includes('opportunity');
+  
+  if (!hasPipelineContext) return null;
+  
+  for (const pattern of addPatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      // Get the captured group (company name) - could be in different positions
+      let name = match[1] || match[2] || match[3];
+      if (name) {
+        // Clean up the name
+        name = name.trim()
+          .replace(/\s+/g, ' ')  // normalize whitespace
+          .replace(/[.,!?]$/, ''); // remove trailing punctuation
+        
+        // Skip if it's just a pronoun or too short
+        if (name.length >= 2 && !/^(him|her|them|it|this|that|my|the|a|an)$/i.test(name)) {
+          console.log("Fallback pattern matched:", pattern.source, "-> Name:", name);
+          return name;
+        }
+      }
+    }
+  }
+  
+  return null;
 }
 
 // ============================================
