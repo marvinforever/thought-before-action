@@ -1,144 +1,426 @@
 
+# Jericho: Production-Ready Agentic Sales Executive Assistant
 
-# Multi-Issue Fix Plan: Sales Agent Improvements
+## Overview
 
-## Issues Identified
-
-| # | Issue | Root Cause |
-|---|-------|------------|
-| 1 | **Chat history lost after logout** | Conversation loads based on `company_id` - when no company is selected, messages from last night's session aren't loaded |
-| 2 | **Default to Momentum Company** | When logged in as Mark (without "View As"), the system should auto-default to "The Momentum Company" context |
-| 3 | **Deal formatting shows "VP of HR"** | Contact titles are being included in deal names instead of just company name |
-| 4 | **Auto-create contacts when entering company + people** | When Jericho detects people mentioned with a company, create them as CRM contacts automatically |
-| 5 | **Hide Field Maps by default** | Field Maps tab is always visible - should be gated by company/user setting |
-| 6 | **Pipeline not saving overnight** | Related to Issue #1 - deals were likely being saved but loaded under wrong context |
+This plan rebuilds the missing `sales-coach` edge function and transforms Jericho into a fully autonomous, production-grade sales executive assistant. Every feature includes robust error handling, undo capabilities, and graceful degradation to ensure flawless customer demos.
 
 ---
 
-## Solution Architecture
+## Architecture: The Agentic Pipeline
 
-### Issue 1 & 2: Conversation Loading + Default Momentum Context
-
-**Problem**: When you log in, the conversation loads based on `profile.company_id`, but your conversations last night may have been with a "View As" company context. Also, as a super admin with The Momentum Company, you should default to that context.
-
-**Fix**:
-- When a super admin logs in with `company_id = '00000000-0000-0000-0000-000000000001'` (Momentum), automatically set `viewAsCompanyId` to that value
-- Load conversation based on the user's ACTUAL company (Momentum) instead of requiring manual selection
-- This ensures continuity between sessions
-
-**Files to modify**:
-- `src/pages/SalesTrainer.tsx` - Add logic to auto-set Momentum as default context for Momentum employees
-
----
-
-### Issue 3: Deal Name Formatting
-
-**Problem**: When Jericho creates deals, it sometimes uses contact titles (like "VP of HR") in the deal name.
-
-**Fix**: Change deal name format to prioritize company name only:
-- Deal name: `{Company Name}` (not `{Contact} - {Company}`)
-- Store contact name in the `notes` field or link to a separate contact record
-
-**Files to modify**:
-- `supabase/functions/sales-coach/index.ts` - Update deal creation logic
-
----
-
-### Issue 4: Auto-Create Contacts from Conversation
-
-**Problem**: When you mention people in a company (e.g., "I'm working with Cooperative Producers and talking to John Smith and Mary Johnson"), Jericho should automatically create those as contacts in the CRM.
-
-**Solution**: Extend the `[DEAL_DETECTED]` block to include multiple contacts, then create them in `sales_contacts` table.
-
-**New block format**:
-```
-[DEAL_DETECTED]
-company_name: Cooperative Producers
-contacts: John Smith (CEO), Mary Johnson (Ops Manager), Tim Brown
-stage: discovery
-value: 50000
-notes: Initial meeting scheduled
-[/DEAL_DETECTED]
-```
-
-**Backend changes**:
-- Parse the `contacts` field (comma-separated list with optional titles in parentheses)
-- Create each person in `sales_contacts` linked to the `sales_companies` record
-- Mark the first contact as `is_primary = true`
-
-**Files to modify**:
-- `supabase/functions/sales-coach/index.ts` - Extend deal detection to parse and create contacts
-
----
-
-### Issue 5: Field Maps Feature Gating
-
-**Problem**: The "Field Maps" tab appears for all users, but it should only be visible for companies that use this feature (e.g., agricultural companies).
-
-**Solution**: Add a company-level setting `enable_field_maps` and check it before rendering the tab.
-
-**Database changes**:
-```sql
--- Add settings JSONB column to companies if not exists
-ALTER TABLE companies 
-ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}';
-
--- Enable for specific companies
-UPDATE companies 
-SET settings = jsonb_set(COALESCE(settings, '{}'), '{enable_field_maps}', 'true')
-WHERE id IN (
-  'd32f9a18-aba5-4836-aa66-1834b8cb8edd', -- Stateline
-  'd23e3007-254d-429a-a7e2-329bc1bf2afb'  -- Streamline Ag
-);
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           USER MESSAGE                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  1. FAST INTENT DETECTION (Gemini Flash-Lite)                               │
+│     ─ Classify: coaching | data_lookup | create_entity | research | email  │
+│     ─ Extract: company names, contact names/titles, deal signals           │
+│     ─ Confidence scoring for ambiguous entities                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  2. CONTEXT ASSEMBLY                                                        │
+│     ─ User pipeline (deals, stages, values)                                 │
+│     ─ Customer intelligence profiles                                        │
+│     ─ Knowledge base (company-specific training content)                    │
+│     ─ Purchase history for mentioned customers                              │
+│     ─ Existing companies/contacts (duplicate prevention)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  3. ACTION EXECUTION (Parallel when possible)                               │
+│     ─ Create companies/contacts/deals with undo tokens                      │
+│     ─ Trigger research via Perplexity API                                   │
+│     ─ Draft personalized emails with current events                         │
+│     ─ Update customer intelligence profiles                                 │
+│     ─ All actions logged to jericho_action_log                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  4. RESPONSE GENERATION                                                     │
+│     ─ Conversational coaching response                                      │
+│     ─ Action summaries with undo buttons                                    │
+│     ─ Inline email drafts with copy button                                  │
+│     ─ Research results with citations                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  5. POST-RESPONSE LEARNING                                                  │
+│     ─ Extract insights from conversation (automatic)                        │
+│     ─ Update customer intelligence profiles                                 │
+│     ─ Store patterns in sales_coach_learning                               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Frontend changes**:
-- Fetch company settings in SalesTrainer
-- Pass `enableFieldMaps` prop to CustomerDetailDialog
-- Conditionally render the Field Maps tab
+---
 
-**Files to modify**:
-- Database migration to add settings column
-- `src/pages/SalesTrainer.tsx` - Fetch company settings
-- `src/components/sales/CustomerDetailDialog.tsx` - Accept `enableFieldMaps` prop and conditionally render tab
+## Database Changes
+
+### New Tables
+
+**1. `sales_company_intelligence`** - Deep customer profiles that Jericho builds over time
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| company_id | uuid | FK to sales_companies |
+| profile_id | uuid | Owner's profile |
+| key_contacts | jsonb | Names, roles, preferences |
+| buying_signals | jsonb | Collected signals with timestamps |
+| objections_history | jsonb | Objections and how they were handled |
+| preferences | jsonb | Communication style, meeting times |
+| relationship_notes | text | AI-synthesized relationship summary |
+| competitive_intel | text | Competitor mentions |
+| personal_details | jsonb | Hobbies, family, interests mentioned |
+| research_data | jsonb | Web research results |
+| last_research_at | timestamptz | When last researched |
+| created_at / updated_at | timestamptz | Timestamps |
+
+**2. `jericho_action_log`** - Audit trail for all autonomous actions (enables undo)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key (also serves as undo token) |
+| profile_id | uuid | User who triggered action |
+| company_id | uuid | Company context |
+| action_type | text | company_created, deal_created, contact_created, research_completed, insight_saved, email_drafted, entity_deleted |
+| entity_type | text | company, deal, contact, etc. |
+| entity_id | uuid | ID of created/modified entity |
+| action_data | jsonb | Full details of what was done |
+| triggered_by | text | The user message that triggered this |
+| can_undo | boolean | Whether this action can still be undone |
+| undone_at | timestamptz | When undone (null if not undone) |
+| created_at | timestamptz | When action was taken |
+
+**3. `email_drafts`** - AI-drafted emails ready for user review
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| profile_id | uuid | Owner |
+| company_id | uuid | Customer company |
+| deal_id | uuid | Optional deal association |
+| sales_company_id | uuid | FK to sales_companies |
+| recipient_name | text | Who the email is for |
+| recipient_email | text | Email address (if known) |
+| subject | text | Email subject line |
+| body_text | text | Plain text version |
+| personalization_context | text | What Jericho used to personalize |
+| current_events_used | jsonb | News/events referenced |
+| email_type | text | initial_outreach, follow_up, proposal, thank_you, check_in |
+| status | text | draft, copied, archived |
+| created_at | timestamptz | When drafted |
+
+### RLS Policies
+
+All new tables will have RLS enabled with policies matching existing patterns:
+- Users can CRUD their own records (`profile_id = auth.uid()`)
+- Super admins can view all (`is_super_admin(auth.uid())`)
+- INSERT policies use `WITH CHECK (profile_id = auth.uid())`
 
 ---
 
-## Implementation Steps
+## Core Features
 
-### Step 1: Database Migration (Field Maps gating)
-- Add `settings` JSONB column to `companies` table
-- Populate `enable_field_maps: true` for agricultural companies (Stateline, Streamline Ag)
+### 1. Autonomous Entity Creation
 
-### Step 2: Update SalesTrainer.tsx
-- Auto-set `viewAsCompanyId` to user's own `company_id` when loading (for Momentum employees)
-- Fetch company settings including `enable_field_maps`
-- Pass settings to child components
+**Trigger Detection:**
+When user says something like:
+- "I just talked to John Smith at ABC Farms..."
+- "Had a great meeting with the Wilson Ag folks today..."
+- "I'm thinking about reaching out to Cornerstone Seeds..."
 
-### Step 3: Update CustomerDetailDialog.tsx
-- Add `enableFieldMaps?: boolean` prop
-- Conditionally render the Field Maps tab based on this prop
+**Processing Flow:**
+1. Fast intent detection extracts: company name, contact names, titles, deal signals
+2. Check existing `sales_companies` for fuzzy match (case-insensitive, trim whitespace)
+3. If company doesn't exist: Create it with best-guess data
+4. If contacts mentioned: Create them linked to the company
+5. If deal signals present: Create deal in "prospecting" stage
+6. Log all actions to `jericho_action_log` with undo tokens
+7. Return natural response: "Got it! Added **ABC Farms** to your companies and created a prospecting deal. [Undo]"
 
-### Step 4: Update sales-coach Edge Function
-- Fix deal name format to use company name only
-- Parse `contacts:` field from DEAL_DETECTED block
-- Auto-create contacts in `sales_contacts` table linked to the company
+**Ambiguity Handling (Best Guess + Notify):**
+If "Wilson" could be Wilson Ag, Wilson Seeds, or a person:
+- Jericho makes best guess based on context
+- Response: "Added **Wilson** as a new company. Let me know if I got that wrong and I'll fix it!"
 
-### Step 5: Deploy and Test
-- Deploy updated edge function
-- Verify conversation history loads correctly
-- Test auto-contact creation by mentioning people in chat
-- Confirm Field Maps tab is hidden for non-ag companies
+**Undo Mechanism:**
+- Actions return an `undoToken` (the action log ID)
+- Frontend shows toast with "Undo" button for 5 seconds
+- Clicking undo calls `sales-coach` with `undoAction: <token>`
+- Edge function soft-deletes the entities and marks action as undone
+
+### 2. Deep Company Research (On Demand)
+
+**Trigger Detection:**
+- "Research ABC Farms for me"
+- "What can you find out about this prospect?"
+- "Tell me about Wilson Ag before my call"
+
+**Processing Flow:**
+1. Call existing `research-prospects` function with company name
+2. Store results in `sales_company_intelligence.research_data`
+3. Update `sales_companies.notes` with key findings
+4. Return formatted research summary with citations
+
+**Current Events Integration:**
+- Call `fetch-industry-news` with company's industry
+- Use Perplexity for company-specific news
+- Store in intelligence profile for email personalization
+
+### 3. Persistent Customer Intelligence
+
+**Automatic Insight Extraction (After Every Message):**
+1. Analyze conversation for customer-related signals
+2. Extract and categorize:
+   - **Buying signals**: "They're expanding their operation..."
+   - **Objections**: "He mentioned price concerns..."
+   - **Preferences**: "She prefers morning calls..."
+   - **Personal details**: "His daughter plays volleyball..."
+   - **Product interests**: "Asked about seed treatment..."
+3. Save to `customer_insights` table (existing)
+4. Synthesize into `sales_company_intelligence` for quick access
+
+**Memory Retrieval:**
+- When user mentions a customer, Jericho auto-loads their intelligence profile
+- "What do I know about ABC Farms?" returns synthesized profile
+- All previous mentions, preferences, and insights surfaced in context
+
+### 4. AI-Powered Email Drafting
+
+**Trigger Detection:**
+- "Draft an email to John at ABC Farms"
+- "Help me follow up with Wilson Ag"
+- "Write a thank you note for yesterday's meeting"
+
+**Processing Flow:**
+1. Gather full context:
+   - Customer intelligence profile
+   - Recent conversation history
+   - Purchase history
+   - Deal stage and notes
+2. Fetch current events:
+   - Company-specific news via Perplexity
+   - Local weather/agricultural conditions
+   - Industry trends
+3. Generate personalized email with:
+   - Opening hook using current events
+   - Value proposition tied to their needs
+   - Call to action for deal stage
+4. Save to `email_drafts` table
+5. Display inline in chat with copy button
+
+**Email Types:**
+- Initial outreach (cold email with personalization hooks)
+- Follow-up after meeting (references discussion points)
+- Proposal summary
+- Thank you note
+- Check-in/nurture
+- Seasonal outreach (pre-season planning, post-harvest review)
+
+### 5. Self-Learning System
+
+**Learning From Feedback:**
+- Existing `sales_coach_feedback` (thumbs up/down) already in place
+- Aggregate patterns into `sales_coach_learning` by company
+- Inject learned patterns into system prompts
+- "For customers like ABC Farms, approach X works best..."
+
+**Learning From Actions:**
+- Track which drafted emails get copied (mark status = 'copied')
+- Track deal progression after Jericho's advice
+- Identify successful patterns by customer type
 
 ---
 
-## Summary
+## Error Handling & Graceful Degradation
 
-This plan addresses all 6 identified issues:
-1. Chat history loads correctly by defaulting to user's own company context
-2. Momentum employees automatically operate as "The Momentum Company"
-3. Deal names use company name only (not contact titles)
-4. Contacts are auto-created when mentioned in conversation
-5. Field Maps are hidden by default, enabled per-company
-6. Formatting is restored by having proper conversation context
+### Production-Critical Safeguards
 
+**1. API Failures:**
+- If Perplexity fails: "I couldn't complete the research right now - try again in a moment?"
+- If AI model fails: Return cached response or graceful fallback message
+- If database write fails: Log error, show toast, don't lose user's message
+
+**2. Rate Limiting:**
+- 429 responses return user-friendly message: "I'm getting a lot of requests - give me a second..."
+- Exponential backoff for retries
+
+**3. Duplicate Prevention:**
+- Case-insensitive, trimmed company name matching
+- Check before creating: "Found existing company **ABC Farms** - using that instead of creating a duplicate."
+
+**4. Timeout Protection:**
+- Edge function timeout: 25 seconds
+- If approaching timeout: Return partial results with "Still working on research..."
+
+**5. Undo Safety:**
+- Undo tokens expire after 5 seconds (frontend timer)
+- Database enforces `can_undo` flag
+- Undo only soft-deletes (set `is_active = false`) to prevent data loss
+
+---
+
+## Frontend Updates
+
+### SalesCoachChat.tsx / SalesChatInterface.tsx Enhancements
+
+**1. Action Notifications with Undo:**
+```tsx
+// Toast with undo button
+toast({
+  title: "Added ABC Farms",
+  description: "Created company and prospecting deal",
+  action: (
+    <Button variant="outline" size="sm" onClick={() => undoAction(token)}>
+      Undo
+    </Button>
+  ),
+  duration: 5000,
+});
+```
+
+**2. Email Draft Display:**
+- Inline card showing subject and preview
+- "Copy to Clipboard" button
+- "Edit" opens modal for tweaks
+
+**3. Research Results:**
+- Collapsible card with company overview
+- Citation links
+- "Save to Notes" button
+
+### Conversation Starters Update
+
+Replace generic starters with action-oriented ones:
+```typescript
+const conversationStarters = [
+  { label: "Just met someone", prompt: "I just met a potential customer..." },
+  { label: "Need to follow up", prompt: "Help me follow up with..." },
+  { label: "Research a prospect", prompt: "Research this company for me:" },
+  { label: "Draft an email", prompt: "Draft an email to..." },
+  { label: "Show my pipeline", prompt: "Show me my current pipeline" },
+  { label: "Who should I call?", prompt: "Who should I prioritize calling today?" },
+];
+```
+
+---
+
+## Technical Implementation
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/sales-coach/index.ts` | Main agentic function (rebuild) |
+| Database migration | New tables with RLS |
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/sales/SalesCoachChat.tsx` | Action toasts with undo, email display, research cards |
+| `src/components/sales/SalesChatInterface.tsx` | Same enhancements for trainer view |
+| `src/pages/SalesTrainer.tsx` | Undo handling, new conversation starters |
+| `supabase/config.toml` | Add sales-coach function config |
+
+### Edge Function Structure
+
+```typescript
+// sales-coach/index.ts structure
+
+interface SalesCoachRequest {
+  message: string;
+  conversationHistory?: string;
+  userContext?: string;
+  chatMode?: 'coach' | 'rec';
+  deal?: any;
+  viewAsCompanyId?: string;
+  viewAsUserId?: string;
+  undoAction?: string; // Undo token
+}
+
+interface SalesCoachResponse {
+  message: string;
+  actions: {
+    type: string;
+    entityId: string;
+    undoToken: string;
+    success: boolean;
+    details: any;
+  }[];
+  dealCreated?: boolean;
+  companyCreated?: { id: string; name: string };
+  contactsCreated?: { id: string; name: string }[];
+  emailDrafted?: { id: string; subject: string; preview: string };
+  researchCompleted?: { company: string; summary: string };
+  pipelineActions?: any[];
+}
+```
+
+---
+
+## Implementation Sequence
+
+### Phase 1: Rebuild sales-coach with Autonomous CRM
+1. Create database migration for new tables
+2. Rebuild `sales-coach` edge function from scratch
+3. Implement intent detection layer (Gemini Flash-Lite)
+4. Add entity extraction and creation logic
+5. Implement undo mechanism
+6. Add action logging
+7. Update frontend with action toasts and undo buttons
+
+### Phase 2: Research Integration
+1. Wire up `research-prospects` function call from sales-coach
+2. Store research results in `sales_company_intelligence`
+3. Add research trigger detection
+4. Display research results in chat
+
+### Phase 3: Email Drafting
+1. Create `email_drafts` table
+2. Add email intent detection
+3. Build email generation prompts with personalization
+4. Integrate current events from Perplexity
+5. Add email display in chat UI
+
+### Phase 4: Continuous Learning
+1. Enhance insight extraction post-conversation
+2. Build intelligence synthesis (consolidate insights into profiles)
+3. Implement feedback loop injection into prompts
+4. Add pattern detection
+
+---
+
+## What Makes This Production-Ready
+
+| Concern | Solution |
+|---------|----------|
+| **Accidental creates** | 5-second undo window with toast |
+| **Ambiguous names** | Best guess + "let me know if wrong" |
+| **API failures** | Graceful degradation with user-friendly messages |
+| **Duplicates** | Case-insensitive fuzzy matching |
+| **Data loss** | Soft deletes, action logging |
+| **Slow responses** | Timeout protection, partial results |
+| **Super admin impersonation** | Full support for viewAsUserId/viewAsCompanyId |
+| **RLS compliance** | All queries use authenticated Supabase client |
+
+---
+
+## Success Metrics
+
+After implementation, Jericho will:
+- Auto-create 80%+ of new companies/contacts mentioned in conversation
+- Build intelligence profiles for all active accounts
+- Draft personalized emails that need minimal editing
+- Surface actionable insights from every conversation
+- Reduce CRM data entry time to near-zero
+- Handle customer demos without embarrassing failures
