@@ -200,3 +200,6 @@ verify_jwt = false
 
 [functions.process-call-plan-reminders]
 verify_jwt = false
+
+[functions.sales-coach]
+verify_jwt = false

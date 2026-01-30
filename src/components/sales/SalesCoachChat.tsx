@@ -241,6 +241,25 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
     toast({ title: "Started fresh conversation" });
   };
 
+  // Handle undo action
+  const handleUndo = async (undoToken: string) => {
+    try {
+      const response = await supabase.functions.invoke("sales-coach", {
+        body: { undoAction: undoToken },
+      });
+      
+      if (response.data?.success) {
+        toast({ title: "✅ Undone", description: response.data.message });
+        fetchUserContext();
+      } else {
+        toast({ title: "Undo failed", description: response.data?.message || "Could not undo", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Undo error:", error);
+      toast({ title: "Undo failed", variant: "destructive" });
+    }
+  };
+
   const sendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text) return;
@@ -295,6 +314,29 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
         await saveMessage(currentConvId, "assistant", assistantMessage);
       }
 
+      // Show action notifications with undo buttons
+      const actions = response.data?.actions || [];
+      for (const action of actions) {
+        if (action.success && action.undoToken && action.type !== "company_exists") {
+          const undoToken = action.undoToken;
+          toast({
+            title: action.type === "company_created" ? "🏢 Company Added" :
+                   action.type === "contact_created" ? "👤 Contact Added" :
+                   action.type === "deal_created" ? "💼 Deal Created" : "✅ Done",
+            description: action.message || `Created ${action.details?.name || "entity"}`,
+            action: (
+              <button
+                className="ml-2 px-3 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded hover:bg-secondary/80"
+                onClick={() => handleUndo(undoToken)}
+              >
+                Undo
+              </button>
+            ),
+            duration: 5000,
+          });
+        }
+      }
+
       // Show notifications for pipeline actions
       const pipelineActions = response.data?.pipelineActions || [];
       for (const action of pipelineActions) {
@@ -315,13 +357,8 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
         }
       }
 
-      // Show deal creation notification
-      if (response.data?.dealCreated) {
-        toast({ title: "💼 New deal added to your pipeline!" });
-      }
-
-      // Refresh context if any pipeline changes were made
-      if (response.data?.dealCreated || pipelineActions.length > 0) {
+      // Refresh context if any changes were made
+      if (response.data?.dealCreated || actions.length > 0 || pipelineActions.length > 0) {
         fetchUserContext();
       }
     } catch (error) {

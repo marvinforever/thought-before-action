@@ -2712,6 +2712,86 @@ export type Database = {
           },
         ]
       }
+      email_drafts: {
+        Row: {
+          body_text: string
+          company_id: string | null
+          created_at: string
+          current_events_used: Json | null
+          deal_id: string | null
+          email_type: string | null
+          id: string
+          personalization_context: string | null
+          profile_id: string
+          recipient_email: string | null
+          recipient_name: string | null
+          sales_company_id: string | null
+          status: string | null
+          subject: string
+        }
+        Insert: {
+          body_text: string
+          company_id?: string | null
+          created_at?: string
+          current_events_used?: Json | null
+          deal_id?: string | null
+          email_type?: string | null
+          id?: string
+          personalization_context?: string | null
+          profile_id: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sales_company_id?: string | null
+          status?: string | null
+          subject: string
+        }
+        Update: {
+          body_text?: string
+          company_id?: string | null
+          created_at?: string
+          current_events_used?: Json | null
+          deal_id?: string | null
+          email_type?: string | null
+          id?: string
+          personalization_context?: string | null
+          profile_id?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sales_company_id?: string | null
+          status?: string | null
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_drafts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_drafts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "sales_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_drafts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_drafts_sales_company_id_fkey"
+            columns: ["sales_company_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_preferences: {
         Row: {
           brief_format: string | null
@@ -3286,6 +3366,63 @@ export type Database = {
           },
           {
             foreignKeyName: "habit_completions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jericho_action_log: {
+        Row: {
+          action_data: Json | null
+          action_type: string
+          can_undo: boolean | null
+          company_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          profile_id: string
+          triggered_by: string | null
+          undone_at: string | null
+        }
+        Insert: {
+          action_data?: Json | null
+          action_type: string
+          can_undo?: boolean | null
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          profile_id: string
+          triggered_by?: string | null
+          undone_at?: string | null
+        }
+        Update: {
+          action_data?: Json | null
+          action_type?: string
+          can_undo?: boolean | null
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          profile_id?: string
+          triggered_by?: string | null
+          undone_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jericho_action_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jericho_action_log_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -5566,6 +5703,72 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sales_companies_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_company_intelligence: {
+        Row: {
+          buying_signals: Json | null
+          company_id: string
+          competitive_intel: string | null
+          created_at: string
+          id: string
+          key_contacts: Json | null
+          last_research_at: string | null
+          objections_history: Json | null
+          personal_details: Json | null
+          preferences: Json | null
+          profile_id: string
+          relationship_notes: string | null
+          research_data: Json | null
+          updated_at: string
+        }
+        Insert: {
+          buying_signals?: Json | null
+          company_id: string
+          competitive_intel?: string | null
+          created_at?: string
+          id?: string
+          key_contacts?: Json | null
+          last_research_at?: string | null
+          objections_history?: Json | null
+          personal_details?: Json | null
+          preferences?: Json | null
+          profile_id: string
+          relationship_notes?: string | null
+          research_data?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          buying_signals?: Json | null
+          company_id?: string
+          competitive_intel?: string | null
+          created_at?: string
+          id?: string
+          key_contacts?: Json | null
+          last_research_at?: string | null
+          objections_history?: Json | null
+          personal_details?: Json | null
+          preferences?: Json | null
+          profile_id?: string
+          relationship_notes?: string | null
+          research_data?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_company_intelligence_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_company_intelligence_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
