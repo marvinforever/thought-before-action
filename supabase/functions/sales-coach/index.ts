@@ -1248,9 +1248,16 @@ async function generateResponse(
     const methodologyItems = context.salesKnowledge.filter((k: any) => 
       ['mindset', 'process', 'objections', 'closing', 'questions', 'scripts', 'general', 'training'].includes(k.category)
     );
-    const productItems = context.salesKnowledge.filter((k: any) => 
-      ['product_catalog', 'product_knowledge', 'product_sheet'].includes(k.category)
-    );
+    // EXPANDED: Also catch seed guides, product guides, etc. regardless of category
+    const productItems = context.salesKnowledge.filter((k: any) => {
+      const cat = k.category?.toLowerCase() || '';
+      const title = k.title?.toLowerCase() || '';
+      // Match by category
+      if (['product_catalog', 'product_knowledge', 'product_sheet', 'catalog'].includes(cat)) return true;
+      // Match by title keywords - catch "Seed Guide", "Product Guide", etc.
+      if (title.includes('seed') || title.includes('product') || title.includes('catalog') || title.includes('guide') || title.includes('hybrid')) return true;
+      return false;
+    });
     
     if (methodologyItems.length > 0) {
       knowledgeContext += "\n\nSALES METHODOLOGY & TRAINING:\n";
@@ -1313,14 +1320,15 @@ async function generateResponse(
 
   // CRITICAL: Product recommendation rules to prevent hallucination
   const productValidationRules = `
-## CRITICAL PRODUCT RECOMMENDATION RULES - READ CAREFULLY:
+## CRITICAL PRODUCT RECOMMENDATION RULES:
 
-1. **NEVER MAKE UP PRODUCT CODES OR NUMBERS** - Only recommend products that appear EXACTLY in the PRODUCT KNOWLEDGE section below.
-2. If you don't have specific product data in your knowledge base, say: "I don't have the specific product catalog loaded for [company]. Let me help you with the sales approach instead."
-3. When recommending seeds/hybrids: ONLY use product codes that appear verbatim in your PRODUCT KNOWLEDGE section.
-4. If no PRODUCT KNOWLEDGE section exists below, DO NOT recommend specific products by code - instead help with sales strategy.
-5. If asked for a seed recommendation and you don't have the data, say: "I don't have the product guide loaded yet. Can you upload the seed guide, or would you like me to help with discovery questions instead?"
-6. NEVER fabricate hybrid numbers like "7300 DG" - if you can't find it in your knowledge, you don't know it.
+1. **NEVER FABRICATE PRODUCT CODES** - Only recommend products that appear EXACTLY in the PRODUCT KNOWLEDGE section below.
+2. **IF PRODUCT KNOWLEDGE EXISTS BELOW, USE IT** - When the user asks for a product recommendation and you have product data loaded, GIVE THEM a recommendation using that data. Do NOT deflect to "discovery first."
+3. **SCAN YOUR KNOWLEDGE THOROUGHLY** - Before saying you don't have product data, carefully check ALL content in the PRODUCT KNOWLEDGE section. Look for seed guides, product catalogs, hybrids, treatments - it may be there under a different title.
+4. **ONLY say you lack data if the PRODUCT KNOWLEDGE section below is empty or says "NO PRODUCT CATALOG LOADED"**.
+5. When recommending: cite the EXACT product names/codes from your knowledge, explain why they fit the customer's situation if known.
+6. NEVER fabricate hybrid numbers, codes, or product names - if it's not in your knowledge, you don't know it.
+7. If asked for a recommendation and you genuinely have NO product data: "I don't have a product catalog loaded for this company. Can you upload the product guide?"
 `;
 
   const systemPrompt = chatMode === "rec"
