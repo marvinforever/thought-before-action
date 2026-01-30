@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Play, 
@@ -15,7 +14,9 @@ import {
   ChevronUp,
   Headphones,
   RefreshCw,
-  Target
+  Target,
+  Lightbulb,
+  TrendingUp
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -61,6 +62,13 @@ interface Customer {
   location: string | null;
 }
 
+interface SuggestedTraining {
+  knowledgeItem: KnowledgeItem;
+  reason: string;
+  priority: 'high' | 'medium' | 'low';
+  relevantTo?: string;
+}
+
 export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodcastsProps) => {
   const { toast } = useToast();
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
@@ -75,12 +83,110 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
   const [audioElements, setAudioElements] = useState<Record<string, HTMLAudioElement>>({});
   const [podcastData, setPodcastData] = useState<Record<string, PodcastData>>({});
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [showSuggested, setShowSuggested] = useState(true);
 
   useEffect(() => {
     fetchKnowledge();
     fetchDeals();
     fetchCustomers();
   }, [userId, companyId]);
+
+  // Generate training suggestions based on deals and their stages
+  const suggestedTrainings = useMemo((): SuggestedTraining[] => {
+    if (!knowledge.length || !deals.length) return [];
+
+    const suggestions: SuggestedTraining[] = [];
+    const usedIds = new Set<string>();
+
+    // Map deal stages to relevant training categories and stages
+    const stageToTraining: Record<string, { stages: string[]; categories: string[]; keywords: string[] }> = {
+      lead: { 
+        stages: ['prospecting'], 
+        categories: ['prospecting', 'cold_calling', 'sales_scripts'], 
+        keywords: ['opening', 'introduction', 'first call', 'prospecting', 'lead'] 
+      },
+      qualified: { 
+        stages: ['discovery'], 
+        categories: ['discovery', 'objection_handling', 'product_catalog'], 
+        keywords: ['discovery', 'questions', 'needs', 'qualify', 'assessment'] 
+      },
+      proposal: { 
+        stages: ['proposal'], 
+        categories: ['proposal', 'product_catalog', 'pricing', 'competitor_intel'], 
+        keywords: ['proposal', 'value', 'roi', 'pricing', 'competition', 'comparison'] 
+      },
+      negotiation: { 
+        stages: ['closing', 'proposal'], 
+        categories: ['objection_handling', 'closing', 'competitor_intel'], 
+        keywords: ['objection', 'negotiation', 'closing', 'discount', 'terms'] 
+      },
+      closed_won: { 
+        stages: ['follow_up'], 
+        categories: ['follow_up', 'upsell'], 
+        keywords: ['onboarding', 'follow up', 'upsell', 'cross-sell', 'retention'] 
+      },
+      closed_lost: { 
+        stages: ['prospecting', 'discovery'], 
+        categories: ['prospecting', 'objection_handling'], 
+        keywords: ['lost', 'recovery', 'win back', 'lessons'] 
+      },
+    };
+
+    // Analyze deals and find matching training
+    const dealsByStage = deals.reduce((acc, deal) => {
+      const stage = deal.stage?.toLowerCase() || 'lead';
+      if (!acc[stage]) acc[stage] = [];
+      acc[stage].push(deal);
+      return acc;
+    }, {} as Record<string, Deal[]>);
+
+    // Prioritize stages with the most deals
+    const sortedStages = Object.entries(dealsByStage)
+      .sort((a, b) => b[1].length - a[1].length);
+
+    for (const [stage, stageDeals] of sortedStages) {
+      const trainingMap = stageToTraining[stage] || stageToTraining['qualified'];
+      
+      // Find matching knowledge items
+      for (const item of knowledge) {
+        if (usedIds.has(item.id)) continue;
+
+        const itemStage = item.stage?.toLowerCase() || '';
+        const itemCategory = item.category?.toLowerCase() || '';
+        const itemContent = (item.title + ' ' + item.content).toLowerCase();
+        const itemTags = (item.tags || []).map(t => t.toLowerCase());
+
+        // Check for stage match
+        const stageMatch = trainingMap.stages.some(s => itemStage.includes(s));
+        // Check for category match
+        const categoryMatch = trainingMap.categories.some(c => itemCategory.includes(c));
+        // Check for keyword match in content
+        const keywordMatch = trainingMap.keywords.some(k => 
+          itemContent.includes(k) || itemTags.some(t => t.includes(k))
+        );
+
+        if (stageMatch || categoryMatch || keywordMatch) {
+          const priority = stageDeals.length >= 3 ? 'high' : stageDeals.length >= 2 ? 'medium' : 'low';
+          const dealNames = stageDeals.slice(0, 2).map(d => d.deal_name).join(', ');
+          
+          suggestions.push({
+            knowledgeItem: item,
+            reason: `${stageDeals.length} deal${stageDeals.length > 1 ? 's' : ''} in ${stage} stage`,
+            priority,
+            relevantTo: dealNames + (stageDeals.length > 2 ? ` +${stageDeals.length - 2} more` : ''),
+          });
+          usedIds.add(item.id);
+
+          // Limit suggestions per stage
+          if (suggestions.filter(s => s.reason.includes(stage)).length >= 2) break;
+        }
+      }
+    }
+
+    // Sort by priority
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    return suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]).slice(0, 5);
+  }, [knowledge, deals]);
 
   const fetchKnowledge = async () => {
     // Build query - filter by company if provided, otherwise show global items only
@@ -226,6 +332,10 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     );
   }
 
+  // Get non-suggested items
+  const suggestedIds = new Set(suggestedTrainings.map(s => s.knowledgeItem.id));
+  const otherKnowledge = knowledge.filter(k => !suggestedIds.has(k.id));
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -289,8 +399,198 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
         </div>
       )}
 
-      <div className="space-y-3 pr-4">
-          {knowledge.map((item) => {
+      {/* Suggested Trainings Section */}
+      {suggestedTrainings.length > 0 && (
+        <div className="space-y-3">
+          <button 
+            onClick={() => setShowSuggested(!showSuggested)}
+            className="flex items-center gap-2 w-full text-left group"
+          >
+            <div className="flex items-center gap-2 flex-1">
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              <span className="font-medium text-sm">Suggested for Your Pipeline</span>
+              <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-600">
+                {suggestedTrainings.length} recommended
+              </Badge>
+            </div>
+            {showSuggested ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {showSuggested && (
+            <div className="space-y-2 pl-6 border-l-2 border-amber-500/30">
+              {suggestedTrainings.map(({ knowledgeItem: item, reason, priority, relevantTo }) => {
+                const data = podcastData[item.id];
+                const hasEpisodes = data?.episodes && data.episodes.length > 0;
+                const isExpanded = expandedItem === item.id;
+                const isGeneratingThis = generating === item.id;
+
+                return (
+                  <Card key={item.id} className="overflow-hidden border-amber-500/20 bg-amber-500/5">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <TrendingUp className={`h-4 w-4 ${priority === 'high' ? 'text-red-500' : priority === 'medium' ? 'text-amber-500' : 'text-blue-500'}`} />
+                            <h4 className="font-medium">{item.title}</h4>
+                            {item.stage && (
+                              <Badge variant="secondary" className="text-xs">
+                                {stageLabels[item.stage] || item.stage}
+                              </Badge>
+                            )}
+                            {hasEpisodes && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <Headphones className="h-3 w-3" />
+                                {data.episodes.length} episodes
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">
+                            💡 {reason} {relevantTo && `• ${relevantTo}`}
+                          </p>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {item.content.substring(0, 150)}...
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {hasEpisodes ? (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="gap-1"
+                              onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                            >
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              Episodes
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => generateEpisode(item, 0)}
+                              disabled={isGeneratingThis}
+                              className="gap-1 bg-amber-500 hover:bg-amber-600"
+                            >
+                              {isGeneratingThis ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-4 w-4" />
+                                  Create Episodes
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Episodes List */}
+                      {hasEpisodes && isExpanded && (
+                        <div className="mt-4 pt-4 border-t space-y-2">
+                          {data.episodes.map((episode, idx) => {
+                            const generated = data.generatedEpisodes[episode.index];
+                            const key = `${item.id}-${episode.index}`;
+                            const isPlaying = playing === key;
+                            const isGeneratingEp = isGeneratingThis && generatingEpisode === episode.index;
+
+                            return (
+                              <div
+                                key={idx}
+                                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg bg-background"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                      {episode.index + 1}.
+                                    </span>
+                                    <span className="text-sm font-medium truncate">
+                                      {episode.title}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                    {episode.keyPoint}
+                                  </p>
+                                </div>
+
+                                <div className="w-full sm:w-auto shrink-0 sm:ml-3 flex gap-1 justify-end">
+                                  {generated ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant={isPlaying ? "secondary" : "default"}
+                                        onClick={() =>
+                                          isPlaying
+                                            ? pauseEpisode(item.id, episode.index)
+                                            : playEpisode(item.id, episode.index)
+                                        }
+                                        className="gap-1"
+                                      >
+                                        {isPlaying ? (
+                                          <>
+                                            <Pause className="h-3 w-3" />
+                                            Pause
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Play className="h-3 w-3" />
+                                            Play
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => generateEpisode(item, episode.index)}
+                                        disabled={isGeneratingThis}
+                                        title="Regenerate episode"
+                                      >
+                                        <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? "animate-spin" : ""}`} />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => generateEpisode(item, episode.index)}
+                                      disabled={isGeneratingThis}
+                                      className="gap-1"
+                                    >
+                                      {isGeneratingEp ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Sparkles className="h-3 w-3" />
+                                      )}
+                                      Generate
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* All Training Modules */}
+      {otherKnowledge.length > 0 && (
+        <div className="space-y-3">
+          {suggestedTrainings.length > 0 && (
+            <div className="flex items-center gap-2 pt-2">
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium text-sm text-muted-foreground">All Training Modules</span>
+            </div>
+          )}
+          <div className="space-y-3 pr-4">
+          {otherKnowledge.map((item) => {
             const data = podcastData[item.id];
             const hasEpisodes = data?.episodes && data.episodes.length > 0;
             const isExpanded = expandedItem === item.id;
@@ -443,7 +743,9 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
               </Card>
             );
           })}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
