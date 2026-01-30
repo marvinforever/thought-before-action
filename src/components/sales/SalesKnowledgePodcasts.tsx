@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Target,
   Lightbulb,
-  TrendingUp
+  TrendingUp,
+  Download
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -316,6 +317,54 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     }
   };
 
+  const downloadEpisode = async (itemId: string, episodeIndex: number, episodeTitle: string) => {
+    const data = podcastData[itemId]?.generatedEpisodes[episodeIndex];
+    if (!data) return;
+
+    try {
+      let blob: Blob;
+      
+      if (data.audioUrl) {
+        // Fetch from URL
+        const response = await fetch(data.audioUrl);
+        blob = await response.blob();
+      } else if (data.audioBase64) {
+        // Convert base64 to blob
+        const byteCharacters = atob(data.audioBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        blob = new Blob([byteArray], { type: 'audio/mpeg' });
+      } else {
+        throw new Error('No audio data available');
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${episodeTitle.replace(/[^a-z0-9]/gi, '_')}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download started",
+        description: `${episodeTitle}.mp3`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download failed",
+        description: "Could not download the episode",
+        variant: "destructive",
+      });
+    }
+  };
+
   const stageLabels: Record<string, string> = {
     prospecting: "Prospecting",
     discovery: "Discovery",
@@ -542,6 +591,14 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                                       <Button
                                         size="sm"
                                         variant="ghost"
+                                        onClick={() => downloadEpisode(item.id, episode.index, episode.title)}
+                                        title="Download MP3"
+                                      >
+                                        <Download className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
                                         onClick={() => generateEpisode(item, episode.index)}
                                         disabled={isGeneratingThis}
                                         title="Regenerate episode"
@@ -706,6 +763,14 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                                         Play
                                       </>
                                     )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => downloadEpisode(item.id, episode.index, episode.title)}
+                                    title="Download MP3"
+                                  >
+                                    <Download className="h-3 w-3" />
                                   </Button>
                                   <Button
                                     size="sm"
