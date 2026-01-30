@@ -299,18 +299,24 @@ async function detectIntentAndExtract(
   conversationHistory: string,
   apiKey: string
 ): Promise<ExtractedEntities> {
-  const systemPrompt = `You are an AI that extracts sales-relevant entities and intents from messages.
-Analyze the user's message and extract:
-1. Company names mentioned (with confidence 0-1 if it's likely a NEW company vs existing reference)
-2. Contact names with titles if mentioned
-3. Deal signals (value, stage hints, notes)
-4. Research requests
-5. Email draft requests
-6. Overall intent
+  const systemPrompt = `You are an AI that extracts sales-relevant entities from the user's CURRENT message only.
+
+CRITICAL RULES:
+1. ONLY extract entities that are explicitly mentioned in the NEW MESSAGE below
+2. The "Recent conversation" is for CONTEXT ONLY - do NOT extract entities from it
+3. If someone asks about "Randy D" or "Randy Diekhoff", extract THAT person/company - not other entities from history
+4. The conversation history helps you understand if a name might be new vs existing, but you MUST focus on the current message
+
+WHAT TO EXTRACT FROM THE NEW MESSAGE:
+- Company/farm names explicitly mentioned in the new message
+- Contact names explicitly mentioned in the new message
+- Deal signals (value, stage hints) from the new message
+- Research requests from the new message
+- Email requests from the new message
 
 Return a JSON object with this structure:
 {
-  "companies": [{"name": "Company Name", "isNew": true, "confidence": 0.8}],
+  "companies": [{"name": "Company Name", "isNew": false, "confidence": 0.8}],
   "contacts": [{"name": "John Smith", "title": "Owner", "companyName": "Company Name"}],
   "dealSignals": {"value": 50000, "stage": "prospecting", "notes": "expanding operation"},
   "researchRequest": "company name to research" or null,
@@ -318,17 +324,12 @@ Return a JSON object with this structure:
   "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action"
 }
 
-Rules:
-- CRITICAL: Extract ALL company/farm/grower names mentioned - if someone lists 5 growers, return 5 companies
-- Mark isNew=true if the message implies they just met or are adding this company/grower
-- Phrases like "I just talked to", "I met", "new prospect", "add", "load", "here are my" suggest new entities
-- Phrases like "show me", "what about", "how is" suggest existing lookups
-- Extract contact names even if only first name is given - for farms, the owner name IS the contact
-- If a message lists multiple names (comma-separated or numbered), extract EACH one as a separate company
-- Look for deal signals: value mentions, expansion, growth, interest in products
-- Research triggers: "research", "find out about", "tell me about", "look up"
-- Email triggers: "draft email", "follow up email", "write to", "thank you note"
-- For bulk entity creation, ALWAYS extract every name mentioned`;
+Interpretation rules:
+- Mark isNew=true ONLY if the NEW MESSAGE implies they just met or are adding this company/grower
+- Phrases like "I just talked to", "I met", "new prospect", "add", "load" suggest NEW entities
+- Phrases like "show me", "what about", "tell me about", "precall plan for" suggest EXISTING lookups (isNew=false)
+- If someone asks about a person like "Randy D", that IS the company/contact to extract (farms often go by owner name)
+- Do NOT extract entities from previous messages - only the current one`;
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -341,7 +342,7 @@ Rules:
         model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Recent conversation:\n${conversationHistory.slice(-6000)}\n\nNew message: ${message}` },
+          { role: "user", content: `Recent conversation (for context only, do NOT extract entities from this):\n${conversationHistory.slice(-3000)}\n\n---\n\nNEW MESSAGE TO ANALYZE (extract entities from THIS only):\n${message}` },
         ],
         temperature: 0.1,
       }),
