@@ -27,6 +27,8 @@ import {
   RotateCcw,
   BookOpen,
   BarChart3,
+  Lightbulb,
+  Settings,
 } from "lucide-react";
 import { PipelineView } from "./PipelineView";
 import { DealsTable } from "./DealsTable";
@@ -36,6 +38,8 @@ import { SalesKnowledgePodcasts } from "./SalesKnowledgePodcasts";
 import { SalesKnowledgeManager } from "./SalesKnowledgeManager";
 import { AddDealDialog } from "./AddDealDialog";
 import { SalesManagerDashboard } from "./SalesManagerDashboard";
+import { DevelopmentRequestDialog } from "./DevelopmentRequestDialog";
+import { DevelopmentRequestsManager } from "./DevelopmentRequestsManager";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
@@ -107,6 +111,8 @@ export function SalesAgentHeader({
   const [showDataPanel, setShowDataPanel] = useState(false);
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [showManagerDashboard, setShowManagerDashboard] = useState(false);
+  const [showDevRequest, setShowDevRequest] = useState(false);
+  const [showDevRequestsAdmin, setShowDevRequestsAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
 
   // Check if user has manager/admin role
@@ -291,6 +297,30 @@ export function SalesAgentHeader({
               </Button>
             )}
 
+            {/* Development Request Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowDevRequest(true)} 
+              className="gap-1 text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              <Lightbulb className="h-4 w-4" />
+              <span className="hidden sm:inline">Request</span>
+            </Button>
+
+            {/* Super Admin: View All Requests */}
+            {isSuperAdmin && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowDevRequestsAdmin(true)} 
+                className="gap-1 text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Requests</span>
+              </Button>
+            )}
+
             <Dialog open={showDataPanel} onOpenChange={setShowDataPanel}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2 text-primary-foreground hover:bg-primary-foreground/10">
@@ -435,6 +465,23 @@ export function SalesAgentHeader({
         viewAsCompanyId={viewAsCompanyId}
         viewAsUserId={viewAsUserId}
       />
+
+      {/* Development Request Dialog */}
+      <DevelopmentRequestDialog
+        open={showDevRequest}
+        onOpenChange={setShowDevRequest}
+        userId={user?.id}
+        companyId={profile?.company_id}
+        userName={profile?.full_name}
+      />
+
+      {/* Admin: Development Requests Manager */}
+      {isSuperAdmin && (
+        <DevelopmentRequestsManager
+          open={showDevRequestsAdmin}
+          onOpenChange={setShowDevRequestsAdmin}
+        />
+      )}
     </>
   );
 }
