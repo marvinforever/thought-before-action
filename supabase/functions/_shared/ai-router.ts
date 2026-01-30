@@ -118,6 +118,7 @@ export type TaskType =
   | 'podcast-script'
   | 'resource-recommendation'
   | 'sales-coaching'
+  | 'sales-coaching-main'  // Main coaching response - needs strong instruction following
   | 'meeting-parsing'
   | 'habit-suggestions'
   | 'goal-writing'
@@ -156,6 +157,7 @@ export const ROUTING_TABLE: Record<TaskType, string> = {
   'podcast-script': 'gemini-flash',
   'resource-recommendation': 'gemini-flash',
   'sales-coaching': 'gemini-flash',
+  'sales-coaching-main': 'sonnet',  // Claude Sonnet for better instruction-following
   'meeting-parsing': 'gemini-flash',
   'habit-suggestions': 'gemini-flash',
   'goal-writing': 'gemini-flash',

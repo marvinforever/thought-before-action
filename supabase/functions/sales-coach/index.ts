@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai-router.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -275,7 +276,9 @@ serve(async (req) => {
       dealsCount,
       researchCompleted,
       emailDrafted,
-      lovableApiKey
+      lovableApiKey,
+      effectiveUserId || "",
+      effectiveCompanyId || ""
     );
 
     // Step 5: Post-Response Learning - Extract insights with customer context
@@ -1165,7 +1168,9 @@ async function generateResponse(
   dealsCount: number,
   researchCompleted: { company: string; summary: string } | null,
   emailDrafted: { id: string; subject: string; preview: string } | null,
-  apiKey: string
+  apiKey: string,
+  userId: string,
+  companyId: string
 ): Promise<string> {
   // Build action summary
   let actionSummary = "";
@@ -1375,32 +1380,31 @@ ${pipelineContext}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
 
-  // Generate the coaching response
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
+  // Generate the coaching response using Claude Sonnet for better instruction-following
+  try {
+    const result = await callAI(
+      {
+        taskType: 'sales-coaching-main',
+        companyId,
+        profileId: userId,
+        functionName: 'sales-coach',
+      },
+      [
         { role: "user", content: `${conversationHistory ? `Previous conversation:\n${conversationHistory.slice(-8000)}\n\n` : ""}User says: ${message}` },
       ],
-      temperature: 0.7,
-    }),
-  });
+      {
+        systemPrompt,
+        temperature: 0.7,
+        maxTokens: 4096,
+      }
+    );
 
-  if (!response.ok) {
-    console.error("Response generation failed:", await response.text());
+    console.log(`[sales-coach] Used model: ${result.modelUsed}`);
+    return actionSummary + result.content;
+  } catch (error) {
+    console.error("Response generation failed:", error);
     return actionSummary + "I'm here to help! What would you like to work on?";
   }
-
-  const data = await response.json();
-  const coachingResponse = data.choices?.[0]?.message?.content || "Let me think about that...";
-
-  return actionSummary + coachingResponse;
 }
 
 // ============================================
