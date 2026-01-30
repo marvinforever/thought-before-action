@@ -211,38 +211,36 @@ export function SalesAgentHeader({
           <div className="flex items-center gap-2">
             {/* Super Admin View As Selector */}
             {isSuperAdmin && (
-              <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2 border-r border-primary-foreground/20 pr-2 sm:pr-3 mr-1">
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <Eye className="h-4 w-4 text-accent hidden sm:block" />
-                  <Select 
-                    value={viewAsCompanyId || "none"} 
-                    onValueChange={(val) => {
-                      if (val === "none") {
-                        onViewAsChange(null, null);
-                      } else {
-                        const company = companies.find(c => c.id === val);
-                        onViewAsChange(val, company?.name || null);
-                      }
-                    }}
+              <div className="flex flex-row items-center gap-1 sm:gap-2 border-r border-primary-foreground/20 pr-2 sm:pr-3 mr-1">
+                <Eye className="h-4 w-4 text-accent hidden sm:block" />
+                <Select 
+                  value={viewAsCompanyId || "none"} 
+                  onValueChange={(val) => {
+                    if (val === "none") {
+                      onViewAsChange(null, null);
+                    } else {
+                      const company = companies.find(c => c.id === val);
+                      onViewAsChange(val, company?.name || null);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[100px] sm:w-[140px] h-8 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground touch-manipulation">
+                    <SelectValue placeholder="Co..." />
+                  </SelectTrigger>
+                  <SelectContent 
+                    position="popper" 
+                    side="bottom" 
+                    align="end"
+                    sideOffset={4}
                   >
-                    <SelectTrigger className="w-[120px] sm:w-[160px] h-8 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground touch-manipulation">
-                      <SelectValue placeholder="Company..." />
-                    </SelectTrigger>
-                    <SelectContent 
-                      position="popper" 
-                      side="bottom" 
-                      align="end"
-                      sideOffset={4}
-                    >
-                      <SelectItem value="none">My Account</SelectItem>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <SelectItem value="none">My Account</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 
                 {/* User selector - shows when company is selected */}
                 {viewAsCompanyId && companyUsers.length > 0 && (
@@ -257,7 +255,7 @@ export function SalesAgentHeader({
                       }
                     }}
                   >
-                    <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground touch-manipulation">
+                    <SelectTrigger className="w-[90px] sm:w-[130px] h-8 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground touch-manipulation">
                       <SelectValue placeholder="User..." />
                     </SelectTrigger>
                     <SelectContent 
