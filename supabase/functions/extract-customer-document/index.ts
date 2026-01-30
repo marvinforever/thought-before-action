@@ -7,6 +7,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Safe base64 encoding that handles large files without stack overflow
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 32768; // Process 32KB at a time
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -76,10 +88,7 @@ serve(async (req) => {
 
     if (isImage) {
       // For images, use vision model to extract text and describe content
-      const base64 = btoa(
-        new Uint8Array(await fileData.arrayBuffer())
-          .reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      const base64 = arrayBufferToBase64(await fileData.arrayBuffer());
       const mimeType = doc.file_type;
 
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -148,10 +157,7 @@ Format your response as JSON:
 
     } else if (isPdf || isOfficeDoc) {
       // For PDFs and Office docs, convert to base64 and use document extraction
-      const base64 = btoa(
-        new Uint8Array(await fileData.arrayBuffer())
-          .reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      const base64 = arrayBufferToBase64(await fileData.arrayBuffer());
 
       // Use Gemini's document understanding capabilities
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
