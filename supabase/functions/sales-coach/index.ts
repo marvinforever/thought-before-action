@@ -243,10 +243,12 @@ serve(async (req) => {
       lovableApiKey
     );
 
-    // Step 5: Post-Response Learning - Extract insights
+    // Step 5: Post-Response Learning - Extract insights with customer context
     if (effectiveUserId && effectiveCompanyId) {
+      // Determine mentioned customer for insight linkage
+      const mentionedCustomer = extracted.contacts[0]?.name || extracted.companies[0]?.name || undefined;
       // Fire and forget - don't block response
-      extractAndSaveInsights(adminClient, effectiveUserId, effectiveCompanyId, message, responseMessage)
+      extractAndSaveInsights(adminClient, effectiveUserId, effectiveCompanyId, message, responseMessage, mentionedCustomer)
         .catch(err => console.error("Error saving insights:", err));
     }
 
@@ -466,6 +468,14 @@ async function gatherContext(
 
       context.intelligence = intelResult.data;
       context.purchaseHistory = historyResult.data;
+    }
+  }
+
+  // Load persistent customer memory if a customer/contact is mentioned
+  if (extracted.contacts.length > 0 || extracted.companies.length > 0) {
+    const customerName = extracted.contacts[0]?.name || extracted.companies[0]?.name;
+    if (customerName && userId && companyId) {
+      context.customerMemory = await loadCustomerMemory(client, userId, companyId, customerName);
     }
   }
 
@@ -1160,13 +1170,14 @@ You have access to the user's pipeline and can help with:
 - Pipeline management
 
 Use the sales methodology and product knowledge provided to give specific, actionable advice. Reference specific products and techniques when relevant.
+ALWAYS remember what we discussed about specific customers - use the customer memory below.
 
 Be direct, actionable, and focused on results. Keep responses concise.${focusInstruction}
 ${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
-
+${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`
     : `You are Jericho, a friendly AI sales coach. You're like a seasoned sales mentor who genuinely wants to help.
     
@@ -1176,12 +1187,13 @@ Your style:
 - Give specific, actionable advice using the methodology and product knowledge below
 - Celebrate wins, help with challenges
 - Keep responses focused and not too long
-- Reference specific products and sales techniques when relevant${focusInstruction}
+- Reference specific products and sales techniques when relevant
+- ALWAYS remember what we discussed about specific customers - use the customer memory below${focusInstruction}
 ${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
-
+${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
 
   // Generate the coaching response
@@ -1221,31 +1233,212 @@ async function extractAndSaveInsights(
   userId: string,
   companyId: string,
   userMessage: string,
-  assistantResponse: string
+  assistantResponse: string,
+  mentionedCustomer?: string
 ) {
-  // Look for customer-related insights in the message
+  // Enhanced insight extraction - linked to specific customers
+  const combinedText = `${userMessage} ${assistantResponse}`;
+  
+  // Detect customer name from conversation if not provided
+  let customerName = mentionedCustomer;
+  if (!customerName) {
+    // Try to extract customer/grower name from message
+    const namePatterns = [
+      /(?:talking (?:to|with|about)|met with|call with|meeting with|visited)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:said|told me|mentioned|wants|needs|is interested)/i,
+      /(?:grower|farmer|customer|prospect)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+    ];
+    
+    for (const pattern of namePatterns) {
+      const match = userMessage.match(pattern);
+      if (match && match[1]) {
+        customerName = match[1].trim();
+        break;
+      }
+    }
+  }
+
+  // Pattern-based insight detection
   const patterns = [
-    { type: "buying_signal", regex: /expand|grow|invest|buy|purchase|upgrade|add|more/i },
-    { type: "objection", regex: /concern|worried|price|cost|expensive|budget|not sure/i },
-    { type: "preference", regex: /prefer|like|want|need|morning|afternoon|call|email/i },
-    { type: "personal", regex: /family|kid|son|daughter|wife|husband|hobby|vacation|sport/i },
-    { type: "product_interest", regex: /seed|treatment|chemical|fertilizer|equipment|technology/i },
+    { type: "buying_signal", regex: /expand|grow|invest|buy|purchase|upgrade|add more|increase acreage/i },
+    { type: "objection", regex: /concern|worried|price|cost|expensive|budget|not sure|hesitant|pushback/i },
+    { type: "preference", regex: /prefer|like|want|need|morning|afternoon|call|email|text/i },
+    { type: "personal", regex: /family|kid|son|daughter|wife|husband|hobby|vacation|sport|birthday|anniversary/i },
+    { type: "product_interest", regex: /seed|treatment|chemical|fertilizer|equipment|technology|biological|fungicide/i },
+    { type: "competitive", regex: /competitor|other company|switching|currently using|been buying from/i },
+    { type: "timing", regex: /spring|fall|harvest|planting|next season|this year|deadline/i },
+    { type: "decision_maker", regex: /partner|brother|father|son runs|wife decides|family decision/i },
   ];
 
+  const detectedInsights: { type: string; text: string }[] = [];
+  
   for (const pattern of patterns) {
-    if (pattern.regex.test(userMessage)) {
+    if (pattern.regex.test(combinedText)) {
+      detectedInsights.push({
+        type: pattern.type,
+        text: userMessage.slice(0, 500),
+      });
+    }
+  }
+
+  // Save insights with customer linkage
+  for (const insight of detectedInsights) {
+    try {
       await client
         .from("customer_insights")
         .insert({
           profile_id: userId,
           company_id: companyId,
-          insight_type: pattern.type,
-          insight_text: userMessage.slice(0, 500),
-          source: "conversation",
+          customer_name: customerName || null,
+          insight_type: insight.type,
+          insight_text: insight.text,
+          source_conversation_id: null, // Could link to conversation ID if passed
+          is_active: true,
           created_at: new Date().toISOString(),
-        })
-        .then(() => {})
-        .catch((err: any) => console.error("Error saving insight:", err));
+        });
+    } catch (err) {
+      console.error("Error saving insight:", err);
     }
   }
+
+  // If we have a customer name and enough content, update/create a customer summary
+  if (customerName && (detectedInsights.length > 0 || userMessage.length > 100)) {
+    try {
+      // Find the sales_company for this customer
+      const { data: salesCompany } = await client
+        .from("sales_companies")
+        .select("id")
+        .eq("profile_id", userId)
+        .ilike("name", `%${customerName}%`)
+        .maybeSingle();
+
+      if (salesCompany) {
+        // Update relationship notes in sales_company_intelligence
+        const { data: existingIntel } = await client
+          .from("sales_company_intelligence")
+          .select("id, relationship_notes")
+          .eq("company_id", salesCompany.id)
+          .eq("profile_id", userId)
+          .maybeSingle();
+
+        const newNote = `[${new Date().toLocaleDateString()}] ${userMessage.slice(0, 300)}`;
+        const updatedNotes = existingIntel?.relationship_notes 
+          ? `${existingIntel.relationship_notes}\n\n${newNote}`
+          : newNote;
+
+        await client
+          .from("sales_company_intelligence")
+          .upsert({
+            company_id: salesCompany.id,
+            profile_id: userId,
+            relationship_notes: updatedNotes.slice(-5000), // Keep last ~5000 chars
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id,profile_id" });
+      }
+    } catch (err) {
+      console.error("Error updating customer intelligence:", err);
+    }
+  }
+}
+
+// ============================================
+// LOAD CUSTOMER MEMORY
+// ============================================
+
+async function loadCustomerMemory(
+  client: any,
+  userId: string,
+  companyId: string,
+  customerName: string
+): Promise<string> {
+  let memory = "";
+
+  try {
+    // Find the sales company
+    const { data: salesCompany } = await client
+      .from("sales_companies")
+      .select("id, name")
+      .eq("profile_id", userId)
+      .ilike("name", `%${customerName}%`)
+      .maybeSingle();
+
+    if (salesCompany) {
+      // Load intelligence profile
+      const { data: intel } = await client
+        .from("sales_company_intelligence")
+        .select("*")
+        .eq("company_id", salesCompany.id)
+        .maybeSingle();
+
+      if (intel) {
+        memory += `\n**CUSTOMER MEMORY for ${salesCompany.name}:**\n`;
+        if (intel.relationship_notes) {
+          memory += `Previous conversations:\n${intel.relationship_notes.slice(-2000)}\n`;
+        }
+        if (intel.personal_details) {
+          memory += `Personal details: ${JSON.stringify(intel.personal_details)}\n`;
+        }
+        if (intel.preferences) {
+          memory += `Preferences: ${JSON.stringify(intel.preferences)}\n`;
+        }
+        if (intel.buying_signals) {
+          memory += `Buying signals: ${JSON.stringify(intel.buying_signals)}\n`;
+        }
+        if (intel.objections_history) {
+          memory += `Past objections: ${JSON.stringify(intel.objections_history)}\n`;
+        }
+      }
+
+      // Load recent insights
+      const { data: insights } = await client
+        .from("customer_insights")
+        .select("insight_type, insight_text, created_at")
+        .or(`customer_name.ilike.%${customerName}%,customer_id.eq.${salesCompany.id}`)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (insights && insights.length > 0) {
+        memory += `\nRecent insights:\n`;
+        memory += insights.map((i: any) => `- [${i.insight_type}] ${i.insight_text.slice(0, 200)}`).join("\n");
+      }
+
+      // Load purchase history
+      const { data: history } = await client
+        .from("customer_purchase_history")
+        .select("year, amount, product_description")
+        .eq("company_id", salesCompany.id)
+        .order("year", { ascending: false })
+        .limit(20);
+
+      if (history && history.length > 0) {
+        const totalByYear = history.reduce((acc: any, h: any) => {
+          acc[h.year] = (acc[h.year] || 0) + (h.amount || 0);
+          return acc;
+        }, {});
+        memory += `\nPurchase history: ${Object.entries(totalByYear).map(([y, v]) => `${y}: $${(v as number).toLocaleString()}`).join(", ")}\n`;
+      }
+    }
+
+    // Also check company-wide insights (from other reps)
+    if (companyId) {
+      const { data: companyInsights } = await client
+        .from("customer_insights")
+        .select("insight_type, insight_text, created_at")
+        .eq("company_id", companyId)
+        .ilike("customer_name", `%${customerName}%`)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (companyInsights && companyInsights.length > 0) {
+        memory += `\nCompany-wide notes on ${customerName}:\n`;
+        memory += companyInsights.map((i: any) => `- ${i.insight_text.slice(0, 150)}`).join("\n");
+      }
+    }
+  } catch (err) {
+    console.error("Error loading customer memory:", err);
+  }
+
+  return memory;
 }
