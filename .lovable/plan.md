@@ -1,87 +1,126 @@
 
-# Fix PDF Upload Failure in Document Knowledge Base
+# Fix: Pipeline Additions Not Working
 
 ## Problem Identified
 
-Your PDF upload is failing due to a **stack overflow error** in the edge function when processing large files. The current code uses this pattern:
+Jericho claims to add companies/deals to the pipeline but they're not being created. The logs show:
 
-```javascript
-const base64 = btoa(
-  new Uint8Array(await fileData.arrayBuffer())
-    .reduce((data, byte) => data + String.fromCharCode(byte), '')
-);
 ```
-
-This approach concatenates millions of characters in memory, which exceeds the call stack limit for PDFs larger than ~1-2MB.
-
----
-
-## Solution Overview
-
-Replace the problematic base64 conversion with a **chunked approach** that processes the binary data in smaller segments, avoiding stack overflow.
-
----
-
-## Changes Required
-
-### 1. Fix `extract-customer-document` Edge Function
-
-**File:** `supabase/functions/extract-customer-document/index.ts`
-
-**What to change:**
-
-Add a safe base64 encoding helper function that processes data in chunks:
-
-```typescript
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 32768; // Process 32KB at a time
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
+Error creating company: {
+  code: "PGRST204",
+  message: "Could not find the 'company_id' column of 'sales_companies' in the schema cache"
 }
 ```
 
-Replace the two problematic `btoa()` calls (lines 79-82 and 151-154) with calls to this helper function:
+**Root Cause:** The `sales-coach` edge function is using the wrong column name. It's trying to:
+- Query with `.eq("company_id", ...)` 
+- Insert `company_id` into the record
 
-```typescript
-// Before (causes stack overflow)
-const base64 = btoa(
-  new Uint8Array(await fileData.arrayBuffer())
-    .reduce((data, byte) => data + String.fromCharCode(byte), '')
-);
-
-// After (safe for large files)
-const base64 = arrayBufferToBase64(await fileData.arrayBuffer());
-```
+But the `sales_companies` table has **no `company_id` column** - it uses `profile_id` to link records to users.
 
 ---
 
-## Technical Details
+## Database Schema Reality
 
-| Aspect | Current | Fixed |
-|--------|---------|-------|
-| Memory usage | Unbounded string concatenation | 32KB chunks |
-| Max file size | ~1-2MB before crash | 20MB+ safely |
-| Call stack | Overflows on large files | Stays within limits |
-| Performance | Slower for large files | Consistent |
+| Table | How it links to user |
+|-------|---------------------|
+| `sales_companies` | `profile_id` (direct FK to profiles) |
+| `sales_contacts` | `profile_id` + `company_id` (FK to sales_companies.id) |
+| `sales_deals` | `profile_id` + `company_id` (FK to sales_companies.id) |
+
+The `company_id` column in `sales_contacts` and `sales_deals` refers to the **sales company** (customer), not the organization.
+
+---
+
+## Fixes Required
+
+### 1. Edge Function: `supabase/functions/sales-coach/index.ts`
+
+**Context Gathering (line ~408):**
+```typescript
+// BEFORE (wrong)
+.eq("company_id", companyId)
+
+// AFTER (correct)
+.eq("profile_id", userId)
+```
+
+**Duplicate Check (lines ~461-465):**
+```typescript
+// BEFORE (wrong)
+.eq("company_id", companyId)
+
+// AFTER (correct)
+.eq("profile_id", userId)
+```
+
+**Company Insert (lines ~479-488):**
+```typescript
+// BEFORE (wrong)
+.insert({
+  company_id: companyId,
+  profile_id: userId,
+  name: name.trim(),
+  status: "active",
+})
+
+// AFTER (correct - remove company_id, remove non-existent status column)
+.insert({
+  profile_id: userId,
+  name: name.trim(),
+})
+```
+
+### 2. Frontend: `src/components/sales/SalesCoachChat.tsx` (line ~61)
+
+```typescript
+// BEFORE (wrong)
+.eq("company_id", companyId)
+
+// AFTER (correct)
+.eq("profile_id", userId)
+```
+
+### 3. Frontend: `src/pages/SalesTrainer.tsx` (line ~91)
+
+```typescript
+// BEFORE (wrong)
+.eq("company_id", effectiveCompanyId)
+
+// AFTER (correct)
+.eq("profile_id", effectiveUserId)
+```
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `supabase/functions/extract-customer-document/index.ts` | Add chunked base64 helper, replace 2 `btoa()` calls |
+| File | Lines | Change |
+|------|-------|--------|
+| `supabase/functions/sales-coach/index.ts` | ~408 | Change `.eq("company_id", companyId)` to `.eq("profile_id", userId)` |
+| `supabase/functions/sales-coach/index.ts` | ~464 | Change `.eq("company_id", companyId)` to `.eq("profile_id", userId)` |
+| `supabase/functions/sales-coach/index.ts` | ~481-486 | Remove `company_id` and `status` from insert |
+| `src/components/sales/SalesCoachChat.tsx` | ~61 | Fix query filter |
+| `src/pages/SalesTrainer.tsx` | ~91 | Fix query filter |
 
 ---
 
-## Testing
+## What This Fixes
 
-After the fix, you should be able to:
-1. Upload PDFs up to 20MB without errors
-2. See the document appear in your knowledge base
-3. Have Jericho reference the document content in conversations
+After these changes:
+- Companies will actually be created when Jericho says "Added ABC Farms"
+- Contacts will be linked correctly
+- Deals will be created in the pipeline
+- Undo functionality will work
+- The customer dropdown in chat will populate correctly
+
+---
+
+## Testing After Fix
+
+1. Open Sales Agent chat
+2. Say "I just met John at ABC Farms about seed treatment"
+3. Verify:
+   - Toast shows "Company Added" with Undo button
+   - Company appears in Companies tab
+   - Deal appears in Pipeline
