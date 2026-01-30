@@ -12,11 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const { customerName, selectedProducts, allProducts, totalRevenue, companyId } = await req.json();
+    const { customerName, selectedProducts, allProducts, totalRevenue, companyId, customerIntelligence } = await req.json();
 
-    if (!customerName || !selectedProducts || selectedProducts.length === 0) {
+    if (!customerName) {
       return new Response(
-        JSON.stringify({ error: 'Customer name and at least one selected product are required' }),
+        JSON.stringify({ error: 'Customer name is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -31,90 +31,198 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch relevant sales training from knowledge base
-    let trainingContext = '';
+    // Fetch ALL relevant sales training from knowledge base - comprehensive pull
+    let trainingFrameworks = {
+      methodology: '',
+      discoveryQuestions: '',
+      objectionHandling: '',
+      appointmentSetting: '',
+      closingTechniques: '',
+      fourCallFramework: '',
+      mindset: '',
+    };
     
     if (companyId) {
-      console.log(`Fetching sales training for company: ${companyId}`);
+      console.log(`Fetching comprehensive sales training for company: ${companyId}`);
       
-      // Fetch training materials relevant to pre-call planning
-      // Categories: discovery, prospecting, objection_handling, sales_scripts, product_catalog
+      // Fetch ALL training materials - don't limit
       const { data: trainingData, error: trainingError } = await supabase
         .from('sales_knowledge')
         .select('title, content, category, stage, tags')
         .eq('is_active', true)
-        .or(`company_id.eq.${companyId},company_id.is.null,is_global.eq.true`)
-        .in('category', ['discovery', 'objection_handling', 'sales_scripts', 'prospecting', 'methodology', 'training'])
-        .limit(10);
+        .or(`company_id.eq.${companyId},company_id.is.null`)
+        .in('category', [
+          'discovery', 'objection_handling', 'sales_scripts', 'prospecting', 
+          'methodology', 'training', 'questions', 'scripts', 'objections', 
+          'process', 'closing', 'mindset', 'general', '4-call'
+        ])
+        .order('category');
 
       if (!trainingError && trainingData && trainingData.length > 0) {
         console.log(`Found ${trainingData.length} training materials`);
         
-        // Organize by category for better context
-        const byCategory: Record<string, string[]> = {};
-        
         for (const item of trainingData) {
-          const cat = item.category || 'general';
-          if (!byCategory[cat]) byCategory[cat] = [];
+          const fullContent = `### ${item.title}\n${item.content}\n\n`;
           
-          // Include title and truncated content
-          const content = item.content.length > 800 
-            ? item.content.substring(0, 800) + '...' 
-            : item.content;
-          byCategory[cat].push(`**${item.title}**:\n${content}`);
-        }
-
-        trainingContext = '\n\n## YOUR SALES TRAINING FRAMEWORKS:\n';
-        
-        if (byCategory['methodology']) {
-          trainingContext += '\n### Sales Methodology:\n' + byCategory['methodology'].join('\n\n');
-        }
-        if (byCategory['discovery']) {
-          trainingContext += '\n### Discovery Questions:\n' + byCategory['discovery'].join('\n\n');
-        }
-        if (byCategory['objection_handling']) {
-          trainingContext += '\n### Objection Handling:\n' + byCategory['objection_handling'].join('\n\n');
-        }
-        if (byCategory['sales_scripts']) {
-          trainingContext += '\n### Sales Scripts:\n' + byCategory['sales_scripts'].join('\n\n');
-        }
-        if (byCategory['prospecting']) {
-          trainingContext += '\n### Prospecting Framework:\n' + byCategory['prospecting'].join('\n\n');
-        }
-        if (byCategory['training']) {
-          trainingContext += '\n### Training Notes:\n' + byCategory['training'].join('\n\n');
+          switch (item.category) {
+            case 'questions':
+            case 'discovery':
+            case 'process':
+              trainingFrameworks.discoveryQuestions += fullContent;
+              break;
+            case 'objections':
+            case 'objection_handling':
+              trainingFrameworks.objectionHandling += fullContent;
+              break;
+            case 'scripts':
+            case 'prospecting':
+              trainingFrameworks.appointmentSetting += fullContent;
+              break;
+            case 'closing':
+              trainingFrameworks.closingTechniques += fullContent;
+              break;
+            case '4-call':
+            case 'training':
+              trainingFrameworks.fourCallFramework += fullContent;
+              break;
+            case 'mindset':
+              trainingFrameworks.mindset += fullContent;
+              break;
+            case 'general':
+            case 'methodology':
+            default:
+              trainingFrameworks.methodology += fullContent;
+              break;
+          }
         }
       } else {
-        console.log('No training materials found, using defaults');
+        console.log('No training materials found or error:', trainingError);
+      }
+
+      // Also fetch product knowledge for recommendations
+      const { data: productData } = await supabase
+        .from('sales_knowledge')
+        .select('title, content')
+        .eq('is_active', true)
+        .or(`company_id.eq.${companyId},company_id.is.null`)
+        .in('category', ['product_catalog', 'product_knowledge', 'product_sheet'])
+        .limit(5);
+
+      if (productData && productData.length > 0) {
+        trainingFrameworks.methodology += '\n\n## PRODUCT KNOWLEDGE:\n';
+        for (const p of productData) {
+          trainingFrameworks.methodology += `### ${p.title}\n${p.content.slice(0, 1500)}\n\n`;
+        }
       }
     }
 
     // Format product lists for the prompt
-    const selectedProductsText = selectedProducts
-      .map((p: any) => `- ${p.product_description}: ${p.quantity?.toLocaleString() || 0} units, $${(p.amount || 0).toLocaleString()}`)
-      .join('\n');
+    const selectedProductsText = selectedProducts && selectedProducts.length > 0
+      ? selectedProducts.map((p: any) => `- ${p.product_description}: ${p.quantity?.toLocaleString() || 0} units, $${(p.amount || 0).toLocaleString()}`).join('\n')
+      : 'No specific products selected - general consultation call';
 
-    const allProductsText = allProducts
-      .map((p: any) => `- ${p.product_description}: ${p.quantity?.toLocaleString() || 0} units, $${(p.amount || 0).toLocaleString()}`)
-      .join('\n');
+    const allProductsText = allProducts && allProducts.length > 0
+      ? allProducts.map((p: any) => `- ${p.product_description}: ${p.quantity?.toLocaleString() || 0} units, $${(p.amount || 0).toLocaleString()}`).join('\n')
+      : 'No purchase history available';
 
-    const systemPrompt = `You are Jericho, an expert agricultural sales coach. Generate a concise, actionable pre-call plan for an initial planning call with a grower customer.
+    // Build customer intelligence context
+    let customerContext = '';
+    if (customerIntelligence) {
+      if (customerIntelligence.relationship_notes) {
+        customerContext += `\n**Previous Conversations:**\n${customerIntelligence.relationship_notes.slice(-2000)}\n`;
+      }
+      if (customerIntelligence.personal_details) {
+        customerContext += `\n**Personal Details:** ${JSON.stringify(customerIntelligence.personal_details)}\n`;
+      }
+      if (customerIntelligence.preferences) {
+        customerContext += `\n**Known Preferences:** ${JSON.stringify(customerIntelligence.preferences)}\n`;
+      }
+      if (customerIntelligence.buying_signals) {
+        customerContext += `\n**Buying Signals:** ${JSON.stringify(customerIntelligence.buying_signals)}\n`;
+      }
+    }
 
-${trainingContext ? `IMPORTANT: Use the sales training frameworks provided below to structure your recommendations. Reference specific techniques, questions, and approaches from the training.${trainingContext}` : ''}
+    // Build the comprehensive system prompt with all training
+    const systemPrompt = `You are Jericho, an expert agricultural sales coach using the Thrive Today Consultative Selling methodology. Your job is to prepare the sales rep to be a COMPLETE CONSULTANT for their customer call.
 
-Your response should be structured and practical, incorporating the training frameworks above:
+## YOUR SALES METHODOLOGY TRAINING:
+${trainingFrameworks.methodology}
 
-1. **Call Objectives** (2-3 bullet points of what to accomplish - align with methodology if provided)
-2. **Opening Approach** (how to start the conversation - use scripts/frameworks if provided)
-3. **Key Discussion Points** (for each selected product, provide 1-2 talking points about value, timing, or application)
-4. **Discovery Questions** (3-4 questions - MUST use discovery framework from training if available)
-5. **Anticipated Objections & Responses** (2-3 likely objections with handling techniques from training)
-6. **Cross-Sell Opportunities** (based on their 2025 purchases, suggest 1-2 related products they might need)
-7. **Success Metrics** (how to know if the call was successful)
+## DISCOVERY QUESTIONS FRAMEWORK:
+${trainingFrameworks.discoveryQuestions || `The "Magic Questions" approach:
+1. "What are the two to three things you're looking to accomplish this season?"
+2. "What else?" (keep asking - the LAST thing they share is often most important)
+3. "Tell me more about [the last thing they mentioned]..."
+Remember: Pain is the strongest motivator, then Fear, then Opportunity.`}
 
-Keep it brief and actionable - this is a field reference, not a report. If training frameworks are provided, explicitly reference them (e.g., "Using the ACAVE model..." or "Following your 5-Step Process...").`;
+## APPOINTMENT SETTING & OPENING SCRIPTS:
+${trainingFrameworks.appointmentSetting || `THE SCRIPT: "Hey [Customer], this is [Your Name] from [Your Company]. I've been meaning to put a face with a name. Going to be in your area next week. I've got [Day 1 at Time 1] and [Day 2 at Time 2] available. Which one works best?"`}
 
-    const userPrompt = `Create a pre-call plan for **${customerName}** (2025 Revenue: $${totalRevenue?.toLocaleString() || 0}).
+## OBJECTION HANDLING (ACAVE Model):
+${trainingFrameworks.objectionHandling || `A = Acknowledge (normalize the question/concern)
+C = Clarify (ask questions to lower tension and increase trust)
+A = Answer (earn the right to offer your perspective)
+V = Verify (confirm understanding)
+E = End/Close (transition forward)`}
+
+## CLOSING TECHNIQUES:
+${trainingFrameworks.closingTechniques || 'Get them to tell you HOW to close them by asking the right questions during discovery.'}
+
+## 4-CALL FRAMEWORK:
+${trainingFrameworks.fourCallFramework}
+
+## MINDSET:
+${trainingFrameworks.mindset || 'Decrease tension, increase trust. Be a professional with a dependable, repeatable process.'}
+
+---
+
+Generate a COMPREHENSIVE pre-call plan that prepares the rep to be a complete consultant. Your plan MUST include ALL of the following sections:
+
+## 1. 🎯 PRE-CALL CHECKLIST
+- What to review before the call
+- Materials/data to have ready
+- Mental preparation reminders
+
+## 2. 📞 OPENING LINE / APPOINTMENT CONFIRMATION
+- Use the appointment setting script from training
+- Include a warm, assumptive opening
+- Reference something personal if available from customer intel
+
+## 3. ❓ DISCOVERY QUESTIONS (5-7 questions)
+- Use the "Magic Questions" framework from training
+- Start with "What are the two to three things..."
+- Include probing questions: "What else?" and "Tell me more about..."
+- Questions about Pain, Fear, AND Opportunity
+- Questions specific to their purchase history and products
+
+## 4. 💡 PRODUCT RECOMMENDATIONS
+- Based on their purchase history, suggest complementary products
+- Identify gaps or opportunities (what they're NOT buying that they should)
+- Cross-sell and up-sell suggestions with clear value propositions
+
+## 5. 🛡️ OBJECTION HANDLING SCRIPTS
+- Anticipate 3-4 likely objections for this customer
+- Provide word-for-word responses using ACAVE methodology
+- Include price objections, competitor objections, timing objections
+
+## 6. 🎬 CLOSING APPROACH
+- How to ask for the sale naturally
+- Suggested commitment/next step to gain
+- Alternative close options
+
+## 7. 📅 FOLLOW-UP PLAN
+- When to follow up after this call
+- What to send/share post-call
+- Calendar the next touch point
+
+## 8. ✅ SUCCESS METRICS
+- What does a successful call look like?
+- Minimum outcomes to achieve
+- Stretch goals if the call goes well
+
+Be SPECIFIC to this customer. Reference their actual purchase history. Use their name. Make this actionable and practical - something the rep can print and reference during the call.`;
+
+    const userPrompt = `Create a COMPLETE pre-call plan for **${customerName}** (2025 Revenue: $${totalRevenue?.toLocaleString() || 0}).
 
 **Products to focus on in this call:**
 ${selectedProductsText}
@@ -122,7 +230,9 @@ ${selectedProductsText}
 **Their complete 2025 purchase history:**
 ${allProductsText}
 
-Generate a practical pre-call plan I can reference before and during the call. Make sure to incorporate my sales training frameworks and methodologies.`;
+${customerContext ? `**Customer Intelligence:**${customerContext}` : ''}
+
+Generate a comprehensive, consultative pre-call plan that will prepare me to be a trusted advisor on this call. Include specific discovery questions, product recommendations, and objection handling scripts based on their actual data.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -131,11 +241,13 @@ Generate a practical pre-call plan I can reference before and during the call. M
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
+        temperature: 0.7,
+        max_tokens: 4000,
       }),
     });
 
@@ -160,10 +272,22 @@ Generate a practical pre-call plan I can reference before and during the call. M
     const data = await response.json();
     const plan = data.choices?.[0]?.message?.content || 'Unable to generate plan.';
 
+    // Log what training was used
+    const trainingUsed = {
+      methodology: trainingFrameworks.methodology.length > 100,
+      discoveryQuestions: trainingFrameworks.discoveryQuestions.length > 100,
+      objectionHandling: trainingFrameworks.objectionHandling.length > 100,
+      appointmentSetting: trainingFrameworks.appointmentSetting.length > 100,
+      closingTechniques: trainingFrameworks.closingTechniques.length > 100,
+      fourCallFramework: trainingFrameworks.fourCallFramework.length > 100,
+    };
+    console.log('Training frameworks used:', trainingUsed);
+
     return new Response(
       JSON.stringify({ 
         plan,
-        trainingUsed: trainingContext ? true : false 
+        trainingUsed: Object.values(trainingUsed).some(v => v),
+        trainingDetails: trainingUsed,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
