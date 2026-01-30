@@ -1592,6 +1592,62 @@ async function loadCustomerMemory(
   let memory = "";
 
   try {
+    // ------------------------------------------------------------------
+    // 0) Pull verbatim chat history mentions (source of truth)
+    // ------------------------------------------------------------------
+    // The UI stores coaching chat in sales_coach_messages. If Jericho "doesn't remember",
+    // it's usually because we're only relying on summarized intelligence.
+    // This fetch pulls real prior turns that mention the customer name.
+    const normalizedCustomer = customerName.trim();
+
+    const { data: transcriptMentions } = await client
+      .from("sales_coach_messages")
+      .select(
+        `content, role, created_at,
+         sales_coach_conversations!inner(company_id, profile_id)`
+      )
+      .eq("sales_coach_conversations.profile_id", userId)
+      .eq("sales_coach_conversations.company_id", companyId)
+      .ilike("content", `%${normalizedCustomer}%`)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (transcriptMentions && transcriptMentions.length > 0) {
+      memory += `\n**VERBATIM CHAT MEMORY (mentions of ${normalizedCustomer}):**\n`;
+
+      // Show oldest->newest within the mention window for readability
+      const ordered = [...transcriptMentions].reverse();
+      const lines = ordered.map((m: any) => {
+        const speaker = m.role === "assistant" ? "Jericho" : "User";
+        const text = (m.content || "").replace(/\s+/g, " ").trim();
+        return `- ${speaker}: ${text.slice(0, 240)}${text.length > 240 ? "…" : ""}`;
+      });
+
+      memory += lines.join("\n") + "\n";
+    }
+
+    // Also pull conversation backups (these are written even if other persistence fails)
+    const { data: backups } = await client
+      .from("jericho_action_log")
+      .select("action_data, entity_name, created_at")
+      .eq("profile_id", userId)
+      .eq("company_id", companyId)
+      .eq("action_type", "conversation_backup")
+      .ilike("entity_name", `%${normalizedCustomer}%`)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (backups && backups.length > 0) {
+      memory += `\n**CONVERSATION BACKUPS (most recent):**\n`;
+      const lines = backups.map((b: any) => {
+        const um = b.action_data?.user_message ? String(b.action_data.user_message) : "";
+        const am = b.action_data?.assistant_response ? String(b.action_data.assistant_response) : "";
+        const combined = [um, am].filter(Boolean).join(" | ").replace(/\s+/g, " ").trim();
+        return `- ${combined.slice(0, 280)}${combined.length > 280 ? "…" : ""}`;
+      });
+      memory += lines.join("\n") + "\n";
+    }
+
     // Find the sales company with fuzzy matching for partial names (Randy -> Randy Diekhoff)
     const namePatterns = customerName.trim().split(/\s+/);
     const firstName = namePatterns[0];
