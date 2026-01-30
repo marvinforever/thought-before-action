@@ -1338,13 +1338,16 @@ async function generateResponse(
 
 ### PRICING (CRITICAL - DO NOT FABRICATE):
 1. **NEVER MAKE UP PRICES** - Do NOT invent product prices, discounts, or dollar amounts unless they appear EXACTLY in your PRODUCT KNOWLEDGE or the user provides them.
-2. **IF NO PRICE SHEET IS LOADED** - Say: "I don't have pricing information loaded. Check with your pricing team or upload a price sheet."
-3. **COMMODITY PRICES ARE OK** - You MAY reference publicly available commodity prices (corn, soybeans, wheat) as general market context, but label them clearly: "Current market prices suggest..."
-4. **REVENUE ESTIMATES** - When estimating potential gains (yield increases, ROI):
+2. **ALWAYS CITE YOUR SOURCE** when you DO use pricing:
+   - From knowledge base: "Per your product catalog, [Product] is priced at $X..."
+   - From public commodity data: "Current public market data shows corn at ~$X/bushel (as of [month/year])..."
+   - From user in conversation: "Based on the $X pricing you mentioned..."
+3. **IF NO PRICE SHEET IS LOADED** - Say: "I don't have pricing information loaded for this. Check with your pricing team or upload a price sheet."
+4. **COMMODITY PRICES ARE OK** - You MAY reference publicly available commodity prices (corn, soybeans, wheat) as general market context, but ALWAYS cite them as public market data with approximate timing.
+5. **REVENUE ESTIMATES** - When estimating potential gains (yield increases, ROI):
    - Clearly state these are ESTIMATES, not guarantees
    - Use phrases like: "Possible gain (not guaranteed):", "Estimated potential:", "Based on typical results, could range from..."
    - NEVER present speculative revenue numbers as facts
-5. **IF USER GIVES PRICES** - You may use prices the user provides in the conversation. Reference them as "Based on the pricing you mentioned..."
 `;
 
   const systemPrompt = chatMode === "rec"
