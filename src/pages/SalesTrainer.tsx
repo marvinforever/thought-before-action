@@ -83,12 +83,12 @@ const SalesTrainer = () => {
 
   // Fetch customers for the upload dialog
   const fetchCustomers = async () => {
-    if (!effectiveCompanyId) return;
+    if (!effectiveUserId) return;
     try {
       const { data } = await (supabase as any)
         .from("sales_companies")
         .select("id, name")
-        .eq("company_id", effectiveCompanyId)
+        .eq("profile_id", effectiveUserId)
         .order("name");
       if (data) {
         setCustomers(data.map((c: any) => ({ id: c.id as string, name: c.name as string })));
