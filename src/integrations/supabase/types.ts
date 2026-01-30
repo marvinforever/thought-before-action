@@ -1959,42 +1959,64 @@ export type Database = {
           company_id: string | null
           confidence: number | null
           created_at: string | null
+          customer_id: string | null
+          customer_name: string | null
           id: string
           insight_text: string
           insight_type: string
           is_actionable: boolean | null
+          is_active: boolean | null
           products_mentioned: string[] | null
           profile_id: string | null
+          source_conversation_id: string | null
           source_message_id: string | null
+          updated_at: string | null
         }
         Insert: {
           company_id?: string | null
           confidence?: number | null
           created_at?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
           id?: string
           insight_text: string
           insight_type: string
           is_actionable?: boolean | null
+          is_active?: boolean | null
           products_mentioned?: string[] | null
           profile_id?: string | null
+          source_conversation_id?: string | null
           source_message_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           company_id?: string | null
           confidence?: number | null
           created_at?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
           id?: string
           insight_text?: string
           insight_type?: string
           is_actionable?: boolean | null
+          is_active?: boolean | null
           products_mentioned?: string[] | null
           profile_id?: string | null
+          source_conversation_id?: string | null
           source_message_id?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "customer_insights_company_id_fkey"
             columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_insights_customer_id_fkey"
+            columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "sales_companies"
             referencedColumns: ["id"]
@@ -2271,6 +2293,76 @@ export type Database = {
           {
             foreignKeyName: "development_ideas_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      development_requests: {
+        Row: {
+          admin_notes: string | null
+          company_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          implemented_at: string | null
+          priority: string | null
+          profile_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          implemented_at?: string | null
+          priority?: string | null
+          profile_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          implemented_at?: string | null
+          priority?: string | null
+          profile_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
