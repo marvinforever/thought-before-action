@@ -376,6 +376,29 @@ const SalesTrainer = () => {
     }
   };
 
+  // Handle undo action
+  const handleUndo = async (undoToken: string) => {
+    try {
+      const response = await supabase.functions.invoke("sales-coach", {
+        body: { undoAction: undoToken },
+      });
+      
+      if (response.data?.success) {
+        toast({ title: "✅ Undone", description: response.data.message });
+        // Refresh deals
+        const userId = viewAsUserId || user?.id;
+        if (userId) {
+          viewAsUserId ? fetchDealsForUser(userId) : fetchDeals(userId);
+        }
+      } else {
+        toast({ title: "Undo failed", description: response.data?.message || "Could not undo", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Undo error:", error);
+      toast({ title: "Undo failed", variant: "destructive" });
+    }
+  };
+
   const sendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text) return;
@@ -395,12 +418,6 @@ const SalesTrainer = () => {
     }
 
     try {
-      const pipelineContext = deals.length > 0 
-        ? deals.map(d => 
-            `- ${d.deal_name} (${d.stage}): $${d.value || 0} at ${d.sales_companies?.name || 'Unknown'}. Priority: ${d.priority}/5. ${d.notes ? `Notes: ${d.notes}` : ''}`
-          ).join("\n")
-        : "No deals in pipeline yet.";
-
       const conversationHistory = messages.map(m => `${m.role}: ${m.content}`).join("\n\n");
 
       const lowerText = text.toLowerCase();
@@ -436,11 +453,47 @@ const SalesTrainer = () => {
       
       setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId }]);
       
-      // Refresh deals for the effective user (impersonated or logged-in)
-      if ((response.data?.dealCreated || response.data?.pipelineActions?.length > 0)) {
-        const effectiveUserId = viewAsUserId || user?.id;
-        if (effectiveUserId) {
-          viewAsUserId ? fetchDealsForUser(effectiveUserId) : fetchDeals(effectiveUserId);
+      // Show action notifications with undo buttons
+      const actions = response.data?.actions || [];
+      for (const action of actions) {
+        if (action.success && action.undoToken && action.type !== "company_exists") {
+          const undoToken = action.undoToken;
+          toast({
+            title: action.type === "company_created" ? "🏢 Company Added" :
+                   action.type === "contact_created" ? "👤 Contact Added" :
+                   action.type === "deal_created" ? "💼 Deal Created" : "✅ Done",
+            description: action.message || `Created ${action.details?.name || "entity"}`,
+            action: (
+              <button
+                className="ml-2 px-3 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded hover:bg-secondary/80"
+                onClick={() => handleUndo(undoToken)}
+              >
+                Undo
+              </button>
+            ),
+            duration: 5000,
+          });
+        }
+      }
+
+      // Show pipeline action notifications
+      const pipelineActions = response.data?.pipelineActions || [];
+      for (const action of pipelineActions) {
+        if (action.success) {
+          toast({ 
+            title: action.action === 'move_deal' ? "📊 Deal moved!" :
+                   action.action === 'update_deal' ? "✏️ Deal updated!" :
+                   action.action === 'delete_deal' ? "🗑️ Deal deleted!" : "✅ Done!",
+            description: action.message
+          });
+        }
+      }
+      
+      // Refresh deals if any changes were made
+      if (response.data?.dealCreated || actions.length > 0 || pipelineActions.length > 0) {
+        const userId = viewAsUserId || user?.id;
+        if (userId) {
+          viewAsUserId ? fetchDealsForUser(userId) : fetchDeals(userId);
         }
       }
     } catch (error) {
