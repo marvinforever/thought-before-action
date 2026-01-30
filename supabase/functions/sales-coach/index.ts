@@ -1185,6 +1185,43 @@ async function generateResponse(
   userId: string,
   companyId: string
 ): Promise<string> {
+  // Guardrail: hard-stop uncited pricing from ever reaching the UI.
+  // Models can occasionally violate prompt rules; this enforces compliance.
+  const sanitizePricingIfNeeded = (text: string) => {
+    if (!text) return text;
+
+    // Detect likely pricing output (product prices, $ amounts, per-acre costs).
+    // Note: We only sanitize the model output, not the pipeline context we prepend.
+    const hasPricingSignals =
+      /\$\s?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?/m.test(text) ||
+      /\b(?:per\s+acre|\/acre|acre\s+price|priced\s+at|price\s+is|cost\s+is|costs\s+\$|\$\s*\/\s*unit)\b/i.test(text);
+
+    if (!hasPricingSignals) return text;
+
+    // Require one of the explicit citation patterns we instruct the model to use.
+    const hasAllowedAttribution =
+      /\bPer your product catalog\b/i.test(text) ||
+      /\bBased on the \$\d[\s\S]{0,40}you mentioned\b/i.test(text) ||
+      /\bCurrent public market data shows\b/i.test(text);
+
+    if (hasAllowedAttribution) return text;
+
+    // Strip lines that contain dollar figures to remove fabricated prices.
+    const stripped = text
+      .split('\n')
+      .filter(line => !/\$\s?\d/.test(line))
+      .join('\n')
+      .trim();
+
+    const disclaimer =
+      "\n\n**Pricing note:** I don't have your price sheet loaded, and I won't guess pricing. " +
+      "If you share your price sheet (or paste the exact price), I can use it and cite it. " +
+      "For crop values I can reference public commodity market context, but I’ll label it as public market data with an approximate date.";
+
+    // If we stripped everything (rare), fall back to disclaimer only.
+    return (stripped.length ? stripped : "") + disclaimer;
+  };
+
   // Build action summary
   let actionSummary = "";
   const successfulActions = actions.filter(a => a.success && a.type !== "company_exists");
@@ -1427,7 +1464,8 @@ ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
     );
 
     console.log(`[sales-coach] Used model: ${result.modelUsed}`);
-    return actionSummary + result.content;
+    const safeContent = sanitizePricingIfNeeded(result.content);
+    return actionSummary + safeContent;
   } catch (error) {
     console.error("Response generation failed:", error);
     return actionSummary + "I'm here to help! What would you like to work on?";
