@@ -175,6 +175,7 @@ export function InitialPlanningExpanded({
           selectedProducts: selectedProductData,
           allProducts: products,
           totalRevenue,
+          companyId,
         },
       });
 
