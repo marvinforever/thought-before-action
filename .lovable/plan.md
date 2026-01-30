@@ -1,21 +1,21 @@
 
-# Agentic Product Training System - Full Implementation
+# Agentic Product Training System - IMPLEMENTED ✅
 
 ## Overview
 
-Transform the Bite-Sized Training section into a fully agentic, company-specific training creation system. Users select a **product** (dynamically parsed from their knowledge base) and optionally a **customer** to generate hyper-personalized training content explaining product value - suitable for training reps or sharing directly with customers as value-add MP3s.
+Transformed the Bite-Sized Training section into a fully agentic, company-specific training creation system. Users select a **product** (dynamically parsed from their knowledge base) and optionally a **customer** to generate hyper-personalized training content explaining product value - suitable for training reps or sharing directly with customers as value-add MP3s.
 
 **Universal Standard**: Your sales methodology training (ACAVE, discovery questions, objection handling) is global and available to all companies. Product training is company-specific.
 
 ---
 
-## Changes Summary
+## Changes Completed ✅
 
-| File | Change |
-|------|--------|
-| `src/components/sales/SalesAgentHeader.tsx` | Fix line 399 to use `viewAsCompanyId` for proper company isolation |
-| `src/components/sales/SalesKnowledgePodcasts.tsx` | Add product extraction, replace dropdowns (Product + Customer), add product-specific generation |
-| `supabase/functions/generate-sales-podcast/index.ts` | Add `productName` parameter, extract product-specific content from catalogs |
+| File | Change | Status |
+|------|--------|--------|
+| `src/components/sales/SalesAgentHeader.tsx` | Fixed line 399 to use `viewAsCompanyId` for proper company isolation | ✅ Done |
+| `src/components/sales/SalesKnowledgePodcasts.tsx` | Added product extraction, replaced dropdowns (Product + Customer), added product-specific generation | ✅ Done |
+| `supabase/functions/generate-sales-podcast/index.ts` | Added `productName` parameter, extracts product-specific content from catalogs | ✅ Done |
 
 ---
 
@@ -49,136 +49,6 @@ Transform the Bite-Sized Training section into a fully agentic, company-specific
 
 ---
 
-## Technical Implementation
-
-### 1. Fix Company Isolation (SalesAgentHeader.tsx)
-
-**Current (Line 399)**:
-```tsx
-<SalesKnowledgePodcasts 
-  userId={viewAsUserId || user?.id} 
-  companyId={profile?.company_id}  // ← Always uses logged-in user's company
-/>
-```
-
-**Fixed**:
-```tsx
-<SalesKnowledgePodcasts 
-  userId={viewAsUserId || user?.id} 
-  companyId={viewAsCompanyId || profile?.company_id}  // ← Respects View As
-/>
-```
-
-### 2. Dynamic Product Extraction (SalesKnowledgePodcasts.tsx)
-
-Add logic to parse product names from knowledge base markdown:
-
-```typescript
-interface ExtractedProduct {
-  name: string;
-  knowledgeId: string;
-  source: string; // Parent catalog title
-}
-
-const extractedProducts = useMemo((): ExtractedProduct[] => {
-  const products: ExtractedProduct[] = [];
-  
-  for (const item of knowledge) {
-    if (!isProductTraining(item.category)) continue;
-    
-    // Extract ### headers (product names) from markdown
-    const productMatches = item.content.match(/###\s*([^\n(]+)/g);
-    if (productMatches) {
-      for (const match of productMatches) {
-        const name = match.replace(/###\s*/, '').trim();
-        if (name.length > 2 && name.length < 60) {
-          products.push({
-            name,
-            knowledgeId: item.id,
-            source: item.title
-          });
-        }
-      }
-    }
-  }
-  return products;
-}, [knowledge]);
-```
-
-### 3. New Dropdown UI (SalesKnowledgePodcasts.tsx)
-
-Replace the current "General training" and "No specific deal" dropdowns with:
-
-**Product Dropdown**:
-- "All Training" (default)
-- Products grouped by source catalog
-
-**Customer Dropdown**:
-- "General" (no personalization)
-- All customers from pipeline
-
-Add new state:
-```typescript
-const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
-const [selectedKnowledgeId, setSelectedKnowledgeId] = useState<string | null>(null);
-```
-
-### 4. Edge Function Update (generate-sales-podcast)
-
-Add `productName` parameter to focus training on a specific product:
-
-```typescript
-const { knowledgeId, chunkIndex = 0, dealId, customerId, productName } = await req.json();
-
-// If productName provided, extract just that product's section
-let contentToUse = knowledge.content;
-if (productName) {
-  const productSection = extractProductSection(knowledge.content, productName);
-  if (productSection) {
-    contentToUse = productSection;
-  }
-}
-
-// Helper function
-function extractProductSection(content: string, productName: string): string | null {
-  const regex = new RegExp(`###\\s*${productName}[^#]*`, 'i');
-  const match = content.match(regex);
-  return match ? match[0] : null;
-}
-```
-
-Update AI prompts to emphasize value proposition when product is specified:
-```typescript
-if (productName) {
-  systemContext += `\n\nFOCUS: You're teaching about ${productName} specifically. 
-Explain its value proposition, key benefits, and when/how to recommend it to customers.
-Make it practical - give the rep specific talking points they can use.`;
-}
-```
-
-### 5. Filtering Logic
-
-When a product is selected, filter the displayed training modules:
-```typescript
-const filteredKnowledge = selectedKnowledgeId 
-  ? knowledge.filter(k => k.id === selectedKnowledgeId)
-  : knowledge;
-```
-
-Update generation call to include product name:
-```typescript
-const response = await supabase.functions.invoke("generate-sales-podcast", {
-  body: { 
-    knowledgeId: selectedKnowledgeId || item.id, 
-    chunkIndex: episodeIndex,
-    customerId: selectedCustomerId,
-    productName: selectedProductName,  // NEW
-  },
-});
-```
-
----
-
 ## What Each Company Sees
 
 | Company | Products Dropdown | Customers Dropdown | Sales Training |
@@ -192,7 +62,7 @@ const response = await supabase.functions.invoke("generate-sales-podcast", {
 ## How It Works End-to-End
 
 1. **Rep opens Training tab** → Products parsed from their company's knowledge base
-2. **Selects "BioVax" + "Derek Holmgren"** → UI shows personalized mode banner
+2. **Selects "BioVax" + "Derek Holmgren"** → UI shows personalized mode banner (orange for products)
 3. **Clicks "Create Episodes"** → Edge function:
    - Fetches BioVax section from Streamline catalog
    - Fetches Derek's operation details
@@ -201,10 +71,16 @@ const response = await supabase.functions.invoke("generate-sales-podcast", {
 
 ---
 
-## Edge Cases Handled
+## Technical Details
 
-- **No products found**: Falls back to full catalog articles
-- **Product with unusual formatting**: Uses whole article if section extraction fails
-- **Viewing as another company**: Products/customers update correctly
-- **Empty customer selection**: General product training (no personalization)
+### Product Extraction Logic
+Products are extracted from `### Headers` in knowledge base markdown content. Only knowledge items categorized as product training (product_catalog, product_sheet, technical, biologicals, seed, chemicals, crop_protection) are parsed.
 
+### Edge Function Enhancement
+The `productName` parameter triggers:
+1. Content isolation - extracts just that product's section from the catalog
+2. AI prompt enhancement - focuses on value proposition and talking points
+3. Customer personalization - combines product focus with customer operation details
+
+### Company Isolation
+The `companyId` prop now respects the "View As" context, ensuring super admins see the correct company's products and customers when viewing as another company.

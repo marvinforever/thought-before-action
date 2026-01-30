@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { knowledgeId, chunkIndex = 0, dealId, dealContext, customerId } = await req.json();
+    const { knowledgeId, chunkIndex = 0, dealId, dealContext, customerId, productName } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -73,18 +73,46 @@ serve(async (req) => {
       }
     }
 
-    const contextLabel = customerInfo 
-      ? ` (Customer: ${customerInfo.name})`
-      : dealInfo 
-        ? ` (Deal: ${dealInfo.dealName})`
-        : '';
+    const contextLabel = productName 
+      ? ` (Product: ${productName})`
+      : customerInfo 
+        ? ` (Customer: ${customerInfo.name})`
+        : dealInfo 
+          ? ` (Deal: ${dealInfo.dealName})`
+          : '';
     console.log(`Chunking content for: ${knowledge.title}${contextLabel}`);
 
+    // Extract product-specific section if productName provided
+    let contentToUse = knowledge.content;
+    if (productName) {
+      const productSection = extractProductSection(knowledge.content, productName);
+      if (productSection) {
+        console.log(`Extracted ${productSection.length} chars for product: ${productName}`);
+        contentToUse = productSection;
+      } else {
+        console.log(`Could not extract section for ${productName}, using full content`);
+      }
+    }
+
+    // Helper function to extract product section from catalog
+    function extractProductSection(content: string, product: string): string | null {
+      // Escape special regex characters in product name
+      const escaped = product.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match from ### Product Name until the next ### or end
+      const regex = new RegExp(`###\\s*${escaped}[^#]*(?=###|$)`, 'i');
+      const match = content.match(regex);
+      return match ? match[0].trim() : null;
+    }
+
     // First, break content into bite-sized chunks using AI
-    const chunkPrompt = `Break this sales training content into 3-5 SHORT, bite-sized lessons. Each lesson should be ONE focused concept that can be taught in 60-90 seconds.
+    const productFocusInstruction = productName 
+      ? `\n\nFOCUS: This is about ${productName} specifically. Create lessons that explain its value proposition, key benefits, and how/when to recommend it to customers. Make it practical with specific talking points.`
+      : '';
+    
+    const chunkPrompt = `Break this sales training content into 3-5 SHORT, bite-sized lessons. Each lesson should be ONE focused concept that can be taught in 60-90 seconds.${productFocusInstruction}
 
 CONTENT:
-${knowledge.content}
+${contentToUse}
 
 Return a JSON array of lesson objects. Each lesson should have:
 - title: A catchy, specific title (5-8 words)

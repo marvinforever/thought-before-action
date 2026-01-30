@@ -396,7 +396,7 @@ export function SalesAgentHeader({
                     <TabsContent value="podcasts" className="mt-0">
                       <SalesKnowledgePodcasts 
                         userId={viewAsUserId || user?.id} 
-                        companyId={profile?.company_id} 
+                        companyId={viewAsCompanyId || profile?.company_id} 
                       />
                     </TabsContent>
                   </div>
