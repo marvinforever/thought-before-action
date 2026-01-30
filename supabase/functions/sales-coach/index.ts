@@ -1241,7 +1241,7 @@ ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
 }
 
 // ============================================
-// INSIGHT EXTRACTION (Post-Response Learning)
+// INSIGHT EXTRACTION (Post-Response Learning) - ENHANCED MEMORY PERSISTENCE
 // ============================================
 
 async function extractAndSaveInsights(
@@ -1250,7 +1250,8 @@ async function extractAndSaveInsights(
   companyId: string,
   userMessage: string,
   assistantResponse: string,
-  mentionedCustomer?: string
+  mentionedCustomer?: string,
+  apiKey?: string
 ) {
   // Enhanced insight extraction - linked to specific customers
   const combinedText = `${userMessage} ${assistantResponse}`;
@@ -1260,9 +1261,10 @@ async function extractAndSaveInsights(
   if (!customerName) {
     // Try to extract customer/grower name from message
     const namePatterns = [
-      /(?:talking (?:to|with|about)|met with|call with|meeting with|visited)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:talking (?:to|with|about)|met with|call with|meeting with|visited)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:\s+(?:Farm|Farms|Inc|LLC|Co|Company)?)?)/i,
       /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:said|told me|mentioned|wants|needs|is interested)/i,
       /(?:grower|farmer|customer|prospect)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:at|with|from)\s+([A-Z][a-z]+(?:\s+(?:Farm|Farms))?)/i,
     ];
     
     for (const pattern of namePatterns) {
@@ -1284,6 +1286,9 @@ async function extractAndSaveInsights(
     { type: "competitive", regex: /competitor|other company|switching|currently using|been buying from/i },
     { type: "timing", regex: /spring|fall|harvest|planting|next season|this year|deadline/i },
     { type: "decision_maker", regex: /partner|brother|father|son runs|wife decides|family decision/i },
+    { type: "relationship", regex: /years|long time|loyal|always|history|relationship/i },
+    { type: "acreage", regex: /\d+\s*(?:acres?|k\s*acres?)/i },
+    { type: "crops", regex: /corn|soybeans?|wheat|cotton|rice|barley|oats|canola/i },
   ];
 
   const detectedInsights: { type: string; text: string }[] = [];
@@ -1308,7 +1313,7 @@ async function extractAndSaveInsights(
           customer_name: customerName || null,
           insight_type: insight.type,
           insight_text: insight.text,
-          source_conversation_id: null, // Could link to conversation ID if passed
+          source_conversation_id: null,
           is_active: true,
           created_at: new Date().toISOString(),
         });
@@ -1317,43 +1322,97 @@ async function extractAndSaveInsights(
     }
   }
 
-  // If we have a customer name and enough content, update/create a customer summary
-  if (customerName && (detectedInsights.length > 0 || userMessage.length > 100)) {
+  // ALWAYS save to intelligence if we have a customer - don't require insights
+  if (customerName) {
     try {
-      // Find the sales_company for this customer
-      const { data: salesCompany } = await client
+      // Find ALL sales_companies that match this customer name for this user
+      const { data: salesCompanies } = await client
         .from("sales_companies")
-        .select("id")
+        .select("id, name")
         .eq("profile_id", userId)
-        .ilike("name", `%${customerName}%`)
-        .maybeSingle();
+        .or(`name.ilike.%${customerName}%,name.ilike.${customerName}%`);
 
-      if (salesCompany) {
+      for (const salesCompany of (salesCompanies || [])) {
         // Update relationship notes in sales_company_intelligence
         const { data: existingIntel } = await client
           .from("sales_company_intelligence")
-          .select("id, relationship_notes")
+          .select("id, relationship_notes, personal_details, buying_signals, preferences")
           .eq("company_id", salesCompany.id)
           .eq("profile_id", userId)
           .maybeSingle();
 
-        const newNote = `[${new Date().toLocaleDateString()}] ${userMessage.slice(0, 300)}`;
-        const updatedNotes = existingIntel?.relationship_notes 
-          ? `${existingIntel.relationship_notes}\n\n${newNote}`
-          : newNote;
+        const dateStr = new Date().toLocaleDateString();
+        const newNote = `[${dateStr}] ${userMessage.slice(0, 400)}`;
+        
+        let updatedNotes = existingIntel?.relationship_notes || "";
+        // Avoid duplicate entries for same day
+        if (!updatedNotes.includes(`[${dateStr}]`) || !updatedNotes.includes(userMessage.slice(0, 50))) {
+          updatedNotes = updatedNotes 
+            ? `${updatedNotes}\n\n${newNote}`
+            : newNote;
+        }
+
+        // Extract and merge structured data
+        const buyingSignals = existingIntel?.buying_signals || [];
+        const personalDetails = existingIntel?.personal_details || {};
+        const preferences = existingIntel?.preferences || {};
+
+        // Add new insights to structured fields
+        for (const insight of detectedInsights) {
+          if (insight.type === "buying_signal" && Array.isArray(buyingSignals)) {
+            const signalText = insight.text.slice(0, 150);
+            if (!buyingSignals.some((s: any) => s?.text === signalText)) {
+              buyingSignals.push({ text: signalText, date: dateStr });
+            }
+          }
+          if (insight.type === "personal") {
+            personalDetails[dateStr] = insight.text.slice(0, 200);
+          }
+          if (insight.type === "preference") {
+            preferences[dateStr] = insight.text.slice(0, 200);
+          }
+        }
 
         await client
           .from("sales_company_intelligence")
           .upsert({
             company_id: salesCompany.id,
             profile_id: userId,
-            relationship_notes: updatedNotes.slice(-5000), // Keep last ~5000 chars
+            relationship_notes: updatedNotes.slice(-8000), // Keep more history
+            buying_signals: Array.isArray(buyingSignals) ? buyingSignals.slice(-20) : [],
+            personal_details: personalDetails,
+            preferences: preferences,
             updated_at: new Date().toISOString(),
           }, { onConflict: "company_id,profile_id" });
+
+        console.log(`Saved intelligence for ${salesCompany.name}`);
       }
     } catch (err) {
       console.error("Error updating customer intelligence:", err);
     }
+  }
+
+  // ALWAYS log the raw conversation to a general log as backup
+  try {
+    await client
+      .from("jericho_action_log")
+      .insert({
+        profile_id: userId,
+        company_id: companyId,
+        action_type: "conversation_backup",
+        entity_type: customerName ? "customer_mention" : "general_chat",
+        entity_id: null,
+        entity_name: customerName || "general",
+        action_data: {
+          user_message: userMessage.slice(0, 1000),
+          assistant_response: assistantResponse.slice(0, 500),
+          insights_detected: detectedInsights.map(i => i.type),
+          timestamp: new Date().toISOString(),
+        },
+        created_at: new Date().toISOString(),
+      });
+  } catch (err) {
+    console.error("Error saving conversation backup:", err);
   }
 }
 
