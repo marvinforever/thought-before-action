@@ -1050,12 +1050,53 @@ async function generateResponse(
     actionSummary += `**📧 Email Draft - "${emailDrafted.subject}":**\n\n${emailDrafted.preview}\n\n*[Full email saved - you can copy it from your drafts]*\n\n`;
   }
 
-  // Build pipeline context
-  const pipelineContext = context.deals.length > 0
-    ? context.deals.slice(0, 10).map((d: any) => 
-        `- ${d.deal_name} (${d.stage}): $${d.value || 0} at ${d.sales_companies?.name || 'Unknown'}`
-      ).join("\n")
-    : "No deals in pipeline yet.";
+  // Check if user is asking about a SPECIFIC customer/company
+  const mentionedCompany = extracted.companies.length > 0 ? extracted.companies[0].name.toLowerCase() : null;
+  const mentionedContact = extracted.contacts.length > 0 ? extracted.contacts[0].name.toLowerCase() : null;
+  
+  // Filter pipeline to only relevant deals when asking about a specific customer
+  let relevantDeals = context.deals || [];
+  let customerFocused = false;
+  
+  if (mentionedCompany || mentionedContact) {
+    customerFocused = true;
+    relevantDeals = context.deals.filter((d: any) => {
+      const companyName = d.sales_companies?.name?.toLowerCase() || "";
+      const dealName = d.deal_name?.toLowerCase() || "";
+      const contactName = d.sales_contacts?.name?.toLowerCase() || "";
+      
+      // Match by company name
+      if (mentionedCompany && (companyName.includes(mentionedCompany) || dealName.includes(mentionedCompany))) {
+        return true;
+      }
+      // Match by contact name
+      if (mentionedContact && (contactName.includes(mentionedContact) || dealName.includes(mentionedContact))) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  // Build pipeline context - only show relevant deals when customer-focused, or limit to 10 otherwise
+  let pipelineContext = "";
+  if (customerFocused && relevantDeals.length === 0) {
+    pipelineContext = `No deals found for ${mentionedCompany || mentionedContact || "this customer"} in your pipeline.`;
+  } else if (customerFocused) {
+    pipelineContext = relevantDeals.map((d: any) => 
+      `- ${d.deal_name} (${d.stage}): $${d.value || 0}`
+    ).join("\n");
+  } else if (context.deals.length > 0) {
+    pipelineContext = context.deals.slice(0, 10).map((d: any) => 
+      `- ${d.deal_name} (${d.stage}): $${d.value || 0} at ${d.sales_companies?.name || 'Unknown'}`
+    ).join("\n");
+  } else {
+    pipelineContext = "No deals in pipeline yet.";
+  }
+
+  // Build focus instruction for customer-specific queries
+  const focusInstruction = customerFocused
+    ? `\n\nIMPORTANT: The user is asking specifically about "${mentionedCompany || mentionedContact}". Focus ONLY on this customer. Do NOT list or discuss other deals or customers unless directly asked.`
+    : "";
 
   // Build system prompt based on mode
   const systemPrompt = chatMode === "rec"
@@ -1066,9 +1107,9 @@ You have access to the user's pipeline and can help with:
 - Call preparation
 - Pipeline management
 
-Be direct, actionable, and focused on results. Keep responses concise.
+Be direct, actionable, and focused on results. Keep responses concise.${focusInstruction}
 
-Current pipeline:
+${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
 
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`
@@ -1079,9 +1120,9 @@ Your style:
 - Ask follow-up questions to understand context
 - Give specific, actionable advice
 - Celebrate wins, help with challenges
-- Keep responses focused and not too long
+- Keep responses focused and not too long${focusInstruction}
 
-Current pipeline:
+${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
 
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
