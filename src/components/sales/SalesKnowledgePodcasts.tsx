@@ -71,6 +71,12 @@ interface Customer {
   location: string | null;
 }
 
+interface ExtractedProduct {
+  name: string;
+  knowledgeId: string;
+  source: string; // Parent catalog title
+}
+
 interface SuggestedTraining {
   knowledgeItem: KnowledgeItem;
   reason: string;
@@ -85,6 +91,8 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
+  const [selectedKnowledgeId, setSelectedKnowledgeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
   const [generatingEpisode, setGeneratingEpisode] = useState<number | null>(null);
@@ -197,6 +205,44 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     return suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]).slice(0, 5);
   }, [knowledge, deals]);
 
+  // Extract products from knowledge base content (### headers)
+  const extractedProducts = useMemo((): ExtractedProduct[] => {
+    const products: ExtractedProduct[] = [];
+    
+    for (const item of knowledge) {
+      if (!isProductTraining(item.category)) continue;
+      
+      // Extract ### headers (product names) from markdown
+      const productMatches = item.content.match(/###\s*([^\n(]+)/g);
+      if (productMatches) {
+        for (const match of productMatches) {
+          const name = match.replace(/###\s*/, '').trim();
+          // Filter out headers that are too short or too long
+          if (name.length > 2 && name.length < 60) {
+            products.push({
+              name,
+              knowledgeId: item.id,
+              source: item.title
+            });
+          }
+        }
+      }
+    }
+    return products;
+  }, [knowledge]);
+
+  // Group products by their source catalog
+  const productsBySource = useMemo(() => {
+    const grouped: Record<string, ExtractedProduct[]> = {};
+    for (const product of extractedProducts) {
+      if (!grouped[product.source]) {
+        grouped[product.source] = [];
+      }
+      grouped[product.source].push(product);
+    }
+    return grouped;
+  }, [extractedProducts]);
+
   const fetchKnowledge = async () => {
     // Build query - filter by company if provided, otherwise show global items only
     let query = supabase
@@ -245,7 +291,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     }
   };
 
-  const generateEpisode = async (item: KnowledgeItem, episodeIndex: number) => {
+  const generateEpisode = async (item: KnowledgeItem, episodeIndex: number, productOverride?: string) => {
     setGenerating(item.id);
     setGeneratingEpisode(episodeIndex);
     
@@ -256,6 +302,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           chunkIndex: episodeIndex,
           dealId: selectedDealId,
           customerId: selectedCustomerId,
+          productName: productOverride || selectedProductName,
         },
       });
 
@@ -407,6 +454,45 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
         </div>
         
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Product Selection */}
+          {extractedProducts.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-orange-500" />
+              <Select 
+                value={selectedProductName ? `${selectedKnowledgeId}::${selectedProductName}` : "all"} 
+                onValueChange={(v) => {
+                  if (v === "all") {
+                    setSelectedProductName(null);
+                    setSelectedKnowledgeId(null);
+                  } else {
+                    const [knowledgeId, ...nameParts] = v.split("::");
+                    setSelectedKnowledgeId(knowledgeId);
+                    setSelectedProductName(nameParts.join("::"));
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[200px] h-9">
+                  <SelectValue placeholder="Select product..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Training</SelectItem>
+                  {Object.entries(productsBySource).map(([source, products]) => (
+                    <div key={source}>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t first:border-t-0">
+                        {source}
+                      </div>
+                      {products.map((product, idx) => (
+                        <SelectItem key={`${product.knowledgeId}-${idx}`} value={`${product.knowledgeId}::${product.name}`}>
+                          {product.name}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Customer Selection */}
           {customers.length > 0 && (
             <Select value={selectedCustomerId || "general"} onValueChange={(v) => setSelectedCustomerId(v === "general" ? null : v)}>
@@ -414,7 +500,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                 <SelectValue placeholder="Choose customer..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="general">General training</SelectItem>
+                <SelectItem value="general">General</SelectItem>
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}
@@ -424,12 +510,12 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
             </Select>
           )}
           
-          {/* Deal Selection */}
+          {/* Deal Selection (smaller/secondary) */}
           {deals.length > 0 && (
             <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-muted-foreground" />
               <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger className="w-[160px] h-9 text-xs">
                   <SelectValue placeholder="Apply to deal..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -446,12 +532,21 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
         </div>
       </div>
 
-      {(selectedDealId || selectedCustomerId) && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-sm flex items-center gap-2">
-          <span className="font-medium">🎯 Personalized Mode:</span> 
-          Episodes will be customized
-          {selectedCustomerId && <span>for <strong>{customers.find(c => c.id === selectedCustomerId)?.name}</strong></span>}
-          {selectedCustomerId && selectedDealId && <span>+</span>}
+      {/* Personalized Mode Banner */}
+      {(selectedProductName || selectedDealId || selectedCustomerId) && (
+        <div className={`border rounded-lg p-3 text-sm flex items-center gap-2 flex-wrap ${
+          selectedProductName 
+            ? 'bg-orange-500/10 border-orange-500/20' 
+            : 'bg-primary/10 border-primary/20'
+        }`}>
+          <span className="font-medium">{selectedProductName ? '📦' : '🎯'} Personalized Mode:</span> 
+          {selectedProductName && (
+            <span>Training on <strong className="text-orange-600">{selectedProductName}</strong></span>
+          )}
+          {selectedProductName && selectedCustomerId && <span>for</span>}
+          {selectedCustomerId && !selectedProductName && <span>Episodes customized for</span>}
+          {selectedCustomerId && <span><strong>{customers.find(c => c.id === selectedCustomerId)?.name}</strong></span>}
+          {(selectedProductName || selectedCustomerId) && selectedDealId && <span>+</span>}
           {selectedDealId && <span>deal: <strong>{deals.find(d => d.id === selectedDealId)?.deal_name}</strong></span>}
         </div>
       )}
