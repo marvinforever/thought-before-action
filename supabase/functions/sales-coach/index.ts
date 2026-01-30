@@ -1325,8 +1325,9 @@ async function generateResponse(
 
   // CRITICAL: Product recommendation rules to prevent hallucination
   const productValidationRules = `
-## CRITICAL PRODUCT RECOMMENDATION RULES:
+## CRITICAL PRODUCT & PRICING RULES:
 
+### PRODUCT RECOMMENDATIONS:
 1. **NEVER FABRICATE PRODUCT CODES** - Only recommend products that appear EXACTLY in the PRODUCT KNOWLEDGE section below.
 2. **IF PRODUCT KNOWLEDGE EXISTS BELOW, USE IT** - When the user asks for a product recommendation and you have product data loaded, GIVE THEM a recommendation using that data. Do NOT deflect to "discovery first."
 3. **SCAN YOUR KNOWLEDGE THOROUGHLY** - Before saying you don't have product data, carefully check ALL content in the PRODUCT KNOWLEDGE section. Look for seed guides, product catalogs, hybrids, treatments - it may be there under a different title.
@@ -1334,6 +1335,16 @@ async function generateResponse(
 5. When recommending: cite the EXACT product names/codes from your knowledge, explain why they fit the customer's situation if known.
 6. NEVER fabricate hybrid numbers, codes, or product names - if it's not in your knowledge, you don't know it.
 7. If asked for a recommendation and you genuinely have NO product data: "I don't have a product catalog loaded for this company. Can you upload the product guide?"
+
+### PRICING (CRITICAL - DO NOT FABRICATE):
+1. **NEVER MAKE UP PRICES** - Do NOT invent product prices, discounts, or dollar amounts unless they appear EXACTLY in your PRODUCT KNOWLEDGE or the user provides them.
+2. **IF NO PRICE SHEET IS LOADED** - Say: "I don't have pricing information loaded. Check with your pricing team or upload a price sheet."
+3. **COMMODITY PRICES ARE OK** - You MAY reference publicly available commodity prices (corn, soybeans, wheat) as general market context, but label them clearly: "Current market prices suggest..."
+4. **REVENUE ESTIMATES** - When estimating potential gains (yield increases, ROI):
+   - Clearly state these are ESTIMATES, not guarantees
+   - Use phrases like: "Possible gain (not guaranteed):", "Estimated potential:", "Based on typical results, could range from..."
+   - NEVER present speculative revenue numbers as facts
+5. **IF USER GIVES PRICES** - You may use prices the user provides in the conversation. Reference them as "Based on the pricing you mentioned..."
 `;
 
   const systemPrompt = chatMode === "rec"
