@@ -467,16 +467,17 @@ async function gatherContext(
       .select("title, content, category")
       .is("company_id", null)
       .eq("is_active", true)
-      .limit(20),
+      .limit(30),
     
-    // Fetch company-specific knowledge (product catalogs, etc.)
+    // Fetch company-specific knowledge (product catalogs, etc.) - INCREASED LIMIT for product data
     companyId 
       ? client
           .from("sales_knowledge")
           .select("title, content, category")
           .eq("company_id", companyId)
           .eq("is_active", true)
-          .limit(20)
+          .in("category", ["product_catalog", "product_knowledge", "product_sheet", "general", "training", "scripts"])
+          .limit(50)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -700,6 +701,48 @@ async function createDeal(
     const dealName = companyName;
     const stage = signals.stage || "prospecting";
     const value = signals.value || 0;
+
+    // CRITICAL: Check for existing deals with fuzzy matching to prevent duplicates
+    const { data: existingDeals } = await client
+      .from("sales_deals")
+      .select("id, deal_name, stage")
+      .eq("profile_id", userId)
+      .eq("company_id", salesCompanyId);
+
+    if (existingDeals && existingDeals.length > 0) {
+      // Deal already exists for this company - don't create duplicate
+      const existingDeal = existingDeals[0];
+      console.log("Deal already exists for company:", companyName, "->", existingDeal.deal_name);
+      return {
+        type: "deal_exists",
+        entityId: existingDeal.id,
+        undoToken: "",
+        success: true,
+        details: { dealName: existingDeal.deal_name, stage: existingDeal.stage, wasExisting: true },
+        message: `Found existing deal "${existingDeal.deal_name}" (${existingDeal.stage})`,
+      };
+    }
+
+    // Also check by deal name fuzzy match (in case company_id differs)
+    const normalizedName = dealName.toLowerCase().trim();
+    const { data: fuzzyMatches } = await client
+      .from("sales_deals")
+      .select("id, deal_name, stage")
+      .eq("profile_id", userId)
+      .ilike("deal_name", `%${normalizedName}%`);
+
+    if (fuzzyMatches && fuzzyMatches.length > 0) {
+      const match = fuzzyMatches[0];
+      console.log("Fuzzy matched existing deal:", dealName, "->", match.deal_name);
+      return {
+        type: "deal_exists",
+        entityId: match.id,
+        undoToken: "",
+        success: true,
+        details: { dealName: match.deal_name, stage: match.stage, wasExisting: true },
+        message: `Found existing deal "${match.deal_name}" (${match.stage})`,
+      };
+    }
 
     const { data: newDeal, error } = await client
       .from("sales_deals")
@@ -1199,13 +1242,14 @@ async function generateResponse(
   }
 
   // Build sales knowledge context (methodology, objections, products)
+  // CRITICAL: Product knowledge is essential for accurate recommendations - include more content
   let knowledgeContext = "";
   if (context.salesKnowledge && context.salesKnowledge.length > 0) {
     const methodologyItems = context.salesKnowledge.filter((k: any) => 
       ['mindset', 'process', 'objections', 'closing', 'questions', 'scripts', 'general', 'training'].includes(k.category)
     );
     const productItems = context.salesKnowledge.filter((k: any) => 
-      ['product_catalog', 'product_knowledge'].includes(k.category)
+      ['product_catalog', 'product_knowledge', 'product_sheet'].includes(k.category)
     );
     
     if (methodologyItems.length > 0) {
@@ -1215,12 +1259,19 @@ async function generateResponse(
       ).join("\n\n");
     }
     
+    // CRITICAL: Include FULL product knowledge to prevent hallucination
     if (productItems.length > 0) {
-      knowledgeContext += "\n\nPRODUCT KNOWLEDGE:\n";
+      knowledgeContext += "\n\n## PRODUCT KNOWLEDGE (Use ONLY these products in recommendations - DO NOT make up product codes):\n";
       knowledgeContext += productItems.map((k: any) => 
-        `**${k.title}**: ${k.content?.slice(0, 800)}...`
+        // Include more content for product catalogs to ensure accurate recommendations
+        `### ${k.title}:\n${k.content?.slice(0, 3000)}`
       ).join("\n\n");
+    } else {
+      // Explicit notice when no product data is available
+      knowledgeContext += "\n\n## PRODUCT KNOWLEDGE: **NO PRODUCT CATALOG LOADED** - Do not recommend specific products by code.\n";
     }
+  } else {
+    knowledgeContext += "\n\n## PRODUCT KNOWLEDGE: **NO KNOWLEDGE BASE AVAILABLE** - Do not recommend specific products.\n";
   }
 
   // Build focus instruction for customer-specific queries
@@ -1260,13 +1311,27 @@ async function generateResponse(
 "Hey [Customer], this is [Your Name]. I've been meaning to put a face with a name. Going to be in your area next week. I've got [Day 1 at Time 1] and [Day 2 at Time 2] available. Which one works best?"
 `;
 
+  // CRITICAL: Product recommendation rules to prevent hallucination
+  const productValidationRules = `
+## CRITICAL PRODUCT RECOMMENDATION RULES - READ CAREFULLY:
+
+1. **NEVER MAKE UP PRODUCT CODES OR NUMBERS** - Only recommend products that appear EXACTLY in the PRODUCT KNOWLEDGE section below.
+2. If you don't have specific product data in your knowledge base, say: "I don't have the specific product catalog loaded for [company]. Let me help you with the sales approach instead."
+3. When recommending seeds/hybrids: ONLY use product codes that appear verbatim in your PRODUCT KNOWLEDGE section.
+4. If no PRODUCT KNOWLEDGE section exists below, DO NOT recommend specific products by code - instead help with sales strategy.
+5. If asked for a seed recommendation and you don't have the data, say: "I don't have the product guide loaded yet. Can you upload the seed guide, or would you like me to help with discovery questions instead?"
+6. NEVER fabricate hybrid numbers like "7300 DG" - if you can't find it in your knowledge, you don't know it.
+`;
+
   const systemPrompt = chatMode === "rec"
     ? `You are Jericho, an AI sales agent assistant using the Thrive Today Consultative Selling methodology.
 ${methodologyReference}
 
+${productValidationRules}
+
 You help sales reps:
 - Coach on specific deals using the methodology above
-- Product recommendations using the product knowledge below
+- Product recommendations ONLY using products from the PRODUCT KNOWLEDGE section below (never make up product codes)
 - Call preparation with discovery questions and objection handling
 - Pipeline management
 
@@ -1283,6 +1348,8 @@ ${context.userContext ? `User context:\n${context.userContext}` : ""}`
     : `You are Jericho, a seasoned sales coach using the Thrive Today Consultative Selling methodology.
 ${methodologyReference}
 
+${productValidationRules}
+
 Your coaching style:
 - Conversational and warm, like a trusted mentor
 - Ask follow-up questions to understand context
@@ -1291,7 +1358,7 @@ Your coaching style:
 - When they ask about discovery, teach the Magic Questions
 - When they're stuck, remind them: Decrease tension, Increase trust
 - Celebrate wins, help with challenges
-- Reference specific products and sales techniques
+- Reference ONLY products that appear in your PRODUCT KNOWLEDGE section (never make up product codes)
 - ALWAYS remember what we discussed about specific customers${focusInstruction}
 ${knowledgeContext}
 
