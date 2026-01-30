@@ -220,7 +220,7 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
   };
 
   const saveMessage = async (convId: string, role: "user" | "assistant", content: string) => {
-    await supabase
+    const { error: insertError } = await supabase
       .from("sales_coach_messages")
       .insert({
         conversation_id: convId,
@@ -228,11 +228,20 @@ export const SalesCoachChat = ({ userId, userName, companyId }: SalesCoachChatPr
         content
       });
 
+    if (insertError) {
+      console.error("Failed to save message:", insertError);
+      // Don't block the conversation, but log the issue
+    }
+
     // Update conversation timestamp
-    await supabase
+    const { error: updateError } = await supabase
       .from("sales_coach_conversations")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", convId);
+
+    if (updateError) {
+      console.error("Failed to update conversation timestamp:", updateError);
+    }
   };
 
   const startNewConversation = async () => {
