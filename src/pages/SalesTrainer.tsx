@@ -202,13 +202,17 @@ const SalesTrainer = () => {
   };
 
   const createConversation = async () => {
-    if (!user?.id || !profile?.company_id) return null;
+    // Use effective user and company IDs when viewing as another user
+    const effectiveProfileId = viewAsUserId || user?.id;
+    const effectiveCompId = viewAsCompanyId || profile?.company_id;
+    
+    if (!effectiveProfileId || !effectiveCompId) return null;
     
     const { data, error } = await supabase
       .from("sales_coach_conversations")
       .insert({
-        profile_id: user.id,
-        company_id: profile.company_id,
+        profile_id: effectiveProfileId,
+        company_id: effectiveCompId,
         title: "Sales Coaching Session"
       })
       .select("id")
@@ -536,7 +540,14 @@ const SalesTrainer = () => {
     setViewAsUserId(userId);
     setViewAsUserName(userName);
     setMessages([]);
+    setConversationId(null); // Reset conversation ID so a new one is created/loaded
     setHasStarted(false);
+    
+    // Load conversation for the selected user
+    const effectiveCompId = viewAsCompanyId || profile?.company_id;
+    if (userId && effectiveCompId) {
+      await loadConversation(userId, effectiveCompId);
+    }
     
     // Fetch deals for the selected user
     if (userId) {
