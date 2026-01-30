@@ -203,17 +203,39 @@ serve(async (req) => {
       }
     }
 
-    // Handle research request
+    // Handle research request - BUT ONLY if entity is NOT in pipeline
     if (extracted.researchRequest && effectiveUserId) {
-      const researchResult = await handleResearch(
-        adminClient,
-        effectiveUserId,
-        effectiveCompanyId,
-        extracted.researchRequest,
-        lovableApiKey
-      );
-      if (researchResult) {
-        researchCompleted = researchResult;
+      const requestedName = extracted.researchRequest.toLowerCase().trim();
+      
+      // Check if entity exists in pipeline before doing external research
+      const existsInPipeline = context.existingCompanies.some((c: any) => {
+        const existingName = c.name.toLowerCase().trim();
+        // Exact match
+        if (existingName.includes(requestedName) || requestedName.includes(existingName)) return true;
+        // First name match (Randy → Randy Diekhoff)
+        const requestParts = requestedName.split(/\s+/);
+        const existingParts = existingName.split(/\s+/);
+        if (requestParts[0] && existingParts[0] === requestParts[0]) return true;
+        return false;
+      }) || context.deals.some((d: any) => {
+        const dealName = d.deal_name?.toLowerCase().trim() || '';
+        return dealName.includes(requestedName) || requestedName.includes(dealName.split(' ')[0]);
+      });
+
+      if (!existsInPipeline) {
+        console.log("Running external research for:", requestedName);
+        const researchResult = await handleResearch(
+          adminClient,
+          effectiveUserId,
+          effectiveCompanyId,
+          extracted.researchRequest,
+          lovableApiKey
+        );
+        if (researchResult) {
+          researchCompleted = researchResult;
+        }
+      } else {
+        console.log("Skipping external research - entity found in pipeline:", requestedName);
       }
     }
 
@@ -307,11 +329,20 @@ CRITICAL RULES:
 3. If someone asks about "Randy D" or "Randy Diekhoff", extract THAT person/company - not other entities from history
 4. The conversation history helps you understand if a name might be new vs existing, but you MUST focus on the current message
 
+CRITICAL CONTEXT RULES - PIPELINE FIRST:
+- "where did we leave it", "what's the status", "last time we talked", "catch me up on", 
+  "what do we know about", "update on", "where are we with" = INTERNAL LOOKUP (intentType: "data_lookup")
+- These phrases mean the user is asking about EXISTING pipeline data - NOT a research request
+- ONLY set researchRequest when user explicitly says "research", "look up online", "find out about", 
+  "what can you find on" for a company that sounds like a BUSINESS (not a person/farm name)
+- If the name sounds like a person (first name, or first + last), assume it's a PIPELINE customer first
+- A person's name like "Randy" or "Randy D" or "Randy Diekhoff" is almost certainly an existing customer
+
 WHAT TO EXTRACT FROM THE NEW MESSAGE:
 - Company/farm names explicitly mentioned in the new message
 - Contact names explicitly mentioned in the new message
 - Deal signals (value, stage hints) from the new message
-- Research requests from the new message
+- Research requests from the new message (ONLY for explicit research commands about unknown businesses)
 - Email requests from the new message
 
 Return a JSON object with this structure:
@@ -327,8 +358,9 @@ Return a JSON object with this structure:
 Interpretation rules:
 - Mark isNew=true ONLY if the NEW MESSAGE implies they just met or are adding this company/grower
 - Phrases like "I just talked to", "I met", "new prospect", "add", "load" suggest NEW entities
-- Phrases like "show me", "what about", "tell me about", "precall plan for" suggest EXISTING lookups (isNew=false)
+- Phrases like "show me", "what about", "tell me about", "precall plan for", "where did we leave it" suggest EXISTING lookups (isNew=false)
 - If someone asks about a person like "Randy D", that IS the company/contact to extract (farms often go by owner name)
+- Do NOT set researchRequest for person names - they are almost always existing customers
 - Do NOT extract entities from previous messages - only the current one`;
 
   try {
@@ -459,13 +491,32 @@ async function gatherContext(
   // If specific company mentioned, fetch intelligence
   if (extracted.companies.length > 0) {
     const companyName = extracted.companies[0].name;
-    const existingCompany = context.existingCompanies.find(
-      (c: any) => c.name.toLowerCase().trim() === companyName.toLowerCase().trim()
-    );
+    const normalizedSearch = companyName.toLowerCase().trim();
+    
+    // Fuzzy match: check if first name + initial matches, or partial match
+    const existingCompany = context.existingCompanies.find((c: any) => {
+      const existingName = c.name.toLowerCase().trim();
+      // Exact match
+      if (existingName === normalizedSearch) return true;
+      // Contains match (either direction)
+      if (existingName.includes(normalizedSearch) || normalizedSearch.includes(existingName)) return true;
+      // First name match (Randy D → Randy Diekhoff, or just Randy)
+      const searchParts = normalizedSearch.split(/\s+/);
+      const existingParts = existingName.split(/\s+/);
+      if (searchParts[0] && existingParts[0] === searchParts[0]) {
+        // Check if second part is initial or matches start, or no second part provided
+        if (!searchParts[1]) return true; // Just first name provided
+        if (existingParts[1]?.startsWith(searchParts[1])) return true;
+        // Also check if search[1] is just an initial (single letter)
+        if (searchParts[1].length === 1 && existingParts[1]?.startsWith(searchParts[1])) return true;
+      }
+      return false;
+    });
 
     if (existingCompany) {
       // Mark as not new if we found it
       extracted.companies[0].isNew = false;
+      console.log("Fuzzy matched company:", companyName, "->", existingCompany.name);
 
       // Fetch intelligence and purchase history in parallel
       const [intelResult, historyResult] = await Promise.all([
@@ -1466,13 +1517,37 @@ async function loadCustomerMemory(
   let memory = "";
 
   try {
-    // Find the sales company
-    const { data: salesCompany } = await client
+    // Find the sales company with fuzzy matching for partial names (Randy -> Randy Diekhoff)
+    const namePatterns = customerName.trim().split(/\s+/);
+    const firstName = namePatterns[0];
+    
+    // Try multiple matching strategies
+    let salesCompany = null;
+    
+    // First try exact ilike match
+    const { data: exactMatch } = await client
       .from("sales_companies")
       .select("id, name")
       .eq("profile_id", userId)
       .ilike("name", `%${customerName}%`)
       .maybeSingle();
+    
+    if (exactMatch) {
+      salesCompany = exactMatch;
+    } else if (firstName) {
+      // Try first name match (for cases like "Randy" -> "Randy Diekhoff")
+      const { data: firstNameMatch } = await client
+        .from("sales_companies")
+        .select("id, name")
+        .eq("profile_id", userId)
+        .ilike("name", `${firstName}%`)
+        .maybeSingle();
+      
+      if (firstNameMatch) {
+        salesCompany = firstNameMatch;
+        console.log("Fuzzy matched customer by first name:", customerName, "->", firstNameMatch.name);
+      }
+    }
 
     if (salesCompany) {
       // Load intelligence profile
