@@ -22,10 +22,11 @@ import {
 } from "lucide-react";
 
 // Categories that are considered "product training" vs "sales training"
-const PRODUCT_CATEGORIES = ['product_catalog', 'product_sheet', 'technical', 'products', 'biologicals', 'seed', 'chemicals', 'crop_protection'];
+const PRODUCT_CATEGORIES = ['product_catalog', 'product_sheet', 'product_knowledge', 'technical', 'products', 'biologicals', 'seed', 'chemicals', 'crop_protection'];
 const isProductTraining = (category: string | null) => {
   if (!category) return false;
-  return PRODUCT_CATEGORIES.some(pc => category.toLowerCase().includes(pc));
+  const lowerCat = category.toLowerCase();
+  return PRODUCT_CATEGORIES.some(pc => lowerCat.includes(pc) || lowerCat === pc);
 };
 import { useToast } from "@/hooks/use-toast";
 
@@ -474,7 +475,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                 <SelectTrigger className="w-[200px] h-9">
                   <SelectValue placeholder="Select product..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover">
                   <SelectItem value="all">All Training</SelectItem>
                   {Object.entries(productsBySource).map(([source, products]) => (
                     <div key={source}>
@@ -493,42 +494,38 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
             </div>
           )}
 
-          {/* Customer Selection */}
-          {customers.length > 0 && (
-            <Select value={selectedCustomerId || "general"} onValueChange={(v) => setSelectedCustomerId(v === "general" ? null : v)}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="Choose customer..." />
+          {/* Customer Selection - always show */}
+          <Select value={selectedCustomerId || "general"} onValueChange={(v) => setSelectedCustomerId(v === "general" ? null : v)}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="Choose customer..." />
+            </SelectTrigger>
+            <SelectContent className="bg-popover">
+              <SelectItem value="general">General</SelectItem>
+              {customers.map((customer) => (
+                <SelectItem key={customer.id} value={customer.id}>
+                  {customer.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {/* Deal Selection - always show */}
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
+              <SelectTrigger className="w-[160px] h-9">
+                <SelectValue placeholder="Apply to deal..." />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="general">General</SelectItem>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
+              <SelectContent className="bg-popover">
+                <SelectItem value="none">No specific deal</SelectItem>
+                {deals.map((deal) => (
+                  <SelectItem key={deal.id} value={deal.id}>
+                    {deal.deal_name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          )}
-          
-          {/* Deal Selection (smaller/secondary) */}
-          {deals.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
-                <SelectTrigger className="w-[160px] h-9 text-xs">
-                  <SelectValue placeholder="Apply to deal..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No specific deal</SelectItem>
-                  {deals.map((deal) => (
-                    <SelectItem key={deal.id} value={deal.id}>
-                      {deal.deal_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
