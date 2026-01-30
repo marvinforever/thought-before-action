@@ -116,6 +116,7 @@ serve(async (req) => {
 
     // Step 1: Fast Intent Detection & Entity Extraction
     const extracted = await detectIntentAndExtract(message, conversationHistory, lovableApiKey);
+    console.log("Intent detected:", extracted.intentType, "| Companies:", extracted.companies.length, "| Contacts:", extracted.contacts.length);
     
     // Step 2: Gather Context
     const context = await gatherContext(
@@ -125,6 +126,7 @@ serve(async (req) => {
       extracted,
       userContext
     );
+    console.log("Context gathered | Deals:", context.deals?.length || 0, "| Existing companies:", context.existingCompanies?.length || 0);
 
     // Step 3: Execute Actions (parallel when possible)
     const actions: ActionResult[] = [];
@@ -136,7 +138,11 @@ serve(async (req) => {
 
     // Create entities if detected
     if (extracted.companies.length > 0 && effectiveUserId && effectiveCompanyId) {
+      console.log("Processing", extracted.companies.length, "companies for creation");
+      
       for (const company of extracted.companies) {
+        console.log("Company:", company.name, "| isNew:", company.isNew, "| confidence:", company.confidence);
+        
         if (company.isNew) {
           const result = await createCompany(
             adminClient,
@@ -145,6 +151,8 @@ serve(async (req) => {
             company.name,
             message
           );
+          console.log("Company creation result:", result.success, result.entityId || result.message);
+          
           if (result.success) {
             actions.push(result);
             companyCreated = { id: result.entityId, name: company.name };
@@ -169,17 +177,22 @@ serve(async (req) => {
               }
             }
 
-            // Create deal if signals present
-            if (extracted.dealSignals && Object.keys(extracted.dealSignals).length > 0) {
+            // Create deal if signals present OR if this is a new prospect/grower
+            const shouldCreateDeal = (extracted.dealSignals && Object.keys(extracted.dealSignals).length > 0) 
+              || company.isNew; // Always create a deal for new companies
+            
+            if (shouldCreateDeal) {
+              const dealSignals = extracted.dealSignals || { stage: 'prospecting', notes: 'New prospect' };
               const dealResult = await createDeal(
                 adminClient,
                 effectiveUserId,
                 effectiveCompanyId,
                 result.entityId,
                 company.name,
-                extracted.dealSignals,
+                dealSignals,
                 message
               );
+              console.log("Deal creation result:", dealResult.success, dealResult.entityId || dealResult.message);
               if (dealResult.success) {
                 actions.push(dealResult);
                 dealCreated = true;
@@ -306,13 +319,16 @@ Return a JSON object with this structure:
 }
 
 Rules:
-- Only mark isNew=true if the message implies they just met or are adding this company
-- Phrases like "I just talked to", "I met", "new prospect", "add" suggest new entities
+- CRITICAL: Extract ALL company/farm/grower names mentioned - if someone lists 5 growers, return 5 companies
+- Mark isNew=true if the message implies they just met or are adding this company/grower
+- Phrases like "I just talked to", "I met", "new prospect", "add", "load", "here are my" suggest new entities
 - Phrases like "show me", "what about", "how is" suggest existing lookups
-- Extract contact names even if only first name is given
+- Extract contact names even if only first name is given - for farms, the owner name IS the contact
+- If a message lists multiple names (comma-separated or numbered), extract EACH one as a separate company
 - Look for deal signals: value mentions, expansion, growth, interest in products
 - Research triggers: "research", "find out about", "tell me about", "look up"
-- Email triggers: "draft email", "follow up email", "write to", "thank you note"`;
+- Email triggers: "draft email", "follow up email", "write to", "thank you note"
+- For bulk entity creation, ALWAYS extract every name mentioned`;
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
