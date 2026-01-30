@@ -1,86 +1,137 @@
 
-# Agentic Product Training System - IMPLEMENTED ✅
+# Fix: Pipeline-First Query Routing
 
-## Overview
+## Problem Identified
 
-Transformed the Bite-Sized Training section into a fully agentic, company-specific training creation system. Users select a **product** (dynamically parsed from their knowledge base) and optionally a **customer** to generate hyper-personalized training content explaining product value - suitable for training reps or sharing directly with customers as value-add MP3s.
+When you ask "Where did we leave it with Randy?", Jericho is:
+1. Classifying this as a "research" intent 
+2. Running a Perplexity web search for "Randy"
+3. Finding "Randy's" - an irrelevant smoking accessories company
+4. Showing that external data before your pipeline data
 
-**Universal Standard**: Your sales methodology training (ACAVE, discovery questions, objection handling) is global and available to all companies. Product training is company-specific.
+**Randy Diekhoff IS in your pipeline** with rich notes, but the system is prioritizing external research over internal data.
 
----
+## Root Cause
 
-## Changes Completed ✅
+Three issues in `supabase/functions/sales-coach/index.ts`:
 
-| File | Change | Status |
-|------|--------|--------|
-| `src/components/sales/SalesAgentHeader.tsx` | Fixed line 399 to use `viewAsCompanyId` for proper company isolation | ✅ Done |
-| `src/components/sales/SalesKnowledgePodcasts.tsx` | Added product extraction, replaced dropdowns (Product + Customer), added product-specific generation | ✅ Done |
-| `supabase/functions/generate-sales-podcast/index.ts` | Added `productName` parameter, extracts product-specific content from catalogs | ✅ Done |
+1. **Intent detection gap** - Phrases like "where did we leave it" aren't recognized as internal lookups
+2. **Research runs unconditionally** - If `researchRequest` is set, external search happens without checking pipeline first
+3. **Fuzzy matching too strict** - "Randy D" doesn't match "Randy Diekhoff" in context gathering
 
----
+## Solution
 
-## User Experience
+### 1. Update Intent Detection Prompt (lines 302-332)
 
-### New Dropdown Layout
+Add explicit rules to recognize status/history questions as internal lookups:
 
 ```text
-+-----------------------------------------------------+
-| [Product ▼]                  [Customer ▼]           |
-|                                                     |
-| Product:                     Customer:              |
-|   All Training (default)       General (default)    |
-|   ─────────────                ─────────────        |
-|   Streamline Catalog:          Derek Holmgren       |
-|     • BioVax                   Scott Robertson      |
-|     • CropFit Complete         Mike Johnson         |
-|     • SeedShield               ...                  |
-|   Rob-See-Co Seed:                                  |
-|     • Duracade                                      |
-|     • SmartStax PRO                                 |
-+-----------------------------------------------------+
+CRITICAL CONTEXT RULES:
+- "where did we leave it", "what's the status", "last time we talked", 
+  "catch me up on", "what do we know about" = INTERNAL LOOKUP (intentType: "data_lookup")
+- ONLY set researchRequest when user explicitly says "research", "look up online", 
+  "find out about" [company that doesn't exist in pipeline]
+- If the name sounds like a person/farm, assume it's a PIPELINE customer first
 ```
 
-### Combinations Enabled
+### 2. Add Pipeline-First Check Before Research (lines 206-218)
 
-- **Product + Customer** = "Here's why BioVax could help Derek's operation..."
-- **Product only** = General product value training for any customer
-- **Customer only** = General coaching for that customer (existing behavior)
-- **Neither** = Standard methodology training (existing behavior)
+Before calling `handleResearch`, verify the entity doesn't exist in the pipeline:
+
+```typescript
+// Handle research request - BUT ONLY if not in pipeline
+if (extracted.researchRequest && effectiveUserId) {
+  const requestedName = extracted.researchRequest.toLowerCase();
+  const existsInPipeline = context.existingCompanies.some(
+    (c: any) => c.name.toLowerCase().includes(requestedName) ||
+                requestedName.includes(c.name.toLowerCase().split(' ')[0])
+  ) || context.deals.some(
+    (d: any) => d.deal_name.toLowerCase().includes(requestedName)
+  );
+
+  if (!existsInPipeline) {
+    const researchResult = await handleResearch(...);
+    if (researchResult) researchCompleted = researchResult;
+  } else {
+    console.log("Skipping external research - entity found in pipeline:", requestedName);
+  }
+}
+```
+
+### 3. Improve Fuzzy Name Matching in Context Gathering (lines 460-489)
+
+Make matching work for partial names like "Randy D" → "Randy Diekhoff":
+
+```typescript
+// Fuzzy match: check if first name + initial matches
+const normalizedSearch = companyName.toLowerCase().trim();
+const existingCompany = context.existingCompanies.find((c: any) => {
+  const existingName = c.name.toLowerCase().trim();
+  // Exact match
+  if (existingName === normalizedSearch) return true;
+  // First name match (Randy D → Randy Diekhoff)
+  const searchParts = normalizedSearch.split(/\s+/);
+  const existingParts = existingName.split(/\s+/);
+  if (searchParts[0] === existingParts[0]) {
+    // Check if second part is initial or matches start
+    if (!searchParts[1]) return true; // Just first name
+    if (existingParts[1]?.startsWith(searchParts[1])) return true;
+  }
+  return false;
+});
+```
+
+### 4. Improve Customer Memory Loading Fuzzy Match (lines 1470-1475)
+
+Same pattern - allow partial name matching:
+
+```typescript
+// Allow matching "Randy" or "Randy D" to "Randy Diekhoff"
+const namePatterns = customerName.split(/\s+/);
+const firstName = namePatterns[0];
+const { data: salesCompany } = await client
+  .from("sales_companies")
+  .select("id, name")
+  .eq("profile_id", userId)
+  .or(`name.ilike.%${customerName}%,name.ilike.${firstName}%`)
+  .maybeSingle();
+```
 
 ---
 
-## What Each Company Sees
+## Expected Behavior After Fix
 
-| Company | Products Dropdown | Customers Dropdown | Sales Training |
-|---------|-------------------|-------------------|----------------|
-| Streamline | Rob-See-Co products, Streamline catalog | Streamline customers | Global (your methodology) |
-| Momentum | Tidal Grow, AllChem products | Momentum customers | Global (your methodology) |
-| Any Company | Their own product catalogs | Their own customers | Global (your methodology) |
+**User asks:** "Where did we leave it with Randy?"
+
+**Jericho response:**
+```
+Randy Diekhoff is in your prospecting stage.
+
+Here's what I have on him:
+- Farms 2,650 acres (1,500 corn / 1,150 soybeans)
+- Split decisions with brother (brother is skeptical)
+- Open to new products but conservative
+- Responds to side-by-side comparisons
+- Concerned about: yield on sloping acres, 10-34-0 on high-pH, TuneUp+ cost
+
+To move Randy forward, let's get a meeting on the books...
+```
+
+**No external web research** - pipeline data takes priority.
 
 ---
 
-## How It Works End-to-End
+## Files to Modify
 
-1. **Rep opens Training tab** → Products parsed from their company's knowledge base
-2. **Selects "BioVax" + "Derek Holmgren"** → UI shows personalized mode banner (orange for products)
-3. **Clicks "Create Episodes"** → Edge function:
-   - Fetches BioVax section from Streamline catalog
-   - Fetches Derek's operation details
-   - AI generates 3-5 episodes: "Why BioVax Fits Derek's Operation", "Talking Points for Your Call", etc.
-4. **Rep downloads MP3** → Shares with Derek or listens during commute
+| File | Changes |
+|------|---------|
+| `supabase/functions/sales-coach/index.ts` | All 4 changes above |
 
 ---
 
-## Technical Details
+## Technical Summary
 
-### Product Extraction Logic
-Products are extracted from `### Headers` in knowledge base markdown content. Only knowledge items categorized as product training (product_catalog, product_sheet, technical, biologicals, seed, chemicals, crop_protection) are parsed.
-
-### Edge Function Enhancement
-The `productName` parameter triggers:
-1. Content isolation - extracts just that product's section from the catalog
-2. AI prompt enhancement - focuses on value proposition and talking points
-3. Customer personalization - combines product focus with customer operation details
-
-### Company Isolation
-The `companyId` prop now respects the "View As" context, ensuring super admins see the correct company's products and customers when viewing as another company.
+- **Intent Detection**: Expand "data_lookup" trigger phrases to include status/history questions
+- **Research Gating**: Add pipeline check before external research
+- **Fuzzy Matching**: Allow partial names (first name + initial) to match full names
+- **Result**: Internal pipeline data always takes priority over external web searches
