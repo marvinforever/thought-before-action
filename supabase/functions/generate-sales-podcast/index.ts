@@ -13,7 +13,17 @@ serve(async (req) => {
   }
 
   try {
-    const { knowledgeId, chunkIndex = 0, dealId, dealContext, customerId, productName } = await req.json();
+    const { 
+      knowledgeId, 
+      chunkIndex = 0, 
+      dealId, 
+      dealContext, 
+      customerId, 
+      productName,
+      // NEW: Support complementary training mode
+      primaryProductName, // The main product (e.g., seed) already selected
+      primaryProductKnowledgeId, // Knowledge ID of the primary product's catalog
+    } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -22,7 +32,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch the knowledge article
+    // Fetch the knowledge article for THIS product
     const { data: knowledge, error: knowledgeError } = await supabase
       .from('sales_knowledge')
       .select('*')
@@ -31,6 +41,24 @@ serve(async (req) => {
 
     if (knowledgeError || !knowledge) {
       throw new Error('Knowledge article not found');
+    }
+
+    // If primary product specified, fetch its info for complementary training
+    let primaryProductInfo: string | null = null;
+    if (primaryProductName && primaryProductKnowledgeId) {
+      const { data: primaryKnowledge } = await supabase
+        .from('sales_knowledge')
+        .select('content, title')
+        .eq('id', primaryProductKnowledgeId)
+        .single();
+      
+      if (primaryKnowledge) {
+        const section = extractProductSection(primaryKnowledge.content, primaryProductName);
+        if (section) {
+          primaryProductInfo = `PRIMARY PRODUCT: ${primaryProductName}\n${section}`;
+          console.log(`Loaded primary product context: ${primaryProductName} (${section.length} chars)`);
+        }
+      }
     }
 
     // Optional: Fetch deal info if dealId provided
@@ -73,13 +101,16 @@ serve(async (req) => {
       }
     }
 
-    const contextLabel = productName 
-      ? ` (Product: ${productName})`
-      : customerInfo 
-        ? ` (Customer: ${customerInfo.name})`
-        : dealInfo 
-          ? ` (Deal: ${dealInfo.dealName})`
-          : '';
+    const isComplementaryMode = !!primaryProductInfo;
+    const contextLabel = isComplementaryMode
+      ? ` (Complementary to: ${primaryProductName})`
+      : productName 
+        ? ` (Product: ${productName})`
+        : customerInfo 
+          ? ` (Customer: ${customerInfo.name})`
+          : dealInfo 
+            ? ` (Deal: ${dealInfo.dealName})`
+            : '';
     console.log(`Chunking content for: ${knowledge.title}${contextLabel}`);
 
     // Extract product-specific section if productName provided
@@ -105,9 +136,29 @@ serve(async (req) => {
     }
 
     // First, break content into bite-sized chunks using AI
-    const productFocusInstruction = productName 
-      ? `\n\nFOCUS: This is about ${productName} specifically. Create lessons that explain its value proposition, key benefits, and how/when to recommend it to customers. Make it practical with specific talking points.`
-      : '';
+    let productFocusInstruction = '';
+    
+    if (isComplementaryMode) {
+      // COMPLEMENTARY MODE: Train on how THIS product supports the PRIMARY product (seed)
+      productFocusInstruction = `
+
+COMPLEMENTARY PRODUCT TRAINING MODE:
+The sales rep has already selected a PRIMARY product (seed/hybrid): ${primaryProductName}
+${primaryProductInfo}
+
+NOW, you are training them on how ${productName || 'this product'} from a DIFFERENT catalog can COMPLEMENT and ENHANCE the primary product above.
+
+Create lessons that explain:
+1. How this product specifically supports/protects/enhances ${primaryProductName}
+2. Why a farmer who chose ${primaryProductName} would benefit from adding this product
+3. Application timing relative to planting ${primaryProductName}
+4. Specific talking points: "Since you're going with ${primaryProductName}, here's why you'll want to add..."
+5. The value stack: primary product + this complement = better results
+
+Make it practical - help the rep sell the COMBINATION, not just the individual product.`;
+    } else if (productName) {
+      productFocusInstruction = `\n\nFOCUS: This is about ${productName} specifically. Create lessons that explain its value proposition, key benefits, and how/when to recommend it to customers. Make it practical with specific talking points.`;
+    }
     
     const chunkPrompt = `Break this sales training content into 3-5 SHORT, bite-sized lessons. Each lesson should be ONE focused concept that can be taught in 60-90 seconds.${productFocusInstruction}
 

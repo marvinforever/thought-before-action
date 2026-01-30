@@ -292,20 +292,49 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     }
   };
 
-  const generateEpisode = async (item: KnowledgeItem, episodeIndex: number, productOverride?: string) => {
+  const generateEpisode = async (
+    item: KnowledgeItem, 
+    episodeIndex: number, 
+    productOverride?: string,
+    // For complementary training: pass the primary product context
+    complementaryContext?: { primaryProductName: string; primaryProductKnowledgeId: string }
+  ) => {
     setGenerating(item.id);
     setGeneratingEpisode(episodeIndex);
     
     try {
-      const response = await supabase.functions.invoke("generate-sales-podcast", {
-        body: { 
-          knowledgeId: item.id, 
-          chunkIndex: episodeIndex,
-          dealId: selectedDealId,
-          customerId: selectedCustomerId,
-          productName: productOverride || selectedProductName,
-        },
-      });
+      // Determine if this is complementary training mode
+      // This happens when:
+      // 1. User has selected a product (selectedProductName)
+      // 2. They're generating training for a DIFFERENT catalog's product (productOverride)
+      // 3. The productOverride comes from a different knowledge item than selectedKnowledgeId
+      const isComplementaryMode = complementaryContext || (
+        selectedProductName && 
+        selectedKnowledgeId && 
+        productOverride && 
+        item.id !== selectedKnowledgeId
+      );
+
+      const body: Record<string, unknown> = { 
+        knowledgeId: item.id, 
+        chunkIndex: episodeIndex,
+        dealId: selectedDealId,
+        customerId: selectedCustomerId,
+        productName: productOverride || selectedProductName,
+      };
+
+      // Add primary product context for complementary training
+      if (isComplementaryMode) {
+        if (complementaryContext) {
+          body.primaryProductName = complementaryContext.primaryProductName;
+          body.primaryProductKnowledgeId = complementaryContext.primaryProductKnowledgeId;
+        } else if (selectedProductName && selectedKnowledgeId) {
+          body.primaryProductName = selectedProductName;
+          body.primaryProductKnowledgeId = selectedKnowledgeId;
+        }
+      }
+
+      const response = await supabase.functions.invoke("generate-sales-podcast", { body });
 
       if (response.error) throw response.error;
 
