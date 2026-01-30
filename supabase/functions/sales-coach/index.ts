@@ -383,33 +383,59 @@ async function gatherContext(
     existingCompanies: [],
     intelligence: null,
     purchaseHistory: null,
+    salesKnowledge: [],
   };
 
   if (!userId) return context;
 
-  // Fetch user's pipeline
-  const { data: deals } = await client
-    .from("sales_deals")
-    .select(`
-      id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at,
-      sales_companies(id, name),
-      sales_contacts(id, name, title)
-    `)
-    .eq("profile_id", userId)
-    .order("priority")
-    .limit(50);
-  context.deals = deals || [];
-
-  // Fetch existing companies to prevent duplicates
-  if (userId) {
-    const { data: companies } = await client
+  // Fetch user's pipeline and sales knowledge in parallel
+  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult] = await Promise.all([
+    // Fetch user's pipeline
+    client
+      .from("sales_deals")
+      .select(`
+        id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at,
+        sales_companies(id, name),
+        sales_contacts(id, name, title)
+      `)
+      .eq("profile_id", userId)
+      .order("priority")
+      .limit(50),
+    
+    // Fetch existing companies to prevent duplicates
+    client
       .from("sales_companies")
       .select("id, name")
       .eq("profile_id", userId)
       .order("name")
-      .limit(500);
-    context.existingCompanies = companies || [];
-  }
+      .limit(500),
+    
+    // Fetch global sales training knowledge (methodology, scripts, objections, etc.)
+    client
+      .from("sales_knowledge")
+      .select("title, content, category")
+      .is("company_id", null)
+      .eq("is_active", true)
+      .limit(20),
+    
+    // Fetch company-specific knowledge (product catalogs, etc.)
+    companyId 
+      ? client
+          .from("sales_knowledge")
+          .select("title, content, category")
+          .eq("company_id", companyId)
+          .eq("is_active", true)
+          .limit(20)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  context.deals = dealsResult.data || [];
+  context.existingCompanies = companiesResult.data || [];
+  
+  // Combine global and company-specific knowledge
+  const globalKnowledge = globalKnowledgeResult.data || [];
+  const companyKnowledge = companyKnowledgeResult.data || [];
+  context.salesKnowledge = [...globalKnowledge, ...companyKnowledge];
 
   // If specific company mentioned, fetch intelligence
   if (extracted.companies.length > 0) {
@@ -422,23 +448,24 @@ async function gatherContext(
       // Mark as not new if we found it
       extracted.companies[0].isNew = false;
 
-      // Fetch intelligence
-      const { data: intel } = await client
-        .from("sales_company_intelligence")
-        .select("*")
-        .eq("company_id", existingCompany.id)
-        .eq("profile_id", userId)
-        .maybeSingle();
-      context.intelligence = intel;
+      // Fetch intelligence and purchase history in parallel
+      const [intelResult, historyResult] = await Promise.all([
+        client
+          .from("sales_company_intelligence")
+          .select("*")
+          .eq("company_id", existingCompany.id)
+          .eq("profile_id", userId)
+          .maybeSingle(),
+        client
+          .from("customer_purchase_history")
+          .select("*")
+          .eq("company_id", existingCompany.id)
+          .order("year", { ascending: false })
+          .limit(5),
+      ]);
 
-      // Fetch purchase history
-      const { data: history } = await client
-        .from("customer_purchase_history")
-        .select("*")
-        .eq("company_id", existingCompany.id)
-        .order("year", { ascending: false })
-        .limit(5);
-      context.purchaseHistory = history;
+      context.intelligence = intelResult.data;
+      context.purchaseHistory = historyResult.data;
     }
   }
 
@@ -1093,6 +1120,31 @@ async function generateResponse(
     pipelineContext = "No deals in pipeline yet.";
   }
 
+  // Build sales knowledge context (methodology, objections, products)
+  let knowledgeContext = "";
+  if (context.salesKnowledge && context.salesKnowledge.length > 0) {
+    const methodologyItems = context.salesKnowledge.filter((k: any) => 
+      ['mindset', 'process', 'objections', 'closing', 'questions', 'scripts', 'general', 'training'].includes(k.category)
+    );
+    const productItems = context.salesKnowledge.filter((k: any) => 
+      ['product_catalog', 'product_knowledge'].includes(k.category)
+    );
+    
+    if (methodologyItems.length > 0) {
+      knowledgeContext += "\n\nSALES METHODOLOGY & TRAINING:\n";
+      knowledgeContext += methodologyItems.map((k: any) => 
+        `**${k.title}**: ${k.content?.slice(0, 500)}...`
+      ).join("\n\n");
+    }
+    
+    if (productItems.length > 0) {
+      knowledgeContext += "\n\nPRODUCT KNOWLEDGE:\n";
+      knowledgeContext += productItems.map((k: any) => 
+        `**${k.title}**: ${k.content?.slice(0, 800)}...`
+      ).join("\n\n");
+    }
+  }
+
   // Build focus instruction for customer-specific queries
   const focusInstruction = customerFocused
     ? `\n\nIMPORTANT: The user is asking specifically about "${mentionedCompany || mentionedContact}". Focus ONLY on this customer. Do NOT list or discuss other deals or customers unless directly asked.`
@@ -1103,11 +1155,14 @@ async function generateResponse(
     ? `You are Jericho, an AI sales agent assistant. You help sales reps manage their pipeline and close deals.
 You have access to the user's pipeline and can help with:
 - Coaching on specific deals
-- Product recommendations
+- Product recommendations using the product knowledge below
 - Call preparation
 - Pipeline management
 
+Use the sales methodology and product knowledge provided to give specific, actionable advice. Reference specific products and techniques when relevant.
+
 Be direct, actionable, and focused on results. Keep responses concise.${focusInstruction}
+${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
@@ -1118,9 +1173,11 @@ ${context.userContext ? `User context:\n${context.userContext}` : ""}`
 Your style:
 - Conversational and warm, not robotic
 - Ask follow-up questions to understand context
-- Give specific, actionable advice
+- Give specific, actionable advice using the methodology and product knowledge below
 - Celebrate wins, help with challenges
-- Keep responses focused and not too long${focusInstruction}
+- Keep responses focused and not too long
+- Reference specific products and sales techniques when relevant${focusInstruction}
+${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
