@@ -66,7 +66,9 @@ export const MODELS: Record<string, ModelConfig> = {
   
   // Anthropic models (requires ANTHROPIC_API_KEY)
   'opus': {
-    id: 'claude-opus-4-5-20250415',
+    // NOTE: Anthropic model IDs are strict; an invalid ID will 404 and trigger fallback.
+    // Keep this aligned with Anthropic's published model list.
+    id: 'claude-opus-4-5-20251101',
     provider: 'anthropic',
     maxTokens: 200000,
     costPer1MInput: 15.00,
@@ -78,7 +80,8 @@ export const MODELS: Record<string, ModelConfig> = {
     supportsStreaming: true,
   },
   'sonnet': {
-    id: 'claude-sonnet-4-5-20250415',
+    // Anthropic's Sonnet 4.5 ID (the dated variant used previously was returning 404).
+    id: 'claude-sonnet-4-5',
     provider: 'anthropic',
     maxTokens: 200000,
     costPer1MInput: 3.00,
