@@ -137,69 +137,82 @@ serve(async (req) => {
     let emailDrafted: { id: string; subject: string; preview: string } | null = null;
     let researchCompleted: { company: string; summary: string } | null = null;
 
-    // Create entities if detected
+    // Create entities / deals if detected
+    // IMPORTANT: Deals must be creatable even when the company already exists.
+    // Previously, we only created deals inside the "company.isNew" path, which caused
+    // Jericho to "recognize" an opportunity but never add it to the pipeline.
     if (extracted.companies.length > 0 && effectiveUserId && effectiveCompanyId) {
-      console.log("Processing", extracted.companies.length, "companies for creation");
-      
+      console.log("Processing", extracted.companies.length, "companies for pipeline actions");
+
+      const hasDealSignals = !!(extracted.dealSignals && Object.keys(extracted.dealSignals).length > 0);
+      const forcePipelineCreate = /\b(add|put|log|start|create)\b[\s\S]{0,25}\b(deal|pipeline|opportunity)\b/i.test(message);
+
       for (const company of extracted.companies) {
         console.log("Company:", company.name, "| isNew:", company.isNew, "| confidence:", company.confidence);
-        
-        if (company.isNew) {
-          const result = await createCompany(
+
+        // Decide if we should attempt to ensure a company + deal exist.
+        // - New prospect: always
+        // - Explicit deal signals: yes
+        // - User explicitly asks to add to pipeline: yes
+        const shouldEnsurePipelineEntry = company.isNew || hasDealSignals || forcePipelineCreate;
+        if (!shouldEnsurePipelineEntry) continue;
+
+        // Ensure company exists (create if new; otherwise returns company_exists with the existing id)
+        const companyResult = await createCompany(
+          adminClient,
+          effectiveUserId,
+          effectiveCompanyId,
+          company.name,
+          message
+        );
+        console.log("Company ensure result:", companyResult.type, companyResult.success, companyResult.entityId || companyResult.message);
+
+        if (!companyResult.success || !companyResult.entityId) continue;
+
+        // Only show "company created" state when it was actually created (not just found)
+        if (companyResult.type === "company_created") {
+          actions.push(companyResult);
+          companyCreated = { id: companyResult.entityId, name: company.name };
+        } else if (companyResult.type === "company_exists") {
+          // Keep the action for transparency, but UI already suppresses company_exists toasts.
+          actions.push(companyResult);
+        }
+
+        // Create contacts (only if we actually extracted some from the current message)
+        const companyContacts = extracted.contacts.filter(
+          c => !c.companyName || c.companyName.toLowerCase() === company.name.toLowerCase()
+        );
+        for (const contact of companyContacts) {
+          const contactResult = await createContact(
             adminClient,
             effectiveUserId,
             effectiveCompanyId,
-            company.name,
+            companyResult.entityId,
+            contact.name,
+            contact.title,
             message
           );
-          console.log("Company creation result:", result.success, result.entityId || result.message);
-          
-          if (result.success) {
-            actions.push(result);
-            companyCreated = { id: result.entityId, name: company.name };
-            
-            // Create contacts for this company
-            const companyContacts = extracted.contacts.filter(
-              c => !c.companyName || c.companyName.toLowerCase() === company.name.toLowerCase()
-            );
-            for (const contact of companyContacts) {
-              const contactResult = await createContact(
-                adminClient,
-                effectiveUserId,
-                effectiveCompanyId,
-                result.entityId,
-                contact.name,
-                contact.title,
-                message
-              );
-              if (contactResult.success) {
-                actions.push(contactResult);
-                contactsCreated.push({ id: contactResult.entityId, name: contact.name });
-              }
-            }
-
-            // Create deal if signals present OR if this is a new prospect/grower
-            const shouldCreateDeal = (extracted.dealSignals && Object.keys(extracted.dealSignals).length > 0) 
-              || company.isNew; // Always create a deal for new companies
-            
-            if (shouldCreateDeal) {
-              const dealSignals = extracted.dealSignals || { stage: 'prospecting', notes: 'New prospect' };
-              const dealResult = await createDeal(
-                adminClient,
-                effectiveUserId,
-                effectiveCompanyId,
-                result.entityId,
-                company.name,
-                dealSignals,
-                message
-              );
-              console.log("Deal creation result:", dealResult.success, dealResult.entityId || dealResult.message);
-              if (dealResult.success) {
-                actions.push(dealResult);
-                dealCreated = true;
-              }
-            }
+          if (contactResult.success) {
+            actions.push(contactResult);
+            contactsCreated.push({ id: contactResult.entityId, name: contact.name });
           }
+        }
+
+        // Ensure a deal exists for this company.
+        const dealSignals = extracted.dealSignals || { stage: "prospecting", notes: "New prospect" };
+        const dealResult = await createDeal(
+          adminClient,
+          effectiveUserId,
+          effectiveCompanyId,
+          companyResult.entityId,
+          company.name,
+          dealSignals,
+          message
+        );
+        console.log("Deal ensure result:", dealResult.type, dealResult.success, dealResult.entityId || dealResult.message);
+        if (dealResult.success) {
+          actions.push(dealResult);
+          if (dealResult.type === "deal_created") dealCreated = true;
         }
       }
     }
