@@ -94,12 +94,18 @@ export const PipelineView = ({ userId, stages, companyId, onDealsChange, enableF
   }, [userId]);
 
   const moveDeal = async (dealId: string, newStage: string) => {
-    const { error } = await supabase
+    // Must include profile_id filter for RLS policy to allow the update
+    // This is critical for super admin "View As" mode to work correctly
+    const { data, error } = await supabase
       .from("sales_deals")
       .update({ stage: newStage as "prospecting" | "discovery" | "proposal" | "closing" | "follow_up" })
-      .eq("id", dealId);
+      .eq("id", dealId)
+      .eq("profile_id", userId)
+      .select()
+      .single();
 
-    if (error) {
+    if (error || !data) {
+      console.error("Deal move error:", error);
       toast({ title: "Error moving deal", variant: "destructive" });
     } else {
       toast({ title: "Deal moved" });
@@ -109,12 +115,15 @@ export const PipelineView = ({ userId, stages, companyId, onDealsChange, enableF
   };
 
   const deleteDeal = async (dealId: string) => {
+    // Must include profile_id filter for RLS policy to allow the delete
     const { error } = await supabase
       .from("sales_deals")
       .delete()
-      .eq("id", dealId);
+      .eq("id", dealId)
+      .eq("profile_id", userId);
 
     if (error) {
+      console.error("Deal delete error:", error);
       toast({ title: "Error deleting deal", variant: "destructive" });
     } else {
       toast({ title: "Deal deleted" });
