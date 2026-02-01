@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-router.ts";
+import { getOrCreateBackboardThread, createBackboardClient } from "../_shared/backboard-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -326,6 +327,27 @@ serve(async (req) => {
       // Fire and forget - don't block response
       extractAndSaveInsights(adminClient, effectiveUserId, effectiveCompanyId, message, responseMessage, mentionedCustomer)
         .catch(err => console.error("Error saving insights:", err));
+    }
+
+    // Step 6: Sync to Backboard for persistent memory (fire and forget)
+    if (effectiveUserId) {
+      (async () => {
+        try {
+          const backboardThread = await getOrCreateBackboardThread(adminClient, effectiveUserId, 'sales');
+          if (backboardThread) {
+            const backboard = createBackboardClient();
+            if (backboard) {
+              // Sync user message
+              await backboard.syncMessage(backboardThread.threadId, 'user', message);
+              // Sync assistant response
+              await backboard.syncMessage(backboardThread.threadId, 'assistant', responseMessage);
+              console.log("Synced sales conversation to Backboard thread:", backboardThread.threadId);
+            }
+          }
+        } catch (err) {
+          console.warn("Backboard sync failed (non-blocking):", err);
+        }
+      })();
     }
 
     return new Response(
