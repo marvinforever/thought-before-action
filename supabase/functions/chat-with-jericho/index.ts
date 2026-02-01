@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AI_CONFIG, mapCapabilityLevel } from "../_shared/jericho-config.ts";
+import { createBackboardClient, getOrCreateBackboardThread } from "../_shared/backboard-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1521,6 +1522,17 @@ Be helpful, efficient, and produce high-quality work they can use right away.`;
         content: message,
       });
 
+    // Sync to Backboard for persistent memory (fire and forget)
+    const backboardThread = await getOrCreateBackboardThread(supabase, user.id, contextType || 'general');
+    if (backboardThread) {
+      const backboard = createBackboardClient();
+      if (backboard) {
+        // Fire and forget - don't block on this
+        backboard.syncMessage(backboardThread.threadId, 'user', message)
+          .catch(err => console.log('Backboard sync skipped:', err.message));
+      }
+    }
+
     // First, make a non-streaming call to check for tool calls
     console.log('Making initial AI call to check for tools...');
     const initialResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -2753,6 +2765,27 @@ function streamResponse(response: Response, conversationId: string, supabase: an
             },
             body: JSON.stringify({ conversationId }),
           }).catch(err => console.log('Aspiration detection skipped:', err.message));
+          
+          // Sync assistant response to Backboard for persistent memory (fire and forget)
+          const backboard = createBackboardClient();
+          if (backboard && accumulatedContent) {
+            // Get thread ID from conversation (we stored it earlier)
+            supabase
+              .from('conversations')
+              .select('profile_id')
+              .eq('id', conversationId)
+              .single()
+              .then(async ({ data: conv }: any) => {
+                if (conv?.profile_id) {
+                  const thread = await getOrCreateBackboardThread(supabase, conv.profile_id, 'general');
+                  if (thread) {
+                    backboard.syncMessage(thread.threadId, 'assistant', accumulatedContent)
+                      .catch((err: any) => console.log('Backboard assistant sync skipped:', err.message));
+                  }
+                }
+              })
+              .catch((err: any) => console.log('Backboard thread lookup failed:', err.message));
+          }
           
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
         }

@@ -496,6 +496,44 @@ export type Database = {
           },
         ]
       }
+      backboard_threads: {
+        Row: {
+          assistant_id: string
+          context_type: string | null
+          created_at: string
+          id: string
+          profile_id: string
+          thread_id: string
+          updated_at: string
+        }
+        Insert: {
+          assistant_id: string
+          context_type?: string | null
+          created_at?: string
+          id?: string
+          profile_id: string
+          thread_id: string
+          updated_at?: string
+        }
+        Update: {
+          assistant_id?: string
+          context_type?: string | null
+          created_at?: string
+          id?: string
+          profile_id?: string
+          thread_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backboard_threads_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badges: {
         Row: {
           category: string
