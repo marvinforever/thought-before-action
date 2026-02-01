@@ -541,9 +541,10 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
           variant="ghost"
           size="icon"
           onClick={handleClose}
-          className="hover:bg-primary-foreground/20 text-primary-foreground"
+          className="hover:bg-white/20 text-white"
+          aria-label="Close chat"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </Button>
       </div>
 
