@@ -241,22 +241,22 @@ Keep it around 250-350 words. Make it feel like a personal check-in from a coach
 
 function generateFallbackBody(context: UserContext): string {
   const habitsSection = context.habits.length > 0
-    ? `<p><strong>Your habits this week:</strong> ${context.habits.map(h => `${h.name} (${h.currentStreak} day streak)`).join(', ')}</p>`
+    ? `<p style="color: #ffffff; margin: 0 0 16px 0;"><strong style="color: #ffffff;">Your habits this week:</strong> ${context.habits.map(h => `${h.name} (${h.currentStreak} day streak)`).join(', ')}</p>`
     : '';
   
   const targetsSection = context.ninetyDayTargets.length > 0
-    ? `<p><strong>90-Day Progress:</strong> ${context.ninetyDayTargets.map(t => `${t.title} at ${t.progress}%`).join(', ')}</p>`
+    ? `<p style="color: #ffffff; margin: 0 0 16px 0;"><strong style="color: #ffffff;">90-Day Progress:</strong> ${context.ninetyDayTargets.map(t => `${t.title} at ${t.progress}%`).join(', ')}</p>`
     : '';
 
   return `
-    <p>Hey ${context.firstName},</p>
-    <p>Here's your daily growth check-in.</p>
+    <p style="color: #ffffff; margin: 0 0 16px 0;">Hey ${context.firstName},</p>
+    <p style="color: #ffffff; margin: 0 0 16px 0;">Here's your daily growth check-in.</p>
     ${targetsSection}
     ${habitsSection}
-    <p>Today's episode "${context.episodeTitle}" covers ${context.topics.slice(0, 2).join(' and ')}. Take a few minutes to listen — it's tailored just for you.</p>
-    ${context.dailyChallenge ? `<p><strong>Today's challenge:</strong> ${context.dailyChallenge}</p>` : ''}
-    <p>Keep showing up. You're making progress.</p>
-    <p>Talk soon,<br/>Jericho</p>
+    <p style="color: #ffffff; margin: 0 0 16px 0;">Today's episode "${context.episodeTitle}" covers ${context.topics.slice(0, 2).join(' and ')}. Take a few minutes to listen — it's tailored just for you.</p>
+    ${context.dailyChallenge ? `<p style="color: #ffffff; margin: 0 0 16px 0;"><strong style="color: #ffffff;">Today's challenge:</strong> ${context.dailyChallenge}</p>` : ''}
+    <p style="color: #ffffff; margin: 0 0 16px 0;">Keep showing up. You're making progress.</p>
+    <p style="color: #ffffff; margin: 0 0 16px 0;">Talk soon,<br/>Jericho</p>
   `;
 }
 
@@ -681,8 +681,14 @@ serve(async (req) => {
     <div style="margin: 0 16px; background: linear-gradient(180deg, #132238 0%, #0e1a2d 100%); border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;">
       
       <!-- AI-generated personalized content -->
-      <div style="padding: 32px; color: #ffffff; font-size: 16px; line-height: 1.7;">
-        ${personalizedBody}
+      <div style="padding: 32px; color: #ffffff !important; font-size: 16px; line-height: 1.7;">
+        <style>
+          .jericho-content p, .jericho-content li, .jericho-content span, .jericho-content div, .jericho-content strong { color: #ffffff !important; }
+          .jericho-content a { color: #d4a855 !important; }
+        </style>
+        <div class="jericho-content" style="color: #ffffff;">
+          ${personalizedBody.replace(/<p/g, '<p style="color: #ffffff; margin: 0 0 16px 0;"').replace(/<strong/g, '<strong style="color: #ffffff;"').replace(/<li/g, '<li style="color: #ffffff;"')}
+        </div>
         
         ${industryPulseHtml}
       </div>
