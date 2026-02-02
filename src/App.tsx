@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { ViewAsProvider } from "@/contexts/ViewAsContext";
@@ -144,7 +144,8 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route path="my-growth-plan" element={<MyGrowthPlan />} />
+              {/* Accept trailing slashes and any nested hash/anchor patterns without falling through to NotFound */}
+              <Route path="my-growth-plan/*" element={<MyGrowthPlan />} />
               <Route path="my-capabilities" element={<MyCapabilities />} />
               <Route path="my-resources" element={<MyResources />} />
               <Route path="growth-roadmap" element={<GrowthRoadmap />} />
@@ -188,6 +189,9 @@ const App = () => (
             {/* AI Readiness Lead Gen Tool */}
             <Route path="/ai-readiness/*" element={<AIReadinessLanding />} />
             <Route path="/ai-readiness/report/:shareToken" element={<AIReadinessReport />} />
+
+            {/* Back-compat for any accidental missing-slash navigations */}
+            <Route path="/dashboardmy-growth-plan" element={<Navigate to="/dashboard/my-growth-plan" replace />} />
             <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
