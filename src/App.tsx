@@ -95,7 +95,8 @@ const App = () => (
               <Route path="diagnostic-import" element={<AdminDiagnosticImport />} />
               <Route path="targeted-accounts" element={<AdminTargetedAccountsImport />} />
             </Route>
-            <Route path="/dashboard" element={<DashboardLayout />}>
+            {/* Use /* so nested dashboard routes (e.g. /dashboard/my-growth-plan) always match */}
+            <Route path="/dashboard/*" element={<DashboardLayout />}>
               <Route
                 index
                 element={
