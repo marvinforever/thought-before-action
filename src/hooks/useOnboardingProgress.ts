@@ -205,7 +205,7 @@ export function useOnboardingProgress(): OnboardingProgress {
       points: 10,
       completed: completeness.has_recent_achievements,
       videoUrl: tutorialVideos.achievement,
-      route: "/dashboard/my-growth-plan#achievements", // Scroll to achievements
+      route: "/dashboard/my-growth-plan", // Navigate to growth plan page (achievements section is visible there)
     },
     {
       id: "capability",
