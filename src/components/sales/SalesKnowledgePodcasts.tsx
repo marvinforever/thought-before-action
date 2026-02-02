@@ -18,8 +18,12 @@ import {
   Lightbulb,
   TrendingUp,
   Download,
-  Package
+  Package,
+  FileText,
+  Eye,
+  EyeOff
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Categories that are considered "product training" vs "sales training"
 const PRODUCT_CATEGORIES = ['product_catalog', 'product_sheet', 'product_knowledge', 'technical', 'products', 'biologicals', 'seed', 'chemicals', 'crop_protection'];
@@ -101,7 +105,20 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
   const [audioElements, setAudioElements] = useState<Record<string, HTMLAudioElement>>({});
   const [podcastData, setPodcastData] = useState<Record<string, PodcastData>>({});
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [expandedTranscripts, setExpandedTranscripts] = useState<Set<string>>(new Set());
   const [showSuggested, setShowSuggested] = useState(true);
+
+  const toggleTranscript = (key: string) => {
+    setExpandedTranscripts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     fetchKnowledge();
@@ -676,82 +693,109 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                             return (
                               <div
                                 key={idx}
-                                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg bg-background"
+                                className="p-3 rounded-lg bg-background space-y-2"
                               >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-muted-foreground">
-                                      {episode.index + 1}.
-                                    </span>
-                                    <span className="text-sm font-medium truncate">
-                                      {episode.title}
-                                    </span>
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        {episode.index + 1}.
+                                      </span>
+                                      <span className="text-sm font-medium truncate">
+                                        {episode.title}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                      {episode.keyPoint}
+                                    </p>
                                   </div>
-                                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                    {episode.keyPoint}
-                                  </p>
-                                </div>
 
-                                <div className="w-full sm:w-auto shrink-0 sm:ml-3 flex gap-1 justify-end">
-                                  {generated ? (
-                                    <>
+                                  <div className="w-full sm:w-auto shrink-0 sm:ml-3 flex gap-1 justify-end">
+                                    {generated ? (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant={isPlaying ? "secondary" : "default"}
+                                          onClick={() =>
+                                            isPlaying
+                                              ? pauseEpisode(item.id, episode.index)
+                                              : playEpisode(item.id, episode.index)
+                                          }
+                                          className="gap-1"
+                                        >
+                                          {isPlaying ? (
+                                            <>
+                                              <Pause className="h-3 w-3" />
+                                              Pause
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Play className="h-3 w-3" />
+                                              Play
+                                            </>
+                                          )}
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant={expandedTranscripts.has(key) ? "secondary" : "outline"}
+                                          onClick={() => toggleTranscript(key)}
+                                          title={expandedTranscripts.has(key) ? "Hide transcript" : "Show transcript"}
+                                          className="gap-1"
+                                        >
+                                          <FileText className="h-3 w-3" />
+                                          {expandedTranscripts.has(key) ? "Hide" : "Read"}
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => downloadEpisode(item.id, episode.index, episode.title)}
+                                          title="Download MP3"
+                                        >
+                                          <Download className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => generateEpisode(item, episode.index)}
+                                          disabled={isGeneratingThis}
+                                          title="Regenerate episode"
+                                        >
+                                          <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? "animate-spin" : ""}`} />
+                                        </Button>
+                                      </>
+                                    ) : (
                                       <Button
                                         size="sm"
-                                        variant={isPlaying ? "secondary" : "default"}
-                                        onClick={() =>
-                                          isPlaying
-                                            ? pauseEpisode(item.id, episode.index)
-                                            : playEpisode(item.id, episode.index)
-                                        }
-                                        className="gap-1"
-                                      >
-                                        {isPlaying ? (
-                                          <>
-                                            <Pause className="h-3 w-3" />
-                                            Pause
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Play className="h-3 w-3" />
-                                            Play
-                                          </>
-                                        )}
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => downloadEpisode(item.id, episode.index, episode.title)}
-                                        title="Download MP3"
-                                      >
-                                        <Download className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
+                                        variant="outline"
                                         onClick={() => generateEpisode(item, episode.index)}
                                         disabled={isGeneratingThis}
-                                        title="Regenerate episode"
+                                        className="gap-1"
                                       >
-                                        <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? "animate-spin" : ""}`} />
+                                        {isGeneratingEp ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <Sparkles className="h-3 w-3" />
+                                        )}
+                                        Generate
                                       </Button>
-                                    </>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => generateEpisode(item, episode.index)}
-                                      disabled={isGeneratingThis}
-                                      className="gap-1"
-                                    >
-                                      {isGeneratingEp ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <Sparkles className="h-3 w-3" />
-                                      )}
-                                      Generate
-                                    </Button>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
+
+                                {/* Transcript Section */}
+                                {generated?.script && expandedTranscripts.has(key) && (
+                                  <div className="mt-2 pt-2 border-t border-border/50">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <FileText className="h-4 w-4 text-muted-foreground" />
+                                      <span className="text-xs font-medium text-muted-foreground">Transcript</span>
+                                    </div>
+                                    <ScrollArea className="max-h-64 rounded-md border bg-muted/30 p-3">
+                                      <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                        {generated.script}
+                                      </div>
+                                    </ScrollArea>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -859,82 +903,109 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                         return (
                           <div
                             key={idx}
-                            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg bg-muted/50"
+                            className="p-3 rounded-lg bg-muted/50 space-y-2"
                           >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  {episode.index + 1}.
-                                </span>
-                                <span className="text-sm font-medium truncate">
-                                  {episode.title}
-                                </span>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    {episode.index + 1}.
+                                  </span>
+                                  <span className="text-sm font-medium truncate">
+                                    {episode.title}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                  {episode.keyPoint}
+                                </p>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                {episode.keyPoint}
-                              </p>
-                            </div>
 
-                            <div className="w-full sm:w-auto shrink-0 sm:ml-3 flex gap-1 justify-end">
-                              {generated ? (
-                                <>
+                              <div className="w-full sm:w-auto shrink-0 sm:ml-3 flex gap-1 justify-end">
+                                {generated ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant={isPlaying ? "secondary" : "default"}
+                                      onClick={() =>
+                                        isPlaying
+                                          ? pauseEpisode(item.id, episode.index)
+                                          : playEpisode(item.id, episode.index)
+                                      }
+                                      className="gap-1"
+                                    >
+                                      {isPlaying ? (
+                                        <>
+                                          <Pause className="h-3 w-3" />
+                                          Pause
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Play className="h-3 w-3" />
+                                          Play
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={expandedTranscripts.has(key) ? "secondary" : "outline"}
+                                      onClick={() => toggleTranscript(key)}
+                                      title={expandedTranscripts.has(key) ? "Hide transcript" : "Show transcript"}
+                                      className="gap-1"
+                                    >
+                                      <FileText className="h-3 w-3" />
+                                      {expandedTranscripts.has(key) ? "Hide" : "Read"}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => downloadEpisode(item.id, episode.index, episode.title)}
+                                      title="Download MP3"
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => generateEpisode(item, episode.index)}
+                                      disabled={isGeneratingThis}
+                                      title="Regenerate episode"
+                                    >
+                                      <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? "animate-spin" : ""}`} />
+                                    </Button>
+                                  </>
+                                ) : (
                                   <Button
                                     size="sm"
-                                    variant={isPlaying ? "secondary" : "default"}
-                                    onClick={() =>
-                                      isPlaying
-                                        ? pauseEpisode(item.id, episode.index)
-                                        : playEpisode(item.id, episode.index)
-                                    }
-                                    className="gap-1"
-                                  >
-                                    {isPlaying ? (
-                                      <>
-                                        <Pause className="h-3 w-3" />
-                                        Pause
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Play className="h-3 w-3" />
-                                        Play
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => downloadEpisode(item.id, episode.index, episode.title)}
-                                    title="Download MP3"
-                                  >
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={() => generateEpisode(item, episode.index)}
                                     disabled={isGeneratingThis}
-                                    title="Regenerate episode"
+                                    className="gap-1"
                                   >
-                                    <RefreshCw className={`h-3 w-3 ${isGeneratingEp ? "animate-spin" : ""}`} />
+                                    {isGeneratingEp ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Sparkles className="h-3 w-3" />
+                                    )}
+                                    Generate
                                   </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => generateEpisode(item, episode.index)}
-                                  disabled={isGeneratingThis}
-                                  className="gap-1"
-                                >
-                                  {isGeneratingEp ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Sparkles className="h-3 w-3" />
-                                  )}
-                                  Generate
-                                </Button>
-                              )}
+                                )}
+                              </div>
                             </div>
+
+                            {/* Transcript Section */}
+                            {generated?.script && expandedTranscripts.has(key) && (
+                              <div className="mt-2 pt-2 border-t border-border/50">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FileText className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-xs font-medium text-muted-foreground">Transcript</span>
+                                </div>
+                                <ScrollArea className="max-h-64 rounded-md border bg-background/50 p-3">
+                                  <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                    {generated.script}
+                                  </div>
+                                </ScrollArea>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
