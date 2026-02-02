@@ -46,6 +46,7 @@ type JobDescription = {
 export default function MyGrowthPlan() {
   const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [viewJdDialogOpen, setViewJdDialogOpen] = useState(false);
   const [selectedJobDescription, setSelectedJobDescription] = useState<JobDescription | null>(null);
   const [userProfile, setUserProfile] = useState<{ id: string; company_id: string; hide_daily_brief?: boolean } | null>(null);
@@ -123,7 +124,7 @@ export default function MyGrowthPlan() {
           .eq("company_id", viewAsCompanyId)
           .eq("is_admin", true)
           .limit(1)
-          .single();
+          .maybeSingle();
         
         if (adminProfile) {
           targetUserId = adminProfile.id;
@@ -145,6 +146,21 @@ export default function MyGrowthPlan() {
       setLoading(false);
     }
   };
+
+  if (pageError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <p className="text-destructive font-medium">Error loading page:</p>
+        <p className="text-sm text-muted-foreground">{pageError}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-primary text-primary-foreground rounded"
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
