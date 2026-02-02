@@ -280,8 +280,34 @@ Provide recommendations now, ensuring they match the employee's learning prefere
       throw new Error('Invalid AI response format');
     }
 
+    // Validate that AI only returned resource IDs that actually exist
+    const validResourceIds = new Set(allResources.map(r => r.id));
+    const validRecommendations = recommendations.filter((rec: any) => {
+      if (!rec.resource_id || !validResourceIds.has(rec.resource_id)) {
+        console.warn(`Skipping invalid resource_id: ${rec.resource_id}`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validRecommendations.length === 0) {
+      console.warn('No valid recommendations after filtering. AI returned non-existent resource IDs.');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          count: 0,
+          recommendations: [],
+          message: 'No matching resources found in your library. Consider adding more resources.',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
     // Insert recommendations into database with 45-day expiration
-    const recommendationsToInsert = recommendations.map((rec: any) => {
+    const recommendationsToInsert = validRecommendations.map((rec: any) => {
       const sentAt = new Date();
       const expiresAt = new Date(sentAt);
       expiresAt.setDate(expiresAt.getDate() + 45); // 45 days expiration
