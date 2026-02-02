@@ -84,6 +84,19 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/register" element={<RegistrationWizard />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+
+                {/*
+                  Safety net: render key dashboard pages directly inside DashboardLayout.
+                  This avoids edge cases where nested route matching can fall through to NotFound.
+                */}
+                <Route
+                  path="/dashboard/my-growth-plan/*"
+                  element={
+                    <DashboardLayout>
+                      <MyGrowthPlan />
+                    </DashboardLayout>
+                  }
+                />
             {/* Partner Routes */}
             <Route path="/partner" element={<PartnerDashboard />} />
             <Route path="/partner/register" element={<PartnerRegister />} />
