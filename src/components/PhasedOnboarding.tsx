@@ -117,12 +117,6 @@ export function PhasedOnboarding({ onOpenJericho, onStartFirstDailyBrief, classN
   }, [completedInPhase, totalInPhase, currentPhaseIndex, currentPhase.id]);
 
   const handleMilestoneClick = (milestone: OnboardingMilestone) => {
-    // For milestones with videos, show the video dialog (works in both preview and normal mode)
-    if (milestone.videoUrl && !milestone.completed) {
-      setVideoDialog({ open: true, milestone });
-      return;
-    }
-
     // In preview mode, navigate to routes but don't trigger special actions
     if (isPreview) {
       if (milestone.route) {
