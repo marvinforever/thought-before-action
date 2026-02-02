@@ -9,6 +9,8 @@ import { ViewAsProvider } from "@/contexts/ViewAsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthHashRedirect } from "@/components/AuthHashRedirect";
 import { BuildStamp } from "@/components/BuildStamp";
+import { GlobalErrorHandler } from "@/components/GlobalErrorHandler";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -48,24 +50,40 @@ import AdminCustomerHistoryImport from "./pages/AdminCustomerHistoryImport";
 import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
 import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Retry failed requests (helps with transient network issues)
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      // Don't throw errors to the error boundary for queries
+      throwOnError: false,
+    },
+    mutations: {
+      // Don't throw errors globally for mutations
+      throwOnError: false,
+    },
+  },
+});
 
 const App = () => (
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ViewAsProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthHashRedirect />
-          <FloatingJerichoButton />
-          <BuildStamp />
-          <Routes>
-            <Route path="/" element={<Sales />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/register" element={<RegistrationWizard />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+  <ErrorBoundary>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ViewAsProvider>
+            <GlobalErrorHandler />
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AuthHashRedirect />
+              <FloatingJerichoButton />
+              <BuildStamp />
+              <Routes>
+                <Route path="/" element={<Sales />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/register" element={<RegistrationWizard />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
             {/* Partner Routes */}
             <Route path="/partner" element={<PartnerDashboard />} />
             <Route path="/partner/register" element={<PartnerRegister />} />
@@ -171,12 +189,13 @@ const App = () => (
             <Route path="/ai-readiness/*" element={<AIReadinessLanding />} />
             <Route path="/ai-readiness/report/:shareToken" element={<AIReadinessReport />} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </ViewAsProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-  </HelmetProvider>
+              </Routes>
+            </BrowserRouter>
+          </ViewAsProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
+  </ErrorBoundary>
 );
 
 export default App;
