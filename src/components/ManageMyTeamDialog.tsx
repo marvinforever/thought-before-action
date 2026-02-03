@@ -34,6 +34,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
   const [initialAssignments, setInitialAssignments] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -47,13 +48,15 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Check if user is admin
+      // Check if user is admin or super_admin
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
       
       const isAdmin = roles?.some(r => r.role === 'admin' || r.role === 'super_admin') || false;
+      const hasSuperAdminRole = roles?.some(r => r.role === 'super_admin') || false;
+      setIsSuperAdmin(hasSuperAdminRole);
 
       // Determine which company to use
       let companyId = viewAsCompanyId;
@@ -141,15 +144,17 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
     setSelectedIds(newSelected);
   };
 
-  // In view-as mode, we should not allow modifications
+  // In view-as mode, only super admins should be able to make modifications
+  // Regular admins should be view-only when viewing another company
   const isViewAsMode = !!viewAsCompanyId;
+  const canEdit = !isViewAsMode || isSuperAdmin;
 
   const handleSave = async () => {
-    // Block saving in view-as mode to prevent polluting actual team
-    if (isViewAsMode) {
+    // Block saving if not allowed to edit
+    if (!canEdit) {
       toast({
         title: "Cannot modify team in View As mode",
-        description: "Exit View As mode to modify your actual team assignments.",
+        description: "You don't have permission to modify team assignments for this company.",
         variant: "destructive",
       });
       return;
@@ -160,13 +165,20 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: managerProfile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
+      // Use viewAsCompanyId if set (super admin managing another company)
+      // Otherwise use the manager's own company
+      let targetCompanyId = viewAsCompanyId;
+      
+      if (!targetCompanyId) {
+        const { data: managerProfile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
 
-      if (!managerProfile?.company_id) throw new Error("Company not found");
+        if (!managerProfile?.company_id) throw new Error("Company not found");
+        targetCompanyId = managerProfile.company_id;
+      }
 
       // Determine what changed
       const toAdd = Array.from(selectedIds).filter(id => !initialAssignments.has(id));
@@ -188,7 +200,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
         const newAssignments = toAdd.map(employeeId => ({
           manager_id: user.id,
           employee_id: employeeId,
-          company_id: managerProfile.company_id,
+          company_id: targetCompanyId,
           assigned_by: user.id,
         }));
 
@@ -237,16 +249,24 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
             Manage My Team
           </DialogTitle>
           <DialogDescription>
-            {isViewAsMode 
+            {!canEdit 
               ? "Viewing team for another company (read-only mode)"
-              : "Select employees to add to your direct reports. Uncheck to remove from your team."
+              : isViewAsMode
+                ? "Managing team as Super Admin. Select employees to add/remove as direct reports."
+                : "Select employees to add to your direct reports. Uncheck to remove from your team."
             }
           </DialogDescription>
         </DialogHeader>
 
-        {isViewAsMode && (
+        {isViewAsMode && !canEdit && (
           <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-amber-800 dark:text-amber-200 text-sm">
-            ⚠️ You are in View As mode. Changes are disabled to prevent modifying your actual team.
+            ⚠️ You are in View As mode. Changes are disabled because you don't have permission to modify this company's team.
+          </div>
+        )}
+
+        {isViewAsMode && canEdit && (
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-blue-800 dark:text-blue-200 text-sm">
+            ℹ️ Managing team as Super Admin for this company.
           </div>
         )}
 
@@ -263,7 +283,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              {selectedCount} selected {!isViewAsMode && changesCount > 0 && `(${changesCount} changes)`}
+              {selectedCount} selected {canEdit && changesCount > 0 && `(${changesCount} changes)`}
             </span>
           </div>
 
@@ -282,13 +302,13 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                   filteredEmployees.map((employee) => (
                     <div
                       key={employee.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 ${isViewAsMode ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
-                      onClick={() => !isViewAsMode && handleToggleEmployee(employee.id)}
+                      className={`flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 ${!canEdit ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+                      onClick={() => canEdit && handleToggleEmployee(employee.id)}
                     >
                       <Checkbox
                         checked={selectedIds.has(employee.id)}
-                        onCheckedChange={() => !isViewAsMode && handleToggleEmployee(employee.id)}
-                        disabled={isViewAsMode}
+                        onCheckedChange={() => canEdit && handleToggleEmployee(employee.id)}
+                        disabled={!canEdit}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -316,9 +336,9 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {isViewAsMode ? 'Close' : 'Cancel'}
+            {!canEdit ? 'Close' : 'Cancel'}
           </Button>
-          {!isViewAsMode && (
+          {canEdit && (
             <Button onClick={handleSave} disabled={submitting || changesCount === 0}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Save Changes`}
             </Button>
