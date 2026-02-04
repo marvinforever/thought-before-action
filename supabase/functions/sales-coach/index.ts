@@ -145,6 +145,28 @@ serve(async (req) => {
     
     console.log("Intent detected:", extracted.intentType, "| Companies:", extracted.companies.length, "| Contacts:", extracted.contacts.length);
     
+    // ============================================
+    // DETERMINISTIC ANALYTICS INTERCEPT
+    // Handle Pareto/80-20 revenue analysis directly without LLM to ensure accuracy
+    // ============================================
+    const paretoResult = await handleParetoAnalysis(message, adminClient, effectiveUserId, effectiveCompanyId);
+    if (paretoResult) {
+      console.log("Pareto analysis completed - returning deterministic result");
+      return new Response(
+        JSON.stringify({
+          message: paretoResult,
+          actions: [],
+          dealCreated: false,
+          companyCreated: null,
+          contactsCreated: [],
+          emailDrafted: null,
+          researchCompleted: null,
+          pipelineActions: [],
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     // Step 2: Gather Context
     const context = await gatherContext(
       adminClient,
@@ -541,6 +563,150 @@ function extractCompanyFallback(message: string): string | null {
   }
   
   return null;
+}
+
+// ============================================
+// DETERMINISTIC ANALYTICS HANDLERS
+// These bypass the LLM for accuracy-critical queries
+// ============================================
+
+/**
+ * Handle Pareto (80/20) revenue analysis using direct SQL queries.
+ * Returns formatted markdown results without going through the LLM.
+ * Detects patterns like: "top 80%", "make up 80% of revenue", "80/20", "pareto", etc.
+ */
+async function handleParetoAnalysis(
+  message: string,
+  client: any,
+  userId: string | null,
+  companyId: string | null
+): Promise<string | null> {
+  if (!userId || !companyId) return null;
+  
+  const lowerMsg = message.toLowerCase();
+  
+  // Detect Pareto/80-20 intent
+  const paretoPatterns = [
+    /make\s+up\s+(\d+)\s*%/i,
+    /top\s+(\d+)\s*%/i,
+    /(\d+)\s*\/\s*20/i,  // e.g., "80/20"
+    /80\s*-?\s*20/i,
+    /pareto/i,
+    /who\s+(?:are|makes?|represents?)\s+(?:my\s+)?(?:top|biggest|largest)/i,
+    /biggest\s+customers?/i,
+    /top\s+(?:customers?|growers?|accounts?)/i,
+    /largest\s+(?:customers?|growers?|accounts?)\s+by\s+(?:revenue|sales|volume)/i,
+  ];
+  
+  const isParetoQuery = paretoPatterns.some(p => p.test(lowerMsg));
+  if (!isParetoQuery) return null;
+  
+  console.log("[Pareto Analysis] Detected Pareto/revenue analysis query");
+  
+  // Extract target percentage (default 80)
+  let targetPercent = 80;
+  const percentMatch = lowerMsg.match(/(\d+)\s*%/) || lowerMsg.match(/(\d+)\s*\/\s*20/);
+  if (percentMatch) {
+    const extracted = parseInt(percentMatch[1], 10);
+    if (extracted > 0 && extracted <= 100) {
+      targetPercent = extracted;
+    }
+  }
+  
+  console.log(`[Pareto Analysis] Target percentage: ${targetPercent}%`);
+  
+  try {
+    // Fetch ALL purchase history for this company (paginated to handle large datasets)
+    const pageSize = 1000;
+    let from = 0;
+    const allRows: any[] = [];
+    
+    while (true) {
+      const { data, error } = await client
+        .from("customer_purchase_history")
+        .select("customer_name, amount")
+        .eq("company_id", companyId)
+        .range(from, from + pageSize - 1);
+      
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      
+      allRows.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    
+    console.log(`[Pareto Analysis] Fetched ${allRows.length} purchase records`);
+    
+    if (allRows.length === 0) {
+      return "I don't have any purchase history data loaded for your accounts. Once you import customer purchase data, I can run Pareto analysis to show which customers drive your revenue.";
+    }
+    
+    // Aggregate by customer
+    const revenueByCustomer = new Map<string, number>();
+    for (const row of allRows) {
+      const name = row.customer_name?.trim() || "Unknown";
+      const amount = Number(row.amount) || 0;
+      revenueByCustomer.set(name, (revenueByCustomer.get(name) || 0) + amount);
+    }
+    
+    // Sort by revenue descending
+    const sortedCustomers = Array.from(revenueByCustomer.entries())
+      .sort((a, b) => b[1] - a[1]);
+    
+    const totalRevenue = sortedCustomers.reduce((sum, [, rev]) => sum + rev, 0);
+    const targetRevenue = (targetPercent / 100) * totalRevenue;
+    
+    // Find customers that make up the target percentage
+    let cumulativeRevenue = 0;
+    const topCustomers: { name: string; revenue: number; percent: number }[] = [];
+    
+    for (const [name, revenue] of sortedCustomers) {
+      topCustomers.push({
+        name,
+        revenue,
+        percent: (revenue / totalRevenue) * 100,
+      });
+      cumulativeRevenue += revenue;
+      
+      if (cumulativeRevenue >= targetRevenue) {
+        break;
+      }
+    }
+    
+    const customerPercent = ((topCustomers.length / sortedCustomers.length) * 100).toFixed(1);
+    const actualRevenuePercent = ((cumulativeRevenue / totalRevenue) * 100).toFixed(1);
+    
+    // Format currency
+    const formatCurrency = (n: number) => 
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+    
+    // Build response
+    let response = `## Your Top ${targetPercent}% Revenue Analysis\n\n`;
+    response += `**${topCustomers.length} customers** (${customerPercent}% of your ${sortedCustomers.length} total accounts) make up **${actualRevenuePercent}%** of your revenue.\n\n`;
+    response += `**Total Revenue:** ${formatCurrency(totalRevenue)}\n`;
+    response += `**Top ${topCustomers.length} Combined:** ${formatCurrency(cumulativeRevenue)}\n\n`;
+    
+    response += `### Your Top Customers:\n\n`;
+    response += `| Rank | Customer | Revenue | % of Total |\n`;
+    response += `|------|----------|---------|------------|\n`;
+    
+    topCustomers.forEach((c, idx) => {
+      response += `| ${idx + 1} | ${c.name} | ${formatCurrency(c.revenue)} | ${c.percent.toFixed(1)}% |\n`;
+    });
+    
+    // Add actionable insight
+    response += `\n---\n`;
+    response += `**Key Insight:** These ${topCustomers.length} accounts are your bread and butter. `;
+    response += `Focus your time here first, then work on growth opportunities with accounts just outside this tier.`;
+    
+    console.log(`[Pareto Analysis] Returning ${topCustomers.length} top customers`);
+    
+    return response;
+  } catch (err) {
+    console.error("[Pareto Analysis] Error:", err);
+    return null; // Fall back to LLM if SQL fails
+  }
 }
 
 // ============================================
