@@ -596,13 +596,13 @@ async function gatherContext(
       .limit(30),
     
     // Fetch company-specific knowledge (product catalogs, etc.) - INCREASED LIMIT for product data
+    // NOTE: Include null categories to catch newly uploaded docs that weren't categorized
     companyId 
       ? client
           .from("sales_knowledge")
           .select("title, content, category")
           .eq("company_id", companyId)
           .eq("is_active", true)
-          .in("category", ["product_catalog", "product_knowledge", "product_sheet", "general", "training", "scripts"])
           .limit(50)
       : Promise.resolve({ data: [] }),
   ]);
