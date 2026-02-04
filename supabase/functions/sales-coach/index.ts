@@ -616,17 +616,33 @@ async function handleParetoAnalysis(
   console.log(`[Pareto Analysis] Target percentage: ${targetPercent}%`);
   
   try {
-    // Fetch ALL purchase history for this company (paginated to handle large datasets)
+    // Get the user's full name to filter by rep
+    const { data: userProfile } = await client
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    
+    const repName = userProfile?.full_name?.toUpperCase() || null;
+    console.log(`[Pareto Analysis] Filtering by rep: ${repName}`);
+    
+    // Fetch ALL purchase history for this rep (paginated to handle large datasets)
     const pageSize = 1000;
     let from = 0;
     const allRows: any[] = [];
     
     while (true) {
-      const { data, error } = await client
+      let query = client
         .from("customer_purchase_history")
-        .select("customer_name, amount")
-        .eq("company_id", companyId)
-        .range(from, from + pageSize - 1);
+        .select("customer_name, amount, rep_name")
+        .eq("company_id", companyId);
+      
+      // Filter by rep name if we have one - using ilike for case-insensitive match
+      if (repName) {
+        query = query.ilike("rep_name", repName);
+      }
+      
+      const { data, error } = await query.range(from, from + pageSize - 1);
       
       if (error) throw error;
       if (!data || data.length === 0) break;
@@ -636,10 +652,10 @@ async function handleParetoAnalysis(
       from += pageSize;
     }
     
-    console.log(`[Pareto Analysis] Fetched ${allRows.length} purchase records`);
+    console.log(`[Pareto Analysis] Fetched ${allRows.length} purchase records for ${repName || 'all reps'}`);
     
     if (allRows.length === 0) {
-      return "I don't have any purchase history data loaded for your accounts. Once you import customer purchase data, I can run Pareto analysis to show which customers drive your revenue.";
+      return `I don't have any purchase history data for ${repName || 'your account'}. This could mean:\n- Your name in the system doesn't match the rep name in the purchase data\n- No purchase history has been imported yet\n\nCheck with your admin to ensure your sales data is linked correctly.`;
     }
     
     // Aggregate by customer
