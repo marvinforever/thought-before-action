@@ -21,27 +21,39 @@ interface BackboardResponse {
 
 export class BackboardClient {
   private apiKey: string;
+  private maxRetries: number;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, maxRetries: number = 3) {
     this.apiKey = apiKey;
+    this.maxRetries = maxRetries;
   }
 
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const response = await fetch(`${BACKBOARD_API_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+  private async request(endpoint: string, options: RequestInit = {}, retries = 0): Promise<any> {
+    try {
+      const response = await fetch(`${BACKBOARD_API_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Backboard API error: ${response.status} - ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Backboard API error: ${response.status} - ${error}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      // Retry on network errors (DNS, timeout, etc.)
+      if (retries < this.maxRetries) {
+        console.warn(`Backboard request failed (attempt ${retries + 1}/${this.maxRetries}):`, error);
+        await new Promise(r => setTimeout(r, 1000 * (retries + 1))); // Exponential backoff
+        return this.request(endpoint, options, retries + 1);
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   async createAssistant(name: string, systemPrompt: string, tools?: any[]): Promise<{ assistant_id: string }> {
@@ -133,17 +145,30 @@ export class BackboardClient {
     return response.messages || [];
   }
 
-  // Sync a message to Backboard for memory (fire and forget pattern)
-  async syncMessage(threadId: string, role: 'user' | 'assistant', content: string): Promise<void> {
+  // Sync a message to Backboard for memory with retry logic (blocking)
+  async syncMessage(threadId: string, role: 'user' | 'assistant', content: string): Promise<boolean> {
     try {
-      // For memory sync, we just add the message without expecting a response
       await this.request(`/threads/${threadId}/messages/sync`, {
         method: 'POST',
         body: JSON.stringify({ role, content }),
       });
+      return true;
     } catch (error) {
-      // Log but don't throw - memory sync is best-effort
-      console.warn('Backboard memory sync failed:', error);
+      console.error('Backboard memory sync failed after retries:', error);
+      return false;
+    }
+  }
+  
+  // Batch sync multiple messages at once
+  async syncMessages(threadId: string, messages: { role: 'user' | 'assistant'; content: string }[]): Promise<boolean> {
+    try {
+      for (const msg of messages) {
+        await this.syncMessage(threadId, msg.role, msg.content);
+      }
+      return true;
+    } catch (error) {
+      console.error('Backboard batch sync failed:', error);
+      return false;
     }
   }
 }
@@ -157,23 +182,32 @@ export function createBackboardClient(): BackboardClient | null {
   return new BackboardClient(apiKey);
 }
 
-// Helper to get or create a Backboard thread for a user
+// Helper to get or create a Backboard thread for a user + optional customer
 export async function getOrCreateBackboardThread(
   supabase: any,
   profileId: string,
-  contextType: string = 'general'
+  contextType: string = 'general',
+  customerId: string | null = null
 ): Promise<{ threadId: string; assistantId: string } | null> {
   const backboard = createBackboardClient();
   if (!backboard) return null;
 
   try {
-    // Check for existing thread
-    const { data: existingThread } = await supabase
+    // Check for existing thread with customer context
+    let query = supabase
       .from('backboard_threads')
       .select('thread_id, assistant_id')
       .eq('profile_id', profileId)
-      .eq('context_type', contextType)
-      .single();
+      .eq('context_type', contextType);
+    
+    // Handle customer_id matching (NULL = general thread)
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
+    } else {
+      query = query.is('customer_id', null);
+    }
+    
+    const { data: existingThread } = await query.single();
 
     if (existingThread) {
       // Verify thread still exists in Backboard
@@ -184,25 +218,35 @@ export async function getOrCreateBackboardThread(
           assistantId: existingThread.assistant_id,
         };
       }
+      // Thread doesn't exist in Backboard - delete stale record
+      await supabase
+        .from('backboard_threads')
+        .delete()
+        .eq('thread_id', existingThread.thread_id);
     }
 
     // Create new assistant and thread
+    const assistantName = customerId 
+      ? `Jericho-${contextType}-${profileId.substring(0, 8)}-${customerId.substring(0, 8)}`
+      : `Jericho-${contextType}-${profileId.substring(0, 8)}-general`;
+    
     const assistant = await backboard.createAssistant(
-      `Jericho-${contextType}-${profileId.substring(0, 8)}`,
-      getJerichoSystemPrompt(contextType)
+      assistantName,
+      getJerichoSystemPrompt(contextType, !!customerId)
     );
 
     const thread = await backboard.createThread(assistant.assistant_id);
 
-    // Store mapping
-    await supabase.from('backboard_threads').upsert({
+    // Store mapping with customer context
+    await supabase.from('backboard_threads').insert({
       profile_id: profileId,
       context_type: contextType,
       assistant_id: assistant.assistant_id,
       thread_id: thread.thread_id,
+      customer_id: customerId,
     });
 
-    console.log('Created new Backboard thread:', thread.thread_id);
+    console.log('Created new Backboard thread:', thread.thread_id, customerId ? `for customer ${customerId}` : '(general)');
     return {
       threadId: thread.thread_id,
       assistantId: assistant.assistant_id,
@@ -213,25 +257,65 @@ export async function getOrCreateBackboardThread(
   }
 }
 
-function getJerichoSystemPrompt(contextType: string): string {
-  const basePrompt = `You are Jericho, an AI career coach with perfect memory. You remember everything about this user across all conversations.
+// Load messages from Backboard thread for context injection
+export async function loadBackboardMemory(
+  threadId: string,
+  maxMessages: number = 50
+): Promise<BackboardMessage[]> {
+  const backboard = createBackboardClient();
+  if (!backboard) return [];
+  
+  try {
+    const messages = await backboard.getMessages(threadId);
+    return messages.slice(-maxMessages);
+  } catch (error) {
+    console.error('Failed to load Backboard memory:', error);
+    return [];
+  }
+}
+
+// Format Backboard memory for inclusion in LLM prompt
+export function formatBackboardMemoryForPrompt(messages: BackboardMessage[]): string {
+  if (!messages || messages.length === 0) return '';
+  
+  const formatted = messages.map(m => 
+    `${m.role === 'user' ? 'User' : 'Jericho'}: ${m.content}`
+  ).join('\n\n');
+  
+  return `\n**YOUR MEMORY OF THIS CONVERSATION:**\n${formatted}\n`;
+}
+
+function getJerichoSystemPrompt(contextType: string, isCustomerSpecific: boolean): string {
+  const basePrompt = `You are Jericho, an AI sales coach with perfect memory. You remember everything about this user across all conversations.
 
 Your role is to:
 1. Remember personal details, preferences, and past conversations
 2. Track goals, achievements, and challenges over time
 3. Provide personalized coaching based on accumulated knowledge
 4. Notice patterns and provide insights about growth
+5. Never forget important customer details or commitments
 
 Always maintain context from previous conversations. Reference past discussions naturally.`;
 
+  if (contextType === 'sales' && isCustomerSpecific) {
+    return `${basePrompt}
+
+You are focused on a SPECIFIC CUSTOMER RELATIONSHIP:
+- Remember every detail about this customer
+- Track all commitments, preferences, and history discussed
+- Recall previous strategies and outcomes
+- Maintain relationship continuity across sessions
+- If asked "where did we leave off", recall the last topics discussed`;
+  }
+  
   if (contextType === 'sales') {
     return `${basePrompt}
 
-You are specifically focused on sales coaching:
-- Remember customer relationships and deal histories
+You are specifically focused on general sales coaching:
 - Track sales goals and pipeline progress
-- Recall previous customer interactions and strategies
-- Provide sales-specific coaching and advice`;
+- Provide sales-specific coaching and advice
+- Remember general sales strategies discussed
+- When no specific customer is selected, provide broad guidance`;
   }
 
   return basePrompt;

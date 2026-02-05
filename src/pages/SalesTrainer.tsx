@@ -13,6 +13,7 @@ import { PrepDocumentGenerator } from "@/components/sales/PrepDocumentGenerator"
 import { SalesProposalWizard } from "@/components/sales/SalesProposalWizard";
 import { FourCallPlanTracker } from "@/components/sales/FourCallPlanTracker";
 import { DocumentUploadDialog } from "@/components/sales/DocumentUploadDialog";
+import { CustomerSelector } from "@/components/sales/CustomerSelector";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -66,6 +67,9 @@ const SalesTrainer = () => {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [enableFieldMaps, setEnableFieldMaps] = useState(false);
+  // Active customer context for Backboard memory threading
+  const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null);
+  const [activeCustomerName, setActiveCustomerName] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = localStorage.getItem('salesTrainerChatMode');
     return (saved === 'coach' || saved === 'rec') ? saved : 'rec';
@@ -443,8 +447,17 @@ const SalesTrainer = () => {
           viewAsUserId: viewAsUserId || undefined,
           chatMode,
           dealsCount: deals.length,
+          activeCustomerId: activeCustomerId || undefined,
         },
       });
+      
+      // Update active customer if one was inferred from the message
+      if (response.data?.inferredCustomerId && response.data?.inferredCustomerName) {
+        if (!activeCustomerId) {
+          setActiveCustomerId(response.data.inferredCustomerId);
+          setActiveCustomerName(response.data.inferredCustomerName);
+        }
+      }
 
       if (response.error) throw response.error;
 
@@ -632,6 +645,30 @@ const SalesTrainer = () => {
       />
 
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col max-w-3xl">
+        {/* Customer Context Selector */}
+        <div className="mb-4 flex items-center gap-3">
+          <CustomerSelector
+            userId={effectiveUserId}
+            selectedCustomerId={activeCustomerId}
+            selectedCustomerName={activeCustomerName}
+            onSelect={(customerId, customerName) => {
+              setActiveCustomerId(customerId);
+              setActiveCustomerName(customerName);
+              // Clear messages when switching customer context
+              if (customerId !== activeCustomerId) {
+                setMessages([]);
+                setHasStarted(false);
+                setConversationId(null);
+              }
+            }}
+          />
+          {activeCustomerName && (
+            <span className="text-sm text-muted-foreground">
+              Memory focused on <strong>{activeCustomerName}</strong>
+            </span>
+          )}
+        </div>
+        
         <SalesChatInterface
           messages={messages}
           input={input}
