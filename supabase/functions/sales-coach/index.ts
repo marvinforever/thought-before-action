@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-router.ts";
-import { getOrCreateBackboardThread, createBackboardClient } from "../_shared/backboard-client.ts";
+import { getOrCreateBackboardThread, createBackboardClient, loadBackboardMemory, formatBackboardMemoryForPrompt } from "../_shared/backboard-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +20,7 @@ interface SalesCoachRequest {
   undoAction?: string;
   generateCallPlan?: boolean;
   dealsCount?: number;
+  activeCustomerId?: string; // For per-customer Backboard memory threading
 }
 
 interface ActionResult {
@@ -71,6 +72,7 @@ serve(async (req) => {
       undoAction,
       generateCallPlan,
       dealsCount = 0,
+      activeCustomerId,
     } = body;
 
     // Get authenticated user
@@ -167,6 +169,77 @@ serve(async (req) => {
       );
     }
     
+    // ============================================
+    // DETERMINISTIC PURCHASE HISTORY INTERCEPT
+    // Handle "what did X buy" queries directly without LLM
+    // ============================================
+    const purchaseHistoryResult = await handlePurchaseHistoryQuery(message, adminClient, effectiveUserId, effectiveCompanyId);
+    if (purchaseHistoryResult) {
+      console.log("Purchase history query completed - returning deterministic result");
+      return new Response(
+        JSON.stringify({
+          message: purchaseHistoryResult.response,
+          actions: [],
+          dealCreated: false,
+          companyCreated: null,
+          contactsCreated: [],
+          emailDrafted: null,
+          researchCompleted: null,
+          pipelineActions: [],
+          inferredCustomerId: purchaseHistoryResult.customerId,
+          inferredCustomerName: purchaseHistoryResult.customerName,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // ============================================
+    // LOAD BACKBOARD MEMORY AS PRIMARY CONTEXT
+    // ============================================
+    let backboardMemory = "";
+    let backboardThreadId: string | null = null;
+    let inferredCustomerId: string | null = activeCustomerId || null;
+    let inferredCustomerName: string | null = null;
+    
+    // Determine which customer to use for memory threading
+    if (!activeCustomerId && extracted.companies.length > 0) {
+      // Try to find the customer in our database
+      const customerName = extracted.companies[0].name;
+      const { data: matchedCustomer } = await adminClient
+        .from("sales_companies")
+        .select("id, name")
+        .eq("profile_id", effectiveUserId)
+        .ilike("name", `%${customerName}%`)
+        .maybeSingle();
+      
+      if (matchedCustomer) {
+        inferredCustomerId = matchedCustomer.id;
+        inferredCustomerName = matchedCustomer.name;
+        console.log("Inferred customer from message:", matchedCustomer.name);
+      }
+    }
+    
+    // Load Backboard memory for this customer context
+    if (effectiveUserId) {
+      try {
+        const backboardThread = await getOrCreateBackboardThread(
+          adminClient, 
+          effectiveUserId, 
+          'sales', 
+          inferredCustomerId
+        );
+        
+        if (backboardThread) {
+          backboardThreadId = backboardThread.threadId;
+          const messages = await loadBackboardMemory(backboardThread.threadId, 50);
+          backboardMemory = formatBackboardMemoryForPrompt(messages);
+          console.log(`Loaded ${messages.length} messages from Backboard thread:`, backboardThread.threadId);
+        }
+      } catch (err) {
+        console.warn("Failed to load Backboard memory:", err);
+      }
+    }
+    
     // Step 2: Gather Context
     const context = await gatherContext(
       adminClient,
@@ -175,6 +248,10 @@ serve(async (req) => {
       extracted,
       userContext
     );
+    
+    // Inject Backboard memory into context
+    context.backboardMemory = backboardMemory;
+    
     console.log("Context gathered | Deals:", context.deals?.length || 0, "| Existing companies:", context.existingCompanies?.length || 0);
 
     // Step 3: Execute Actions (parallel when possible)
@@ -351,25 +428,20 @@ serve(async (req) => {
         .catch(err => console.error("Error saving insights:", err));
     }
 
-    // Step 6: Sync to Backboard for persistent memory (fire and forget)
-    if (effectiveUserId) {
-      (async () => {
-        try {
-          const backboardThread = await getOrCreateBackboardThread(adminClient, effectiveUserId, 'sales');
-          if (backboardThread) {
-            const backboard = createBackboardClient();
-            if (backboard) {
-              // Sync user message
-              await backboard.syncMessage(backboardThread.threadId, 'user', message);
-              // Sync assistant response
-              await backboard.syncMessage(backboardThread.threadId, 'assistant', responseMessage);
-              console.log("Synced sales conversation to Backboard thread:", backboardThread.threadId);
-            }
-          }
-        } catch (err) {
-          console.warn("Backboard sync failed (non-blocking):", err);
+    // Step 6: Sync to Backboard for persistent memory (blocking with retry)
+    if (effectiveUserId && backboardThreadId) {
+      try {
+        const backboard = createBackboardClient();
+        if (backboard) {
+          // Sync user message and assistant response
+          await backboard.syncMessage(backboardThreadId, 'user', message);
+          await backboard.syncMessage(backboardThreadId, 'assistant', responseMessage);
+          console.log("Synced sales conversation to Backboard thread:", backboardThreadId);
         }
-      })();
+      } catch (err) {
+        console.warn("Backboard sync failed:", err);
+        // Continue - database backup still works
+      }
     }
 
     return new Response(
@@ -382,6 +454,8 @@ serve(async (req) => {
         emailDrafted,
         researchCompleted,
         pipelineActions,
+        inferredCustomerId,
+        inferredCustomerName,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -722,6 +796,147 @@ async function handleParetoAnalysis(
   } catch (err) {
     console.error("[Pareto Analysis] Error:", err);
     return null; // Fall back to LLM if SQL fails
+  }
+}
+
+// ============================================
+// DETERMINISTIC PURCHASE HISTORY HANDLER
+// Handle "what did X buy", "X's purchase history", etc.
+// ============================================
+
+async function handlePurchaseHistoryQuery(
+  message: string,
+  client: any,
+  userId: string | null,
+  companyId: string | null
+): Promise<{ response: string; customerId: string | null; customerName: string | null } | null> {
+  if (!userId || !companyId) return null;
+  
+  const lowerMsg = message.toLowerCase();
+  
+  // Detect purchase history queries
+  const purchasePatterns = [
+    /(?:what|show me|tell me|give me)\s+(?:did|has|does)\s+(\w+(?:\s+\w+)?)\s+(?:buy|bought|purchase|order)/i,
+    /(\w+(?:\s+\w+)?)\s*[']?s?\s+(?:purchase|buying|order)\s*(?:history|record|data)/i,
+    /(?:purchase|order|buying)\s*(?:history|record)\s+(?:for|of|from)\s+(\w+(?:\s+\w+)?)/i,
+    /(?:what|which)\s+(?:products?|items?)\s+(?:did|has|does)\s+(\w+(?:\s+\w+)?)\s+(?:buy|order|purchase)/i,
+    /show\s+(?:me\s+)?(\w+(?:\s+\w+)?)\s*[']?s?\s+(?:purchases?|orders?|history)/i,
+  ];
+  
+  let customerName: string | null = null;
+  for (const pattern of purchasePatterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      customerName = match[1].trim();
+      break;
+    }
+  }
+  
+  if (!customerName) return null;
+  
+  console.log("[Purchase History] Detected query for customer:", customerName);
+  
+  try {
+    // Find the customer with fuzzy matching
+    const { data: salesCompanies } = await client
+      .from("sales_companies")
+      .select("id, name")
+      .eq("profile_id", userId)
+      .or(`name.ilike.%${customerName}%,name.ilike.${customerName}%`);
+    
+    if (!salesCompanies || salesCompanies.length === 0) {
+      // Try first name match
+      const firstName = customerName.split(/\s+/)[0];
+      const { data: firstNameMatches } = await client
+        .from("sales_companies")
+        .select("id, name")
+        .eq("profile_id", userId)
+        .ilike("name", `${firstName}%`);
+      
+      if (!firstNameMatches || firstNameMatches.length === 0) {
+        return null; // Let LLM handle - customer not found
+      }
+      
+      // Use first match
+      const matched = firstNameMatches[0];
+      customerName = matched.name;
+    } else {
+      customerName = salesCompanies[0].name;
+    }
+    
+    const matchedCustomer = salesCompanies?.[0];
+    if (!matchedCustomer) return null;
+    
+    // Fetch purchase history
+    const { data: history } = await client
+      .from("customer_purchase_history")
+      .select("year, amount, product_description, quantity, sale_date")
+      .eq("customer_name", matchedCustomer.name)
+      .eq("company_id", companyId)
+      .order("year", { ascending: false })
+      .order("sale_date", { ascending: false })
+      .limit(100);
+    
+    if (!history || history.length === 0) {
+      return {
+        response: `I don't have any purchase history data for **${matchedCustomer.name}**. This could mean:\n- No purchase data has been imported for this customer\n- The customer name in the purchase data doesn't match\n\nWant me to search with a different name?`,
+        customerId: matchedCustomer.id,
+        customerName: matchedCustomer.name,
+      };
+    }
+    
+    // Aggregate by year
+    const yearlyTotals = new Map<number, { amount: number; count: number }>();
+    const productBreakdown = new Map<string, number>();
+    
+    for (const row of history) {
+      const year = row.year || new Date(row.sale_date).getFullYear();
+      const amount = Number(row.amount) || 0;
+      const product = row.product_description || "Unknown";
+      
+      const current = yearlyTotals.get(year) || { amount: 0, count: 0 };
+      yearlyTotals.set(year, { amount: current.amount + amount, count: current.count + 1 });
+      
+      productBreakdown.set(product, (productBreakdown.get(product) || 0) + amount);
+    }
+    
+    const formatCurrency = (n: number) => 
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+    
+    const totalRevenue = Array.from(yearlyTotals.values()).reduce((sum, y) => sum + y.amount, 0);
+    
+    // Build response
+    let response = `## Purchase History for ${matchedCustomer.name}\n\n`;
+    response += `**Total Revenue:** ${formatCurrency(totalRevenue)} across ${history.length} transactions\n\n`;
+    
+    response += `### By Year:\n`;
+    const sortedYears = Array.from(yearlyTotals.entries()).sort((a, b) => b[0] - a[0]);
+    for (const [year, data] of sortedYears) {
+      response += `- **${year}:** ${formatCurrency(data.amount)} (${data.count} transactions)\n`;
+    }
+    
+    // Top products
+    const sortedProducts = Array.from(productBreakdown.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    
+    if (sortedProducts.length > 0) {
+      response += `\n### Top Products:\n`;
+      for (const [product, amount] of sortedProducts) {
+        response += `- ${product}: ${formatCurrency(amount)}\n`;
+      }
+    }
+    
+    console.log("[Purchase History] Returning deterministic result for:", matchedCustomer.name);
+    
+    return {
+      response,
+      customerId: matchedCustomer.id,
+      customerName: matchedCustomer.name,
+    };
+  } catch (err) {
+    console.error("[Purchase History] Error:", err);
+    return null;
   }
 }
 
@@ -1723,6 +1938,7 @@ ${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
+${context.backboardMemory || ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
     : `You are Jericho, a seasoned sales coach using the Thrive Today Consultative Selling methodology.
@@ -1744,6 +1960,7 @@ ${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
+${context.backboardMemory || ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
 

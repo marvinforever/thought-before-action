@@ -501,6 +501,7 @@ export type Database = {
           assistant_id: string
           context_type: string | null
           created_at: string
+          customer_id: string | null
           id: string
           profile_id: string
           thread_id: string
@@ -510,6 +511,7 @@ export type Database = {
           assistant_id: string
           context_type?: string | null
           created_at?: string
+          customer_id?: string | null
           id?: string
           profile_id: string
           thread_id: string
@@ -519,12 +521,20 @@ export type Database = {
           assistant_id?: string
           context_type?: string | null
           created_at?: string
+          customer_id?: string | null
           id?: string
           profile_id?: string
           thread_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "backboard_threads_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "backboard_threads_profile_id_fkey"
             columns: ["profile_id"]
