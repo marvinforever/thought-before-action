@@ -837,42 +837,121 @@ async function handlePurchaseHistoryQuery(
   console.log("[Purchase History] Detected query for customer:", customerName);
   
   try {
-    // Find the customer with fuzzy matching
+    // Build name variations to try (handles "First Last" vs "LAST, FIRST" formats)
+    const nameParts = customerName.split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : null;
+    
+    // Create reversed format: "LAST, FIRST"
+    const reversedName = lastName ? `${lastName}, ${firstName}` : customerName;
+    
+    console.log("[Purchase History] Trying name variations:", { original: customerName, reversed: reversedName });
+    
+    // First, check if we have purchase history with either name format
+    const { data: directHistory } = await client
+      .from("customer_purchase_history")
+      .select("customer_name, year, amount, product_description, quantity, sale_date")
+      .eq("company_id", companyId)
+      .or(`customer_name.ilike.%${customerName}%,customer_name.ilike.%${reversedName}%`)
+      .order("year", { ascending: false })
+      .order("sale_date", { ascending: false })
+      .limit(100);
+    
+    if (directHistory && directHistory.length > 0) {
+      // Found purchase history - use the actual customer_name from the data
+      const actualCustomerName = directHistory[0].customer_name;
+      console.log("[Purchase History] Found direct match in history:", actualCustomerName);
+      
+      // Find or create sales_companies record for linking
+      const { data: salesCompany } = await client
+        .from("sales_companies")
+        .select("id, name")
+        .eq("profile_id", userId)
+        .or(`name.ilike.${actualCustomerName},name.ilike.${customerName}`)
+        .limit(1)
+        .single();
+      
+      const matchedCustomer = salesCompany || { id: null, name: actualCustomerName };
+      
+      // Aggregate by year
+      const yearlyTotals = new Map<number, { amount: number; count: number }>();
+      const productBreakdown = new Map<string, number>();
+      
+      for (const row of directHistory) {
+        const year = row.year || new Date(row.sale_date).getFullYear();
+        const amount = Number(row.amount) || 0;
+        const product = row.product_description || "Unknown";
+        
+        const current = yearlyTotals.get(year) || { amount: 0, count: 0 };
+        yearlyTotals.set(year, { amount: current.amount + amount, count: current.count + 1 });
+        
+        productBreakdown.set(product, (productBreakdown.get(product) || 0) + amount);
+      }
+      
+      // Format response
+      let response = `## Purchase History for ${actualCustomerName}\n\n`;
+      response += `### Yearly Summary\n`;
+      
+      const sortedYears = Array.from(yearlyTotals.entries()).sort((a, b) => b[0] - a[0]);
+      for (const [year, data] of sortedYears) {
+        response += `- **${year}**: $${data.amount.toLocaleString()} (${data.count} transactions)\n`;
+      }
+      
+      // Top products
+      const topProducts = Array.from(productBreakdown.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+      
+      if (topProducts.length > 0) {
+        response += `\n### Top Products\n`;
+        for (const [product, total] of topProducts) {
+          response += `- ${product}: $${total.toLocaleString()}\n`;
+        }
+      }
+      
+      return {
+        response,
+        customerId: matchedCustomer.id,
+        customerName: actualCustomerName,
+      };
+    }
+    
+    // Fallback: search sales_companies if no direct history match
     const { data: salesCompanies } = await client
       .from("sales_companies")
       .select("id, name")
       .eq("profile_id", userId)
-      .or(`name.ilike.%${customerName}%,name.ilike.${customerName}%`);
+      .or(`name.ilike.%${customerName}%,name.ilike.%${reversedName}%`);
     
     if (!salesCompanies || salesCompanies.length === 0) {
-      // Try first name match
-      const firstName = customerName.split(/\s+/)[0];
-      const { data: firstNameMatches } = await client
-        .from("sales_companies")
-        .select("id, name")
-        .eq("profile_id", userId)
-        .ilike("name", `${firstName}%`);
-      
-      if (!firstNameMatches || firstNameMatches.length === 0) {
-        return null; // Let LLM handle - customer not found
-      }
-      
-      // Use first match
-      const matched = firstNameMatches[0];
-      customerName = matched.name;
-    } else {
-      customerName = salesCompanies[0].name;
+      return null; // Let LLM handle - customer not found
     }
     
-    const matchedCustomer = salesCompanies?.[0];
-    if (!matchedCustomer) return null;
+    // Try each matched company to find one with purchase history
+    for (const company of salesCompanies) {
+      const { data: history } = await client
+        .from("customer_purchase_history")
+        .select("year, amount, product_description, quantity, sale_date")
+        .eq("company_id", companyId)
+        .or(`customer_name.ilike.${company.name},customer_name.ilike.%${company.name}%`)
+        .order("year", { ascending: false })
+        .limit(100);
+      
+      if (history && history.length > 0) {
+        // Found a match with history - continue with this customer
+        customerName = company.name;
+        break;
+      }
+    }
     
-    // Fetch purchase history
+    const matchedCustomer = salesCompanies[0];
+    
+    // Fetch purchase history with the matched name
     const { data: history } = await client
       .from("customer_purchase_history")
       .select("year, amount, product_description, quantity, sale_date")
-      .eq("customer_name", matchedCustomer.name)
       .eq("company_id", companyId)
+      .or(`customer_name.ilike.${matchedCustomer.name},customer_name.ilike.%${matchedCustomer.name}%`)
       .order("year", { ascending: false })
       .order("sale_date", { ascending: false })
       .limit(100);
