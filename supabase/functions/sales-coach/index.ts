@@ -221,6 +221,7 @@ serve(async (req) => {
     
     // Load Backboard memory for this customer context
     if (effectiveUserId) {
+      console.log(`Loading Backboard memory for user=${effectiveUserId}, customer=${inferredCustomerId || 'general'}`);
       try {
         const backboardThread = await getOrCreateBackboardThread(
           adminClient, 
@@ -343,38 +344,49 @@ serve(async (req) => {
     }
 
     // Handle research request - BUT ONLY if entity is NOT in pipeline
+    // CRITICAL: Never research "Jericho" - that's the AI assistant's name
     if (extracted.researchRequest && effectiveUserId) {
       const requestedName = extracted.researchRequest.toLowerCase().trim();
       
-      // Check if entity exists in pipeline before doing external research
-      const existsInPipeline = context.existingCompanies.some((c: any) => {
-        const existingName = c.name.toLowerCase().trim();
-        // Exact match
-        if (existingName.includes(requestedName) || requestedName.includes(existingName)) return true;
-        // First name match (Randy → Randy Diekhoff)
-        const requestParts = requestedName.split(/\s+/);
-        const existingParts = existingName.split(/\s+/);
-        if (requestParts[0] && existingParts[0] === requestParts[0]) return true;
-        return false;
-      }) || context.deals.some((d: any) => {
-        const dealName = d.deal_name?.toLowerCase().trim() || '';
-        return dealName.includes(requestedName) || requestedName.includes(dealName.split(' ')[0]);
-      });
-
-      if (!existsInPipeline) {
-        console.log("Running external research for:", requestedName);
-        const researchResult = await handleResearch(
-          adminClient,
-          effectiveUserId,
-          effectiveCompanyId,
-          extracted.researchRequest,
-          lovableApiKey
-        );
-        if (researchResult) {
-          researchCompleted = researchResult;
-        }
+      // Blocklist: Never research these terms (AI name, common app terms)
+      const researchBlocklist = ['jericho', 'momentum', 'the momentum company', 'momentum company'];
+      const isBlocked = researchBlocklist.some(blocked => 
+        requestedName.includes(blocked) || blocked.includes(requestedName)
+      );
+      
+      if (isBlocked) {
+        console.log("Skipping research - blocked term (AI name or internal company):", requestedName);
       } else {
-        console.log("Skipping external research - entity found in pipeline:", requestedName);
+        // Check if entity exists in pipeline before doing external research
+        const existsInPipeline = context.existingCompanies.some((c: any) => {
+          const existingName = c.name.toLowerCase().trim();
+          // Exact match
+          if (existingName.includes(requestedName) || requestedName.includes(existingName)) return true;
+          // First name match (Randy → Randy Diekhoff)
+          const requestParts = requestedName.split(/\s+/);
+          const existingParts = existingName.split(/\s+/);
+          if (requestParts[0] && existingParts[0] === requestParts[0]) return true;
+          return false;
+        }) || context.deals.some((d: any) => {
+          const dealName = d.deal_name?.toLowerCase().trim() || '';
+          return dealName.includes(requestedName) || requestedName.includes(dealName.split(' ')[0]);
+        });
+
+        if (!existsInPipeline) {
+          console.log("Running external research for:", requestedName);
+          const researchResult = await handleResearch(
+            adminClient,
+            effectiveUserId,
+            effectiveCompanyId,
+            extracted.researchRequest,
+            lovableApiKey
+          );
+          if (researchResult) {
+            researchCompleted = researchResult;
+          }
+        } else {
+          console.log("Skipping external research - entity found in pipeline:", requestedName);
+        }
       }
     }
 
@@ -488,6 +500,11 @@ CRITICAL RULES:
 3. If someone asks about "Randy D" or "Randy Diekhoff", extract THAT person/company - not other entities from history
 4. The conversation history helps you understand if a name might be new vs existing, but you MUST focus on the current message
 
+NEVER EXTRACT THESE AS ENTITIES OR RESEARCH TARGETS (they are internal system names):
+- "Jericho" - This is the AI assistant's name, NOT a company to research
+- "Momentum" or "The Momentum Company" - This is the USER's own company, not a sales target
+- Any AI/system references in the conversation
+
 CRITICAL CONTEXT RULES - PIPELINE FIRST:
 - "where did we leave it", "what's the status", "last time we talked", "catch me up on", 
   "what do we know about", "update on", "where are we with" = INTERNAL LOOKUP (intentType: "data_lookup")
@@ -496,6 +513,7 @@ CRITICAL CONTEXT RULES - PIPELINE FIRST:
   "what can you find on" for a company that sounds like a BUSINESS (not a person/farm name)
 - If the name sounds like a person (first name, or first + last), assume it's a PIPELINE customer first
 - A person's name like "Randy" or "Randy D" or "Randy Diekhoff" is almost certainly an existing customer
+- If the message mentions "Jericho" as a product/tool (e.g., "Jericho demo", "Jericho training"), that's the AI product - NOT a company to research
 
 WHAT TO EXTRACT FROM THE NEW MESSAGE:
 - Company/farm names explicitly mentioned in the new message
@@ -1146,7 +1164,9 @@ async function gatherContext(
   if (extracted.contacts.length > 0 || extracted.companies.length > 0) {
     const customerName = extracted.contacts[0]?.name || extracted.companies[0]?.name;
     if (customerName && userId && companyId) {
+      console.log(`Loading customer memory for: ${customerName}`);
       context.customerMemory = await loadCustomerMemory(client, userId, companyId, customerName);
+      console.log(`Customer memory loaded: ${context.customerMemory ? context.customerMemory.length + ' chars' : 'empty'}`);
     }
   }
 
