@@ -1,9 +1,11 @@
 // Backboard.io client for persistent memory
 
-// Try app.backboard.io first (their new API path), fallback to api.backboard.io
+// Updated endpoint based on SDK docs - they use /api/ path on app.backboard.io
+// Trying multiple URL patterns based on their documentation
 const BACKBOARD_API_URLS = [
-  'https://app.backboard.io/api/v1',
-  'https://api.backboard.io/v1'
+  'https://app.backboard.io/api',          // Primary - from SDK/changelog examples
+  'https://app.backboard.io/api/v1',       // Alternate versioned path
+  'https://backboard.io/api',              // Root domain
 ];
 
 interface BackboardThread {
@@ -43,9 +45,12 @@ export class BackboardClient {
     
     for (const baseUrl of urlsToTry) {
       try {
+        console.log(`Trying Backboard: ${baseUrl}${endpoint}`);
         const response = await fetch(`${baseUrl}${endpoint}`, {
           ...options,
           headers: {
+            // Try both auth header formats - Backboard docs show X-API-Key
+            'X-API-Key': this.apiKey,
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
             ...options.headers,
@@ -150,6 +155,7 @@ export class BackboardClient {
     const response = await fetch(`${baseUrl}/threads/${threadId}/messages`, {
       method: 'POST',
       headers: {
+        'X-API-Key': this.apiKey,
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
