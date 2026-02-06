@@ -500,26 +500,34 @@ CRITICAL RULES:
 3. If someone asks about "Randy D" or "Randy Diekhoff", extract THAT person/company - not other entities from history
 4. The conversation history helps you understand if a name might be new vs existing, but you MUST focus on the current message
 
-NEVER EXTRACT THESE AS ENTITIES OR RESEARCH TARGETS (they are internal system names):
-- "Jericho" - This is the AI assistant's name, NOT a company to research
+NEVER EXTRACT THESE AS ENTITIES OR RESEARCH TARGETS (they are internal system/product names):
+- "Jericho" - This is the AI assistant's name AND a product being sold, NOT a company to research
 - "Momentum" or "The Momentum Company" - This is the USER's own company, not a sales target
 - Any AI/system references in the conversation
+- When user mentions "Jericho" in any context (demo, proposal, training, follow-up, email), it's the product, not an external company
+
+CRITICAL: RESEARCH IS EXPLICIT-ONLY
+- NEVER set researchRequest unless the user uses one of these EXACT phrases:
+  * "research [company]"
+  * "look up [company] online"
+  * "find out about [company]"
+  * "what can you find on [company]"
+- All other queries default to intentType: "data_lookup" or "coaching"
+- Asking for help with an email, proposal, or follow-up is NOT a research request
 
 CRITICAL CONTEXT RULES - PIPELINE FIRST:
 - "where did we leave it", "what's the status", "last time we talked", "catch me up on", 
   "what do we know about", "update on", "where are we with" = INTERNAL LOOKUP (intentType: "data_lookup")
+- "help me write", "draft an email", "follow up email", "proposal follow-up" = EMAIL (intentType: "email")
 - These phrases mean the user is asking about EXISTING pipeline data - NOT a research request
-- ONLY set researchRequest when user explicitly says "research", "look up online", "find out about", 
-  "what can you find on" for a company that sounds like a BUSINESS (not a person/farm name)
 - If the name sounds like a person (first name, or first + last), assume it's a PIPELINE customer first
 - A person's name like "Randy" or "Randy D" or "Randy Diekhoff" is almost certainly an existing customer
-- If the message mentions "Jericho" as a product/tool (e.g., "Jericho demo", "Jericho training"), that's the AI product - NOT a company to research
 
 WHAT TO EXTRACT FROM THE NEW MESSAGE:
-- Company/farm names explicitly mentioned in the new message
+- Company/farm names explicitly mentioned in the new message (NEVER include Jericho/Momentum)
 - Contact names explicitly mentioned in the new message
 - Deal signals (value, stage hints) from the new message
-- Research requests from the new message (ONLY for explicit research commands about unknown businesses)
+- Research requests ONLY if user explicitly uses research trigger phrases above
 - Email requests from the new message
 
 Return a JSON object with this structure:
@@ -527,7 +535,7 @@ Return a JSON object with this structure:
   "companies": [{"name": "Company Name", "isNew": false, "confidence": 0.8}],
   "contacts": [{"name": "John Smith", "title": "Owner", "companyName": "Company Name"}],
   "dealSignals": {"value": 50000, "stage": "prospecting", "notes": "expanding operation"},
-  "researchRequest": "company name to research" or null,
+  "researchRequest": null (ONLY set if explicit research command),
   "emailRequest": {"recipient": "John", "type": "follow_up", "company": "ABC Farms"} or null,
   "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action"
 }
@@ -536,8 +544,9 @@ Interpretation rules:
 - Mark isNew=true ONLY if the NEW MESSAGE implies they just met or are adding this company/grower
 - Phrases like "I just talked to", "I met", "new prospect", "add", "load" suggest NEW entities
 - Phrases like "show me", "what about", "tell me about", "precall plan for", "where did we leave it" suggest EXISTING lookups (isNew=false)
+- Phrases like "help me write", "draft", "follow up email" suggest EMAIL intent (intentType: "email")
 - If someone asks about a person like "Randy D", that IS the company/contact to extract (farms often go by owner name)
-- Do NOT set researchRequest for person names - they are almost always existing customers
+- Do NOT set researchRequest unless explicit trigger phrase is used
 - Do NOT extract entities from previous messages - only the current one`;
 
   try {
