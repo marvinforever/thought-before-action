@@ -681,13 +681,21 @@ serve(async (req) => {
     <div style="margin: 0 16px; background: linear-gradient(180deg, #132238 0%, #0e1a2d 100%); border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;">
       
       <!-- AI-generated personalized content -->
-      <div style="padding: 32px; color: #ffffff !important; font-size: 16px; line-height: 1.7;">
-        <style>
-          .jericho-content p, .jericho-content li, .jericho-content span, .jericho-content div, .jericho-content strong { color: #ffffff !important; }
-          .jericho-content a { color: #d4a855 !important; }
-        </style>
-        <div class="jericho-content" style="color: #ffffff;">
-          ${personalizedBody.replace(/<p/g, '<p style="color: #ffffff; margin: 0 0 16px 0;"').replace(/<strong/g, '<strong style="color: #ffffff;"').replace(/<li/g, '<li style="color: #ffffff;"')}
+      <div style="padding: 32px; color: #ffffff; font-size: 16px; line-height: 1.7;">
+        <div style="color: #ffffff;">
+          ${personalizedBody
+            .replace(/<p([^>]*)>/g, '<p$1 style="color: #ffffff !important; margin: 0 0 16px 0;">')
+            .replace(/<strong([^>]*)>/g, '<strong$1 style="color: #ffffff !important;">')
+            .replace(/<li([^>]*)>/g, '<li$1 style="color: #ffffff !important;">')
+            .replace(/<span([^>]*)>/g, '<span$1 style="color: #ffffff !important;">')
+            .replace(/<div([^>]*)>/g, '<div$1 style="color: #ffffff !important;">')
+            .replace(/<ul([^>]*)>/g, '<ul$1 style="color: #ffffff !important; padding-left: 20px; margin: 0 0 16px 0;">')
+            .replace(/<ol([^>]*)>/g, '<ol$1 style="color: #ffffff !important; padding-left: 20px; margin: 0 0 16px 0;">')
+            .replace(/<h1([^>]*)>/g, '<h1$1 style="color: #ffffff !important;">')
+            .replace(/<h2([^>]*)>/g, '<h2$1 style="color: #ffffff !important;">')
+            .replace(/<h3([^>]*)>/g, '<h3$1 style="color: #ffffff !important;">')
+            .replace(/<a([^>]*)>/g, '<a$1 style="color: #d4a855 !important;">')
+          }
         </div>
         
         ${industryPulseHtml}
