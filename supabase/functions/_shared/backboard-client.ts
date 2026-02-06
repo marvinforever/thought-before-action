@@ -1,6 +1,10 @@
 // Backboard.io client for persistent memory
 
-const BACKBOARD_API_URL = 'https://api.backboard.io/v1';
+// Try app.backboard.io first (their new API path), fallback to api.backboard.io
+const BACKBOARD_API_URLS = [
+  'https://app.backboard.io/api/v1',
+  'https://api.backboard.io/v1'
+];
 
 interface BackboardThread {
   thread_id: string;
@@ -22,6 +26,7 @@ interface BackboardResponse {
 export class BackboardClient {
   private apiKey: string;
   private maxRetries: number;
+  private workingBaseUrl: string | null = null;
 
   constructor(apiKey: string, maxRetries: number = 3) {
     this.apiKey = apiKey;
@@ -29,31 +34,52 @@ export class BackboardClient {
   }
 
   private async request(endpoint: string, options: RequestInit = {}, retries = 0): Promise<any> {
-    try {
-      const response = await fetch(`${BACKBOARD_API_URL}${endpoint}`, {
-        ...options,
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
+    // If we already found a working URL, use it
+    const urlsToTry = this.workingBaseUrl 
+      ? [this.workingBaseUrl] 
+      : BACKBOARD_API_URLS;
+    
+    let lastError: Error | null = null;
+    
+    for (const baseUrl of urlsToTry) {
+      try {
+        const response = await fetch(`${baseUrl}${endpoint}`, {
+          ...options,
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            ...options.headers,
+          },
+        });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Backboard API error: ${response.status} - ${error}`);
-      }
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Backboard API error: ${response.status} - ${error}`);
+        }
 
-      return response.json();
-    } catch (error) {
-      // Retry on network errors (DNS, timeout, etc.)
-      if (retries < this.maxRetries) {
-        console.warn(`Backboard request failed (attempt ${retries + 1}/${this.maxRetries}):`, error);
-        await new Promise(r => setTimeout(r, 1000 * (retries + 1))); // Exponential backoff
-        return this.request(endpoint, options, retries + 1);
+        // Remember the working URL for future requests
+        if (!this.workingBaseUrl) {
+          this.workingBaseUrl = baseUrl;
+          console.log(`Backboard API connected via: ${baseUrl}`);
+        }
+        
+        return response.json();
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Backboard request to ${baseUrl} failed:`, (error as Error).message);
+        // Continue to try next URL
       }
-      throw error;
     }
+    
+    // All URLs failed - retry with exponential backoff
+    if (retries < this.maxRetries) {
+      console.warn(`All Backboard URLs failed (attempt ${retries + 1}/${this.maxRetries}), retrying...`);
+      this.workingBaseUrl = null; // Reset to try all URLs again
+      await new Promise(r => setTimeout(r, 1000 * (retries + 1)));
+      return this.request(endpoint, options, retries + 1);
+    }
+    
+    throw lastError;
   }
 
   async createAssistant(name: string, systemPrompt: string, tools?: any[]): Promise<{ assistant_id: string }> {
@@ -118,7 +144,10 @@ export class BackboardClient {
       modelName?: string;
     } = {}
   ): Promise<Response> {
-    const response = await fetch(`${BACKBOARD_API_URL}/threads/${threadId}/messages`, {
+    // Use working URL if known, otherwise try primary URL
+    const baseUrl = this.workingBaseUrl || BACKBOARD_API_URLS[0];
+    
+    const response = await fetch(`${baseUrl}/threads/${threadId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
