@@ -661,40 +661,58 @@ serve(async (req) => {
     // Build the on-brand Jericho email HTML - Navy Blue (#0a1628, #1e3a5f) and Gold (#d4a855)
     const emailHtml = `
 <!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Your Daily Brief from Jericho</title>
+  <style>
+    :root { color-scheme: light dark; supported-color-schemes: light dark; }
+    /* Prevent iOS/Gmail dark mode color overrides */
+    [data-ogsc] body, [data-ogsb] body { background-color: #0a1628 !important; }
+    @media (prefers-color-scheme: dark) {
+      body, .body-bg { background-color: #0a1628 !important; }
+      .email-text { color: #ffffff !important; }
+      .email-heading { color: #ffffff !important; }
+      .email-link { color: #d4a855 !important; }
+      .email-muted { color: #8892a8 !important; }
+      .email-card { background-color: #132238 !important; }
+      u + .body .email-text { color: #ffffff !important; }
+    }
+  </style>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a1628; margin: 0; padding: 0;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #0a1628;">
+<body class="body-bg" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a1628; margin: 0; padding: 0; color: #ffffff;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #0a1628; color: #ffffff;" class="body-bg">
     
     <!-- Header with Jericho branding - Navy and Gold -->
     <div style="padding: 40px 32px 24px 32px; text-align: center;">
       <div style="display: inline-block;">
-        <h1 style="font-size: 28px; font-weight: 700; margin: 0; color: #d4a855;">Jericho</h1>
+        <h1 style="font-size: 28px; font-weight: 700; margin: 0; color: #d4a855;" class="email-link">Jericho</h1>
       </div>
-      <p style="color: #8892a8; font-size: 13px; margin: 8px 0 0 0; letter-spacing: 0.5px;">${formatDate(new Date()).toUpperCase()}</p>
+      <p style="color: #8892a8; font-size: 13px; margin: 8px 0 0 0; letter-spacing: 0.5px;" class="email-muted">${formatDate(new Date()).toUpperCase()}</p>
     </div>
 
     <!-- Main content card -->
-    <div style="margin: 0 16px; background: linear-gradient(180deg, #132238 0%, #0e1a2d 100%); border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;">
+    <div style="margin: 0 16px; background: #132238; border-radius: 16px; border: 1px solid #1e3a5f; overflow: hidden;" class="email-card">
       
       <!-- AI-generated personalized content -->
-      <div style="padding: 32px; color: #ffffff; font-size: 16px; line-height: 1.7;">
-        <div style="color: #ffffff;">
+      <div style="padding: 32px; color: #ffffff; font-size: 16px; line-height: 1.7;" class="email-text">
+        <div style="color: #ffffff;" class="email-text">
           ${personalizedBody
-            .replace(/<p([^>]*)>/g, '<p$1 style="color: #ffffff !important; margin: 0 0 16px 0;">')
-            .replace(/<strong([^>]*)>/g, '<strong$1 style="color: #ffffff !important;">')
-            .replace(/<li([^>]*)>/g, '<li$1 style="color: #ffffff !important;">')
-            .replace(/<span([^>]*)>/g, '<span$1 style="color: #ffffff !important;">')
-            .replace(/<div([^>]*)>/g, '<div$1 style="color: #ffffff !important;">')
-            .replace(/<ul([^>]*)>/g, '<ul$1 style="color: #ffffff !important; padding-left: 20px; margin: 0 0 16px 0;">')
-            .replace(/<ol([^>]*)>/g, '<ol$1 style="color: #ffffff !important; padding-left: 20px; margin: 0 0 16px 0;">')
-            .replace(/<h1([^>]*)>/g, '<h1$1 style="color: #ffffff !important;">')
-            .replace(/<h2([^>]*)>/g, '<h2$1 style="color: #ffffff !important;">')
-            .replace(/<h3([^>]*)>/g, '<h3$1 style="color: #ffffff !important;">')
-            .replace(/<a([^>]*)>/g, '<a$1 style="color: #d4a855 !important;">')
+            .replace(/\s*style="[^"]*"/g, '')
+            .replace(/<p([^>]*)>/g, '<p$1 style="color: #ffffff; margin: 0 0 16px 0;" class="email-text">')
+            .replace(/<strong([^>]*)>/g, '<strong$1 style="color: #ffffff;" class="email-text">')
+            .replace(/<li([^>]*)>/g, '<li$1 style="color: #ffffff; margin-bottom: 8px;" class="email-text">')
+            .replace(/<span([^>]*)>/g, '<span$1 style="color: #ffffff;" class="email-text">')
+            .replace(/<div([^>]*)>/g, '<div$1 style="color: #ffffff;" class="email-text">')
+            .replace(/<ul([^>]*)>/g, '<ul$1 style="color: #ffffff; padding-left: 20px; margin: 0 0 16px 0;" class="email-text">')
+            .replace(/<ol([^>]*)>/g, '<ol$1 style="color: #ffffff; padding-left: 20px; margin: 0 0 16px 0;" class="email-text">')
+            .replace(/<h1([^>]*)>/g, '<h1$1 style="color: #ffffff; font-size: 20px; margin: 0 0 12px 0;" class="email-heading">')
+            .replace(/<h2([^>]*)>/g, '<h2$1 style="color: #ffffff; font-size: 18px; margin: 0 0 12px 0;" class="email-heading">')
+            .replace(/<h3([^>]*)>/g, '<h3$1 style="color: #ffffff; font-size: 16px; font-weight: 700; margin: 0 0 8px 0;" class="email-heading">')
+            .replace(/<a([^>]*?)(?:\s*style="[^"]*")?([^>]*)>/g, '<a$1$2 style="color: #d4a855; text-decoration: underline;" class="email-link">')
           }
         </div>
         
