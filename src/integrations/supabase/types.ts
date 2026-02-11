@@ -2851,6 +2851,7 @@ export type Database = {
           preferred_day: string | null
           preferred_time: string
           profile_id: string
+          skip_weekends: boolean
           timezone: string
           updated_at: string
         }
@@ -2864,6 +2865,7 @@ export type Database = {
           preferred_day?: string | null
           preferred_time?: string
           profile_id: string
+          skip_weekends?: boolean
           timezone?: string
           updated_at?: string
         }
@@ -2877,6 +2879,7 @@ export type Database = {
           preferred_day?: string | null
           preferred_time?: string
           profile_id?: string
+          skip_weekends?: boolean
           timezone?: string
           updated_at?: string
         }

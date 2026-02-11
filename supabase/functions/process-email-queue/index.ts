@@ -61,6 +61,13 @@ serve(async (req) => {
       
       console.log(`User ${pref.profile?.email}: timezone=${userTimezone}, localHour=${currentHourInUserTz}, prefHour=${prefHour}, frequency=${pref.frequency}`);
       
+      // Check if user wants to skip weekends
+      const isWeekend = currentDayInUserTz === 'Saturday' || currentDayInUserTz === 'Sunday';
+      if (isWeekend && pref.skip_weekends) {
+        console.log(`Skipping ${pref.profile?.email} - skip_weekends enabled and it's ${currentDayInUserTz}`);
+        continue;
+      }
+
       // Check if it's time to send based on frequency
       if (pref.frequency === 'daily') {
         // For daily, check if current hour in USER'S TIMEZONE matches preferred hour
