@@ -101,6 +101,22 @@ serve(async (req) => {
         continue;
       }
 
+      // Check if user wants to skip weekend emails
+      const easternDayName = easternTime.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' });
+      const isWeekendDay = easternDayName === 'Saturday' || easternDayName === 'Sunday';
+      if (isWeekendDay) {
+        const { data: userEmailPref } = await supabase
+          .from("email_preferences")
+          .select("skip_weekends")
+          .eq("profile_id", profile.id)
+          .single();
+
+        if (userEmailPref?.skip_weekends) {
+          console.log(`Skipping ${profile.email} - skip_weekends enabled and it's ${easternDayName}`);
+          continue;
+        }
+      }
+
       // Check if already sent today
       const { data: todayDeliveries } = await supabase
         .from("email_deliveries")

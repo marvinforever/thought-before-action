@@ -82,7 +82,8 @@ export default function Settings() {
     frequency: "daily",
     preferred_day: "Monday",
     include_podcast: true,
-    brief_format: "both"
+    brief_format: "both",
+    skip_weekends: false
   });
 
   const timezones = [
@@ -139,7 +140,8 @@ export default function Settings() {
             frequency: emailData.frequency || "daily",
             preferred_day: emailData.preferred_day || "Monday",
             include_podcast: emailData.include_podcast ?? true,
-            brief_format: emailData.brief_format || "both"
+            brief_format: emailData.brief_format || "both",
+            skip_weekends: (emailData as any).skip_weekends ?? false
           });
         }
       }
@@ -199,6 +201,7 @@ export default function Settings() {
           preferred_day: newPrefs.preferred_day,
           include_podcast: newPrefs.include_podcast,
           brief_format: newPrefs.brief_format,
+          skip_weekends: newPrefs.skip_weekends,
           updated_at: new Date().toISOString()
         }, { onConflict: 'profile_id' });
 
@@ -603,6 +606,21 @@ export default function Settings() {
                     </Label>
                   </div>
                 </RadioGroup>
+              </div>
+
+              {/* Skip Weekend Emails */}
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div className="space-y-0.5">
+                  <Label>Skip Weekend Emails</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Don't send emails on Saturday or Sunday
+                  </p>
+                </div>
+                <Switch
+                  checked={emailPrefs.skip_weekends}
+                  onCheckedChange={(checked) => saveEmailPrefs({ skip_weekends: checked })}
+                  disabled={savingEmail}
+                />
               </div>
 
               {/* Include Podcast Toggle */}

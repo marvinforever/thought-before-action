@@ -1,0 +1,1 @@
+ALTER TABLE public.email_preferences ADD COLUMN skip_weekends boolean NOT NULL DEFAULT false;
