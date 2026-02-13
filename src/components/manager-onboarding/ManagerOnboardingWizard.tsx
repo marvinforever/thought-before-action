@@ -120,7 +120,7 @@ export function ManagerOnboardingWizard({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-md p-6 overflow-hidden">
+      <DialogContent className="sm:max-w-md p-6 overflow-y-auto max-h-[90vh]">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
