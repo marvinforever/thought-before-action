@@ -1,33 +1,23 @@
 
 
-## Add "Skip Weekend Emails" Setting
+## Fix: Manager Onboarding Wizard Buttons Cut Off
 
-### Overview
-Add a toggle in Settings that lets users opt out of receiving Jericho emails on Saturdays and Sundays. This applies to both the Growth Email and Daily Brief systems.
+### Problem
+The Manager Onboarding Wizard dialog has `overflow-hidden` on the `DialogContent`, which prevents scrolling when the content exceeds the viewport height. On smaller screens or lower resolutions, the "Continue" and "Back" buttons are hidden below the visible area.
 
-### Changes
+This is NOT a browser-specific issue -- it will happen in any browser when the screen isn't tall enough.
 
-**1. Database Migration**
-- Add a `skip_weekends` boolean column to `email_preferences` table (default: `false`)
+### Solution
+Make the dialog content scrollable so buttons are always reachable:
 
-**2. Settings UI (src/pages/Settings.tsx)**
-- Add a new Switch toggle in the "Daily Brief Email" card (below the email enabled toggle) labeled **"Skip Weekend Emails"**
-- Description: "Don't send emails on Saturday or Sunday"
-- Only visible when email is enabled
-- Saves via the existing `saveEmailPrefs()` function
+**File: `src/components/manager-onboarding/ManagerOnboardingWizard.tsx`**
+- Change `overflow-hidden` to `overflow-y-auto` on the `DialogContent`
+- Add `max-h-[90vh]` to constrain the dialog height to 90% of the viewport, ensuring it never exceeds the screen
 
-**3. Edge Function: process-email-queue**
-- After determining the user's local day of the week, check if `skip_weekends` is `true`
-- If the local day is Saturday or Sunday and `skip_weekends` is enabled, skip that user
-
-**4. Edge Function: process-daily-brief-queue**
-- Add the same weekend check: determine the Eastern time day of week
-- If it's Saturday or Sunday and the user has `skip_weekends` enabled, skip them
-- This requires joining/fetching `email_preferences.skip_weekends` for each user
+**File: `src/components/manager-onboarding/KeyActionsStep.tsx`**
+- Add `pb-2` (bottom padding) to the root container so the buttons have breathing room when scrolled to the bottom
 
 ### Technical Details
-
-- The `process-email-queue` function already calculates the user's local day (`currentDayInUserTz`) -- we just need to add a Saturday/Sunday check
-- The `process-daily-brief-queue` function currently sends to all users in enabled companies; it will need to left-join `email_preferences` to check the `skip_weekends` flag
-- The `emailPrefs` state in Settings.tsx will get a new `skip_weekends` field, persisted via the existing upsert logic
+- `DialogContent` class change: `"sm:max-w-md p-6 overflow-hidden"` becomes `"sm:max-w-md p-6 overflow-y-auto max-h-[90vh]"`
+- The same fix benefits all three wizard steps (welcome, key-actions, first-action) since they share the same dialog container
 
