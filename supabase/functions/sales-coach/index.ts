@@ -1148,7 +1148,13 @@ async function gatherContext(
       extracted.companies[0].isNew = false;
       console.log("Fuzzy matched company:", companyName, "->", existingCompany.name);
 
-      // Fetch intelligence and purchase history in parallel
+      // Fetch intelligence in parallel with purchase history
+      // NOTE: customer_purchase_history.company_id is the ORG company ID (not the sales_companies ID)
+      // We match by customer name since purchase history doesn't have a sales_companies FK
+      const salesCompanyName = existingCompany.name;
+      const nameParts = salesCompanyName.split(/\s+/);
+      const lastName = nameParts[nameParts.length - 1];
+      
       const [intelResult, historyResult] = await Promise.all([
         client
           .from("sales_company_intelligence")
@@ -1156,16 +1162,70 @@ async function gatherContext(
           .eq("company_id", existingCompany.id)
           .eq("profile_id", userId)
           .maybeSingle(),
-        client
-          .from("customer_purchase_history")
-          .select("*")
-          .eq("company_id", existingCompany.id)
-          .order("year", { ascending: false })
-          .limit(5),
+        // FIXED: Use org companyId and match by customer_name (not sales_companies.id)
+        // Paginate to get full history, not just 5 records
+        (async () => {
+          const pageSize = 500;
+          let from = 0;
+          const allHistory: any[] = [];
+          while (true) {
+            const { data, error } = await client
+              .from("customer_purchase_history")
+              .select("customer_name, year, season, amount, product_description, quantity, sale_date, rep_name")
+              .eq("company_id", companyId)
+              .ilike("customer_name", `%${lastName}%`)
+              .order("sale_date", { ascending: false })
+              .range(from, from + pageSize - 1);
+            if (error || !data || data.length === 0) break;
+            allHistory.push(...data);
+            if (data.length < pageSize) break;
+            from += pageSize;
+          }
+          return { data: allHistory };
+        })(),
       ]);
 
       context.intelligence = intelResult.data;
-      context.purchaseHistory = historyResult.data;
+      
+      // Build a structured purchase summary for AI context injection
+      const rawHistory = historyResult.data || [];
+      if (rawHistory.length > 0) {
+        // Aggregate by year and product for a concise but complete summary
+        const yearMap = new Map<string, { total: number; count: number }>();
+        const productMap = new Map<string, number>();
+        let totalRevenue = 0;
+        for (const row of rawHistory) {
+          const yr = row.year || (row.sale_date ? row.sale_date.substring(0, 4) : "Unknown");
+          const amt = Number(row.amount) || 0;
+          const prod = row.product_description || "Unknown";
+          yearMap.set(yr, { total: (yearMap.get(yr)?.total || 0) + amt, count: (yearMap.get(yr)?.count || 0) + 1 });
+          productMap.set(prod, (productMap.get(prod) || 0) + amt);
+          totalRevenue += amt;
+        }
+        const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+        const yearSummary = Array.from(yearMap.entries())
+          .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+          .slice(0, 5)
+          .map(([yr, d]) => `  - ${yr}: ${fmt(d.total)} (${d.count} transactions)`)
+          .join("\n");
+        const topProducts = Array.from(productMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([p, amt]) => `  - ${p}: ${fmt(amt)}`)
+          .join("\n");
+        context.purchaseHistory = rawHistory;
+        context.purchaseHistorySummary = `PURCHASE HISTORY for ${salesCompanyName} (${rawHistory.length} transactions found):
+Total Revenue: ${fmt(totalRevenue)}
+By Year:
+${yearSummary}
+Top Products by Revenue:
+${topProducts}`;
+        console.log(`[gatherContext] Purchase history loaded: ${rawHistory.length} records for ${salesCompanyName}, total ${fmt(totalRevenue)}`);
+      } else {
+        console.log(`[gatherContext] No purchase history found for ${salesCompanyName} (searched by lastName: ${lastName})`);
+        context.purchaseHistory = [];
+        context.purchaseHistorySummary = null;
+      }
     }
   }
 
@@ -2046,6 +2106,7 @@ ${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
+${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY (use this to personalize coaching - reference specific products and seasons they've bought):\n${context.purchaseHistorySummary}` : ""}
 ${context.backboardMemory || ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
@@ -2068,6 +2129,7 @@ ${knowledgeContext}
 
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
+${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY (reference this in your coaching - mention specific products they've bought, revenue trends, and season patterns):\n${context.purchaseHistorySummary}` : ""}
 ${context.backboardMemory || ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
