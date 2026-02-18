@@ -396,6 +396,16 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
               }
 
               window.dispatchEvent(new Event('onboardingProgressRefresh'));
+
+              // Auto-summarize every 6 messages so memory persists even if chat isn't closed
+              setMessages(prev => {
+                const totalMessages = prev.filter(m => m.content).length;
+                if (newConversationId && totalMessages > 0 && totalMessages % 6 === 0) {
+                  summarizeConversation(newConversationId);
+                }
+                return prev;
+              });
+
               streamDone = true;
               break;
             }

@@ -2672,6 +2672,7 @@ function streamResponse(response: Response, conversationId: string, supabase: an
       const decoder = new TextDecoder();
       let accumulatedContent = '';
       let buffer = '';
+      let messageSaved = false; // Prevent duplicate inserts
 
       // Send conversation ID first
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ conversationId })}\n\n`));
@@ -2689,8 +2690,9 @@ function streamResponse(response: Response, conversationId: string, supabase: an
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') {
-                // Save assistant message
-                if (accumulatedContent) {
+                // Save assistant message (only once)
+                if (accumulatedContent && !messageSaved) {
+                  messageSaved = true;
                   await supabase
                     .from('conversation_messages')
                     .insert({
@@ -2703,6 +2705,38 @@ function streamResponse(response: Response, conversationId: string, supabase: an
                     .from('conversations')
                     .update({ updated_at: new Date().toISOString() })
                     .eq('id', conversationId);
+
+                  // Trigger async career aspiration detection (fire and forget)
+                  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+                  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+                  fetch(`${supabaseUrl}/functions/v1/detect-career-aspirations`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${supabaseServiceKey}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ conversationId }),
+                  }).catch(err => console.log('Aspiration detection skipped:', err.message));
+
+                  // Sync assistant response to Backboard for persistent memory (fire and forget)
+                  const backboard = createBackboardClient();
+                  if (backboard) {
+                    supabase
+                      .from('conversations')
+                      .select('profile_id')
+                      .eq('id', conversationId)
+                      .single()
+                      .then(async ({ data: conv }: any) => {
+                        if (conv?.profile_id) {
+                          const thread = await getOrCreateBackboardThread(supabase, conv.profile_id, 'general');
+                          if (thread) {
+                            backboard.syncMessage(thread.threadId, 'assistant', accumulatedContent)
+                              .catch((err: any) => console.log('Backboard assistant sync skipped:', err.message));
+                          }
+                        }
+                      })
+                      .catch((err: any) => console.log('Backboard thread lookup failed:', err.message));
+                  }
                 }
                 
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
@@ -2738,8 +2772,9 @@ function streamResponse(response: Response, conversationId: string, supabase: an
           }
         }
 
-        // Final save if we haven't done it yet
-        if (accumulatedContent && !buffer.includes('[DONE]')) {
+        // Final save only if [DONE] was never received (stream ended abruptly)
+        if (accumulatedContent && !messageSaved) {
+          messageSaved = true;
           await supabase
             .from('conversation_messages')
             .insert({
@@ -2752,40 +2787,6 @@ function streamResponse(response: Response, conversationId: string, supabase: an
             .from('conversations')
             .update({ updated_at: new Date().toISOString() })
             .eq('id', conversationId);
-          
-          // Trigger async career aspiration detection (fire and forget)
-          // This analyzes the user's message for career-related signals
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          fetch(`${supabaseUrl}/functions/v1/detect-career-aspirations`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${supabaseServiceKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ conversationId }),
-          }).catch(err => console.log('Aspiration detection skipped:', err.message));
-          
-          // Sync assistant response to Backboard for persistent memory (fire and forget)
-          const backboard = createBackboardClient();
-          if (backboard && accumulatedContent) {
-            // Get thread ID from conversation (we stored it earlier)
-            supabase
-              .from('conversations')
-              .select('profile_id')
-              .eq('id', conversationId)
-              .single()
-              .then(async ({ data: conv }: any) => {
-                if (conv?.profile_id) {
-                  const thread = await getOrCreateBackboardThread(supabase, conv.profile_id, 'general');
-                  if (thread) {
-                    backboard.syncMessage(thread.threadId, 'assistant', accumulatedContent)
-                      .catch((err: any) => console.log('Backboard assistant sync skipped:', err.message));
-                  }
-                }
-              })
-              .catch((err: any) => console.log('Backboard thread lookup failed:', err.message));
-          }
           
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
         }
