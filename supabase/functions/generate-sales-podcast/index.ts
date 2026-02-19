@@ -300,28 +300,33 @@ Write it now - thoughtful and inviting:`;
     const scriptData = await scriptResponse.json();
     const script = scriptData.choices?.[0]?.message?.content || '';
 
-    console.log('Synthesizing audio with OpenAI TTS...');
+    console.log('Synthesizing audio with ElevenLabs TTS...');
 
-    // Generate audio with OpenAI TTS - using "onyx" voice (warm, thoughtful male)
-    // Other options: alloy, echo, fable, nova, shimmer
-    const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+    const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY')!;
+    // Using "Rachel" voice (warm, professional female) - voice ID: 21m00Tcm4TlvDq8ikWAM
+    const voiceId = '21m00Tcm4TlvDq8ikWAM';
+
+    const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'xi-api-key': elevenLabsApiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tts-1-hd', // Higher quality model
-        voice: 'shimmer', // Trying shimmer for comparison
-        input: script,
-        response_format: 'mp3',
-        speed: 1.0, // Natural pace
+        text: script,
+        model_id: 'eleven_turbo_v2',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.0,
+          use_speaker_boost: true,
+        },
       }),
     });
 
     if (!ttsResponse.ok) {
       const errorText = await ttsResponse.text();
-      console.error('OpenAI TTS failed:', errorText);
+      console.error('ElevenLabs TTS failed:', errorText);
       throw new Error('Failed to generate audio');
     }
 
