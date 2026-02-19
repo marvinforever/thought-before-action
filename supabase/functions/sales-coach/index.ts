@@ -1170,26 +1170,14 @@ async function gatherContext(
             .maybeSingle()
         : Promise.resolve({ data: null }),
       // Search purchase history regardless of whether company is in pipeline
-      (async () => {
-        const pageSize = 500;
-        let from = 0;
-        const allHistory: any[] = [];
-        while (true) {
-          // Search by lastName OR "LAST, FIRST" format OR "FIRST LAST" format
-          const { data, error } = await client
-            .from("customer_purchase_history")
-            .select("customer_name, year, season, amount, product_description, quantity, sale_date, rep_name")
-            .eq("company_id", companyId)
-            .or(`customer_name.ilike.%${lastName}%,customer_name.ilike.%${firstName}%`)
-            .order("sale_date", { ascending: false })
-            .range(from, from + pageSize - 1);
-          if (error || !data || data.length === 0) break;
-          allHistory.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-        }
-        return { data: allHistory };
-      })(),
+      // Search by lastName OR "LAST, FIRST" format OR "FIRST LAST" format
+      client
+        .from("customer_purchase_history")
+        .select("customer_name, year, season, amount, product_description, quantity, sale_date, rep_name")
+        .eq("company_id", companyId)
+        .or(`customer_name.ilike.%${lastName}%,customer_name.ilike.%${firstName}%`)
+        .order("sale_date", { ascending: false })
+        .limit(500),
     ]);
 
     context.intelligence = intelResult.data;
