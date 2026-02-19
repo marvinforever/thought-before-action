@@ -113,6 +113,104 @@ export async function handleParetoAnalysis(
   }
 }
 
+export async function handleRepCustomerListQuery(
+  message: string,
+  client: any,
+  userId: string | null,
+  companyId: string | null
+): Promise<string | null> {
+  if (!userId || !companyId) return null;
+
+  const lowerMsg = message.toLowerCase();
+
+  // Detect "Ed's customer list" / "show me Ed's customers" / "list of Ed's accounts" etc.
+  const repListPatterns = [
+    /(\w+)[''']s\s+(?:customer|account|client|grower|territory)\s+(?:list|accounts?|customers?|base)/i,
+    /(?:show|give|pull|get)\s+(?:me\s+)?(\w+)[''']s\s+(?:customers?|accounts?|clients?|growers?)/i,
+    /(?:customers?|accounts?|clients?|growers?)\s+(?:for|assigned to|under)\s+(\w+)/i,
+    /(\w+)[''']s\s+(?:territory|book\s+of\s+business|book)/i,
+    /what\s+(?:customers?|accounts?)\s+(?:does|did)\s+(\w+)\s+(?:have|manage|cover|service)/i,
+  ];
+
+  let repFirstName: string | null = null;
+  for (const pattern of repListPatterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      const candidate = match[1].trim();
+      // Skip common words that aren't names
+      if (/^(my|our|your|the|all|each|every|some|this|that)$/i.test(candidate)) continue;
+      repFirstName = candidate;
+      break;
+    }
+  }
+
+  if (!repFirstName) return null;
+
+  console.log(`[Rep Customer List] Detected query for rep: ${repFirstName}`);
+
+  try {
+    const pageSize = 1000;
+    let from = 0;
+    const allRows: any[] = [];
+
+    while (true) {
+      const { data, error } = await client
+        .from("customer_purchase_history")
+        .select("customer_name, amount, rep_name, year, sale_date")
+        .eq("company_id", companyId)
+        .ilike("rep_name", `${repFirstName}%`)
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allRows.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+
+    if (allRows.length === 0) {
+      return null; // Let the normal flow handle it
+    }
+
+    const actualRepName = allRows[0].rep_name;
+    const revenueByCustomer = new Map<string, { total: number; count: number; lastYear: string }>();
+
+    for (const row of allRows) {
+      const name = row.customer_name?.trim() || "Unknown";
+      const amt = Number(row.amount) || 0;
+      const yr = row.year || (row.sale_date ? row.sale_date.substring(0, 4) : "Unknown");
+      const cur = revenueByCustomer.get(name) || { total: 0, count: 0, lastYear: "" };
+      cur.total += amt;
+      cur.count += 1;
+      if (!cur.lastYear || String(yr) > cur.lastYear) cur.lastYear = String(yr);
+      revenueByCustomer.set(name, cur);
+    }
+
+    const sortedCustomers = Array.from(revenueByCustomer.entries()).sort((a, b) => b[1].total - a[1].total);
+    const totalRevenue = sortedCustomers.reduce((sum, [, d]) => sum + d.total, 0);
+
+    const fmt = (n: number) =>
+      new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+
+    let response = `## ${actualRepName}'s Customer List\n\n`;
+    response += `**${sortedCustomers.length} customers** | **Total Revenue: ${fmt(totalRevenue)}**\n\n`;
+    response += `| Rank | Customer | Total Revenue | Transactions |\n|------|----------|--------------|----------|\n`;
+
+    sortedCustomers.slice(0, 50).forEach(([name, data], idx) => {
+      response += `| ${idx + 1} | ${name} | ${fmt(data.total)} | ${data.count} |\n`;
+    });
+
+    if (sortedCustomers.length > 50) {
+      response += `\n*...and ${sortedCustomers.length - 50} more customers*`;
+    }
+
+    return response;
+  } catch (err) {
+    console.error("[Rep Customer List] Error:", err);
+    return null;
+  }
+}
+
 export async function handlePurchaseHistoryQuery(
   message: string,
   client: any,

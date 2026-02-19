@@ -7,7 +7,7 @@ import {
   loadBackboardMemory,
   formatBackboardMemoryForPrompt,
 } from "../_shared/backboard-client.ts";
-import { handleParetoAnalysis, handlePurchaseHistoryQuery } from "./analytics.ts";
+import { handleParetoAnalysis, handlePurchaseHistoryQuery, handleRepCustomerListQuery } from "./analytics.ts";
 import {
   ActionResult,
   createCompany,
@@ -127,6 +127,14 @@ serve(async (req) => {
     if (paretoResult) {
       return new Response(
         JSON.stringify({ message: paretoResult, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const repCustomerListResult = await handleRepCustomerListQuery(message, adminClient, effectiveUserId, effectiveCompanyId);
+    if (repCustomerListResult) {
+      return new Response(
+        JSON.stringify({ message: repCustomerListResult, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
