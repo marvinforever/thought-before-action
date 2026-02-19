@@ -1143,89 +1143,95 @@ async function gatherContext(
       return false;
     });
 
+    // Determine the name to search for purchase history (use matched company name if found, else raw extracted name)
+    const searchName = existingCompany ? existingCompany.name : companyName;
+    const nameParts = searchName.split(/\s+/);
+    const lastName = nameParts[nameParts.length - 1];
+    const firstName = nameParts[0];
+
     if (existingCompany) {
       // Mark as not new if we found it
       extracted.companies[0].isNew = false;
       console.log("Fuzzy matched company:", companyName, "->", existingCompany.name);
+    } else {
+      console.log(`[gatherContext] Company "${companyName}" not in pipeline - still searching purchase history by name`);
+    }
 
-      // Fetch intelligence in parallel with purchase history
-      // NOTE: customer_purchase_history.company_id is the ORG company ID (not the sales_companies ID)
-      // We match by customer name since purchase history doesn't have a sales_companies FK
-      const salesCompanyName = existingCompany.name;
-      const nameParts = salesCompanyName.split(/\s+/);
-      const lastName = nameParts[nameParts.length - 1];
-      
-      const [intelResult, historyResult] = await Promise.all([
-        client
-          .from("sales_company_intelligence")
-          .select("*")
-          .eq("company_id", existingCompany.id)
-          .eq("profile_id", userId)
-          .maybeSingle(),
-        // FIXED: Use org companyId and match by customer_name (not sales_companies.id)
-        // Paginate to get full history, not just 5 records
-        (async () => {
-          const pageSize = 500;
-          let from = 0;
-          const allHistory: any[] = [];
-          while (true) {
-            const { data, error } = await client
-              .from("customer_purchase_history")
-              .select("customer_name, year, season, amount, product_description, quantity, sale_date, rep_name")
-              .eq("company_id", companyId)
-              .ilike("customer_name", `%${lastName}%`)
-              .order("sale_date", { ascending: false })
-              .range(from, from + pageSize - 1);
-            if (error || !data || data.length === 0) break;
-            allHistory.push(...data);
-            if (data.length < pageSize) break;
-            from += pageSize;
-          }
-          return { data: allHistory };
-        })(),
-      ]);
-
-      context.intelligence = intelResult.data;
-      
-      // Build a structured purchase summary for AI context injection
-      const rawHistory = historyResult.data || [];
-      if (rawHistory.length > 0) {
-        // Aggregate by year and product for a concise but complete summary
-        const yearMap = new Map<string, { total: number; count: number }>();
-        const productMap = new Map<string, number>();
-        let totalRevenue = 0;
-        for (const row of rawHistory) {
-          const yr = row.year || (row.sale_date ? row.sale_date.substring(0, 4) : "Unknown");
-          const amt = Number(row.amount) || 0;
-          const prod = row.product_description || "Unknown";
-          yearMap.set(yr, { total: (yearMap.get(yr)?.total || 0) + amt, count: (yearMap.get(yr)?.count || 0) + 1 });
-          productMap.set(prod, (productMap.get(prod) || 0) + amt);
-          totalRevenue += amt;
+    // Fetch intelligence (only if company is in pipeline) and purchase history in parallel
+    // NOTE: customer_purchase_history.company_id is the ORG company ID (not the sales_companies ID)
+    // We match by customer name using both lastName and firstName to handle "LAST, FIRST" and "First Last" formats
+    const [intelResult, historyResult] = await Promise.all([
+      existingCompany
+        ? client
+            .from("sales_company_intelligence")
+            .select("*")
+            .eq("company_id", existingCompany.id)
+            .eq("profile_id", userId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      // Search purchase history regardless of whether company is in pipeline
+      (async () => {
+        const pageSize = 500;
+        let from = 0;
+        const allHistory: any[] = [];
+        while (true) {
+          // Search by lastName OR "LAST, FIRST" format OR "FIRST LAST" format
+          const { data, error } = await client
+            .from("customer_purchase_history")
+            .select("customer_name, year, season, amount, product_description, quantity, sale_date, rep_name")
+            .eq("company_id", companyId)
+            .or(`customer_name.ilike.%${lastName}%,customer_name.ilike.%${firstName}%`)
+            .order("sale_date", { ascending: false })
+            .range(from, from + pageSize - 1);
+          if (error || !data || data.length === 0) break;
+          allHistory.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
         }
-        const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
-        const yearSummary = Array.from(yearMap.entries())
-          .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
-          .slice(0, 5)
-          .map(([yr, d]) => `  - ${yr}: ${fmt(d.total)} (${d.count} transactions)`)
-          .join("\n");
-        const topProducts = Array.from(productMap.entries())
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([p, amt]) => `  - ${p}: ${fmt(amt)}`)
-          .join("\n");
-        context.purchaseHistory = rawHistory;
-        context.purchaseHistorySummary = `PURCHASE HISTORY for ${salesCompanyName} (${rawHistory.length} transactions found):
+        return { data: allHistory };
+      })(),
+    ]);
+
+    context.intelligence = intelResult.data;
+    
+    // Build a structured purchase summary for AI context injection
+    const rawHistory = historyResult.data || [];
+    if (rawHistory.length > 0) {
+      // Aggregate by year and product for a concise but complete summary
+      const yearMap = new Map<string, { total: number; count: number }>();
+      const productMap = new Map<string, number>();
+      let totalRevenue = 0;
+      for (const row of rawHistory) {
+        const yr = row.year || (row.sale_date ? row.sale_date.substring(0, 4) : "Unknown");
+        const amt = Number(row.amount) || 0;
+        const prod = row.product_description || "Unknown";
+        yearMap.set(yr, { total: (yearMap.get(yr)?.total || 0) + amt, count: (yearMap.get(yr)?.count || 0) + 1 });
+        productMap.set(prod, (productMap.get(prod) || 0) + amt);
+        totalRevenue += amt;
+      }
+      const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+      const yearSummary = Array.from(yearMap.entries())
+        .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+        .slice(0, 5)
+        .map(([yr, d]) => `  - ${yr}: ${fmt(d.total)} (${d.count} transactions)`)
+        .join("\n");
+      const topProducts = Array.from(productMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([p, amt]) => `  - ${p}: ${fmt(amt)}`)
+        .join("\n");
+      context.purchaseHistory = rawHistory;
+      context.purchaseHistorySummary = `PURCHASE HISTORY for ${searchName} (${rawHistory.length} transactions found):
 Total Revenue: ${fmt(totalRevenue)}
 By Year:
 ${yearSummary}
 Top Products by Revenue:
 ${topProducts}`;
-        console.log(`[gatherContext] Purchase history loaded: ${rawHistory.length} records for ${salesCompanyName}, total ${fmt(totalRevenue)}`);
-      } else {
-        console.log(`[gatherContext] No purchase history found for ${salesCompanyName} (searched by lastName: ${lastName})`);
-        context.purchaseHistory = [];
-        context.purchaseHistorySummary = null;
-      }
+      console.log(`[gatherContext] Purchase history loaded: ${rawHistory.length} records for ${searchName}, total ${fmt(totalRevenue)}`);
+    } else {
+      console.log(`[gatherContext] No purchase history found for ${searchName} (searched by firstName: ${firstName}, lastName: ${lastName})`);
+      context.purchaseHistory = [];
+      context.purchaseHistorySummary = null;
     }
   }
 
