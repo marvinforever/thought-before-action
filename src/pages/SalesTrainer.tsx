@@ -48,6 +48,7 @@ const SalesTrainer = () => {
   const [input, setInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [newCustomerPrompt, setNewCustomerPrompt] = useState<{ name: string } | null>(null);
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
   const [deals, setDeals] = useState<any[]>([]);
@@ -469,6 +470,11 @@ const SalesTrainer = () => {
         }
       }
 
+      // Show new customer prompt if detected but not in system
+      if (response.data?.newCustomerPrompt) {
+        setNewCustomerPrompt(response.data.newCustomerPrompt);
+      }
+
       if (response.error) throw response.error;
 
       const assistantMessage = response.data?.message || "Let me think on that...";
@@ -695,10 +701,16 @@ const SalesTrainer = () => {
           profile={profile}
           companyId={effectiveCompanyId || ""}
           userId={user?.id || ""}
+          newCustomerPrompt={newCustomerPrompt}
           onUploadDocument={() => setShowUploadDialog(true)}
           onInputChange={setInput}
           onSendMessage={sendMessage}
           onCancel={cancelMessage}
+          onDismissNewCustomerPrompt={() => setNewCustomerPrompt(null)}
+          onCreateCustomerProfile={(name) => {
+            setNewCustomerPrompt(null);
+            sendMessage(`Create a company profile for ${name}`);
+          }}
           onStartCoaching={startCoaching}
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
