@@ -2,6 +2,8 @@
 // DETERMINISTIC ANALYTICS HANDLERS
 // ============================================
 
+import { queryCache, repSummaryKey, repExistsKey } from "./cache.ts";
+
 export async function handleParetoAnalysis(
   message: string,
   client: any,
@@ -46,12 +48,22 @@ export async function handleParetoAnalysis(
     const repName = userProfile?.full_name?.toUpperCase() || null;
 
     // Use RPC for DB-side aggregation — single round trip instead of 25
-    const { data: repData, error } = await client.rpc("get_rep_customer_summary", {
-      p_company_id: companyId,
-      p_rep_first_name: repName ? repName.split(" ")[0] : "",
-    });
+    const repFirstName = repName ? repName.split(" ")[0] : "";
+    const cacheKey = repSummaryKey(companyId, repFirstName);
 
-    if (error) throw error;
+    const repData = await queryCache.getOrFetch(
+      cacheKey,
+      async () => {
+        const { data, error } = await client.rpc("get_rep_customer_summary", {
+          p_company_id: companyId,
+          p_rep_first_name: repFirstName,
+        });
+        if (error) throw error;
+        return data;
+      }
+    );
+
+    const error = null; // handled inside getOrFetch
 
     if (!repData || repData.length === 0) {
       return `I don't have any purchase history data for ${repName || "your account"}. Ensure your sales data is imported and your name matches the rep name in the data.`;
@@ -158,14 +170,22 @@ export async function handleRepCustomerListQuery(
 
   if (!repFirstName) return null;
 
-  // Verify this first name matches an actual rep in the data before proceeding
-  const { data: repCheck } = await client
-    .from("customer_purchase_history")
-    .select("rep_name")
-    .eq("company_id", companyId)
-    .ilike("rep_name", `${repFirstName}%`)
-    .limit(1)
-    .maybeSingle();
+  // Verify this first name matches an actual rep — use cache to avoid repeated validation queries
+  const existsKey = repExistsKey(companyId, repFirstName);
+  const repCheck = await queryCache.getOrFetch(
+    existsKey,
+    async () => {
+      const { data } = await client
+        .from("customer_purchase_history")
+        .select("rep_name")
+        .eq("company_id", companyId)
+        .ilike("rep_name", `${repFirstName}%`)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    10 * 60 * 1000 // 10 min TTL — rep roster changes rarely
+  );
 
   // If no rep found with that first name, don't intercept
   if (!repCheck) return null;
@@ -173,13 +193,19 @@ export async function handleRepCustomerListQuery(
   console.log(`[Rep Customer List] Detected query for rep: ${repFirstName}`);
 
   try {
-    // Single RPC call — DB does all aggregation, no row transfer
-    const { data: repData, error } = await client.rpc("get_rep_customer_summary", {
-      p_company_id: companyId,
-      p_rep_first_name: repFirstName,
-    });
-
-    if (error) throw error;
+    // Single RPC call with caching — DB does all aggregation, no row transfer
+    const cacheKey = repSummaryKey(companyId, repFirstName);
+    const repData = await queryCache.getOrFetch(
+      cacheKey,
+      async () => {
+        const { data, error } = await client.rpc("get_rep_customer_summary", {
+          p_company_id: companyId,
+          p_rep_first_name: repFirstName,
+        });
+        if (error) throw error;
+        return data;
+      }
+    );
 
     if (!repData || repData.length === 0) {
       return null; // Let the normal flow handle it
