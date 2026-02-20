@@ -160,7 +160,7 @@ export const ROUTING_TABLE: Record<TaskType, string> = {
   'podcast-script': 'gemini-flash',
   'resource-recommendation': 'gemini-flash',
   'sales-coaching': 'gemini-flash',
-  'sales-coaching-main': 'opus',  // Claude Opus 4.6 for maximum accuracy during debugging
+  'sales-coaching-main': 'gemini-flash',  // Gemini Flash - reliable, fast, no Anthropic credits needed
   'meeting-parsing': 'gemini-flash',
   'habit-suggestions': 'gemini-flash',
   'goal-writing': 'gemini-flash',
