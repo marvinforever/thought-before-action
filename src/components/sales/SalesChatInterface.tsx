@@ -45,7 +45,7 @@ interface SalesChatInterfaceProps {
   onSendMessage: (message?: string) => void;
   onCancel: () => void;
   onDismissNewCustomerPrompt?: () => void;
-  onCreateCustomerProfile?: (name: string) => void;
+  onCreateCustomerProfile?: () => void;
   onStartCoaching: () => void;
   onAddDeal: () => void;
   onShowProposalWizard: () => void;
@@ -298,7 +298,7 @@ export function SalesChatInterface({
                 size="sm"
                 variant="outline"
                 className="gap-1.5 h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                onClick={() => onCreateCustomerProfile?.(newCustomerPrompt.name)}
+                onClick={() => onCreateCustomerProfile?.()}
               >
                 <UserPlus className="h-3 w-3" />
                 Create Profile

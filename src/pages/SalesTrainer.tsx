@@ -14,6 +14,7 @@ import { SalesProposalWizard } from "@/components/sales/SalesProposalWizard";
 import { FourCallPlanTracker } from "@/components/sales/FourCallPlanTracker";
 import { DocumentUploadDialog } from "@/components/sales/DocumentUploadDialog";
 import { CustomerSelector } from "@/components/sales/CustomerSelector";
+import { NewCustomerQuickCreateDialog } from "@/components/sales/NewCustomerQuickCreateDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -49,6 +50,7 @@ const SalesTrainer = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [newCustomerPrompt, setNewCustomerPrompt] = useState<{ name: string } | null>(null);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
   const [deals, setDeals] = useState<any[]>([]);
@@ -707,10 +709,7 @@ const SalesTrainer = () => {
           onSendMessage={sendMessage}
           onCancel={cancelMessage}
           onDismissNewCustomerPrompt={() => setNewCustomerPrompt(null)}
-          onCreateCustomerProfile={(name) => {
-            setNewCustomerPrompt(null);
-            sendMessage(`Create a company profile for ${name}`);
-          }}
+          onCreateCustomerProfile={() => setShowQuickCreate(true)}
           onStartCoaching={startCoaching}
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
@@ -773,6 +772,24 @@ const SalesTrainer = () => {
         customers={customers}
         onUploadComplete={() => {
           if (effectiveUserId) fetchUserContext(effectiveUserId);
+        }}
+      />
+      <NewCustomerQuickCreateDialog
+        open={showQuickCreate}
+        onOpenChange={(open) => {
+          setShowQuickCreate(open);
+          if (!open) setNewCustomerPrompt(null);
+        }}
+        prefilledName={newCustomerPrompt?.name || ""}
+        userId={effectiveUserId || ""}
+        onSuccess={(companyId, companyName) => {
+          setNewCustomerPrompt(null);
+          // Refresh customers list and deals
+          fetchCustomers();
+          const uid = viewAsUserId || user?.id;
+          if (uid) viewAsUserId ? fetchDealsForUser(uid) : fetchDeals(uid);
+          // Let Jericho know the profile was created
+          sendMessage(`I just created a customer profile for ${companyName}. They've been added to my companies.`);
         }}
       />
     </div>
