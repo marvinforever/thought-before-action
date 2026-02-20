@@ -6826,9 +6826,28 @@ export type Database = {
       }
       check_and_award_badges: { Args: { user_id: string }; Returns: undefined }
       generate_referral_code: { Args: never; Returns: string }
+      get_customer_purchase_summary_v2: {
+        Args: { p_company_id: string; p_customer_name_pattern: string }
+        Returns: {
+          last_sale_date: string
+          top_products: Json
+          total_revenue: number
+          transaction_count: number
+          yearly_totals: Json
+        }[]
+      }
       get_partner_id_by_referral_code: {
         Args: { p_referral_code: string }
         Returns: string
+      }
+      get_rep_customer_summary: {
+        Args: { p_company_id: string; p_rep_first_name: string }
+        Returns: {
+          customer_name: string
+          rep_name: string
+          total_revenue: number
+          transaction_count: number
+        }[]
       }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
