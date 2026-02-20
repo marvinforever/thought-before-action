@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   ClipboardList,
   Paperclip,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -39,6 +40,7 @@ interface SalesChatInterfaceProps {
   onUploadDocument: () => void;
   onInputChange: (value: string) => void;
   onSendMessage: (message?: string) => void;
+  onCancel: () => void;
   onStartCoaching: () => void;
   onAddDeal: () => void;
   onShowProposalWizard: () => void;
@@ -59,6 +61,7 @@ export function SalesChatInterface({
   onUploadDocument,
   onInputChange,
   onSendMessage,
+  onCancel,
   onStartCoaching,
   onAddDeal,
   onShowProposalWizard,
@@ -235,11 +238,11 @@ export function SalesChatInterface({
 
           {chatLoading && (
             <motion.div 
-              className="flex justify-start"
+              className="flex justify-start items-center gap-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center mr-2 shadow-md">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center mr-2 shadow-md shrink-0">
                 <span className="text-sm font-bold text-accent">J</span>
               </div>
               <Card className="bg-card">
@@ -248,6 +251,15 @@ export function SalesChatInterface({
                   <span className="text-sm text-muted-foreground">Thinking...</span>
                 </CardContent>
               </Card>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+              >
+                <X className="h-3.5 w-3.5" />
+                Stop
+              </Button>
             </motion.div>
           )}
           <div ref={bottomRef} />
