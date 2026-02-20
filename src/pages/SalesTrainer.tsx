@@ -47,6 +47,7 @@ const SalesTrainer = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
   const [deals, setDeals] = useState<any[]>([]);
@@ -407,6 +408,14 @@ const SalesTrainer = () => {
     }
   };
 
+  const cancelMessage = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setChatLoading(false);
+  };
+
   const sendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text) return;
@@ -414,6 +423,7 @@ const SalesTrainer = () => {
     setInput("");
     setMessages(prev => [...prev, { role: "user", content: text }]);
     setChatLoading(true);
+    abortControllerRef.current = new AbortController();
 
     let currentConvId = conversationId;
     if (!currentConvId) {
@@ -513,10 +523,15 @@ const SalesTrainer = () => {
           viewAsUserId ? fetchDealsForUser(userId) : fetchDeals(userId);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === "AbortError" || error?.message?.includes("aborted")) {
+        // User cancelled — do nothing, state already reset by cancelMessage
+        return;
+      }
       console.error("Chat error:", error);
       toast({ title: "Coach unavailable", description: "Try again in a moment.", variant: "destructive" });
     } finally {
+      abortControllerRef.current = null;
       setChatLoading(false);
     }
   };
@@ -683,6 +698,7 @@ const SalesTrainer = () => {
           onUploadDocument={() => setShowUploadDialog(true)}
           onInputChange={setInput}
           onSendMessage={sendMessage}
+          onCancel={cancelMessage}
           onStartCoaching={startCoaching}
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
