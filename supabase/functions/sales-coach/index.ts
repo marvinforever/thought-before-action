@@ -300,16 +300,25 @@ serve(async (req) => {
           }
         }
 
-        const dealResult = await createDeal(adminClient, effectiveUserId, effectiveCompanyId, companyResult.entityId, company.name, extracted.dealSignals || { stage: "prospecting" }, message);
+        const dealSignals = extracted.dealSignals || { stage: "prospecting" };
+        const dealResult = await createDeal(adminClient, effectiveUserId, effectiveCompanyId, companyResult.entityId, company.name, dealSignals, message);
         if (dealResult.success) {
           actions.push(dealResult);
           if (dealResult.type === "deal_created") {
             dealCreated = true;
 
-            // Fire-and-forget email confirmation to the rep when deal is auto-detected
+            // Fire-and-forget email confirmation to the rep when deal is auto-detected from a conversation
             if (isConversationDetected && effectiveUserId) {
-              sendDealDetectionEmail(adminClient, effectiveUserId, company.name, extracted.detectedProduct, extracted.detectedTopic)
-                .catch((err) => console.error("Deal detection email failed:", err));
+              const dealStage = dealSignals.stage || "prospecting";
+              sendDealDetectionEmail(
+                adminClient,
+                effectiveUserId,
+                company.name,
+                dealResult.entityId,
+                dealStage,
+                extracted.detectedProduct,
+                extracted.detectedTopic
+              ).catch((err) => console.error("Deal detection email failed:", err));
             }
           }
         }
@@ -401,6 +410,8 @@ async function sendDealDetectionEmail(
   client: any,
   userId: string,
   customerName: string,
+  dealId: string,
+  stage: string,
   detectedProduct?: string,
   detectedTopic?: string
 ): Promise<void> {
@@ -414,34 +425,118 @@ async function sendDealDetectionEmail(
     if (!profile?.email) return;
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const fromEmail = Deno.env.get("RESEND_FROM") || "noreply@thought-before-action.lovable.app";
     if (!resendKey) return;
 
     const repName = profile.full_name?.split(" ")[0] || "there";
-    const productLine = detectedProduct ? `<p><strong>Product/Interest:</strong> ${detectedProduct}</p>` : "";
-    const topicLine = detectedTopic ? `<p><strong>Topic discussed:</strong> ${detectedTopic}</p>` : "";
+    const now = new Date();
+    const loggedAt = now.toLocaleString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
 
-    await fetch("https://api.resend.com/emails", {
+    const appBaseUrl = "https://thought-before-action.lovable.app";
+    const dealLink = `${appBaseUrl}/sales`;
+
+    const stageLabel = stage.charAt(0).toUpperCase() + stage.slice(1);
+
+    const detailRows = [
+      `<tr><td style="padding:8px 12px;color:#6b7280;font-size:14px;">Customer</td><td style="padding:8px 12px;font-weight:600;font-size:14px;">${customerName}</td></tr>`,
+      `<tr style="background:#f9fafb;"><td style="padding:8px 12px;color:#6b7280;font-size:14px;">Stage</td><td style="padding:8px 12px;font-size:14px;">${stageLabel}</td></tr>`,
+      `<tr><td style="padding:8px 12px;color:#6b7280;font-size:14px;">Logged at</td><td style="padding:8px 12px;font-size:14px;">${loggedAt}</td></tr>`,
+      detectedProduct ? `<tr style="background:#f9fafb;"><td style="padding:8px 12px;color:#6b7280;font-size:14px;">Product / Interest</td><td style="padding:8px 12px;font-size:14px;">${detectedProduct}</td></tr>` : "",
+      detectedTopic ? `<tr><td style="padding:8px 12px;color:#6b7280;font-size:14px;">Topic discussed</td><td style="padding:8px 12px;font-size:14px;">${detectedTopic}</td></tr>` : "",
+    ].join("");
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);max-width:600px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#1e3a5f 0%,#1a56db 100%);padding:32px 40px;">
+            <p style="margin:0;color:rgba(255,255,255,0.7);font-size:13px;letter-spacing:1px;text-transform:uppercase;">Jericho · Sales Agent</p>
+            <h1 style="margin:8px 0 0;color:#ffffff;font-size:24px;font-weight:700;">Pipeline Entry Created</h1>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px 40px;">
+            <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hey ${repName} 👋</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+              Jericho detected a customer interaction in your conversation and automatically logged a new deal in your pipeline.
+            </p>
+
+            <!-- Deal details table -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+              <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+                <td colspan="2" style="padding:10px 12px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;">Deal Details</td>
+              </tr>
+              ${detailRows}
+            </table>
+
+            <!-- Suggestion -->
+            <div style="background:#eff6ff;border-left:4px solid #1a56db;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:28px;">
+              <p style="margin:0;font-size:14px;color:#1e3a5f;line-height:1.6;">
+                <strong>💡 Next step:</strong> Add more details to this pipeline entry — estimated value, next meeting date, or key notes from your conversation — to keep your pipeline accurate.
+              </p>
+            </div>
+
+            <!-- CTA -->
+            <table cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-radius:8px;background:#1a56db;">
+                  <a href="${dealLink}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">
+                    View &amp; Edit in Sales Agent →
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 40px;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;">
+              This entry was created automatically by Jericho when it detected a customer mention in your conversation. You can undo this action directly in the Sales Agent chat.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: fromEmail,
+        from: "Jericho <jericho@sender.askjericho.com>",
         to: profile.email,
-        subject: `📋 Pipeline entry created: ${customerName}`,
-        html: `
-          <h2>Hey ${repName},</h2>
-          <p>Jericho detected a customer interaction and automatically created a pipeline entry for:</p>
-          <h3 style="color:#1a56db;">${customerName}</h3>
-          ${productLine}
-          ${topicLine}
-          <p>A new deal has been added to your pipeline in the <strong>Prospecting</strong> stage.</p>
-          <p>Log in to review and update the details anytime.</p>
-          <hr/>
-          <p style="color:#6b7280;font-size:12px;">This is an automated message from Jericho, your AI sales agent.</p>
-        `,
+        subject: `📋 New pipeline entry: ${customerName}`,
+        html,
       }),
     });
-    console.log(`Deal detection email sent to ${profile.email} for customer ${customerName}`);
+
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error(`Deal detection email send failed [${res.status}]:`, txt);
+    } else {
+      console.log(`Deal detection email sent to ${profile.email} for customer "${customerName}" (deal ${dealId})`);
+    }
   } catch (err) {
     console.error("Failed to send deal detection email:", err);
   }
