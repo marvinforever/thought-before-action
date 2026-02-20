@@ -246,11 +246,15 @@ export async function handlePurchaseHistoryQuery(
   if (!userId || !companyId) return null;
 
   const purchasePatterns = [
-    /(?:what|show me|tell me|give me)\s+(?:did|has|does)\s+(\w+(?:\s+\w+)?)\s+(?:buy|bought|purchase|order)/i,
-    /(\w+(?:\s+\w+)?)\s*[']?s?\s+(?:purchase|buying|order)\s*(?:history|record|data)/i,
-    /(?:purchase|order|buying)\s*(?:history|record)\s+(?:for|of|from)\s+(\w+(?:\s+\w+)?)/i,
-    /(?:what|which)\s+(?:products?|items?)\s+(?:did|has|does)\s+(\w+(?:\s+\w+)?)\s+(?:buy|order|purchase)/i,
-    /show\s+(?:me\s+)?(\w+(?:\s+\w+)?)\s*[']?s?\s+(?:purchases?|orders?|history)/i,
+    /(?:what|show me|tell me|give me)\s+(?:did|has|does)\s+(.+?)\s+(?:buy|bought|purchase|order)/i,
+    /(.+?)\s*[']?s?\s+(?:purchase|buying|order)\s*(?:history|record|data)/i,
+    /(?:purchase|order|buying)\s*(?:history|record)\s+(?:for|of|from)\s+(.+?)(?:\?|$)/i,
+    /(?:what|which)\s+(?:products?|items?)\s+(?:did|has|does)\s+(.+?)\s+(?:buy|order|purchase)/i,
+    /show\s+(?:me\s+)?(.+?)\s*[']?s?\s+(?:purchases?|orders?|history)/i,
+    // "what has Bollig Brothers bought", "tell me about Lofstrom's history"
+    /(?:tell me about|what about|info on|details? (?:on|for|about))\s+(.+?)(?:'s)?\s+(?:purchase|buying|order|history|data)/i,
+    // "how much has [customer] spent"
+    /how\s+much\s+(?:has|did|have)\s+(.+?)\s+(?:spent?|paid?|bought?|purchased?)/i,
   ];
 
   let customerName: string | null = null;
@@ -264,6 +268,9 @@ export async function handlePurchaseHistoryQuery(
 
   if (!customerName) return null;
 
+  // Clean up the extracted name — remove trailing noise words
+  customerName = customerName.replace(/\s+(bought|buy|purchase|order|history|data|record|spent|paid).*$/i, "").trim();
+
   console.log("[Purchase History] Detected query for customer:", customerName);
 
   try {
@@ -272,11 +279,24 @@ export async function handlePurchaseHistoryQuery(
     const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : null;
     const reversedName = lastName ? `${lastName}, ${firstName}` : customerName;
 
-    // Try direct lookup via RPC first
-    const { data: summaryData } = await client.rpc("get_customer_purchase_summary_v2", {
-      p_company_id: companyId,
-      p_customer_name_pattern: `%${lastName || customerName}%`,
-    });
+    // Build a list of search patterns to try, in priority order
+    const searchPatterns: string[] = [];
+    if (lastName) searchPatterns.push(`%${lastName}%`);      // "Lofstrom" matches "LOFSTROM, STEVE"
+    searchPatterns.push(`%${customerName}%`);                  // Full name (e.g. "Bollig Brothers")
+    if (firstName !== lastName && firstName.length > 2) searchPatterns.push(`%${firstName}%`);
+
+    let summaryData: any[] | null = null;
+    for (const pattern of searchPatterns) {
+      const { data } = await client.rpc("get_customer_purchase_summary_v2", {
+        p_company_id: companyId,
+        p_customer_name_pattern: pattern,
+      });
+      console.log(`[Purchase History] Pattern "${pattern}" → revenue=${data?.[0]?.total_revenue}`);
+      if (data?.[0] && Number(data[0].total_revenue) > 0) {
+        summaryData = data;
+        break;
+      }
+    }
 
     const summary = summaryData?.[0];
 
