@@ -17,6 +17,7 @@ import {
   handlePipelineActions,
 } from "./actions.ts";
 import { loadCustomerMemory, extractAndSaveInsights } from "./memory.ts";
+import { queryCache, customerSummaryKey } from "./cache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -458,10 +459,13 @@ async function gatherContext(
         ? client.from("sales_company_intelligence").select("*").eq("company_id", existingCompany.id).eq("profile_id", userId).maybeSingle()
         : Promise.resolve({ data: null }),
       companyId
-        ? client.rpc("get_customer_purchase_summary_v2", {
-            p_company_id: companyId,
-            p_customer_name_pattern: `%${lastName}%`,
-          })
+        ? queryCache.getOrFetch(
+            customerSummaryKey(companyId, `%${lastName}%`),
+            () => client.rpc("get_customer_purchase_summary_v2", {
+              p_company_id: companyId,
+              p_customer_name_pattern: `%${lastName}%`,
+            }),
+          ).then(data => ({ data }))
         : Promise.resolve({ data: null }),
     ]);
 
