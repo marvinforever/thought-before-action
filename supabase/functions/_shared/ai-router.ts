@@ -68,7 +68,7 @@ export const MODELS: Record<string, ModelConfig> = {
   'opus': {
     // NOTE: Anthropic model IDs are strict; an invalid ID will 404 and trigger fallback.
     // Keep this aligned with Anthropic's published model list.
-    id: 'claude-opus-4-5-20251101',
+    id: 'claude-opus-4-6',
     provider: 'anthropic',
     maxTokens: 200000,
     costPer1MInput: 15.00,
@@ -160,7 +160,7 @@ export const ROUTING_TABLE: Record<TaskType, string> = {
   'podcast-script': 'gemini-flash',
   'resource-recommendation': 'gemini-flash',
   'sales-coaching': 'gemini-flash',
-  'sales-coaching-main': 'sonnet',  // Claude Sonnet for better instruction-following
+  'sales-coaching-main': 'opus',  // Claude Opus 4.6 for maximum accuracy during debugging
   'meeting-parsing': 'gemini-flash',
   'habit-suggestions': 'gemini-flash',
   'goal-writing': 'gemini-flash',
