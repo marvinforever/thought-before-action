@@ -802,7 +802,7 @@ async function gatherContext(
       extracted.companies[0].isNew = false;
     }
 
-    const [intelResult, purchaseSummaryResult] = await withTimeout(
+    const [intelResult, purchaseSummaryRaw] = await withTimeout(
       Promise.all([
         existingCompany
           ? client.from("sales_company_intelligence").select("*").eq("company_id", existingCompany.id).eq("profile_id", userId).maybeSingle()
@@ -810,12 +810,20 @@ async function gatherContext(
         companyId
           ? queryCache.getOrFetch(
               customerSummaryKey(companyId, `%${lastName}%`),
-              () => client.rpc("get_customer_purchase_summary_v2", {
-                p_company_id: companyId,
-                p_customer_name_pattern: `%${lastName}%`,
-              }),
-            ).then(data => ({ data }))
-          : Promise.resolve({ data: null }),
+              async () => {
+                const { data, error } = await client.rpc("get_customer_purchase_summary_v2", {
+                  p_company_id: companyId,
+                  p_customer_name_pattern: `%${lastName}%`,
+                });
+                if (error) {
+                  console.error("[gatherContext] purchase summary RPC error:", error);
+                  return null;
+                }
+                console.log(`[gatherContext] purchase summary for %${lastName}%: ${data?.length ?? 0} rows, revenue=${data?.[0]?.total_revenue}`);
+                return data;
+              },
+            )
+          : Promise.resolve(null),
       ]),
       10_000,
       "gatherContext:intel-and-purchase-summary"
@@ -823,7 +831,8 @@ async function gatherContext(
 
     context.intelligence = intelResult.data;
 
-    const purchaseSummary = purchaseSummaryResult.data?.[0];
+    // purchaseSummaryRaw is the cached array directly (not wrapped in {data})
+    const purchaseSummary = Array.isArray(purchaseSummaryRaw) ? purchaseSummaryRaw[0] : null;
     if (purchaseSummary && Number(purchaseSummary.total_revenue) > 0) {
       const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
       const totalRevenue = Number(purchaseSummary.total_revenue) || 0;
@@ -847,6 +856,40 @@ async function gatherContext(
       context.purchaseHistorySummary = `PURCHASE HISTORY for ${searchName} (${txnCount} transactions):\nTotal: ${fmt(totalRevenue)}\nBy Year:\n${yearSummary}\nTop Products:\n${topProducts}`;
     } else {
       context.purchaseHistorySummary = null;
+    }
+  } else if (companyId) {
+    // No specific company extracted from message — but if there's an activeCustomer
+    // from context (e.g. user is in a customer tab), try to load their purchase history
+    // using the userContext which may contain customer name info
+    const customerHintMatch = userContext?.match(/customer:\s*(.+?)(?:\n|$)/i);
+    if (customerHintMatch?.[1]) {
+      const hintName = customerHintMatch[1].trim();
+      const hintParts = hintName.split(/\s+/);
+      const hintLast = hintParts[hintParts.length - 1];
+      const { data: hintSummaryData } = await client.rpc("get_customer_purchase_summary_v2", {
+        p_company_id: companyId,
+        p_customer_name_pattern: `%${hintLast}%`,
+      });
+      const hintSummary = hintSummaryData?.[0];
+      if (hintSummary && Number(hintSummary.total_revenue) > 0) {
+        const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+        const totalRevenue = Number(hintSummary.total_revenue) || 0;
+        const txnCount = Number(hintSummary.transaction_count) || 0;
+        const yearSummary = hintSummary.yearly_totals
+          ? Object.entries(hintSummary.yearly_totals as Record<string, number>)
+              .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+              .slice(0, 5)
+              .map(([yr, total]) => `  - ${yr}: ${fmt(Number(total))}`)
+              .join("\n")
+          : "  - No yearly data";
+        const topProductsTxt = hintSummary.top_products
+          ? (hintSummary.top_products as Array<{ name: string; revenue: number }>)
+              .slice(0, 10)
+              .map((p) => `  - ${p.name}: ${fmt(Number(p.revenue))}`)
+              .join("\n")
+          : "  - No product data";
+        context.purchaseHistorySummary = `PURCHASE HISTORY for ${hintName} (${txnCount} transactions):\nTotal: ${fmt(totalRevenue)}\nBy Year:\n${yearSummary}\nTop Products:\n${topProductsTxt}`;
+      }
     }
   }
 
