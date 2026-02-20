@@ -453,41 +453,43 @@ async function gatherContext(
       extracted.companies[0].isNew = false;
     }
 
-    const [intelResult, historyResult] = await Promise.all([
+    const [intelResult, purchaseSummaryResult] = await Promise.all([
       existingCompany
         ? client.from("sales_company_intelligence").select("*").eq("company_id", existingCompany.id).eq("profile_id", userId).maybeSingle()
         : Promise.resolve({ data: null }),
-      client
-        .from("customer_purchase_history")
-        .select("customer_name, year, season, amount, product_description, quantity, sale_date, rep_name")
-        .eq("company_id", companyId)
-        .or(`customer_name.ilike.%${lastName}%,customer_name.ilike.%${firstName}%`)
-        .order("sale_date", { ascending: false })
-        .limit(500),
+      companyId
+        ? client.rpc("get_customer_purchase_summary_v2", {
+            p_company_id: companyId,
+            p_customer_name_pattern: `%${lastName}%`,
+          })
+        : Promise.resolve({ data: null }),
     ]);
 
     context.intelligence = intelResult.data;
 
-    const rawHistory = historyResult.data || [];
-    if (rawHistory.length > 0) {
-      const yearMap = new Map<string, { total: number; count: number }>();
-      const productMap = new Map<string, number>();
-      let totalRevenue = 0;
-      for (const row of rawHistory) {
-        const yr = row.year || (row.sale_date ? row.sale_date.substring(0, 4) : "Unknown");
-        const amt = Number(row.amount) || 0;
-        const prod = row.product_description || "Unknown";
-        yearMap.set(yr, { total: (yearMap.get(yr)?.total || 0) + amt, count: (yearMap.get(yr)?.count || 0) + 1 });
-        productMap.set(prod, (productMap.get(prod) || 0) + amt);
-        totalRevenue += amt;
-      }
+    const purchaseSummary = purchaseSummaryResult.data?.[0];
+    if (purchaseSummary && Number(purchaseSummary.total_revenue) > 0) {
       const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
-      const yearSummary = Array.from(yearMap.entries()).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 5).map(([yr, d]) => `  - ${yr}: ${fmt(d.total)} (${d.count} transactions)`).join("\n");
-      const topProducts = Array.from(productMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([p, amt]) => `  - ${p}: ${fmt(amt)}`).join("\n");
-      context.purchaseHistory = rawHistory;
-      context.purchaseHistorySummary = `PURCHASE HISTORY for ${searchName} (${rawHistory.length} transactions):\nTotal: ${fmt(totalRevenue)}\nBy Year:\n${yearSummary}\nTop Products:\n${topProducts}`;
+      const totalRevenue = Number(purchaseSummary.total_revenue) || 0;
+      const txnCount = Number(purchaseSummary.transaction_count) || 0;
+
+      const yearSummary = purchaseSummary.yearly_totals
+        ? Object.entries(purchaseSummary.yearly_totals as Record<string, number>)
+            .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+            .slice(0, 5)
+            .map(([yr, total]) => `  - ${yr}: ${fmt(Number(total))}`)
+            .join("\n")
+        : "  - No yearly data";
+
+      const topProducts = purchaseSummary.top_products
+        ? (purchaseSummary.top_products as Array<{ name: string; revenue: number }>)
+            .slice(0, 10)
+            .map((p) => `  - ${p.name}: ${fmt(Number(p.revenue))}`)
+            .join("\n")
+        : "  - No product data";
+
+      context.purchaseHistorySummary = `PURCHASE HISTORY for ${searchName} (${txnCount} transactions):\nTotal: ${fmt(totalRevenue)}\nBy Year:\n${yearSummary}\nTop Products:\n${topProducts}`;
     } else {
-      context.purchaseHistory = [];
       context.purchaseHistorySummary = null;
     }
   }
