@@ -1,12 +1,42 @@
 // ============================================
-// IN-MEMORY RESPONSE CACHE
+// IN-MEMORY RESPONSE CACHE + TIMEOUT UTILITIES
 // TTL-based cache for expensive database queries
+// ============================================
+
+// ============================================
+// TIMEOUT UTILITIES
+// ============================================
+
+/** Thrown when a query exceeds its allowed duration. */
+export class QueryTimeoutError extends Error {
+  constructor(label: string, ms: number) {
+    super(`Query "${label}" timed out after ${ms}ms`);
+    this.name = "QueryTimeoutError";
+  }
+}
+
+/**
+ * Race a promise against a deadline.
+ * Throws QueryTimeoutError if the promise doesn't resolve within `ms` milliseconds.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new QueryTimeoutError(label, ms)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// ============================================
+// CACHE
 // ============================================
 
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
 }
+
+const DEFAULT_QUERY_TIMEOUT_MS = 10_000; // 10 seconds
 
 class QueryCache {
   private store = new Map<string, CacheEntry<unknown>>();
@@ -35,15 +65,24 @@ class QueryCache {
     return this.get(key) !== null;
   }
 
-  /** Run a DB query only if its result isn't cached; otherwise return cached result. */
-  async getOrFetch<T>(key: string, fetcher: () => Promise<T>, ttlMs?: number): Promise<T> {
+  /**
+   * Run a DB query only if its result isn't cached; otherwise return cached result.
+   * Automatically wraps the fetcher with a 10-second timeout.
+   * Throws QueryTimeoutError if the fetch exceeds the deadline.
+   */
+  async getOrFetch<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+    ttlMs?: number,
+    timeoutMs = DEFAULT_QUERY_TIMEOUT_MS
+  ): Promise<T> {
     const cached = this.get<T>(key);
     if (cached !== null) {
       console.log(`[Cache] HIT  ${key}`);
       return cached;
     }
     console.log(`[Cache] MISS ${key}`);
-    const result = await fetcher();
+    const result = await withTimeout(fetcher(), timeoutMs, key);
     this.set(key, result, ttlMs);
     return result;
   }
@@ -82,3 +121,11 @@ export function customerSummaryKey(companyId: string, namePattern: string): stri
 export function repExistsKey(companyId: string, repFirstName: string): string {
   return `rep_exists:${companyId}:${repFirstName.toLowerCase().trim()}`;
 }
+
+// ============================================
+// USER-FACING TIMEOUT MESSAGE
+// ============================================
+
+/** Standard user-facing message when a DB query times out. */
+export const TIMEOUT_USER_MESSAGE =
+  "Query taking longer than expected, hold tight. If this takes longer than 30 seconds, try again.";
