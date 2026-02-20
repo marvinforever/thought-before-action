@@ -4,6 +4,105 @@
 
 import { queryCache, repSummaryKey, repExistsKey, QueryTimeoutError, TIMEOUT_USER_MESSAGE } from "./cache.ts";
 
+// ============================================
+// SELF-LOOKUP: "my customers" / "my territory" / "my accounts"
+// Fires when the logged-in rep asks about THEIR OWN data
+// (no third-party name pattern — that's handled by handleRepCustomerListQuery)
+// ============================================
+
+export async function handleMyCustomerListQuery(
+  message: string,
+  client: any,
+  userId: string | null,
+  companyId: string | null
+): Promise<string | null> {
+  if (!userId || !companyId) return null;
+
+  const lowerMsg = message.toLowerCase();
+
+  // Must contain "my" possessive + a customer/territory signal
+  // AND must NOT already contain a third-person name pattern (that goes to handleRepCustomerListQuery)
+  const myCustomerPatterns = [
+    /\bmy\s+(?:customer|account|client|grower|territory|book)\b/i,
+    /\bmy\s+(?:full\s+)?(?:list|portfolio|base)\b/i,
+    /\b(?:show|pull|give|get|list|see)\s+(?:me\s+)?(?:my|all\s+my)\s+(?:customers?|accounts?|growers?|clients?|territory|data|history|records?|sales|numbers?)\b/i,
+    /\bwhat\s+(?:did\s+i|have\s+i)\s+(?:sell|sold|do|made?)\b/i,
+    /\bmy\s+(?:purchase|sales|buying|order)\s*(?:history|data|records?)\b/i,
+    /\b(?:all\s+)?my\s+(?:2024|2025|2026|2023|2022|last\s+year|this\s+year)\s+(?:customers?|accounts?|data|sales|numbers?)\b/i,
+    /\bbring\s+up\s+(?:the\s+)?(?:my\s+)?(?:customer|account|grower)\s+list\b/i,
+    /\bwho\s+(?:are|do)\s+i\s+(?:sell|service|cover|manage|work\s+with)\b/i,
+  ];
+
+  const hasSelfQuery = myCustomerPatterns.some((p) => p.test(lowerMsg));
+  if (!hasSelfQuery) return null;
+
+  // Don't intercept if there's a specific third-party name mentioned (e.g. "Ed's customers")
+  // Those are handled by handleRepCustomerListQuery
+  const thirdPartyPattern = /(\w+)[''']s\s+(?:customer|account|client|grower|territory)/i;
+  if (thirdPartyPattern.test(message)) return null;
+
+  console.log("[My Customer List] Self-lookup detected");
+
+  try {
+    // Get the logged-in rep's name to find their records
+    const { data: userProfile } = await client
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const repName = userProfile?.full_name?.toUpperCase() || null;
+    if (!repName) return null;
+
+    const repFirstName = repName.split(" ")[0];
+
+    const repData = await queryCache.getOrFetch(
+      repSummaryKey(companyId, repFirstName),
+      async () => {
+        const { data, error } = await client.rpc("get_rep_customer_summary", {
+          p_company_id: companyId,
+          p_rep_first_name: repFirstName,
+        });
+        if (error) throw error;
+        return data;
+      }
+    );
+
+    if (!repData || repData.length === 0) {
+      return `I don't see any purchase history data linked to your name (${repName}). Make sure your name in your profile matches the rep name in the imported sales data.`;
+    }
+
+    const fmt = (n: number) =>
+      new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+
+    const totalRevenue = repData.reduce((sum: number, row: any) => sum + (Number(row.total_revenue) || 0), 0);
+    const totalCustomers = repData.length;
+    const actualRepName = repData[0].rep_name;
+
+    // Check if they want a specific year filtered
+    const yearMatch = lowerMsg.match(/\b(202[0-9]|201[0-9]|last\s+year|this\s+year)\b/);
+
+    let response = `## ${actualRepName}'s Customer List\n\n`;
+    response += `**${totalCustomers} customers** | **Total Revenue: ${fmt(totalRevenue)}**\n\n`;
+    response += `| Rank | Customer | Total Revenue | Transactions |\n|------|----------|--------------|----------|\n`;
+
+    repData.slice(0, 50).forEach((row: any, idx: number) => {
+      response += `| ${idx + 1} | ${row.customer_name} | ${fmt(Number(row.total_revenue) || 0)} | ${row.transaction_count} |\n`;
+    });
+
+    if (totalCustomers > 50) {
+      response += `\n*...and ${totalCustomers - 50} more customers. Ask about a specific customer for detailed history.*`;
+    }
+
+    response += `\n\n---\nAsk me about any specific customer for their full purchase history, top products, and year-by-year breakdown.`;
+
+    return response;
+  } catch (err) {
+    console.error("[My Customer List] Error:", err);
+    return null;
+  }
+}
+
 export async function handleParetoAnalysis(
   message: string,
   client: any,
