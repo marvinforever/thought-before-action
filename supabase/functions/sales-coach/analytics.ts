@@ -127,9 +127,14 @@ export async function handleRepCustomerListQuery(
   const repListPatterns = [
     /(\w+)[''']s\s+(?:customer|account|client|grower|territory)\s+(?:list|accounts?|customers?|base)/i,
     /(?:show|give|pull|get)\s+(?:me\s+)?(\w+)[''']s\s+(?:customers?|accounts?|clients?|growers?)/i,
-    /(?:customers?|accounts?|clients?|growers?)\s+(?:for|assigned to|under)\s+(\w+)/i,
+    /(?:customers?|accounts?|clients?|growers?)\s+(?:for|assigned to|under|belonging to|of)\s+(\w+)/i,
     /(\w+)[''']s\s+(?:territory|book\s+of\s+business|book)/i,
     /what\s+(?:customers?|accounts?)\s+(?:does|did)\s+(\w+)\s+(?:have|manage|cover|service)/i,
+    /(?:list|show|pull|get)\s+(?:all\s+)?(?:customers?|accounts?|growers?)\s+(?:for|under|of)\s+(\w+)/i,
+    /(\w+)[''']s?\s+(?:historical\s+)?(?:customer\s+data|sales\s+data|history|data)/i,
+    /(?:data|history|records?)\s+(?:for|on|about)\s+(\w+)(?:\s+(?:lehman|smith|jones|miller|anderson|taylor|johnson|wilson|brown|davis|clark|wright|thompson|white|harris|martin|jackson|garcia|martinez|rodriguez|lee|walker|hall|allen|young|king|scott|green|baker|adams|nelson|hill|ramirez|campbell|mitchell|roberts|carter|phillips|evans|turner|torres|parker|collins|edwards|stewart|morris|sanchez|rogers|reed|cook|morgan|bell|murphy|bailey|rivera|cooper|richardson|cox|howard|ward|torres|peterson|gray|ramirez|james|watson|brooks|kelly|sanders|price|bennett|wood|barnes|ross|henderson|coleman|jenkins|perry|powell|long|patterson|hughes|flores|washington|butler|simmons|foster|gonzales|bryant|alexander|russell|griffin|diaz|hayes))?/i,
+    /who\s+(?:are|is)\s+(\w+)[''']s?\s+(?:customers?|accounts?|clients?|growers?)/i,
+    /(\w+)\s+(?:rep|representative|agent)\s+(?:customer|account|territory|grower)\s+(?:list|data)/i,
   ];
 
   let repFirstName: string | null = null;
@@ -144,7 +149,39 @@ export async function handleRepCustomerListQuery(
     }
   }
 
+  // Broader fallback: check if the message mentions a word that looks like a name
+  // near data/history/customer keywords
+  if (!repFirstName) {
+    const generalDataPatterns = [
+      /(?:historical|purchase|sales|customer|account|territory)\s+(?:data|history|info|information|records?|list)\s+(?:for|on|about|of)\s+(\w{3,})/i,
+      /(?:about|for|on)\s+(\w{3,})[''']?s?\s+(?:data|history|customers?|accounts?|territory|growers?)/i,
+      /(?:anything|something|everything)\s+(?:about|for|on)\s+(\w{3,})(?:\s|$)/i,
+      /(?:show|tell|give)\s+(?:me\s+)?(?:info|data|history)\s+(?:on|for|about)\s+(\w{3,})/i,
+    ];
+    for (const pattern of generalDataPatterns) {
+      const match = message.match(pattern);
+      if (match && match[1]) {
+        const candidate = match[1].trim();
+        if (/^(my|our|your|the|all|each|every|some|this|that|it|him|her|them)$/i.test(candidate)) continue;
+        repFirstName = candidate;
+        break;
+      }
+    }
+  }
+
   if (!repFirstName) return null;
+
+  // Verify this first name matches an actual rep in the data before proceeding
+  const { data: repCheck } = await client
+    .from("customer_purchase_history")
+    .select("rep_name")
+    .eq("company_id", companyId)
+    .ilike("rep_name", `${repFirstName}%`)
+    .limit(1)
+    .maybeSingle();
+
+  // If no rep found with that first name, don't intercept
+  if (!repCheck) return null;
 
   console.log(`[Rep Customer List] Detected query for rep: ${repFirstName}`);
 
