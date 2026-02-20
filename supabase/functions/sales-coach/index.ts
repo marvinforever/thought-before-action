@@ -46,6 +46,10 @@ interface ExtractedEntities {
   researchRequest?: string;
   emailRequest?: { recipient?: string; type?: string; company?: string };
   intentType: "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action";
+  // Auto-deal detection
+  conversationDealDetected?: boolean;
+  detectedProduct?: string;
+  detectedTopic?: string;
 }
 
 serve(async (req) => {
@@ -117,9 +121,14 @@ serve(async (req) => {
     let extracted = await detectIntentAndExtract(message, conversationHistory, lovableApiKey);
 
     if (extracted.companies.length === 0) {
-      const fallbackCompany = extractCompanyFallback(message);
-      if (fallbackCompany) {
-        extracted = { ...extracted, companies: [{ name: fallbackCompany, isNew: true, confidence: 0.7 }], intentType: "pipeline_action" };
+      const fallbackResult = extractCompanyFallback(message);
+      if (fallbackResult) {
+        extracted = {
+          ...extracted,
+          companies: [{ name: fallbackResult.name, isNew: true, confidence: 0.7 }],
+          intentType: "pipeline_action",
+          conversationDealDetected: fallbackResult.isConversation,
+        };
       }
     }
 
@@ -253,17 +262,25 @@ serve(async (req) => {
     let contactsCreated: { id: string; name: string }[] = [];
     let emailDrafted: { id: string; subject: string; preview: string } | null = null;
     let researchCompleted: { company: string; summary: string } | null = null;
+    let newCustomerPrompt: { name: string } | null = null;
 
     if (extracted.companies.length > 0 && effectiveUserId && effectiveCompanyId) {
       const hasDealSignals = !!(extracted.dealSignals && Object.keys(extracted.dealSignals).length > 0);
       const forcePipelineCreate = /\b(add|put|log|start|create)\b[\s\S]{0,25}\b(deal|pipeline|opportunity)\b/i.test(message);
+      const isConversationDetected = extracted.conversationDealDetected === true;
 
       for (const company of extracted.companies) {
-        const shouldEnsurePipelineEntry = company.isNew || hasDealSignals || forcePipelineCreate;
+        const shouldEnsurePipelineEntry = company.isNew || hasDealSignals || forcePipelineCreate || isConversationDetected;
         if (!shouldEnsurePipelineEntry) continue;
 
         const companyResult = await createCompany(adminClient, effectiveUserId, effectiveCompanyId, company.name, message);
         if (!companyResult.success || !companyResult.entityId) continue;
+
+        // If the company was brand new AND the detection came from a conversation pattern,
+        // surface a prompt asking the rep to complete the customer profile.
+        if (companyResult.type === "company_created" && isConversationDetected) {
+          newCustomerPrompt = { name: company.name };
+        }
 
         if (companyResult.type === "company_created") {
           actions.push(companyResult);
@@ -286,7 +303,15 @@ serve(async (req) => {
         const dealResult = await createDeal(adminClient, effectiveUserId, effectiveCompanyId, companyResult.entityId, company.name, extracted.dealSignals || { stage: "prospecting" }, message);
         if (dealResult.success) {
           actions.push(dealResult);
-          if (dealResult.type === "deal_created") dealCreated = true;
+          if (dealResult.type === "deal_created") {
+            dealCreated = true;
+
+            // Fire-and-forget email confirmation to the rep when deal is auto-detected
+            if (isConversationDetected && effectiveUserId) {
+              sendDealDetectionEmail(adminClient, effectiveUserId, company.name, extracted.detectedProduct, extracted.detectedTopic)
+                .catch((err) => console.error("Deal detection email failed:", err));
+            }
+          }
         }
       }
     }
@@ -352,7 +377,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ message: responseMessage, actions, dealCreated, companyCreated, contactsCreated, emailDrafted, researchCompleted, pipelineActions, inferredCustomerId, inferredCustomerName }),
+      JSON.stringify({ message: responseMessage, actions, dealCreated, companyCreated, contactsCreated, emailDrafted, researchCompleted, pipelineActions, inferredCustomerId, inferredCustomerName, newCustomerPrompt }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
@@ -368,13 +393,114 @@ serve(async (req) => {
 // INTENT DETECTION
 // ============================================
 
+// ============================================
+// EMAIL NOTIFICATION FOR AUTO-DETECTED DEALS
+// ============================================
+
+async function sendDealDetectionEmail(
+  client: any,
+  userId: string,
+  customerName: string,
+  detectedProduct?: string,
+  detectedTopic?: string
+): Promise<void> {
+  try {
+    const { data: profile } = await client
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", userId)
+      .single();
+
+    if (!profile?.email) return;
+
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    const fromEmail = Deno.env.get("RESEND_FROM") || "noreply@thought-before-action.lovable.app";
+    if (!resendKey) return;
+
+    const repName = profile.full_name?.split(" ")[0] || "there";
+    const productLine = detectedProduct ? `<p><strong>Product/Interest:</strong> ${detectedProduct}</p>` : "";
+    const topicLine = detectedTopic ? `<p><strong>Topic discussed:</strong> ${detectedTopic}</p>` : "";
+
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: profile.email,
+        subject: `📋 Pipeline entry created: ${customerName}`,
+        html: `
+          <h2>Hey ${repName},</h2>
+          <p>Jericho detected a customer interaction and automatically created a pipeline entry for:</p>
+          <h3 style="color:#1a56db;">${customerName}</h3>
+          ${productLine}
+          ${topicLine}
+          <p>A new deal has been added to your pipeline in the <strong>Prospecting</strong> stage.</p>
+          <p>Log in to review and update the details anytime.</p>
+          <hr/>
+          <p style="color:#6b7280;font-size:12px;">This is an automated message from Jericho, your AI sales agent.</p>
+        `,
+      }),
+    });
+    console.log(`Deal detection email sent to ${profile.email} for customer ${customerName}`);
+  } catch (err) {
+    console.error("Failed to send deal detection email:", err);
+  }
+}
+
+// ============================================
+// INTENT DETECTION
+// ============================================
+
 async function detectIntentAndExtract(message: string, conversationHistory: string, apiKey: string): Promise<ExtractedEntities> {
+  // ── Regex-based fast-path for conversation deal detection ──────────────────
+  const conversationPatterns = [
+    /(?:i\s+(?:talked|spoke|chatted)\s+(?:to|with)|had\s+a\s+(?:call|conversation|chat)\s+with|just\s+(?:got\s+off\s+the\s+phone|finished\s+a\s+call)\s+with)\s+([A-Z][a-zA-Z\s'&.-]{1,40}?)(?:\s+(?:today|yesterday|this\s+(?:morning|afternoon|week))|[.,!]|$)/i,
+    /(?:met\s+with|visited|stopped\s+by|swung\s+by)\s+([A-Z][a-zA-Z\s'&.-]{1,40}?)(?:\s+(?:today|yesterday|this\s+(?:morning|afternoon|week))|[.,!]|$)/i,
+    /([A-Z][a-zA-Z\s'&.-]{1,40}?)\s+(?:is\s+interested\s+in|wants\s+to|said\s+they|mentioned\s+(?:they\s+want|interest\s+in))\s/i,
+    /(?:quick\s+call|good\s+call|great\s+call|solid\s+call)\s+with\s+([A-Z][a-zA-Z\s'&.-]{1,40?})(?:[.,!]|$)/i,
+  ];
+
+  let conversationDetectedName: string | null = null;
+  let detectedProduct: string | null = null;
+  let detectedTopic: string | null = null;
+
+  for (const pattern of conversationPatterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      const candidate = match[1].trim().replace(/\s+/g, " ").replace(/[.,!?]$/, "");
+      const isStopped = /^(him|her|them|it|this|that|my|the|a|an|me|us|our|their|his)$/i.test(candidate);
+      if (candidate.length >= 2 && !isStopped) {
+        conversationDetectedName = candidate;
+        break;
+      }
+    }
+  }
+
+  // Detect product/interest from message if conversation pattern matched
+  if (conversationDetectedName) {
+    const productMatch = message.match(/(?:interested\s+in|looking\s+at|asking\s+about|wants)\s+([a-zA-Z\s]{3,40}?)(?:[.,!]|$)/i);
+    const topicMatch = message.match(/(?:about|regarding|on)\s+([a-zA-Z\s]{3,40}?)(?:[.,!]|$)/i);
+    if (productMatch?.[1]) detectedProduct = productMatch[1].trim();
+    if (topicMatch?.[1]) detectedTopic = topicMatch[1].trim();
+  }
+
   const systemPrompt = `You are an AI that extracts sales-relevant entities from the user's CURRENT message only.
 
 CRITICAL RULES:
 1. ONLY extract entities explicitly mentioned in the NEW MESSAGE
 2. "Recent conversation" is CONTEXT ONLY - do NOT extract entities from it
 3. NEVER extract these: "Jericho" (AI name), "Momentum" (user's company)
+
+DEAL AUTO-DETECTION: Set "conversationDealDetected": true if the message describes a real interaction with a customer such as:
+- "I talked to [Name]", "Had a call with [Name]", "Met with [Name]"
+- "[Name] is interested in [product/service]"
+- "Just got off the phone with [Name]"
+- "Visited [Name] today/yesterday"
+In these cases, set isNew=true for the company and include the customer as a company entity.
+
+If conversationDealDetected is true, also extract:
+- "detectedProduct": the product or service they're interested in (or null)
+- "detectedTopic": the main topic discussed (or null)
 
 RESEARCH IS EXPLICIT-ONLY - only set researchRequest if user says "research [company]", "look up [company] online", "find out about [company]".
 
@@ -385,10 +511,13 @@ Return JSON:
   "dealSignals": {"value": null, "stage": "prospecting", "notes": "..."},
   "researchRequest": null,
   "emailRequest": null,
-  "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action"
+  "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action",
+  "conversationDealDetected": false,
+  "detectedProduct": null,
+  "detectedTopic": null
 }
 
-Rules: isNew=true only if NEW MESSAGE implies just met. "show me", "what about", "tell me about" = isNew=false.`;
+Rules: isNew=true only if NEW MESSAGE implies just met or had a call. "show me", "what about", "tell me about" = isNew=false.`;
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -404,24 +533,63 @@ Rules: isNew=true only if NEW MESSAGE implies just met. "show me", "what about",
       }),
     });
 
-    if (!response.ok) return getDefaultExtraction();
+    if (!response.ok) {
+      // If AI fails but regex detected a conversation, return that
+      if (conversationDetectedName) {
+        return {
+          companies: [{ name: conversationDetectedName, isNew: true, confidence: 0.75 }],
+          contacts: [],
+          dealSignals: { stage: "prospecting" },
+          intentType: "create_entity",
+          conversationDealDetected: true,
+          detectedProduct: detectedProduct || undefined,
+          detectedTopic: detectedTopic || undefined,
+        };
+      }
+      return getDefaultExtraction();
+    }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+
+      // Merge AI result with regex detection: regex wins if AI missed it
+      const aiConversationDetected = parsed.conversationDealDetected === true;
+      const finalConversationDetected = aiConversationDetected || (conversationDetectedName !== null && parsed.companies?.length === 0);
+
+      let companies = parsed.companies || [];
+      if (!aiConversationDetected && conversationDetectedName && companies.length === 0) {
+        companies = [{ name: conversationDetectedName, isNew: true, confidence: 0.75 }];
+      }
+
       return {
-        companies: parsed.companies || [],
+        companies,
         contacts: parsed.contacts || [],
         dealSignals: parsed.dealSignals || {},
         researchRequest: parsed.researchRequest || null,
         emailRequest: parsed.emailRequest || null,
         intentType: parsed.intentType || "coaching",
+        conversationDealDetected: finalConversationDetected,
+        detectedProduct: parsed.detectedProduct || detectedProduct || undefined,
+        detectedTopic: parsed.detectedTopic || detectedTopic || undefined,
       };
     }
   } catch (err) {
     console.error("Entity extraction error:", err);
+    // Regex fallback
+    if (conversationDetectedName) {
+      return {
+        companies: [{ name: conversationDetectedName, isNew: true, confidence: 0.75 }],
+        contacts: [],
+        dealSignals: { stage: "prospecting" },
+        intentType: "create_entity",
+        conversationDealDetected: true,
+        detectedProduct: detectedProduct || undefined,
+        detectedTopic: detectedTopic || undefined,
+      };
+    }
   }
 
   return getDefaultExtraction();
@@ -431,8 +599,28 @@ function getDefaultExtraction(): ExtractedEntities {
   return { companies: [], contacts: [], dealSignals: {}, intentType: "coaching" };
 }
 
-function extractCompanyFallback(message: string): string | null {
+function extractCompanyFallback(message: string): { name: string; isConversation: boolean } | null {
   const lowerMsg = message.toLowerCase();
+
+  // Check for conversation patterns first (no pipeline keywords needed)
+  const conversationFallbackPatterns = [
+    { pattern: /\bjust\s+(met|talked|spoke|chatted)\s+(with|to)\s+([A-Z][a-zA-Z\s'&.-]{1,40}?)(?:\s+and|\s+about|[.,!]|\s*$)/i, group: 3 },
+    { pattern: /\bmet\s+with\s+([A-Z][a-zA-Z\s'&.-]{1,40}?)\s+(?:today|yesterday|this\s+(?:morning|afternoon|week))/i, group: 1 },
+    { pattern: /\bhad\s+a\s+(?:call|meeting|conversation|chat)\s+with\s+([A-Z][a-zA-Z\s'&.-]{1,40}?)(?:[.,!]|\s*$)/i, group: 1 },
+  ];
+
+  for (const { pattern, group } of conversationFallbackPatterns) {
+    const match = message.match(pattern);
+    const raw = match?.[group];
+    if (raw) {
+      const name = raw.trim().replace(/\s+/g, " ").replace(/[.,!?]$/, "");
+      if (name.length >= 2 && !/^(him|her|them|it|this|that|my|the|a|an)$/i.test(name)) {
+        return { name, isConversation: true };
+      }
+    }
+  }
+
+  // Standard pipeline-keyword patterns
   const hasPipelineContext = lowerMsg.includes("pipeline") || lowerMsg.includes("deal") || lowerMsg.includes("prospect") || lowerMsg.includes("track") || lowerMsg.includes("add") || lowerMsg.includes("opportunity");
   if (!hasPipelineContext) return null;
 
@@ -443,8 +631,6 @@ function extractCompanyFallback(message: string): string | null {
     /\blog\s+([A-Z][a-zA-Z\s']+?)\s+as\s+(a\s+)?prospect/i,
     /\bnew\s+(prospect|deal)[:\s]+([A-Z][a-zA-Z\s']+)/i,
     /\btrack\s+([A-Z][a-zA-Z\s']+?)(?:\s|$|\.)/i,
-    /\bjust\s+(met|talked|spoke)\s+(with|to)\s+([A-Z][a-zA-Z\s']+?)(?:\s+and|\s+about|\.|\s*$)/i,
-    /\bmet\s+with\s+([A-Z][a-zA-Z\s']+?)\s+(today|yesterday|this\s+week)/i,
     /\badd\s+([A-Z][a-zA-Z\s']+?)(?:\s*$|\.|\s+to)/i,
   ];
 
@@ -454,7 +640,9 @@ function extractCompanyFallback(message: string): string | null {
       let name = match[1] || match[2] || match[3];
       if (name) {
         name = name.trim().replace(/\s+/g, " ").replace(/[.,!?]$/, "");
-        if (name.length >= 2 && !/^(him|her|them|it|this|that|my|the|a|an)$/i.test(name)) return name;
+        if (name.length >= 2 && !/^(him|her|them|it|this|that|my|the|a|an)$/i.test(name)) {
+          return { name, isConversation: false };
+        }
       }
     }
   }

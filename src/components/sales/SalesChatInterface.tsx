@@ -17,6 +17,8 @@ import {
   ClipboardList,
   Paperclip,
   X,
+  UserPlus,
+  Bell,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -37,10 +39,13 @@ interface SalesChatInterfaceProps {
   profile: any;
   companyId: string;
   userId: string;
+  newCustomerPrompt?: { name: string } | null;
   onUploadDocument: () => void;
   onInputChange: (value: string) => void;
   onSendMessage: (message?: string) => void;
   onCancel: () => void;
+  onDismissNewCustomerPrompt?: () => void;
+  onCreateCustomerProfile?: (name: string) => void;
   onStartCoaching: () => void;
   onAddDeal: () => void;
   onShowProposalWizard: () => void;
@@ -58,10 +63,13 @@ export function SalesChatInterface({
   profile,
   companyId,
   userId,
+  newCustomerPrompt,
   onUploadDocument,
   onInputChange,
   onSendMessage,
   onCancel,
+  onDismissNewCustomerPrompt,
+  onCreateCustomerProfile,
   onStartCoaching,
   onAddDeal,
   onShowProposalWizard,
@@ -265,6 +273,48 @@ export function SalesChatInterface({
           <div ref={bottomRef} />
         </div>
       </div>
+
+      {/* New Customer Prompt Banner */}
+      <AnimatePresence>
+        {newCustomerPrompt && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="mb-3 rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-start gap-3"
+          >
+            <Bell className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                <span className="text-primary">{newCustomerPrompt.name}</span> isn't in your system yet.
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Want to create a company profile so you can track notes and history?
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                onClick={() => onCreateCustomerProfile?.(newCustomerPrompt.name)}
+              >
+                <UserPlus className="h-3 w-3" />
+                Create Profile
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                onClick={onDismissNewCustomerPrompt}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2 mb-4">
