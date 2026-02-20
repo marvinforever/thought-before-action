@@ -12,16 +12,59 @@ export async function loadCustomerMemory(
 
   try {
     const normalizedCustomer = customerName.trim();
+    const namePatterns = customerName.trim().split(/\s+/);
+    const firstName = namePatterns[0];
 
-    const { data: transcriptMentions } = await client
-      .from("sales_coach_messages")
-      .select(`content, role, created_at, sales_coach_conversations!inner(company_id, profile_id)`)
-      .eq("sales_coach_conversations.profile_id", userId)
-      .eq("sales_coach_conversations.company_id", companyId)
-      .ilike("content", `%${normalizedCustomer}%`)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    // ── Batch 1: fire all independent queries simultaneously ──────────────
+    const [
+      transcriptResult,
+      backupsResult,
+      exactMatchResult,
+      firstNameMatchResult,
+    ] = await Promise.allSettled([
+      // Chat mentions
+      client
+        .from("sales_coach_messages")
+        .select(`content, role, created_at, sales_coach_conversations!inner(company_id, profile_id)`)
+        .eq("sales_coach_conversations.profile_id", userId)
+        .eq("sales_coach_conversations.company_id", companyId)
+        .ilike("content", `%${normalizedCustomer}%`)
+        .order("created_at", { ascending: false })
+        .limit(20),
 
+      // Conversation backups
+      client
+        .from("jericho_action_log")
+        .select("action_data, entity_name, created_at")
+        .eq("profile_id", userId)
+        .eq("company_id", companyId)
+        .eq("action_type", "conversation_backup")
+        .ilike("entity_name", `%${normalizedCustomer}%`)
+        .order("created_at", { ascending: false })
+        .limit(10),
+
+      // Exact company name match
+      client
+        .from("sales_companies")
+        .select("id, name")
+        .eq("profile_id", userId)
+        .ilike("name", `%${customerName}%`)
+        .maybeSingle(),
+
+      // First-name company match (always fire; use only as fallback)
+      firstName
+        ? client
+            .from("sales_companies")
+            .select("id, name")
+            .eq("profile_id", userId)
+            .ilike("name", `${firstName}%`)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    // ── Process transcript mentions ───────────────────────────────────────
+    const transcriptMentions =
+      transcriptResult.status === "fulfilled" ? transcriptResult.value?.data : null;
     if (transcriptMentions && transcriptMentions.length > 0) {
       memory += `\n**VERBATIM CHAT MEMORY (mentions of ${normalizedCustomer}):**\n`;
       const ordered = [...transcriptMentions].reverse();
@@ -34,16 +77,9 @@ export async function loadCustomerMemory(
         .join("\n") + "\n";
     }
 
-    const { data: backups } = await client
-      .from("jericho_action_log")
-      .select("action_data, entity_name, created_at")
-      .eq("profile_id", userId)
-      .eq("company_id", companyId)
-      .eq("action_type", "conversation_backup")
-      .ilike("entity_name", `%${normalizedCustomer}%`)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
+    // ── Process backups ───────────────────────────────────────────────────
+    const backups =
+      backupsResult.status === "fulfilled" ? backupsResult.value?.data : null;
     if (backups && backups.length > 0) {
       memory += `\n**CONVERSATION BACKUPS (most recent):**\n`;
       memory += backups
@@ -56,40 +92,45 @@ export async function loadCustomerMemory(
         .join("\n") + "\n";
     }
 
-    // Fuzzy match sales company
-    const namePatterns = customerName.trim().split(/\s+/);
-    const firstName = namePatterns[0];
+    // ── Resolve company match ─────────────────────────────────────────────
+    const exactMatch =
+      exactMatchResult.status === "fulfilled" ? exactMatchResult.value?.data : null;
+    const firstNameMatch =
+      !exactMatch && firstNameMatchResult.status === "fulfilled"
+        ? firstNameMatchResult.value?.data
+        : null;
 
-    let salesCompany = null;
-    const { data: exactMatch } = await client
-      .from("sales_companies")
-      .select("id, name")
-      .eq("profile_id", userId)
-      .ilike("name", `%${customerName}%`)
-      .maybeSingle();
-
-    if (exactMatch) {
-      salesCompany = exactMatch;
-    } else if (firstName) {
-      const { data: firstNameMatch } = await client
-        .from("sales_companies")
-        .select("id, name")
-        .eq("profile_id", userId)
-        .ilike("name", `${firstName}%`)
-        .maybeSingle();
-      if (firstNameMatch) {
-        salesCompany = firstNameMatch;
-        console.log("Fuzzy matched customer by first name:", customerName, "->", firstNameMatch.name);
-      }
+    let salesCompany = exactMatch || firstNameMatch || null;
+    if (!exactMatch && firstNameMatch) {
+      console.log("Fuzzy matched customer by first name:", customerName, "->", firstNameMatch.name);
     }
 
     if (salesCompany) {
-      const { data: intel } = await client
-        .from("sales_company_intelligence")
-        .select("*")
-        .eq("company_id", salesCompany.id)
-        .maybeSingle();
+      // ── Batch 2: intel + customer insights in parallel ──────────────────
+      const [intelResult, insightsResult, historyResult] = await Promise.allSettled([
+        client
+          .from("sales_company_intelligence")
+          .select("*")
+          .eq("company_id", salesCompany.id)
+          .maybeSingle(),
 
+        client
+          .from("customer_insights")
+          .select("insight_type, insight_text, created_at")
+          .or(`customer_name.ilike.%${customerName}%,customer_id.eq.${salesCompany.id}`)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(10),
+
+        client
+          .from("customer_purchase_history")
+          .select("year, amount, product_description")
+          .eq("company_id", salesCompany.id)
+          .order("year", { ascending: false })
+          .limit(20),
+      ]);
+
+      const intel = intelResult.status === "fulfilled" ? intelResult.value?.data : null;
       if (intel) {
         memory += `\n**CUSTOMER MEMORY for ${salesCompany.name}:**\n`;
         if (intel.relationship_notes) memory += `Previous conversations:\n${intel.relationship_notes.slice(-2000)}\n`;
@@ -99,26 +140,13 @@ export async function loadCustomerMemory(
         if (intel.objections_history) memory += `Past objections: ${JSON.stringify(intel.objections_history)}\n`;
       }
 
-      const { data: insights } = await client
-        .from("customer_insights")
-        .select("insight_type, insight_text, created_at")
-        .or(`customer_name.ilike.%${customerName}%,customer_id.eq.${salesCompany.id}`)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
+      const insights = insightsResult.status === "fulfilled" ? insightsResult.value?.data : null;
       if (insights && insights.length > 0) {
         memory += `\nRecent insights:\n`;
         memory += insights.map((i: any) => `- [${i.insight_type}] ${i.insight_text.slice(0, 200)}`).join("\n");
       }
 
-      const { data: history } = await client
-        .from("customer_purchase_history")
-        .select("year, amount, product_description")
-        .eq("company_id", salesCompany.id)
-        .order("year", { ascending: false })
-        .limit(20);
-
+      const history = historyResult.status === "fulfilled" ? historyResult.value?.data : null;
       if (history && history.length > 0) {
         const totalByYear = history.reduce((acc: any, h: any) => {
           acc[h.year] = (acc[h.year] || 0) + (h.amount || 0);
@@ -130,6 +158,7 @@ export async function loadCustomerMemory(
       }
     }
 
+    // ── Company-wide insights (independent of salesCompany) ──────────────
     if (companyId) {
       const { data: companyInsights } = await client
         .from("customer_insights")
@@ -151,6 +180,7 @@ export async function loadCustomerMemory(
 
   return memory;
 }
+
 
 export async function extractAndSaveInsights(
   client: any,

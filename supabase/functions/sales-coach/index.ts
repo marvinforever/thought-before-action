@@ -181,42 +181,70 @@ serve(async (req) => {
       throw err;
     }
 
-    // Step 3: Backboard Memory
+    // Steps 3 + 4: Backboard init, customer-match, and context gathering — all in parallel
     let backboardMemory = "";
     let backboardThreadId: string | null = null;
     let inferredCustomerId: string | null = activeCustomerId || null;
     let inferredCustomerName: string | null = null;
 
-    if (!activeCustomerId && extracted.companies.length > 0) {
-      const { data: matchedCustomer } = await adminClient
-        .from("sales_companies")
-        .select("id, name")
-        .eq("profile_id", effectiveUserId)
-        .ilike("name", `%${extracted.companies[0].name}%`)
-        .maybeSingle();
+    // Resolve the customer company name hint from extracted entities (needed for backboard + context)
+    const firstExtractedCompany = extracted.companies[0]?.name ?? null;
 
-      if (matchedCustomer) {
-        inferredCustomerId = matchedCustomer.id;
-        inferredCustomerName = matchedCustomer.name;
-      }
-    }
+    // Fire backboard thread lookup + context gather simultaneously
+    const [backboardResult, context] = await Promise.allSettled([
+      // ── Backboard: customer match → thread → memory ──────────────────────
+      (async () => {
+        let customerId = activeCustomerId || null;
+        let customerName: string | null = null;
 
-    if (effectiveUserId) {
-      try {
-        const backboardThread = await getOrCreateBackboardThread(adminClient, effectiveUserId, "sales", inferredCustomerId);
-        if (backboardThread) {
-          backboardThreadId = backboardThread.threadId;
-          const messages = await loadBackboardMemory(backboardThread.threadId, 50);
-          backboardMemory = formatBackboardMemoryForPrompt(messages);
+        if (!activeCustomerId && firstExtractedCompany && effectiveUserId) {
+          const { data: matchedCustomer } = await adminClient
+            .from("sales_companies")
+            .select("id, name")
+            .eq("profile_id", effectiveUserId)
+            .ilike("name", `%${firstExtractedCompany}%`)
+            .maybeSingle();
+          if (matchedCustomer) {
+            customerId = matchedCustomer.id;
+            customerName = matchedCustomer.name;
+          }
         }
-      } catch (err) {
-        console.warn("Failed to load Backboard memory:", err);
+
+        let memory = "";
+        let threadId: string | null = null;
+
+        if (effectiveUserId) {
+          const backboardThread = await getOrCreateBackboardThread(adminClient, effectiveUserId, "sales", customerId);
+          if (backboardThread) {
+            threadId = backboardThread.threadId;
+            const msgs = await loadBackboardMemory(backboardThread.threadId, 50);
+            memory = formatBackboardMemoryForPrompt(msgs);
+          }
+        }
+
+        return { customerId, customerName, memory, threadId };
+      })(),
+
+      // ── Context: deals, companies, knowledge, intel, purchase history ────
+      gatherContext(adminClient, effectiveUserId, effectiveCompanyId, extracted, userContext),
+    ]);
+
+    // Merge backboard results
+    if (backboardResult.status === "fulfilled") {
+      const bb = backboardResult.value;
+      if (!inferredCustomerId && bb.customerId) {
+        inferredCustomerId = bb.customerId;
+        inferredCustomerName = bb.customerName;
       }
+      backboardMemory = bb.memory;
+      backboardThreadId = bb.threadId;
+    } else {
+      console.warn("Backboard init failed:", backboardResult.reason);
     }
 
-    // Step 4: Gather Context
-    const context = await gatherContext(adminClient, effectiveUserId, effectiveCompanyId, extracted, userContext);
-    context.backboardMemory = backboardMemory;
+    const resolvedContext = context.status === "fulfilled" ? context.value : { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [] };
+    resolvedContext.backboardMemory = backboardMemory;
+
 
     // Step 5: Execute Actions
     const actions: ActionResult[] = [];
@@ -271,14 +299,14 @@ serve(async (req) => {
 
       if (!isBlocked) {
         const existsInPipeline =
-          context.existingCompanies.some((c: any) => {
+          resolvedContext.existingCompanies.some((c: any) => {
             const en = c.name.toLowerCase().trim();
             if (en.includes(requestedName) || requestedName.includes(en)) return true;
             const rp = requestedName.split(/\s+/);
             const ep = en.split(/\s+/);
             return rp[0] && ep[0] === rp[0];
           }) ||
-          context.deals.some((d: any) => {
+          resolvedContext.deals.some((d: any) => {
             const dn = d.deal_name?.toLowerCase().trim() || "";
             return dn.includes(requestedName) || requestedName.includes(dn.split(" ")[0]);
           });
@@ -291,14 +319,14 @@ serve(async (req) => {
 
     // Email
     if (extracted.emailRequest && effectiveUserId && effectiveCompanyId) {
-      emailDrafted = await handleEmailDraft(adminClient, effectiveUserId, effectiveCompanyId, extracted.emailRequest, context, lovableApiKey);
+      emailDrafted = await handleEmailDraft(adminClient, effectiveUserId, effectiveCompanyId, extracted.emailRequest, resolvedContext, lovableApiKey);
     }
 
-    const pipelineActions = await handlePipelineActions(adminClient, effectiveUserId, message, context.deals);
+    const pipelineActions = await handlePipelineActions(adminClient, effectiveUserId, message, resolvedContext.deals);
 
     // Step 6: Generate Response
     const responseMessage = await generateResponse(
-      message, conversationHistory, context, actions, extracted, chatMode, deal,
+      message, conversationHistory, resolvedContext, actions, extracted, chatMode, deal,
       generateCallPlan, dealsCount, researchCompleted, emailDrafted, lovableApiKey,
       effectiveUserId || "", effectiveCompanyId || ""
     );
