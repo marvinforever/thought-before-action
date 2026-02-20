@@ -7,7 +7,7 @@ import {
   loadBackboardMemory,
   formatBackboardMemoryForPrompt,
 } from "../_shared/backboard-client.ts";
-import { handleParetoAnalysis, handlePurchaseHistoryQuery, handleRepCustomerListQuery } from "./analytics.ts";
+import { handleParetoAnalysis, handlePurchaseHistoryQuery, handleRepCustomerListQuery, handleMyCustomerListQuery } from "./analytics.ts";
 import {
   ActionResult,
   createCompany,
@@ -133,6 +133,27 @@ serve(async (req) => {
     }
 
     // Step 2: Deterministic Intercepts (each wrapped in try/catch for timeout)
+
+    // 2a. "My customers" — rep asking about their own territory/list
+    try {
+      const myListResult = await handleMyCustomerListQuery(message, adminClient, effectiveUserId, effectiveCompanyId);
+      if (myListResult) {
+        return new Response(
+          JSON.stringify({ message: myListResult, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (err) {
+      if (err instanceof QueryTimeoutError) {
+        console.warn(`[Timeout] My customer list: ${err.message}`);
+        return new Response(
+          JSON.stringify({ message: TIMEOUT_USER_MESSAGE, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw err;
+    }
+
     try {
       const paretoResult = await handleParetoAnalysis(message, adminClient, effectiveUserId, effectiveCompanyId);
       if (paretoResult) {
