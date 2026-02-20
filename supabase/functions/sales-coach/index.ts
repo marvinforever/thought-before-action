@@ -17,7 +17,7 @@ import {
   handlePipelineActions,
 } from "./actions.ts";
 import { loadCustomerMemory, extractAndSaveInsights } from "./memory.ts";
-import { queryCache, customerSummaryKey } from "./cache.ts";
+import { queryCache, customerSummaryKey, withTimeout, QueryTimeoutError, TIMEOUT_USER_MESSAGE } from "./cache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,29 +123,62 @@ serve(async (req) => {
       }
     }
 
-    // Step 2: Deterministic Intercepts
-    const paretoResult = await handleParetoAnalysis(message, adminClient, effectiveUserId, effectiveCompanyId);
-    if (paretoResult) {
-      return new Response(
-        JSON.stringify({ message: paretoResult, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Step 2: Deterministic Intercepts (each wrapped in try/catch for timeout)
+    try {
+      const paretoResult = await handleParetoAnalysis(message, adminClient, effectiveUserId, effectiveCompanyId);
+      if (paretoResult) {
+        return new Response(
+          JSON.stringify({ message: paretoResult, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (err) {
+      if (err instanceof QueryTimeoutError) {
+        console.warn(`[Timeout] Pareto analysis: ${err.message}`);
+        return new Response(
+          JSON.stringify({ message: TIMEOUT_USER_MESSAGE, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw err;
     }
 
-    const repCustomerListResult = await handleRepCustomerListQuery(message, adminClient, effectiveUserId, effectiveCompanyId);
-    if (repCustomerListResult) {
-      return new Response(
-        JSON.stringify({ message: repCustomerListResult, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    try {
+      const repCustomerListResult = await handleRepCustomerListQuery(message, adminClient, effectiveUserId, effectiveCompanyId);
+      if (repCustomerListResult) {
+        return new Response(
+          JSON.stringify({ message: repCustomerListResult, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (err) {
+      if (err instanceof QueryTimeoutError) {
+        console.warn(`[Timeout] Rep customer list: ${err.message}`);
+        return new Response(
+          JSON.stringify({ message: TIMEOUT_USER_MESSAGE, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw err;
     }
 
-    const purchaseHistoryResult = await handlePurchaseHistoryQuery(message, adminClient, effectiveUserId, effectiveCompanyId);
-    if (purchaseHistoryResult) {
-      return new Response(
-        JSON.stringify({ message: purchaseHistoryResult.response, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [], inferredCustomerId: purchaseHistoryResult.customerId, inferredCustomerName: purchaseHistoryResult.customerName }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    try {
+      const purchaseHistoryResult = await handlePurchaseHistoryQuery(message, adminClient, effectiveUserId, effectiveCompanyId);
+      if (purchaseHistoryResult) {
+        return new Response(
+          JSON.stringify({ message: purchaseHistoryResult.response, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [], inferredCustomerId: purchaseHistoryResult.customerId, inferredCustomerName: purchaseHistoryResult.customerName }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (err) {
+      if (err instanceof QueryTimeoutError) {
+        console.warn(`[Timeout] Purchase history: ${err.message}`);
+        return new Response(
+          JSON.stringify({ message: TIMEOUT_USER_MESSAGE, actions: [], dealCreated: false, companyCreated: null, contactsCreated: [], emailDrafted: null, researchCompleted: null, pipelineActions: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw err;
     }
 
     // Step 3: Backboard Memory
@@ -415,14 +448,18 @@ async function gatherContext(
   const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [] };
   if (!userId) return context;
 
-  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult] = await Promise.all([
-    client.from("sales_deals").select(`id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at, sales_companies(id, name), sales_contacts(id, name, title)`).eq("profile_id", userId).order("priority").limit(50),
-    client.from("sales_companies").select("id, name").eq("profile_id", userId).order("name").limit(500),
-    client.from("sales_knowledge").select("title, content, category").is("company_id", null).eq("is_active", true).limit(30),
-    companyId
-      ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
-      : Promise.resolve({ data: [] }),
-  ]);
+  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult] = await withTimeout(
+    Promise.all([
+      client.from("sales_deals").select(`id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at, sales_companies(id, name), sales_contacts(id, name, title)`).eq("profile_id", userId).order("priority").limit(50),
+      client.from("sales_companies").select("id, name").eq("profile_id", userId).order("name").limit(500),
+      client.from("sales_knowledge").select("title, content, category").is("company_id", null).eq("is_active", true).limit(30),
+      companyId
+        ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
+        : Promise.resolve({ data: [] }),
+    ]),
+    10_000,
+    "gatherContext:base-queries"
+  );
 
   context.deals = dealsResult.data || [];
   context.existingCompanies = companiesResult.data || [];
@@ -454,20 +491,24 @@ async function gatherContext(
       extracted.companies[0].isNew = false;
     }
 
-    const [intelResult, purchaseSummaryResult] = await Promise.all([
-      existingCompany
-        ? client.from("sales_company_intelligence").select("*").eq("company_id", existingCompany.id).eq("profile_id", userId).maybeSingle()
-        : Promise.resolve({ data: null }),
-      companyId
-        ? queryCache.getOrFetch(
-            customerSummaryKey(companyId, `%${lastName}%`),
-            () => client.rpc("get_customer_purchase_summary_v2", {
-              p_company_id: companyId,
-              p_customer_name_pattern: `%${lastName}%`,
-            }),
-          ).then(data => ({ data }))
-        : Promise.resolve({ data: null }),
-    ]);
+    const [intelResult, purchaseSummaryResult] = await withTimeout(
+      Promise.all([
+        existingCompany
+          ? client.from("sales_company_intelligence").select("*").eq("company_id", existingCompany.id).eq("profile_id", userId).maybeSingle()
+          : Promise.resolve({ data: null }),
+        companyId
+          ? queryCache.getOrFetch(
+              customerSummaryKey(companyId, `%${lastName}%`),
+              () => client.rpc("get_customer_purchase_summary_v2", {
+                p_company_id: companyId,
+                p_customer_name_pattern: `%${lastName}%`,
+              }),
+            ).then(data => ({ data }))
+          : Promise.resolve({ data: null }),
+      ]),
+      10_000,
+      "gatherContext:intel-and-purchase-summary"
+    );
 
     context.intelligence = intelResult.data;
 

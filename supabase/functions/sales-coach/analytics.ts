@@ -2,7 +2,7 @@
 // DETERMINISTIC ANALYTICS HANDLERS
 // ============================================
 
-import { queryCache, repSummaryKey, repExistsKey } from "./cache.ts";
+import { queryCache, repSummaryKey, repExistsKey, QueryTimeoutError, TIMEOUT_USER_MESSAGE } from "./cache.ts";
 
 export async function handleParetoAnalysis(
   message: string,
