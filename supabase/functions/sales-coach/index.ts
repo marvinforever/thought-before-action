@@ -919,51 +919,49 @@ async function gatherContext(
           console.log(`[gatherContext] Loaded rep summary: ${actualRepName}, ${totalCustomers} customers, ${fmt(totalRevenue)} revenue`);
         }
 
-        // ── Year-specific data: ALWAYS load recent years so LLM can answer year questions ──
-        const lowerUserCtx = `${userContext || ""} ${userMessage || ""}`.toLowerCase();
-        let detectedYear: number | null = null;
-        const yearRx = lowerUserCtx.match(/\b(20[1-3]\d)\b/);
-        if (yearRx) detectedYear = parseInt(yearRx[1], 10);
-        else if (/\bthis\s+year\b/.test(lowerUserCtx)) detectedYear = new Date().getFullYear();
-        else if (/\blast\s+year\b/.test(lowerUserCtx)) detectedYear = new Date().getFullYear() - 1;
+        // ── Load ALL available years of data so LLM can answer any year question ──
+        // First, find which seasons exist for this rep
+        const { data: seasonRows } = await client
+          .from("customer_purchase_history")
+          .select("season")
+          .eq("company_id", companyId)
+          .ilike("rep_name", `${repFirstName}%`)
+          .not("season", "is", null);
 
-        // Load up to 3 recent years (or just the requested year) for context
-        const currentYear = new Date().getFullYear();
-        const yearsToLoad = detectedYear 
-          ? [detectedYear] 
-          : [currentYear, currentYear - 1, currentYear - 2];
+        if (seasonRows && seasonRows.length > 0) {
+          const uniqueSeasons = [...new Set(seasonRows.map((r: any) => String(r.season)))].sort().reverse();
+          console.log(`[gatherContext] Found seasons: ${uniqueSeasons.join(", ")}`);
 
-        for (const yr of yearsToLoad) {
-          const { data: yearRows } = await client
-            .from("customer_purchase_history")
-            .select("customer_name, amount")
-            .eq("company_id", companyId)
-            .ilike("rep_name", `${repFirstName}%`)
-            .eq("season", String(yr));
+          for (const season of uniqueSeasons) {
+            const { data: yearRows } = await client
+              .from("customer_purchase_history")
+              .select("customer_name, amount")
+              .eq("company_id", companyId)
+              .ilike("rep_name", `${repFirstName}%`)
+              .eq("season", season);
 
-          if (yearRows && yearRows.length > 0) {
-            const yearMap = new Map<string, number>();
-            for (const row of yearRows) {
-              yearMap.set(row.customer_name, (yearMap.get(row.customer_name) || 0) + (Number(row.amount) || 0));
+            if (yearRows && yearRows.length > 0) {
+              const yearMap = new Map<string, number>();
+              for (const row of yearRows) {
+                yearMap.set(row.customer_name, (yearMap.get(row.customer_name) || 0) + (Number(row.amount) || 0));
+              }
+              const yearSorted = Array.from(yearMap.entries())
+                .map(([name, revenue]) => ({ name, revenue }))
+                .sort((a, b) => b.revenue - a.revenue);
+              const yearTotal = yearSorted.reduce((s, c) => s + c.revenue, 0);
+
+              let yearSummary = `\n${season} DATA: ${yearSorted.length} customers, ${fmt(yearTotal)} total revenue.\n`;
+              yearSorted.slice(0, 20).forEach((c, idx) => {
+                const pct = yearTotal > 0 ? ((c.revenue / yearTotal) * 100).toFixed(1) : "0";
+                yearSummary += `  ${idx + 1}. ${c.name}: ${fmt(c.revenue)} (${pct}%)\n`;
+              });
+              if (yearSorted.length > 20) {
+                yearSummary += `  ...and ${yearSorted.length - 20} more.\n`;
+              }
+
+              context.repDataSummary = (context.repDataSummary || "") + yearSummary;
+              console.log(`[gatherContext] Loaded ${season} data: ${yearSorted.length} customers, ${fmt(yearTotal)} revenue`);
             }
-            const yearSorted = Array.from(yearMap.entries())
-              .map(([name, revenue]) => ({ name, revenue }))
-              .sort((a, b) => b.revenue - a.revenue);
-            const yearTotal = yearSorted.reduce((s, c) => s + c.revenue, 0);
-
-            let yearSummary = `\n${yr} DATA for ${repName}: ${yearSorted.length} customers, ${fmt(yearTotal)} total revenue.\n`;
-            yearSummary += `Top customers by ${yr} revenue:\n`;
-            yearSorted.slice(0, 25).forEach((c, idx) => {
-              const pct = yearTotal > 0 ? ((c.revenue / yearTotal) * 100).toFixed(1) : "0";
-              yearSummary += `  ${idx + 1}. ${c.name}: ${fmt(c.revenue)} (${pct}%)\n`;
-            });
-            if (yearSorted.length > 25) {
-              yearSummary += `  ...and ${yearSorted.length - 25} more.\n`;
-            }
-
-            context.repDataSummary = (context.repDataSummary || "") + yearSummary;
-            console.log(`[gatherContext] Loaded ${yr} data: ${yearSorted.length} customers, ${fmt(yearTotal)} revenue`);
-          }
         }
       }
     } catch (err) {
@@ -1200,7 +1198,7 @@ async function generateResponse(
 **ACAVE Objections:** Acknowledge → Clarify → Answer → Verify → End/Close
 **Appointment Script:** "Hey [Name], going to be in your area next week. I've got [Day1] and [Day2]. Which works best?"`;
 
-  const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nYou HAVE access to this data. Use it to answer ANY question about customers, revenue, top accounts, purchase history, year-over-year trends, etc. NEVER say "check your CRM" when this data is available. If year-specific data is provided, use it for year-specific questions.` : "";
+  const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nIMPORTANT: You HAVE year-by-year revenue data above. You CAN break down revenue by year, compare years, show top customers per year, etc. NEVER say "I only have all-time data" or "I can't break it down by year" — the year data IS provided above. Use it. NEVER say "check your CRM" when this data is available.` : "";
 
   const formattingRules = `
 ## RESPONSE FORMATTING RULES (ALWAYS follow these):
