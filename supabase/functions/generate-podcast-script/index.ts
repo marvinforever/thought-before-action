@@ -257,14 +257,24 @@ serve(async (req) => {
     const yesterdayChallenge = yesterdayEpisode?.daily_challenge || null;
     const lastCapabilityIndex = yesterdayEpisode?.capability_focus_index ?? -1;
 
-    // Fetch login streak
+    // Fetch login streak - compute honest value based on last_login_date
     const { data: loginStreakData } = await supabase
       .from('login_streaks')
-      .select('current_streak')
+      .select('current_streak, last_login_date')
       .eq('profile_id', profileId)
       .single();
 
-    const loginStreak = loginStreakData?.current_streak || 0;
+    let loginStreak = 0;
+    if (loginStreakData?.last_login_date) {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const lastLogin = loginStreakData.last_login_date;
+      // Only trust the stored streak if user logged in today or yesterday
+      if (lastLogin === today || lastLogin === yesterday) {
+        loginStreak = loginStreakData.current_streak || 0;
+      }
+      // Otherwise streak is 0 - they broke it
+    }
 
     // Fetch habit data with current streak (include id for content tracking)
     const { data: habits } = await supabase

@@ -606,7 +606,18 @@ serve(async (req) => {
       topics: episode.topics_covered || [],
       script: episode.script || '',
       dailyChallenge: episode.daily_challenge,
-      streakDays: null,
+      streakDays: await (async () => {
+        const { data: streakRow } = await supabase
+          .from("login_streaks")
+          .select("current_streak, last_login_date")
+          .eq("profile_id", profileId)
+          .single();
+        if (!streakRow?.last_login_date) return null;
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const last = streakRow.last_login_date;
+        return (last === today || last === yesterday) ? (streakRow.current_streak || 0) : 0;
+      })(),
       habits,
       ninetyDayTargets,
       topCapabilities,
