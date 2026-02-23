@@ -191,17 +191,15 @@ export async function handleParetoAnalysis(
     let sortedCustomers: { name: string; revenue: number }[];
 
     if (yearFilter) {
-      // ── Year-filtered query: go direct to the table ──
-      const startDate = `${yearFilter}-01-01`;
-      const endDate = `${yearFilter}-12-31`;
+      // ── Year-filtered query: use season column (primary) with sale_date fallback ──
+      const yearStr = String(yearFilter);
 
       const { data: yearData, error: yearError } = await client
         .from("customer_purchase_history")
         .select("customer_name, amount")
         .eq("company_id", companyId)
         .ilike("rep_name", `${repFirstName}%`)
-        .gte("sale_date", startDate)
-        .lte("sale_date", endDate);
+        .eq("season", yearStr);
 
       if (yearError) throw yearError;
 
