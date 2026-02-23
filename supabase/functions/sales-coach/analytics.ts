@@ -31,13 +31,18 @@ export async function handleMyCustomerListQuery(
     /\b(?:all\s+)?my\s+(?:2024|2025|2026|2023|2022|last\s+year|this\s+year)\s+(?:customers?|accounts?|data|sales|numbers?)\b/i,
     /\bbring\s+up\s+(?:the\s+)?(?:my\s+)?(?:customer|account|grower)\s+list\b/i,
     /\bwho\s+(?:are|do)\s+i\s+(?:sell|service|cover|manage|work\s+with)\b/i,
-    /\bmy\s+(?:top|biggest|largest)\b/i,
+    // NOTE: "my top/biggest/largest" queries are handled by handleParetoAnalysis, not here
     /\bhow\s+(?:much|many)\s+(?:did|have)\s+i\s+(?:sell|sold|do|made?)\b/i,
     /\bmy\s+(?:total\s+)?(?:revenue|sales|volume|business)\b/i,
   ];
 
   const hasSelfQuery = myCustomerPatterns.some((p) => p.test(lowerMsg));
   if (!hasSelfQuery) return null;
+
+  // Defer "top N" / "biggest" / "largest" / percentage queries to handleParetoAnalysis
+  const isParetoLike = /\b(?:top|biggest|largest|#1|number\s*one|pareto|80.?20)\b/i.test(lowerMsg) ||
+                       /\d+\s*%/.test(lowerMsg);
+  if (isParetoLike) return null;
 
   // Don't intercept if there's a specific third-party name mentioned (e.g. "Ed's customers")
   // Those are handled by handleRepCustomerListQuery
