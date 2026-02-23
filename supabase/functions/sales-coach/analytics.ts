@@ -257,22 +257,19 @@ export async function handleParetoAnalysis(
       const topNPercent = totalRevenue > 0 ? ((topNRevenue / totalRevenue) * 100).toFixed(1) : "0";
       const yearLabel = yearFilter ? ` (${yearFilter})` : "";
 
-      let response = `## Your Top ${topNLimit} Customers${yearLabel}\n\n`;
-      response += `**${topN.length} customers** represent **${topNPercent}%** of your${yearLabel} revenue.\n\n`;
-      response += `**Total Revenue${yearLabel}:** ${fmt(totalRevenue)}\n`;
-      response += `**Top ${topN.length} Combined:** ${fmt(topNRevenue)}\n\n`;
-      response += `| Rank | Customer | Revenue | % of Total |\n|------|----------|---------|------------|\n`;
+      let response = `**Your Top ${topNLimit} Customers${yearLabel}**\n\n`;
+      response += `These ${topN.length} customers represent **${topNPercent}%** of your${yearLabel} revenue (${fmt(topNRevenue)} of ${fmt(totalRevenue)} total).\n\n`;
 
       topN.forEach((c, idx) => {
         const pct = totalRevenue > 0 ? ((c.revenue / totalRevenue) * 100).toFixed(1) : "0";
-        response += `| ${idx + 1} | ${c.name} | ${fmt(c.revenue)} | ${pct}% |\n`;
+        response += `${idx + 1}. **${c.name}** — ${fmt(c.revenue)} (${pct}%)\n`;
       });
 
       if (sortedCustomers.length > topNLimit) {
-        response += `\n*${sortedCustomers.length - topNLimit} more customers not shown.*`;
+        response += `\n*${sortedCustomers.length - topNLimit} more customers not shown.*\n`;
       }
 
-      response += `\n\n---\nAsk about any specific customer for their full purchase history and product breakdown.`;
+      response += `\nLet's put a plan together for one of them. Who are we targeting for growth?`;
       return response;
     }
 
