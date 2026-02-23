@@ -919,7 +919,7 @@ async function gatherContext(
           console.log(`[gatherContext] Loaded rep summary: ${actualRepName}, ${totalCustomers} customers, ${fmt(totalRevenue)} revenue`);
         }
 
-        // ── Year-specific data: detect year in the original message context ──
+        // ── Year-specific data: ALWAYS load recent years so LLM can answer year questions ──
         const lowerUserCtx = `${userContext || ""} ${userMessage || ""}`.toLowerCase();
         let detectedYear: number | null = null;
         const yearRx = lowerUserCtx.match(/\b(20[1-3]\d)\b/);
@@ -927,35 +927,42 @@ async function gatherContext(
         else if (/\bthis\s+year\b/.test(lowerUserCtx)) detectedYear = new Date().getFullYear();
         else if (/\blast\s+year\b/.test(lowerUserCtx)) detectedYear = new Date().getFullYear() - 1;
 
-        if (detectedYear) {
+        // Load up to 3 recent years (or just the requested year) for context
+        const currentYear = new Date().getFullYear();
+        const yearsToLoad = detectedYear 
+          ? [detectedYear] 
+          : [currentYear, currentYear - 1, currentYear - 2];
+
+        for (const yr of yearsToLoad) {
           const { data: yearRows } = await client
             .from("customer_purchase_history")
             .select("customer_name, amount")
             .eq("company_id", companyId)
             .ilike("rep_name", `${repFirstName}%`)
-            .eq("season", String(detectedYear));
+            .eq("season", String(yr));
 
           if (yearRows && yearRows.length > 0) {
             const yearMap = new Map<string, number>();
             for (const row of yearRows) {
-              const name = row.customer_name;
-              const amt = Number(row.amount) || 0;
-              yearMap.set(name, (yearMap.get(name) || 0) + amt);
+              yearMap.set(row.customer_name, (yearMap.get(row.customer_name) || 0) + (Number(row.amount) || 0));
             }
             const yearSorted = Array.from(yearMap.entries())
               .map(([name, revenue]) => ({ name, revenue }))
               .sort((a, b) => b.revenue - a.revenue);
             const yearTotal = yearSorted.reduce((s, c) => s + c.revenue, 0);
 
-            let yearSummary = `\n${detectedYear} DATA for ${repName}: ${yearSorted.length} customers, ${fmt(yearTotal)} total revenue.\n`;
-            yearSummary += `All customers ranked by ${detectedYear} revenue:\n`;
-            yearSorted.forEach((c, idx) => {
+            let yearSummary = `\n${yr} DATA for ${repName}: ${yearSorted.length} customers, ${fmt(yearTotal)} total revenue.\n`;
+            yearSummary += `Top customers by ${yr} revenue:\n`;
+            yearSorted.slice(0, 25).forEach((c, idx) => {
               const pct = yearTotal > 0 ? ((c.revenue / yearTotal) * 100).toFixed(1) : "0";
               yearSummary += `  ${idx + 1}. ${c.name}: ${fmt(c.revenue)} (${pct}%)\n`;
             });
+            if (yearSorted.length > 25) {
+              yearSummary += `  ...and ${yearSorted.length - 25} more.\n`;
+            }
 
             context.repDataSummary = (context.repDataSummary || "") + yearSummary;
-            console.log(`[gatherContext] Loaded ${detectedYear} data: ${yearSorted.length} customers, ${fmt(yearTotal)} revenue`);
+            console.log(`[gatherContext] Loaded ${yr} data: ${yearSorted.length} customers, ${fmt(yearTotal)} revenue`);
           }
         }
       }
