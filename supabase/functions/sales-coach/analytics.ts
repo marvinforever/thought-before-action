@@ -197,7 +197,7 @@ export async function handleParetoAnalysis(
 
       const { data: yearData, error: yearError } = await client
         .from("customer_purchase_history")
-        .select("customer_name, total_amount")
+        .select("customer_name, amount")
         .eq("company_id", companyId)
         .ilike("rep_name", `${repFirstName}%`)
         .gte("sale_date", startDate)
@@ -213,7 +213,7 @@ export async function handleParetoAnalysis(
       const customerMap = new Map<string, number>();
       for (const row of yearData) {
         const name = row.customer_name;
-        const amt = Number(row.total_amount) || 0;
+        const amt = Number(row.amount) || 0;
         customerMap.set(name, (customerMap.get(name) || 0) + amt);
       }
 
