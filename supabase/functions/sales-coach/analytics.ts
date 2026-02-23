@@ -124,7 +124,7 @@ export async function handleParetoAnalysis(
     /pareto/i,
     /who\s+(?:are|makes?|represents?)\s+.*?(?:top|biggest|largest)/i,
     /biggest\s+customers?/i,
-    /top\s+(?:\w+\s+)?(?:customers?|growers?|accounts?)/i,   // "top ten customers", "top 10 customers", "top customers"
+    /top\s+(?:\w+\s+)?(?:customers?|growers?|accounts?)/i,
     /largest\s+(?:\w+\s+)?(?:customers?|growers?|accounts?)/i,
     /(?:customers?|accounts?|growers?)\s+by\s+(?:revenue|sales|volume)/i,
     /represent(?:s)?\s+\d+\s*%/i,
@@ -137,12 +137,46 @@ export async function handleParetoAnalysis(
 
   console.log("[Pareto Analysis] Detected query");
 
-  let targetPercent = 80;
-  const percentMatch = lowerMsg.match(/(\d+)\s*%/) || lowerMsg.match(/(\d+)\s*\/\s*20/);
-  if (percentMatch) {
-    const extracted = parseInt(percentMatch[1], 10);
-    if (extracted > 0 && extracted <= 100) targetPercent = extracted;
+  // ── Extract "top N" count (number or word) ──
+  const wordToNum: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+    eight: 8, nine: 9, ten: 10, fifteen: 15, twenty: 20, twenty5: 25,
+    twentyfive: 25, thirty: 30, fifty: 50,
+  };
+  let topNLimit: number | null = null;
+  const topNDigitMatch = lowerMsg.match(/top\s+(\d+)\s+(?!%)/);
+  if (topNDigitMatch) {
+    topNLimit = parseInt(topNDigitMatch[1], 10);
+  } else {
+    const topNWordMatch = lowerMsg.match(/top\s+(one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|thirty|fifty)\b/i);
+    if (topNWordMatch) {
+      topNLimit = wordToNum[topNWordMatch[1].toLowerCase()] || null;
+    }
   }
+
+  // ── Extract year filter ──
+  let yearFilter: number | null = null;
+  const yearMatch = lowerMsg.match(/\b(20[1-3]\d)\b/);
+  if (yearMatch) {
+    yearFilter = parseInt(yearMatch[1], 10);
+  } else if (/\bthis\s+year\b/.test(lowerMsg)) {
+    yearFilter = new Date().getFullYear();
+  } else if (/\blast\s+year\b/.test(lowerMsg)) {
+    yearFilter = new Date().getFullYear() - 1;
+  }
+
+  // ── Percentage target (only if no top-N was specified) ──
+  let targetPercent = 80;
+  let isPercentMode = false;
+  if (!topNLimit) {
+    const percentMatch = lowerMsg.match(/(\d+)\s*%/) || lowerMsg.match(/(\d+)\s*\/\s*20/);
+    if (percentMatch) {
+      const extracted = parseInt(percentMatch[1], 10);
+      if (extracted > 0 && extracted <= 100) { targetPercent = extracted; isPercentMode = true; }
+    }
+  }
+
+  console.log(`[Pareto Analysis] topN=${topNLimit}, year=${yearFilter}, percent=${isPercentMode ? targetPercent : 'N/A'}`);
 
   try {
     const { data: userProfile } = await client
@@ -152,38 +186,98 @@ export async function handleParetoAnalysis(
       .maybeSingle();
 
     const repName = userProfile?.full_name?.toUpperCase() || null;
-
-    // Use RPC for DB-side aggregation — single round trip instead of 25
     const repFirstName = repName ? repName.split(" ")[0] : "";
-    const cacheKey = repSummaryKey(companyId, repFirstName);
 
-    const repData = await queryCache.getOrFetch(
-      cacheKey,
-      async () => {
-        const { data, error } = await client.rpc("get_rep_customer_summary", {
-          p_company_id: companyId,
-          p_rep_first_name: repFirstName,
-        });
-        if (error) throw error;
-        return data;
+    let sortedCustomers: { name: string; revenue: number }[];
+
+    if (yearFilter) {
+      // ── Year-filtered query: go direct to the table ──
+      const startDate = `${yearFilter}-01-01`;
+      const endDate = `${yearFilter}-12-31`;
+
+      const { data: yearData, error: yearError } = await client
+        .from("customer_purchase_history")
+        .select("customer_name, total_amount")
+        .eq("company_id", companyId)
+        .ilike("rep_name", `${repFirstName}%`)
+        .gte("sale_date", startDate)
+        .lte("sale_date", endDate);
+
+      if (yearError) throw yearError;
+
+      if (!yearData || yearData.length === 0) {
+        return `I don't have any purchase history data for ${repName || "your account"} in ${yearFilter}. Make sure your ${yearFilter} sales data has been imported.`;
       }
-    );
 
-    const error = null; // handled inside getOrFetch
+      // Aggregate by customer name
+      const customerMap = new Map<string, number>();
+      for (const row of yearData) {
+        const name = row.customer_name;
+        const amt = Number(row.total_amount) || 0;
+        customerMap.set(name, (customerMap.get(name) || 0) + amt);
+      }
 
-    if (!repData || repData.length === 0) {
-      return `I don't have any purchase history data for ${repName || "your account"}. Ensure your sales data is imported and your name matches the rep name in the data.`;
+      sortedCustomers = Array.from(customerMap.entries())
+        .map(([name, revenue]) => ({ name, revenue }))
+        .sort((a, b) => b.revenue - a.revenue);
+    } else {
+      // ── All-time: use cached RPC ──
+      const cacheKey = repSummaryKey(companyId, repFirstName);
+      const repData = await queryCache.getOrFetch(
+        cacheKey,
+        async () => {
+          const { data, error } = await client.rpc("get_rep_customer_summary", {
+            p_company_id: companyId,
+            p_rep_first_name: repFirstName,
+          });
+          if (error) throw error;
+          return data;
+        }
+      );
+
+      if (!repData || repData.length === 0) {
+        return `I don't have any purchase history data for ${repName || "your account"}. Ensure your sales data is imported and your name matches the rep name in the data.`;
+      }
+
+      sortedCustomers = repData.map((row: any) => ({
+        name: row.customer_name,
+        revenue: Number(row.total_revenue) || 0,
+      }));
     }
 
-    // repData is already sorted by total_revenue DESC from the DB
-    const sortedCustomers: { name: string; revenue: number }[] = repData.map((row: any) => ({
-      name: row.customer_name,
-      revenue: Number(row.total_revenue) || 0,
-    }));
-
     const totalRevenue = sortedCustomers.reduce((sum, c) => sum + c.revenue, 0);
-    const targetRevenue = (targetPercent / 100) * totalRevenue;
 
+    const fmt = (n: number) =>
+      new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+
+    if (topNLimit) {
+      // ── Top-N mode: just take the first N ──
+      const topN = sortedCustomers.slice(0, topNLimit);
+      const topNRevenue = topN.reduce((sum, c) => sum + c.revenue, 0);
+      const topNPercent = totalRevenue > 0 ? ((topNRevenue / totalRevenue) * 100).toFixed(1) : "0";
+      const yearLabel = yearFilter ? ` (${yearFilter})` : "";
+
+      let response = `## Your Top ${topNLimit} Customers${yearLabel}\n\n`;
+      response += `**${topN.length} customers** represent **${topNPercent}%** of your${yearLabel} revenue.\n\n`;
+      response += `**Total Revenue${yearLabel}:** ${fmt(totalRevenue)}\n`;
+      response += `**Top ${topN.length} Combined:** ${fmt(topNRevenue)}\n\n`;
+      response += `| Rank | Customer | Revenue | % of Total |\n|------|----------|---------|------------|\n`;
+
+      topN.forEach((c, idx) => {
+        const pct = totalRevenue > 0 ? ((c.revenue / totalRevenue) * 100).toFixed(1) : "0";
+        response += `| ${idx + 1} | ${c.name} | ${fmt(c.revenue)} | ${pct}% |\n`;
+      });
+
+      if (sortedCustomers.length > topNLimit) {
+        response += `\n*${sortedCustomers.length - topNLimit} more customers not shown.*`;
+      }
+
+      response += `\n\n---\nAsk about any specific customer for their full purchase history and product breakdown.`;
+      return response;
+    }
+
+    // ── Percentage / Pareto mode ──
+    const targetRevenue = (targetPercent / 100) * totalRevenue;
     let cumulativeRevenue = 0;
     const topCustomers: { name: string; revenue: number; percent: number }[] = [];
 
@@ -193,15 +287,13 @@ export async function handleParetoAnalysis(
       if (cumulativeRevenue >= targetRevenue) break;
     }
 
-    const fmt = (n: number) =>
-      new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
-
     const customerPercent = ((topCustomers.length / sortedCustomers.length) * 100).toFixed(1);
     const actualRevenuePercent = ((cumulativeRevenue / totalRevenue) * 100).toFixed(1);
+    const yearLabel = yearFilter ? ` (${yearFilter})` : "";
 
-    let response = `## Your Top ${targetPercent}% Revenue Analysis\n\n`;
-    response += `**${topCustomers.length} customers** (${customerPercent}% of ${sortedCustomers.length} total) make up **${actualRevenuePercent}%** of your revenue.\n\n`;
-    response += `**Total Revenue:** ${fmt(totalRevenue)}\n`;
+    let response = `## Your Top ${targetPercent}% Revenue Analysis${yearLabel}\n\n`;
+    response += `**${topCustomers.length} customers** (${customerPercent}% of ${sortedCustomers.length} total) make up **${actualRevenuePercent}%** of your${yearLabel} revenue.\n\n`;
+    response += `**Total Revenue${yearLabel}:** ${fmt(totalRevenue)}\n`;
     response += `**Top ${topCustomers.length} Combined:** ${fmt(cumulativeRevenue)}\n\n`;
     response += `### Your Top Customers:\n\n| Rank | Customer | Revenue | % of Total |\n|------|----------|---------|------------|\n`;
 
