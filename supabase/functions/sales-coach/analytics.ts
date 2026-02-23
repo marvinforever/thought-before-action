@@ -456,14 +456,18 @@ export async function handlePurchaseHistoryQuery(
 
   const purchasePatterns = [
     /(?:what|show me|tell me|give me)\s+(?:did|has|does)\s+(.+?)\s+(?:buy|bought|purchase|order)/i,
-    /(.+?)\s*[']?s?\s+(?:purchase|buying|order)\s*(?:history|record|data)/i,
-    /(?:purchase|order|buying)\s*(?:history|record)\s+(?:for|of|from)\s+(.+?)(?:\?|$)/i,
+    /(.+?)\s*[']?s?\s+(?:purchase|buying|order|sales?)\s*(?:history|record|data|numbers?)?/i,
+    /(?:purchase|order|buying|sales?)\s*(?:history|record|data|numbers?)?\s+(?:for|of|from)\s+(.+?)(?:\?|$)/i,
     /(?:what|which)\s+(?:products?|items?)\s+(?:did|has|does)\s+(.+?)\s+(?:buy|order|purchase)/i,
-    /show\s+(?:me\s+)?(.+?)\s*[']?s?\s+(?:purchases?|orders?|history)/i,
+    /show\s+(?:me\s+)?(.+?)\s*[']?s?\s+(?:purchases?|orders?|history|sales|data|numbers?)/i,
+    // "show me Bollig Brothers 2025 sales" / "show me Bollig Brothers sales"
+    /(?:show|pull|get|give|tell)\s+(?:me\s+)?(.+?)\s+(?:20[1-3]\d\s+)?(?:sales|revenue|data|numbers?|history|purchases?)/i,
     // "what has Bollig Brothers bought", "tell me about Lofstrom's history"
-    /(?:tell me about|what about|info on|details? (?:on|for|about))\s+(.+?)(?:'s)?\s+(?:purchase|buying|order|history|data)/i,
-    // "how much has [customer] spent"
-    /how\s+much\s+(?:has|did|have)\s+(.+?)\s+(?:spent?|paid?|bought?|purchased?)/i,
+    /(?:tell me about|what about|info on|details? (?:on|for|about))\s+(.+?)(?:'s)?\s+(?:purchase|buying|order|history|sales|data|revenue)/i,
+    // "how much has [customer] spent/sold"
+    /how\s+much\s+(?:has|did|have)\s+(.+?)\s+(?:spent?|paid?|bought?|purchased?|sold)/i,
+    // "[Customer] [year] sales/data/revenue"
+    /^(.+?)\s+(?:20[1-3]\d\s+)?(?:sales|revenue|data|numbers?|purchases?)$/i,
   ];
 
   let customerName: string | null = null;
@@ -477,10 +481,24 @@ export async function handlePurchaseHistoryQuery(
 
   if (!customerName) return null;
 
-  // Clean up the extracted name — remove trailing noise words
-  customerName = customerName.replace(/\s+(bought|buy|purchase|order|history|data|record|spent|paid).*$/i, "").trim();
+  // Clean up the extracted name — remove trailing noise words and year numbers
+  customerName = customerName
+    .replace(/\s+(bought|buy|purchase|order|history|data|record|spent|paid|sold|sales|revenue|numbers?).*$/i, "")
+    .replace(/\s+20[1-3]\d\s*/g, " ")
+    .trim();
 
-  console.log("[Purchase History] Detected query for customer:", customerName);
+  // Extract year filter from the original message
+  let yearFilter: number | null = null;
+  const yearMatch = message.match(/\b(20[1-3]\d)\b/);
+  if (yearMatch) {
+    yearFilter = parseInt(yearMatch[1], 10);
+  } else if (/\bthis\s+year\b/i.test(message)) {
+    yearFilter = new Date().getFullYear();
+  } else if (/\blast\s+year\b/i.test(message)) {
+    yearFilter = new Date().getFullYear() - 1;
+  }
+
+  console.log("[Purchase History] Detected query for customer:", customerName, "year:", yearFilter);
 
   try {
     const nameParts = customerName.split(/\s+/);
@@ -512,6 +530,60 @@ export async function handlePurchaseHistoryQuery(
     if (summary && Number(summary.total_revenue) > 0) {
       const fmt = (n: number) =>
         new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+
+      // If year filter requested and yearly_totals available, show year-specific data
+      if (yearFilter && summary.yearly_totals) {
+        const yearKey = String(yearFilter);
+        const yearlyTotals = summary.yearly_totals as Record<string, number>;
+        const yearRevenue = Number(yearlyTotals[yearKey]) || 0;
+
+        if (yearRevenue === 0) {
+          return {
+            response: `I don't have any ${yearFilter} purchase data for **${customerName}**. Their data exists for other years though.\n\n### Available Years:\n${Object.entries(yearlyTotals).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).map(([yr, total]) => `- **${yr}:** ${fmt(Number(total))}`).join("\n")}`,
+            customerId: null,
+            customerName,
+          };
+        }
+
+        let response = `## ${customerName} — ${yearFilter} Sales\n\n`;
+        response += `**${yearFilter} Revenue:** ${fmt(yearRevenue)}\n\n`;
+
+        // Also show year-over-year context
+        const years = Object.entries(yearlyTotals)
+          .sort((a, b) => String(b[0]).localeCompare(String(a[0])));
+        if (years.length > 1) {
+          response += `### Year-over-Year:\n`;
+          for (const [yr, total] of years) {
+            const marker = yr === yearKey ? " ← " : "";
+            response += `- **${yr}:** ${fmt(Number(total))}${marker}\n`;
+          }
+        }
+
+        if (summary.top_products) {
+          const products = summary.top_products as Array<{ name: string; revenue: number; txn_count: number }>;
+          if (products.length > 0) {
+            response += `\n### Top Products (All-Time):\n`;
+            for (const p of products) {
+              response += `- ${p.name}: ${fmt(Number(p.revenue))}\n`;
+            }
+          }
+        }
+
+        // Match to sales_companies
+        const { data: salesCompany } = await client
+          .from("sales_companies")
+          .select("id, name")
+          .eq("profile_id", userId)
+          .or(`name.ilike.%${customerName}%`)
+          .limit(1)
+          .maybeSingle();
+
+        return {
+          response,
+          customerId: salesCompany?.id || null,
+          customerName: salesCompany?.name || customerName,
+        };
+      }
 
       const totalRevenue = Number(summary.total_revenue) || 0;
       const txnCount = Number(summary.transaction_count) || 0;
