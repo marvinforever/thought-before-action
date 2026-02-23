@@ -66,13 +66,11 @@ export const MODELS: Record<string, ModelConfig> = {
   
   // Anthropic models (requires ANTHROPIC_API_KEY)
   'opus': {
-    // NOTE: Anthropic model IDs are strict; an invalid ID will 404 and trigger fallback.
-    // Keep this aligned with Anthropic's published model list.
     id: 'claude-opus-4-6',
     provider: 'anthropic',
     maxTokens: 200000,
-    costPer1MInput: 15.00,
-    costPer1MOutput: 75.00,
+    costPer1MInput: 5.00,
+    costPer1MOutput: 25.00,
     latency: 'slow',
     strengths: ['multi-step reasoning', 'agentic workflows', 'long context synthesis', 
                 'career planning', 'nuanced writing', 'complex decision making'],
@@ -80,8 +78,7 @@ export const MODELS: Record<string, ModelConfig> = {
     supportsStreaming: true,
   },
   'sonnet': {
-    // Anthropic's Sonnet 4.5 ID (the dated variant used previously was returning 404).
-    id: 'claude-sonnet-4-5',
+    id: 'claude-sonnet-4-6',
     provider: 'anthropic',
     maxTokens: 200000,
     costPer1MInput: 3.00,
@@ -432,10 +429,11 @@ export async function callAI(
     }
   } catch (error) {
     console.error(`[AI Router] Error calling ${model.id}:`, error);
+    console.error(`[AI Router] Provider: ${model.provider}, URL: ${url}, Status may be in error above`);
     
     // Fallback logic: Try a more reliable model
     if (model.provider === 'anthropic') {
-      console.log(`[AI Router] Falling back from Opus to Gemini Pro`);
+      console.warn(`[AI Router] ⚠️ FALLING BACK from ${model.id} to Gemini Pro — Anthropic call failed`);
       return callAI(
         { ...context, taskType: 'strategic-report' }, // Force Gemini Pro
         messages,
