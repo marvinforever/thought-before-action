@@ -31,6 +31,9 @@ export async function handleMyCustomerListQuery(
     /\b(?:all\s+)?my\s+(?:2024|2025|2026|2023|2022|last\s+year|this\s+year)\s+(?:customers?|accounts?|data|sales|numbers?)\b/i,
     /\bbring\s+up\s+(?:the\s+)?(?:my\s+)?(?:customer|account|grower)\s+list\b/i,
     /\bwho\s+(?:are|do)\s+i\s+(?:sell|service|cover|manage|work\s+with)\b/i,
+    /\bmy\s+(?:top|biggest|largest)\b/i,
+    /\bhow\s+(?:much|many)\s+(?:did|have)\s+i\s+(?:sell|sold|do|made?)\b/i,
+    /\bmy\s+(?:total\s+)?(?:revenue|sales|volume|business)\b/i,
   ];
 
   const hasSelfQuery = myCustomerPatterns.some((p) => p.test(lowerMsg));
@@ -119,10 +122,14 @@ export async function handleParetoAnalysis(
     /(\d+)\s*\/\s*20/i,
     /80\s*-?\s*20/i,
     /pareto/i,
-    /who\s+(?:are|makes?|represents?)\s+(?:my\s+)?(?:top|biggest|largest)/i,
+    /who\s+(?:are|makes?|represents?)\s+.*?(?:top|biggest|largest)/i,
     /biggest\s+customers?/i,
-    /top\s+(?:customers?|growers?|accounts?)/i,
-    /largest\s+(?:customers?|growers?|accounts?)\s+by\s+(?:revenue|sales|volume)/i,
+    /top\s+(?:\w+\s+)?(?:customers?|growers?|accounts?)/i,   // "top ten customers", "top 10 customers", "top customers"
+    /largest\s+(?:\w+\s+)?(?:customers?|growers?|accounts?)/i,
+    /(?:customers?|accounts?|growers?)\s+by\s+(?:revenue|sales|volume)/i,
+    /represent(?:s)?\s+\d+\s*%/i,
+    /(?:bring|pull|show|give|get|list)\s+.*?(?:top|biggest|largest)\s+.*?(?:customer|account|grower)/i,
+    /top\s+\d+\s+(?:\w+\s+)?(?:by\s+)?(?:revenue|sales|volume)/i,
   ];
 
   const isParetoQuery = paretoPatterns.some((p) => p.test(lowerMsg));

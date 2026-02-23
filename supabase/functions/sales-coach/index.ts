@@ -876,41 +876,50 @@ async function gatherContext(
 
       context.purchaseHistorySummary = `PURCHASE HISTORY for ${searchName} (${txnCount} transactions):\nTotal: ${fmt(totalRevenue)}\nBy Year:\n${yearSummary}\nTop Products:\n${topProducts}`;
     } else {
-      context.purchaseHistorySummary = null;
+    context.purchaseHistorySummary = null;
     }
-  } else if (companyId) {
-    // No specific company extracted from message — but if there's an activeCustomer
-    // from context (e.g. user is in a customer tab), try to load their purchase history
-    // using the userContext which may contain customer name info
-    const customerHintMatch = userContext?.match(/customer:\s*(.+?)(?:\n|$)/i);
-    if (customerHintMatch?.[1]) {
-      const hintName = customerHintMatch[1].trim();
-      const hintParts = hintName.split(/\s+/);
-      const hintLast = hintParts[hintParts.length - 1];
-      const { data: hintSummaryData } = await client.rpc("get_customer_purchase_summary_v2", {
-        p_company_id: companyId,
-        p_customer_name_pattern: `%${hintLast}%`,
-      });
-      const hintSummary = hintSummaryData?.[0];
-      if (hintSummary && Number(hintSummary.total_revenue) > 0) {
-        const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
-        const totalRevenue = Number(hintSummary.total_revenue) || 0;
-        const txnCount = Number(hintSummary.transaction_count) || 0;
-        const yearSummary = hintSummary.yearly_totals
-          ? Object.entries(hintSummary.yearly_totals as Record<string, number>)
-              .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
-              .slice(0, 5)
-              .map(([yr, total]) => `  - ${yr}: ${fmt(Number(total))}`)
-              .join("\n")
-          : "  - No yearly data";
-        const topProductsTxt = hintSummary.top_products
-          ? (hintSummary.top_products as Array<{ name: string; revenue: number }>)
-              .slice(0, 10)
-              .map((p) => `  - ${p.name}: ${fmt(Number(p.revenue))}`)
-              .join("\n")
-          : "  - No product data";
-        context.purchaseHistorySummary = `PURCHASE HISTORY for ${hintName} (${txnCount} transactions):\nTotal: ${fmt(totalRevenue)}\nBy Year:\n${yearSummary}\nTop Products:\n${topProductsTxt}`;
+  }
+  
+  // ALWAYS load the rep's top-level summary so the LLM can answer general data questions
+  // even when no specific customer is mentioned
+  if (companyId && userId && !context.repDataSummary) {
+    try {
+      const { data: userProfile } = await client
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .maybeSingle();
+      
+      const repName = userProfile?.full_name?.toUpperCase() || null;
+      if (repName) {
+        const repFirstName = repName.split(" ")[0];
+        const { data: repData } = await client.rpc("get_rep_customer_summary", {
+          p_company_id: companyId,
+          p_rep_first_name: repFirstName,
+        });
+        
+        if (repData && repData.length > 0) {
+          const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+          const totalRevenue = repData.reduce((sum: number, row: any) => sum + (Number(row.total_revenue) || 0), 0);
+          const totalCustomers = repData.length;
+          const actualRepName = repData[0].rep_name;
+          
+          // Build a concise summary with top 20 customers
+          let summary = `REP DATA SUMMARY for ${actualRepName}: ${totalCustomers} customers, ${fmt(totalRevenue)} total revenue.\n`;
+          summary += `Top customers by revenue:\n`;
+          repData.slice(0, 20).forEach((row: any, idx: number) => {
+            summary += `  ${idx + 1}. ${row.customer_name}: ${fmt(Number(row.total_revenue) || 0)} (${row.transaction_count} txns)\n`;
+          });
+          if (totalCustomers > 20) {
+            summary += `  ...and ${totalCustomers - 20} more customers.\n`;
+          }
+          
+          context.repDataSummary = summary;
+          console.log(`[gatherContext] Loaded rep summary: ${actualRepName}, ${totalCustomers} customers, ${fmt(totalRevenue)} revenue`);
+        }
       }
+    } catch (err) {
+      console.warn("[gatherContext] Failed to load rep summary:", err);
     }
   }
 
@@ -1143,11 +1152,14 @@ async function generateResponse(
 **ACAVE Objections:** Acknowledge → Clarify → Answer → Verify → End/Close
 **Appointment Script:** "Hey [Name], going to be in your area next week. I've got [Day1] and [Day2]. Which works best?"`;
 
+  const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nYou HAVE access to this data. Use it to answer questions about customers, revenue, top accounts, purchase history, etc. NEVER say "check your CRM" when this data is available.` : "";
+
   const systemPrompt =
     chatMode === "rec"
       ? `You are Jericho, a fast-moving AI sales partner IN THE FIELD. Be direct, data-first, short (2-3 sentences max), action-oriented. No teaching moments. No "Great question!". Speak peer-to-peer.
 ${productValidationRules}
 ${knowledgeContext}
+${repDataBlock}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
 ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.purchaseHistorySummary}` : ""}
@@ -1159,6 +1171,7 @@ ${methodologyReference}
 ${productValidationRules}
 Your style: Conversational, warm, trusted mentor. Ask follow-up questions. Give specific actionable advice. Celebrate wins.${focusInstruction}
 ${knowledgeContext}
+${repDataBlock}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
 ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.purchaseHistorySummary}` : ""}
