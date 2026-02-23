@@ -85,19 +85,23 @@ export async function handleMyCustomerListQuery(
     // Check if they want a specific year filtered
     const yearMatch = lowerMsg.match(/\b(202[0-9]|201[0-9]|last\s+year|this\s+year)\b/);
 
-    let response = `## ${actualRepName}'s Customer List\n\n`;
-    response += `**${totalCustomers} customers** | **Total Revenue: ${fmt(totalRevenue)}**\n\n`;
-    response += `| Rank | Customer | Total Revenue | Transactions |\n|------|----------|--------------|----------|\n`;
+    // Detect if user asked for a specific count
+    const countMatch = lowerMsg.match(/\b(?:top|first|show me|give me|list)\s+(\d+)\b/i);
+    const singularMatch = /\btop\s+customer\b/i.test(lowerMsg);
+    const displayLimit = singularMatch ? 1 : countMatch ? parseInt(countMatch[1], 10) : 25;
+    const showing = Math.min(displayLimit, totalCustomers);
 
-    repData.slice(0, 50).forEach((row: any, idx: number) => {
-      response += `| ${idx + 1} | ${row.customer_name} | ${fmt(Number(row.total_revenue) || 0)} | ${row.transaction_count} |\n`;
+    let response = `**${actualRepName}'s Customer List**\n\n`;
+    response += `**${totalCustomers} total customers** · **${fmt(totalRevenue)} total revenue**\n\n`;
+
+    repData.slice(0, showing).forEach((row: any, idx: number) => {
+      const pct = totalRevenue > 0 ? ((Number(row.total_revenue) / totalRevenue) * 100).toFixed(1) : "0";
+      response += `${idx + 1}. **${row.customer_name}** — ${fmt(Number(row.total_revenue) || 0)} (${pct}%) · ${row.transaction_count} transactions\n`;
     });
 
-    if (totalCustomers > 50) {
-      response += `\n*...and ${totalCustomers - 50} more customers. Ask about a specific customer for detailed history.*`;
+    if (totalCustomers > showing) {
+      response += `\n*${totalCustomers - showing} more customers not shown. Ask for more or a specific customer for details.*`;
     }
-
-    response += `\n\n---\nAsk me about any specific customer for their full purchase history, top products, and year-by-year breakdown.`;
 
     return response;
   } catch (err) {
@@ -144,13 +148,19 @@ export async function handleParetoAnalysis(
     twentyfive: 25, thirty: 30, fifty: 50,
   };
   let topNLimit: number | null = null;
-  const topNDigitMatch = lowerMsg.match(/top\s+(\d+)\s+(?!%)/);
-  if (topNDigitMatch) {
-    topNLimit = parseInt(topNDigitMatch[1], 10);
-  } else {
-    const topNWordMatch = lowerMsg.match(/top\s+(one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|thirty|fifty)\b/i);
-    if (topNWordMatch) {
-      topNLimit = wordToNum[topNWordMatch[1].toLowerCase()] || null;
+  // "top customer" / "biggest customer" (singular) = top 1
+  if (/\b(?:top|biggest|largest|#1|number\s*one)\s+(?:customer|grower|account|client)\b/i.test(lowerMsg)) {
+    topNLimit = 1;
+  }
+  if (!topNLimit) {
+    const topNDigitMatch = lowerMsg.match(/top\s+(\d+)\s+(?!%)/);
+    if (topNDigitMatch) {
+      topNLimit = parseInt(topNDigitMatch[1], 10);
+    } else {
+      const topNWordMatch = lowerMsg.match(/top\s+(one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|thirty|fifty)\b/i);
+      if (topNWordMatch) {
+        topNLimit = wordToNum[topNWordMatch[1].toLowerCase()] || null;
+      }
     }
   }
 
@@ -287,17 +297,15 @@ export async function handleParetoAnalysis(
     const actualRevenuePercent = ((cumulativeRevenue / totalRevenue) * 100).toFixed(1);
     const yearLabel = yearFilter ? ` (${yearFilter})` : "";
 
-    let response = `## Your Top ${targetPercent}% Revenue Analysis${yearLabel}\n\n`;
+    let response = `**Your Top ${targetPercent}% Revenue Analysis${yearLabel}**\n\n`;
     response += `**${topCustomers.length} customers** (${customerPercent}% of ${sortedCustomers.length} total) make up **${actualRevenuePercent}%** of your${yearLabel} revenue.\n\n`;
-    response += `**Total Revenue${yearLabel}:** ${fmt(totalRevenue)}\n`;
-    response += `**Top ${topCustomers.length} Combined:** ${fmt(cumulativeRevenue)}\n\n`;
-    response += `### Your Top Customers:\n\n| Rank | Customer | Revenue | % of Total |\n|------|----------|---------|------------|\n`;
+    response += `**Total Revenue${yearLabel}:** ${fmt(totalRevenue)} · **Top ${topCustomers.length} Combined:** ${fmt(cumulativeRevenue)}\n\n`;
 
     topCustomers.forEach((c, idx) => {
-      response += `| ${idx + 1} | ${c.name} | ${fmt(c.revenue)} | ${c.percent.toFixed(1)}% |\n`;
+      response += `${idx + 1}. **${c.name}** — ${fmt(c.revenue)} (${c.percent.toFixed(1)}%)\n`;
     });
 
-    response += `\n---\n**Key Insight:** These ${topCustomers.length} accounts are your bread and butter. Focus here first, then grow accounts just outside this tier.`;
+    response += `\nThese ${topCustomers.length} accounts are your bread and butter. Want to build a growth plan for any of them?`;
 
     return response;
   } catch (err) {
@@ -412,16 +420,18 @@ export async function handleRepCustomerListQuery(
     const totalRevenue = repData.reduce((sum: number, row: any) => sum + (Number(row.total_revenue) || 0), 0);
     const totalCustomers = repData.length;
 
-    let response = `## ${actualRepName}'s Customer List\n\n`;
-    response += `**${totalCustomers} customers** | **Total Revenue: ${fmt(totalRevenue)}**\n\n`;
-    response += `| Rank | Customer | Total Revenue | Transactions |\n|------|----------|--------------|----------|\n`;
+    const showing = Math.min(25, totalCustomers);
 
-    repData.slice(0, 50).forEach((row: any, idx: number) => {
-      response += `| ${idx + 1} | ${row.customer_name} | ${fmt(Number(row.total_revenue) || 0)} | ${row.transaction_count} |\n`;
+    let response = `**${actualRepName}'s Customer List**\n\n`;
+    response += `**${totalCustomers} total customers** · **${fmt(totalRevenue)} total revenue**\n\n`;
+
+    repData.slice(0, showing).forEach((row: any, idx: number) => {
+      const pct = totalRevenue > 0 ? ((Number(row.total_revenue) / totalRevenue) * 100).toFixed(1) : "0";
+      response += `${idx + 1}. **${row.customer_name}** — ${fmt(Number(row.total_revenue) || 0)} (${pct}%)\n`;
     });
 
-    if (totalCustomers > 50) {
-      response += `\n*...and ${totalCustomers - 50} more customers*`;
+    if (totalCustomers > showing) {
+      response += `\n*${totalCustomers - showing} more customers not shown.*`;
     }
 
     return response;
