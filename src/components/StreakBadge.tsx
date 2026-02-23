@@ -52,8 +52,9 @@ export function StreakBadge({ className, showLabel = true }: StreakBadgeProps) {
               longestStreak = newStreak;
             }
           } else if (lastLogin !== today) {
-            // If last login wasn't today or yesterday, reset streak
+            // If last login wasn't today or yesterday, reset streak to 1 and update DB
             newStreak = 1;
+            // Don't carry over a stale longest_streak claim either
           }
 
           // Update if it's a new day
