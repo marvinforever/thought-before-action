@@ -159,8 +159,8 @@ export const ROUTING_TABLE: Record<TaskType, string> = {
   'chat': 'gemini-flash',
   'podcast-script': 'gemini-flash',
   'resource-recommendation': 'gemini-flash',
-  'sales-coaching': 'gemini-flash',
-  'sales-coaching-main': 'gemini-flash',  // Gemini Flash - reliable, fast, no Anthropic credits needed
+  'sales-coaching': 'opus',
+  'sales-coaching-main': 'opus',  // Upgraded to Opus 4.6 for superior data reasoning and instruction following
   'meeting-parsing': 'gemini-flash',
   'habit-suggestions': 'gemini-flash',
   'goal-writing': 'gemini-flash',
