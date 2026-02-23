@@ -256,7 +256,7 @@ serve(async (req) => {
       })(),
 
       // ── Context: deals, companies, knowledge, intel, purchase history ────
-      gatherContext(adminClient, effectiveUserId, effectiveCompanyId, extracted, userContext),
+      gatherContext(adminClient, effectiveUserId, effectiveCompanyId, extracted, userContext, message),
     ]);
 
     // Merge backboard results
@@ -775,7 +775,8 @@ async function gatherContext(
   userId: string | null,
   companyId: string | null,
   extracted: ExtractedEntities,
-  userContext: string
+  userContext: string,
+  userMessage: string = ""
 ) {
   const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [] };
   if (!userId) return context;
@@ -905,8 +906,8 @@ async function gatherContext(
           const actualRepName = repData[0].rep_name;
           
           // Build a concise summary with top 20 customers
-          let summary = `REP DATA SUMMARY for ${actualRepName}: ${totalCustomers} customers, ${fmt(totalRevenue)} total revenue.\n`;
-          summary += `Top customers by revenue:\n`;
+          let summary = `REP DATA SUMMARY for ${actualRepName}: ${totalCustomers} customers, ${fmt(totalRevenue)} total all-time revenue.\n`;
+          summary += `Top customers by all-time revenue:\n`;
           repData.slice(0, 20).forEach((row: any, idx: number) => {
             summary += `  ${idx + 1}. ${row.customer_name}: ${fmt(Number(row.total_revenue) || 0)} (${row.transaction_count} txns)\n`;
           });
@@ -916,6 +917,46 @@ async function gatherContext(
           
           context.repDataSummary = summary;
           console.log(`[gatherContext] Loaded rep summary: ${actualRepName}, ${totalCustomers} customers, ${fmt(totalRevenue)} revenue`);
+        }
+
+        // ── Year-specific data: detect year in the original message context ──
+        const lowerUserCtx = `${userContext || ""} ${userMessage || ""}`.toLowerCase();
+        let detectedYear: number | null = null;
+        const yearRx = lowerUserCtx.match(/\b(20[1-3]\d)\b/);
+        if (yearRx) detectedYear = parseInt(yearRx[1], 10);
+        else if (/\bthis\s+year\b/.test(lowerUserCtx)) detectedYear = new Date().getFullYear();
+        else if (/\blast\s+year\b/.test(lowerUserCtx)) detectedYear = new Date().getFullYear() - 1;
+
+        if (detectedYear) {
+          const { data: yearRows } = await client
+            .from("customer_purchase_history")
+            .select("customer_name, amount")
+            .eq("company_id", companyId)
+            .ilike("rep_name", `${repFirstName}%`)
+            .eq("season", String(detectedYear));
+
+          if (yearRows && yearRows.length > 0) {
+            const yearMap = new Map<string, number>();
+            for (const row of yearRows) {
+              const name = row.customer_name;
+              const amt = Number(row.amount) || 0;
+              yearMap.set(name, (yearMap.get(name) || 0) + amt);
+            }
+            const yearSorted = Array.from(yearMap.entries())
+              .map(([name, revenue]) => ({ name, revenue }))
+              .sort((a, b) => b.revenue - a.revenue);
+            const yearTotal = yearSorted.reduce((s, c) => s + c.revenue, 0);
+
+            let yearSummary = `\n${detectedYear} DATA for ${repName}: ${yearSorted.length} customers, ${fmt(yearTotal)} total revenue.\n`;
+            yearSummary += `All customers ranked by ${detectedYear} revenue:\n`;
+            yearSorted.forEach((c, idx) => {
+              const pct = yearTotal > 0 ? ((c.revenue / yearTotal) * 100).toFixed(1) : "0";
+              yearSummary += `  ${idx + 1}. ${c.name}: ${fmt(c.revenue)} (${pct}%)\n`;
+            });
+
+            context.repDataSummary = (context.repDataSummary || "") + yearSummary;
+            console.log(`[gatherContext] Loaded ${detectedYear} data: ${yearSorted.length} customers, ${fmt(yearTotal)} revenue`);
+          }
         }
       }
     } catch (err) {
@@ -1152,11 +1193,24 @@ async function generateResponse(
 **ACAVE Objections:** Acknowledge → Clarify → Answer → Verify → End/Close
 **Appointment Script:** "Hey [Name], going to be in your area next week. I've got [Day1] and [Day2]. Which works best?"`;
 
-  const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nYou HAVE access to this data. Use it to answer questions about customers, revenue, top accounts, purchase history, etc. NEVER say "check your CRM" when this data is available.` : "";
+  const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nYou HAVE access to this data. Use it to answer ANY question about customers, revenue, top accounts, purchase history, year-over-year trends, etc. NEVER say "check your CRM" when this data is available. If year-specific data is provided, use it for year-specific questions.` : "";
+
+  const formattingRules = `
+## RESPONSE FORMATTING RULES (ALWAYS follow these):
+- When listing customers/accounts, use numbered lists: "1. **Customer Name** — $Amount (X%)"
+- Always format currency with $ and commas (e.g. $27,756 not 27756)
+- When showing ranked data, include rank number, name in bold, dollar amount, and percentage of total
+- Keep responses scannable: use bold for key numbers, short paragraphs, bullet points
+- End data answers with a brief actionable follow-up question (e.g. "Want to dig into any of these?")
+- If they ask for "top N" and you have fewer than N, show what you have and say so
+- NEVER dump raw data — always organize and summarize it clearly
+- Use line breaks between list items for readability`;
+
 
   const systemPrompt =
     chatMode === "rec"
       ? `You are Jericho, a fast-moving AI sales partner IN THE FIELD. Be direct, data-first, short (2-3 sentences max), action-oriented. No teaching moments. No "Great question!". Speak peer-to-peer.
+${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}
 ${repDataBlock}
@@ -1168,6 +1222,7 @@ ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
       : `You are Jericho, a seasoned sales coach using the Thrive Today Consultative Selling methodology.
 ${methodologyReference}
+${formattingRules}
 ${productValidationRules}
 Your style: Conversational, warm, trusted mentor. Ask follow-up questions. Give specific actionable advice. Celebrate wins.${focusInstruction}
 ${knowledgeContext}
