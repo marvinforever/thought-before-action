@@ -255,10 +255,11 @@ export async function handleParetoAnalysis(
       const topN = sortedCustomers.slice(0, topNLimit);
       const topNRevenue = topN.reduce((sum, c) => sum + c.revenue, 0);
       const topNPercent = totalRevenue > 0 ? ((topNRevenue / totalRevenue) * 100).toFixed(1) : "0";
-      const yearLabel = yearFilter ? ` (${yearFilter})` : "";
+      const yearLabel = yearFilter ? ` in ${yearFilter}` : "";
+      const displayCount = topN.length;
 
-      let response = `**Your Top ${topNLimit} Customers${yearLabel}**\n\n`;
-      response += `These ${topN.length} customers represent **${topNPercent}%** of your${yearLabel} revenue (${fmt(topNRevenue)} of ${fmt(totalRevenue)} total).\n\n`;
+      let response = `**Your Top ${displayCount} Customers${yearLabel}**\n\n`;
+      response += `These ${displayCount} customers represent **${topNPercent}%** of your${yearLabel} revenue (${fmt(topNRevenue)} of ${fmt(totalRevenue)} total).\n\n`;
 
       topN.forEach((c, idx) => {
         const pct = totalRevenue > 0 ? ((c.revenue / totalRevenue) * 100).toFixed(1) : "0";
