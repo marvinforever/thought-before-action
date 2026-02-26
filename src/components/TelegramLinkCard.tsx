@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, Link2, Link2Off, Copy, ExternalLink, RefreshCw, Check, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const BOT_USERNAME = "JerichoCoachBot"; // Update this to your actual bot username
+const BOT_USERNAME = "Teamjerichobot";
 
 export function TelegramLinkCard() {
   const { toast } = useToast();
