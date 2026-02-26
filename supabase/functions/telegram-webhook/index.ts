@@ -284,8 +284,16 @@ async function loadJerichoContext(supabase: any, userId: string) {
   }
 
   if (habits.length > 0) {
-    contextStr += `\nActive Leading Indicators (Daily Habits):\n${habits.map((h: any) => `- ${h.habit_name}: ${h.habit_description || ''} (${h.current_streak || 0} day streak, target: ${h.target_frequency || 'daily'})`).join('\n')}\n`;
-    contextStr += `\nIMPORTANT: You CAN track and discuss the user's habits. They are stored as "leading indicators" in the system. When a user asks about logging habits, reference their active habits above and encourage them to check them off in the app or report completions here.\n`;
+    const done = habits.filter((h: any) => todayCompletions.has(h.id));
+    const pending = habits.filter((h: any) => !todayCompletions.has(h.id));
+    contextStr += `\nActive Daily Habits (Leading Indicators):\n`;
+    if (done.length > 0) {
+      contextStr += `✅ COMPLETED TODAY:\n${done.map((h: any) => `- ${h.habit_name} (${h.current_streak || 0} day streak)`).join('\n')}\n`;
+    }
+    if (pending.length > 0) {
+      contextStr += `⬜ NOT YET DONE TODAY:\n${pending.map((h: any) => `- ${h.habit_name}: ${h.habit_description || ''} (${h.current_streak || 0} day streak)`).join('\n')}\n`;
+    }
+    contextStr += `\nHABIT CHECK-OFF BEHAVIOR: When the user asks about their habits or wants to check them off, walk through PENDING habits ONE BY ONE. Ask "Did you [habit name] today?" and wait for their answer before moving to the next. When they confirm, celebrate briefly and move to the next pending one. If ALL are done, congratulate them. You can log completions conversationally — the user confirms, you acknowledge. Don't dump all habits at once and ask generically.\n`;
   } else {
     contextStr += `\nThe user has no active habits/leading indicators set up yet. You CAN help them think about what daily habits to track. Habits are called "Leading Indicators" in the system — the user can add them from their Growth Plan page.\n`;
   }
