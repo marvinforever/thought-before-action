@@ -272,7 +272,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     const completed = targets.filter((t: any) => t.completed);
     contextStr += `\n90-Day Targets: ${active.length} active, ${completed.length} completed\n`;
     active.slice(0, 5).forEach((t: any) => {
-      contextStr += `- ${t.target_text} (${t.category}, due: ${t.by_when || 'no date'})\n`;
+      contextStr += `- ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'})\n`;
     });
   }
 
