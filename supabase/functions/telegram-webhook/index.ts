@@ -16,15 +16,21 @@ async function sendTelegramMessage(chatId: number, text: string, botToken: strin
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: 'Markdown',
-    }),
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
   });
   if (!resp.ok) {
-    const err = await resp.text();
-    console.error('[Telegram] sendMessage failed:', err);
+    const errBody = await resp.text();
+    // Retry without parse_mode if Telegram can't parse the markdown
+    if (errBody.includes("can't parse entities")) {
+      console.warn('[Telegram] Markdown parse failed, retrying as plain text');
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text }),
+      });
+    } else {
+      console.error('[Telegram] sendMessage failed:', errBody);
+    }
   }
 }
 
@@ -32,18 +38,25 @@ async function sendTelegramMessage(chatId: number, text: string, botToken: strin
 async function sendTelegramMessageWithId(chatId: number, text: string, botToken: string): Promise<number | null> {
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
   try {
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'Markdown',
-      }),
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
     });
     if (!resp.ok) {
-      console.error('[Telegram] sendMessageWithId failed:', await resp.text());
-      return null;
+      const errBody = await resp.text();
+      if (errBody.includes("can't parse entities")) {
+        console.warn('[Telegram] Markdown parse failed in sendWithId, retrying plain');
+        resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text }),
+        });
+        if (!resp.ok) return null;
+      } else {
+        console.error('[Telegram] sendMessageWithId failed:', errBody);
+        return null;
+      }
     }
     const data = await resp.json();
     return data.result?.message_id || null;
@@ -64,16 +77,22 @@ async function editTelegramMessage(chatId: number, messageId: number | null, tex
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId,
-        text,
-        parse_mode: 'Markdown',
-      }),
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text, parse_mode: 'Markdown' }),
     });
     if (!resp.ok) {
-      console.warn('[Telegram] editMessage failed, sending new message instead');
-      await sendTelegramMessage(chatId, text, botToken);
+      const errBody = await resp.text();
+      if (errBody.includes("can't parse entities")) {
+        console.warn('[Telegram] Edit markdown failed, retrying plain text edit');
+        const retry = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, message_id: messageId, text }),
+        });
+        if (!retry.ok) await sendTelegramMessage(chatId, text, botToken);
+      } else {
+        console.warn('[Telegram] editMessage failed, sending new message');
+        await sendTelegramMessage(chatId, text, botToken);
+      }
     }
   } catch {
     await sendTelegramMessage(chatId, text, botToken);
