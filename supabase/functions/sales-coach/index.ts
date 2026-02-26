@@ -1206,14 +1206,7 @@ async function generateResponse(
 3. NEVER make up prices - cite your source or say you don't have pricing data.
 4. COMMODITY PRICES are OK with public market data citation and approximate date.`;
 
-  const methodologyReference = `
-## YOUR CONSULTATIVE SELLING METHODOLOGY (Thrive Today):
-**5-Step Process:** Prospecting → Discovery → Proposal → Closing → Follow-Up
-**Magic Questions:** "What are 2-3 things you're looking to accomplish this season?" + "What else?" (keep asking)
-**3 Motivators:** Pain (strongest), Fear, Opportunity (weakest)
-**ACAVE Objections:** Acknowledge → Clarify → Answer → Verify → End/Close
-**Appointment Script:** "Hey [Name], going to be in your area next week. I've got [Day1] and [Day2]. Which works best?"`;
-
+  // methodologyReference removed — replaced by SALES_INTELLIGENCE_FRAMEWORK
   const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nIMPORTANT: You HAVE year-by-year revenue data above. You CAN break down revenue by year, compare years, show top customers per year, etc. NEVER say "I only have all-time data" or "I can't break it down by year" — the year data IS provided above. Use it. NEVER say "check your CRM" when this data is available.` : "";
 
   const formattingRules = `
