@@ -281,7 +281,10 @@ async function loadJerichoContext(supabase: any, userId: string) {
   }
 
   if (habits.length > 0) {
-    contextStr += `\nActive Habits:\n${habits.map((h: any) => `- ${h.habit_text} (${h.current_streak || 0} day streak)`).join('\n')}\n`;
+    contextStr += `\nActive Leading Indicators (Daily Habits):\n${habits.map((h: any) => `- ${h.habit_name}: ${h.habit_description || ''} (${h.current_streak || 0} day streak, target: ${h.target_frequency || 'daily'})`).join('\n')}\n`;
+    contextStr += `\nIMPORTANT: You CAN track and discuss the user's habits. They are stored as "leading indicators" in the system. When a user asks about logging habits, reference their active habits above and encourage them to check them off in the app or report completions here.\n`;
+  } else {
+    contextStr += `\nThe user has no active habits/leading indicators set up yet. You CAN help them think about what daily habits to track. Habits are called "Leading Indicators" in the system — the user can add them from their Growth Plan page.\n`;
   }
 
   return { context: contextStr, profile, companyId: profile?.company_id };
