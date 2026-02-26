@@ -237,13 +237,15 @@ Respond with ONLY raw JSON, no markdown fences or extra text: {"type":"<type>","
 // ============================================================================
 
 async function loadJerichoContext(supabase: any, userId: string) {
-  const [profileRes, capsRes, goalsRes, targetsRes, achievementsRes, habitsRes] = await Promise.all([
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [profileRes, capsRes, goalsRes, targetsRes, achievementsRes, habitsRes, completionsRes] = await Promise.all([
     supabase.from('profiles').select('*, companies(name)').eq('id', userId).single(),
     supabase.from('employee_capabilities').select('*, capabilities(name, description, category)').eq('profile_id', userId),
     supabase.from('personal_goals').select('*').eq('profile_id', userId).single(),
     supabase.from('ninety_day_targets').select('*').eq('profile_id', userId).order('created_at', { ascending: false }).limit(10),
     supabase.from('achievements').select('*').eq('profile_id', userId).order('achieved_date', { ascending: false }).limit(5),
     supabase.from('leading_indicators').select('id, habit_name, habit_description, current_streak, target_frequency, habit_type, is_active').eq('profile_id', userId).eq('is_active', true),
+    supabase.from('habit_completions').select('habit_id').eq('profile_id', userId).eq('completed_date', todayStr),
   ]);
 
   const profile = profileRes.data;
