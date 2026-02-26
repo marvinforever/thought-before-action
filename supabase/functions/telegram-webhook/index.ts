@@ -712,7 +712,12 @@ ${managerContext ? '- Mention team insights when relevant' : ''}`;
       } else {
         // ── SALES PATH + GENERAL + UNCLEAR: Proxy through sales-coach ──
         // Inject a Telegram-context instruction so the sales-coach keeps it conversational
-        const telegramPrefix = `[TELEGRAM CONTEXT — responding via mobile chat. Be conversational, direct, and brief. Use short paragraphs (2-3 sentences each). Max 3 priorities with one action each. No long explanations or methodology. Sound like a peer texting a colleague, not writing an essay. Use bullet points sparingly. Skip preambles like "Great question" — just answer.]
+        const telegramPrefix = `[TELEGRAM — mobile chat. CRITICAL FORMATTING RULES:
+1. MAX 800 characters total. This is a text message, not an email.
+2. If listing priorities, use ONE line per item: "1. Name — action" format. No sub-bullets, no "Why it's a priority" sections.
+3. Never repeat the same structure/template for each item. Vary your language.
+4. No preambles. No "Great question." Just answer.
+5. End with ONE short question or call-to-action, not a summary paragraph.]
 
 `;
         const salesResponse = await callSalesCoach(userId, companyId, telegramPrefix + text, conversationHistory);
