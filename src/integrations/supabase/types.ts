@@ -6356,6 +6356,75 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_outreach_log: {
+        Row: {
+          id: string
+          message_text: string
+          sent_at: string
+          trigger_type: string
+          user_id: string
+          was_engaged: boolean | null
+        }
+        Insert: {
+          id?: string
+          message_text: string
+          sent_at?: string
+          trigger_type: string
+          user_id: string
+          was_engaged?: boolean | null
+        }
+        Update: {
+          id?: string
+          message_text?: string
+          sent_at?: string
+          trigger_type?: string
+          user_id?: string
+          was_engaged?: boolean | null
+        }
+        Relationships: []
+      }
+      telegram_outreach_preferences: {
+        Row: {
+          consecutive_ignored: number
+          created_at: string
+          last_engagement_at: string | null
+          max_daily_messages: number
+          paused_until: string | null
+          preferred_response_format: string
+          proactive_enabled: boolean
+          quiet_hours_end: string
+          quiet_hours_start: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consecutive_ignored?: number
+          created_at?: string
+          last_engagement_at?: string | null
+          max_daily_messages?: number
+          paused_until?: string | null
+          preferred_response_format?: string
+          proactive_enabled?: boolean
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consecutive_ignored?: number
+          created_at?: string
+          last_engagement_at?: string | null
+          max_daily_messages?: number
+          paused_until?: string | null
+          preferred_response_format?: string
+          proactive_enabled?: boolean
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       telegram_scheduled_messages: {
         Row: {
           created_at: string
