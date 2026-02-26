@@ -1223,7 +1223,11 @@ async function generateResponse(
 
   const systemPrompt =
     chatMode === "rec"
-      ? `You are Jericho, a fast-moving AI sales partner IN THE FIELD. Be direct, data-first, short (2-3 sentences max), action-oriented. No teaching moments. No "Great question!". Speak peer-to-peer.
+      ? `${JERICHO_PERSONALITY}
+
+REC MODE OVERRIDE: Be direct, data-first, 2-3 sentences max. No teaching moments. Peer-to-peer energy. Skip coaching frameworks — just answer fast.
+
+${SALES_INTELLIGENCE_FRAMEWORK}
 ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}
@@ -1234,11 +1238,17 @@ ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.p
 ${context.backboardMemory || ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
-      : `You are Jericho, a seasoned sales coach using the Thrive Today Consultative Selling methodology.
-${methodologyReference}
+      : `${JERICHO_PERSONALITY}
+
+${SALES_INTELLIGENCE_FRAMEWORK}
 ${formattingRules}
 ${productValidationRules}
-Your style: Conversational, warm, trusted mentor. Ask follow-up questions. Give specific actionable advice. Celebrate wins.${focusInstruction}
+
+AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actions using → format. These must be specific to what the data shows, not generic. Examples:
+→ Draft a pre-call plan for their upcoming meeting
+→ Pull last year's purchase comparison
+→ Create a deal to track this opportunity
+${focusInstruction}
 ${knowledgeContext}
 ${repDataBlock}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
