@@ -10,6 +10,7 @@ import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail, Headphones, Send, C
 import { cn } from "@/lib/utils";
 import { SMSOptInCard } from "@/components/SMSOptInCard";
 import { IntegrationsSection } from "@/components/IntegrationsSection";
+import { TelegramLinkCard } from "@/components/TelegramLinkCard";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -666,6 +667,9 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+
+      {/* Telegram Integration */}
+      <TelegramLinkCard />
 
       {/* Integrations Section */}
       <IntegrationsSection />

@@ -49,6 +49,7 @@ import CareerPath from "./pages/CareerPath";
 import AdminCustomerHistoryImport from "./pages/AdminCustomerHistoryImport";
 import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
 import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
+import TelegramSetup from "./pages/TelegramSetup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,7 @@ const App = () => (
               <Route path="customer-history" element={<AdminCustomerHistoryImport />} />
               <Route path="diagnostic-import" element={<AdminDiagnosticImport />} />
               <Route path="targeted-accounts" element={<AdminTargetedAccountsImport />} />
+              <Route path="telegram-setup" element={<TelegramSetup />} />
             </Route>
             {/* Use /* so nested dashboard routes (e.g. /dashboard/my-growth-plan) always match */}
             <Route path="/dashboard/*" element={<DashboardLayout />}>

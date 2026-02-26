@@ -26,6 +26,7 @@ import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
 import { AIProductivityTips } from "@/components/AIProductivityTips";
 import { JerichoChat } from "@/components/JerichoChat";
+import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
 
 interface AITask {
   task: string;
@@ -172,6 +173,9 @@ export default function MyGrowthPlan() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Telegram Connect CTA */}
+      <TelegramConnectCTA variant="compact" />
+
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-lg bg-primary p-8 text-primary-foreground shadow-lg">
         <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full -mr-32 -mt-32" />

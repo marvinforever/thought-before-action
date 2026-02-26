@@ -33,6 +33,8 @@ import { MeetingRequestsSection } from "@/components/MeetingRequestsSection";
 import { ManagerResourcesTab } from "@/components/ManagerResourcesTab";
 import { AIEfficiencyReport } from "@/components/AIEfficiencyReport";
 import { TeamCareerIntelligence } from "@/components/TeamCareerIntelligence";
+import { TelegramEngagementWidget } from "@/components/TelegramEngagementWidget";
+import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
 
 
 type DirectReport = {
@@ -289,6 +291,12 @@ export default function ManagerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Telegram Connect CTA */}
+      <TelegramConnectCTA variant="card" />
+
+      {/* Telegram Engagement Widget */}
+      <TelegramEngagementWidget />
 
       {/* Recognition Nudge */}
       <RecognitionNudge onRecognize={handlePriorityRecognition} />
