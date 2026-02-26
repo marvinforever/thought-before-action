@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-router.ts";
+import { JERICHO_PERSONALITY, SALES_INTELLIGENCE_FRAMEWORK } from "../_shared/jericho-config.ts";
 import {
   getOrCreateBackboardThread,
   createBackboardClient,
@@ -1205,14 +1206,7 @@ async function generateResponse(
 3. NEVER make up prices - cite your source or say you don't have pricing data.
 4. COMMODITY PRICES are OK with public market data citation and approximate date.`;
 
-  const methodologyReference = `
-## YOUR CONSULTATIVE SELLING METHODOLOGY (Thrive Today):
-**5-Step Process:** Prospecting → Discovery → Proposal → Closing → Follow-Up
-**Magic Questions:** "What are 2-3 things you're looking to accomplish this season?" + "What else?" (keep asking)
-**3 Motivators:** Pain (strongest), Fear, Opportunity (weakest)
-**ACAVE Objections:** Acknowledge → Clarify → Answer → Verify → End/Close
-**Appointment Script:** "Hey [Name], going to be in your area next week. I've got [Day1] and [Day2]. Which works best?"`;
-
+  // methodologyReference removed — replaced by SALES_INTELLIGENCE_FRAMEWORK
   const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nIMPORTANT: You HAVE year-by-year revenue data above. You CAN break down revenue by year, compare years, show top customers per year, etc. NEVER say "I only have all-time data" or "I can't break it down by year" — the year data IS provided above. Use it. NEVER say "check your CRM" when this data is available.` : "";
 
   const formattingRules = `
@@ -1229,7 +1223,11 @@ async function generateResponse(
 
   const systemPrompt =
     chatMode === "rec"
-      ? `You are Jericho, a fast-moving AI sales partner IN THE FIELD. Be direct, data-first, short (2-3 sentences max), action-oriented. No teaching moments. No "Great question!". Speak peer-to-peer.
+      ? `${JERICHO_PERSONALITY}
+
+REC MODE OVERRIDE: Be direct, data-first, 2-3 sentences max. No teaching moments. Peer-to-peer energy. Skip coaching frameworks — just answer fast.
+
+${SALES_INTELLIGENCE_FRAMEWORK}
 ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}
@@ -1240,11 +1238,17 @@ ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.p
 ${context.backboardMemory || ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
-      : `You are Jericho, a seasoned sales coach using the Thrive Today Consultative Selling methodology.
-${methodologyReference}
+      : `${JERICHO_PERSONALITY}
+
+${SALES_INTELLIGENCE_FRAMEWORK}
 ${formattingRules}
 ${productValidationRules}
-Your style: Conversational, warm, trusted mentor. Ask follow-up questions. Give specific actionable advice. Celebrate wins.${focusInstruction}
+
+AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actions using → format. These must be specific to what the data shows, not generic. Examples:
+→ Draft a pre-call plan for their upcoming meeting
+→ Pull last year's purchase comparison
+→ Create a deal to track this opportunity
+${focusInstruction}
 ${knowledgeContext}
 ${repDataBlock}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}

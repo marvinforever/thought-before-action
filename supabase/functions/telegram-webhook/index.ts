@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-router.ts";
+import { JERICHO_PERSONALITY, TELEGRAM_ADDENDUM } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -501,17 +502,25 @@ async function handleLinkingCode(supabase: any, chatId: number, code: string, us
     .update({ used_at: now })
     .eq('id', linkCode.id);
 
+  // Auto-create outreach preferences with defaults
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+  await supabaseAdmin.from('telegram_outreach_preferences').upsert({
+    user_id: linkCode.user_id,
+  }, { onConflict: 'user_id' });
+
   await sendTelegramMessage(chatId,
-    "✅ *Account linked successfully!*\n\nYou're connected to Jericho. I can help you with:\n\n" +
-    "📊 Sales coaching & call prep\n" +
-    "🎯 Growth plan & 90-day targets\n" +
-    "⭐ Send kudos to teammates\n" +
-    "📈 Pipeline updates & deal creation\n" +
-    "🧪 Product questions (application rates, labels, etc.)\n" +
-    "📚 Training resources\n" +
-    "💪 Capability assessments\n" +
-    "👥 Team overview (managers)\n\n" +
-    "Just ask me anything — I have your full context.",
+    "Welcome to Jericho on Telegram! 🎯\n\n" +
+    "I'm your AI performance coach. Think of me as the teammate who always has your numbers ready, never forgets a customer detail, and helps you sell smarter.\n\n" +
+    "A few things I can do right now:\n" +
+    "- Prep you for customer calls with real data\n" +
+    "- Track your pipeline and goals\n" +
+    "- Answer product questions instantly\n" +
+    "- Coach you on sales techniques\n\n" +
+    "Want to try one? Tell me about your next customer meeting and I'll build you a pre-call plan.\n\n" +
+    "(Or just start chatting — I'm here whenever you need me.)",
     botToken
   );
 
@@ -673,7 +682,9 @@ serve(async (req) => {
         // ── GROWTH PATH: Enhanced AI via ai-router (Gemini Pro) ──
         const managerContext = await loadManagerContext(supabase, userId);
 
-        const systemPrompt = `You are Jericho, an AI coach for ag retail professionals. You're on Telegram — be punchy and conversational like a sharp colleague texting. No essays.
+        const systemPrompt = `${JERICHO_PERSONALITY}
+
+${TELEGRAM_ADDENDUM}
 
 ${jerichoContext.context}
 ${managerContext || ''}
@@ -682,14 +693,6 @@ Recent conversation:
 ${conversationHistory || 'No previous messages.'}
 
 Intent: ${messageType}
-
-Rules:
-- 2-4 SHORT paragraphs max. Each paragraph 1-3 sentences.
-- Skip preambles ("Great question!", "Good morning!"). Just answer.
-- Reference their specific data when relevant
-- Bold key actions. No headers, no tables.
-- Sound like a peer, not a professor
-- If you don't know, ask one focused question
 ${managerContext ? '- Mention team insights when relevant' : ''}`;
 
         const result = await callAI(
@@ -712,15 +715,7 @@ ${managerContext ? '- Mention team insights when relevant' : ''}`;
       } else {
         // ── SALES PATH + GENERAL + UNCLEAR: Proxy through sales-coach ──
         // Inject a Telegram-context instruction so the sales-coach keeps it conversational
-        const telegramPrefix = `[TELEGRAM — mobile chat. CRITICAL FORMATTING RULES:
-1. MAX 800 characters total. This is a text message, not an email.
-2. If listing priorities, use ONE line per item: "1. Name — action" format. No sub-bullets, no "Why it's a priority" sections.
-3. Never repeat the same structure/template for each item. Vary your language.
-4. No preambles. No "Great question." Just answer.
-5. End with ONE short question or call-to-action, not a summary paragraph.]
-
-`;
-        const salesResponse = await callSalesCoach(userId, companyId, telegramPrefix + text, conversationHistory);
+        const salesResponse = await callSalesCoach(userId, companyId, `${TELEGRAM_ADDENDUM}\n\n${text}`, conversationHistory);
         responseText = formatForTelegram(salesResponse);
       }
 
