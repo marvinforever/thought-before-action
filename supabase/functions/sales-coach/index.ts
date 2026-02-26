@@ -109,6 +109,20 @@ serve(async (req) => {
       }
     }
 
+    // Internal service call detection (e.g., from telegram-webhook)
+    // If auth yielded no user but viewAsUserId is provided and token is the service role key,
+    // trust the provided IDs directly. Only server-side code has the service role key.
+    if (!userId && viewAsUserId) {
+      const token = authHeader?.replace("Bearer ", "");
+      if (token === supabaseServiceKey) {
+        userId = viewAsUserId;
+        const { data: imp } = await adminClient
+          .from("profiles").select("company_id").eq("id", viewAsUserId).single();
+        companyId = viewAsCompanyId || imp?.company_id || null;
+        console.log(`[SalesCoach] Internal call for user ${userId}, company ${companyId}`);
+      }
+    }
+
     const effectiveUserId = userId;
     const effectiveCompanyId = companyId;
 
@@ -962,6 +976,7 @@ async function gatherContext(
               context.repDataSummary = (context.repDataSummary || "") + yearSummary;
               console.log(`[gatherContext] Loaded ${season} data: ${yearSorted.length} customers, ${fmt(yearTotal)} revenue`);
             }
+          }
         }
       }
     } catch (err) {

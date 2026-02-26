@@ -143,7 +143,8 @@ export type TaskType =
   
   // Specialized
   | 'web-search'
-  | 'capability-content';
+  | 'capability-content'
+  | 'telegram-chat';
 
 export const ROUTING_TABLE: Record<TaskType, string> = {
   // Ultra-fast tasks → Gemini Flash-Lite ($0.075/1M input)
@@ -183,6 +184,7 @@ export const ROUTING_TABLE: Record<TaskType, string> = {
   // Specialized routing
   'web-search': 'perplexity-sonar',
   'capability-content': 'sonnet',
+  'telegram-chat': 'gemini-pro',
 };
 
 // ============================================================================
