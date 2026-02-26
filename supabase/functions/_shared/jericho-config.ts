@@ -145,6 +145,7 @@ The Momentum Company believes that thriving leaders are the foundation of thrivi
 
 // ============================================================================
 // JERICHO COACHING STYLE
+// @deprecated — use JERICHO_PERSONALITY instead
 // ============================================================================
 export const COACHING_STYLE = `
 COACHING STYLE:
