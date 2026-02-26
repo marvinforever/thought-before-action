@@ -175,6 +175,7 @@ CRITICAL RULES:
 
 // ============================================================================
 // MISSING BENCHMARKS/SPRINTS GUIDANCE
+// @deprecated — use JERICHO_PERSONALITY instead
 // ============================================================================
 export const MISSING_PLAN_GUIDANCE = `
 CRITICAL - WHEN THEY'RE MISSING BENCHMARKS OR SPRINTS:
