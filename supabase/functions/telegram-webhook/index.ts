@@ -216,13 +216,15 @@ Types:
 - training: Learning resources, courses, assigned training
 - general: Anything else
 
-Respond with ONLY valid JSON: {"type":"<type>","confidence":<number>}`,
+Respond with ONLY raw JSON, no markdown fences or extra text: {"type":"<type>","confidence":<number>}`,
         maxTokens: 100,
         temperature: 0.1,
       }
     );
 
-    const parsed = JSON.parse(result.content.trim());
+    // Strip markdown code fences if the model wraps its response
+    const raw = result.content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const parsed = JSON.parse(raw);
     return { type: parsed.type || 'general', confidence: parsed.confidence || 0.5 };
   } catch (e) {
     console.error('[Intent] AI classification failed:', e);
@@ -241,7 +243,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     supabase.from('personal_goals').select('*').eq('profile_id', userId).single(),
     supabase.from('ninety_day_targets').select('*').eq('profile_id', userId).order('created_at', { ascending: false }).limit(10),
     supabase.from('achievements').select('*').eq('profile_id', userId).order('achieved_date', { ascending: false }).limit(5),
-    supabase.from('leading_indicators').select('*').eq('profile_id', userId).eq('is_active', true),
+    supabase.from('leading_indicators').select('id, habit_name, habit_description, current_streak, target_frequency, habit_type, is_active').eq('profile_id', userId).eq('is_active', true),
   ]);
 
   const profile = profileRes.data;
@@ -270,7 +272,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     const completed = targets.filter((t: any) => t.completed);
     contextStr += `\n90-Day Targets: ${active.length} active, ${completed.length} completed\n`;
     active.slice(0, 5).forEach((t: any) => {
-      contextStr += `- ${t.target_text} (${t.category}, due: ${t.by_when || 'no date'})\n`;
+      contextStr += `- ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'})\n`;
     });
   }
 
@@ -279,7 +281,10 @@ async function loadJerichoContext(supabase: any, userId: string) {
   }
 
   if (habits.length > 0) {
-    contextStr += `\nActive Habits:\n${habits.map((h: any) => `- ${h.habit_text} (${h.current_streak || 0} day streak)`).join('\n')}\n`;
+    contextStr += `\nActive Leading Indicators (Daily Habits):\n${habits.map((h: any) => `- ${h.habit_name}: ${h.habit_description || ''} (${h.current_streak || 0} day streak, target: ${h.target_frequency || 'daily'})`).join('\n')}\n`;
+    contextStr += `\nIMPORTANT: You CAN track and discuss the user's habits. They are stored as "leading indicators" in the system. When a user asks about logging habits, reference their active habits above and encourage them to check them off in the app or report completions here.\n`;
+  } else {
+    contextStr += `\nThe user has no active habits/leading indicators set up yet. You CAN help them think about what daily habits to track. Habits are called "Leading Indicators" in the system — the user can add them from their Growth Plan page.\n`;
   }
 
   return { context: contextStr, profile, companyId: profile?.company_id };
