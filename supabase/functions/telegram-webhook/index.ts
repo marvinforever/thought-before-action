@@ -222,7 +222,9 @@ Respond with ONLY raw JSON, no markdown fences or extra text: {"type":"<type>","
       }
     );
 
-    const parsed = JSON.parse(result.content.trim());
+    // Strip markdown code fences if the model wraps its response
+    const raw = result.content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const parsed = JSON.parse(raw);
     return { type: parsed.type || 'general', confidence: parsed.confidence || 0.5 };
   } catch (e) {
     console.error('[Intent] AI classification failed:', e);
