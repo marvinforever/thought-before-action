@@ -6277,6 +6277,7 @@ export type Database = {
           message_type: string
           response_text: string
           telegram_chat_id: number
+          telegram_update_id: number | null
           user_id: string
         }
         Insert: {
@@ -6286,6 +6287,7 @@ export type Database = {
           message_type?: string
           response_text: string
           telegram_chat_id: number
+          telegram_update_id?: number | null
           user_id: string
         }
         Update: {
@@ -6295,6 +6297,7 @@ export type Database = {
           message_type?: string
           response_text?: string
           telegram_chat_id?: number
+          telegram_update_id?: number | null
           user_id?: string
         }
         Relationships: []

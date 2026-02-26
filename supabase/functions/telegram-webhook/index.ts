@@ -28,6 +28,119 @@ async function sendTelegramMessage(chatId: number, text: string, botToken: strin
   }
 }
 
+/** Send a message and return its message_id for later editing */
+async function sendTelegramMessageWithId(chatId: number, text: string, botToken: string): Promise<number | null> {
+  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'Markdown',
+      }),
+    });
+    if (!resp.ok) {
+      console.error('[Telegram] sendMessageWithId failed:', await resp.text());
+      return null;
+    }
+    const data = await resp.json();
+    return data.result?.message_id || null;
+  } catch (e) {
+    console.error('[Telegram] sendMessageWithId error:', e);
+    return null;
+  }
+}
+
+/** Edit an existing message; falls back to sending a new one if edit fails */
+async function editTelegramMessage(chatId: number, messageId: number | null, text: string, botToken: string): Promise<void> {
+  if (!messageId) {
+    await sendTelegramMessage(chatId, text, botToken);
+    return;
+  }
+  const url = `https://api.telegram.org/bot${botToken}/editMessageText`;
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: 'Markdown',
+      }),
+    });
+    if (!resp.ok) {
+      console.warn('[Telegram] editMessage failed, sending new message instead');
+      await sendTelegramMessage(chatId, text, botToken);
+    }
+  } catch {
+    await sendTelegramMessage(chatId, text, botToken);
+  }
+}
+
+// ============================================================================
+// RESPONSE FORMATTING
+// ============================================================================
+
+function formatForTelegram(salesCoachResponse: any): string {
+  let message = '';
+
+  if (typeof salesCoachResponse === 'string') {
+    message = salesCoachResponse;
+  } else {
+    message = salesCoachResponse?.message || salesCoachResponse?.text || '';
+  }
+
+  // Strip unsupported markdown for Telegram
+  message = message
+    .replace(/^#{1,6}\s+/gm, '*')          // Headers → bold start
+    .replace(/\|[^\n]*\|/g, '')             // Remove table rows
+    .replace(/^[-]{3,}/gm, '———')           // HR → em dash line
+    .replace(/```(\w+)?\n/g, '```\n');      // Simplify code blocks
+
+  // Append action confirmations from sales-coach
+  if (salesCoachResponse?.actions?.length) {
+    message += '\n\n📋 *Actions taken:*\n';
+    for (const action of salesCoachResponse.actions) {
+      if (action.type === 'deal_created') {
+        message += `✅ Deal created: ${action.customerName || action.company} — ${action.product || ''}\n`;
+      } else if (action.type === 'deal_updated') {
+        message += `✅ Deal updated: ${action.dealName || ''}\n`;
+      } else if (action.type === 'research_completed') {
+        message += `🔍 Research completed for: ${action.query || ''}\n`;
+      } else if (action.type === 'company_created') {
+        message += `🏢 Company added: ${action.name || ''}\n`;
+      } else if (action.type === 'contact_created') {
+        message += `👤 Contact added: ${action.name || ''}\n`;
+      }
+    }
+  }
+
+  // Deal created flag
+  if (salesCoachResponse?.dealCreated && !salesCoachResponse?.actions?.length) {
+    message += '\n\n✅ _Deal logged in your pipeline._';
+  }
+
+  // Company created
+  if (salesCoachResponse?.companyCreated) {
+    message += `\n🏢 _Company "${salesCoachResponse.companyCreated}" added._`;
+  }
+
+  // Research completed
+  if (salesCoachResponse?.researchCompleted) {
+    message += '\n🔍 _Research completed — see details in the app._';
+  }
+
+  // Truncate with continuation notice
+  if (message.length > 4000) {
+    message = message.substring(0, 3950) + '\n\n..._(continued in the Jericho app)_';
+  }
+
+  return message || "I processed your request but couldn't generate a response. Try rephrasing or check the Jericho app.";
+}
+
 // ============================================================================
 // INTENT CLASSIFICATION
 // ============================================================================
@@ -36,14 +149,14 @@ type MessageType = 'sales_coaching' | 'pre_call_prep' | 'pipeline_update' | 'pro
   'growth_plan' | 'capabilities' | 'kudos' | 'sprint_check' | 'training' | 'general';
 
 function classifyByRegex(text: string): { type: MessageType; confidence: number } | null {
-  const lower = text.toLowerCase();
-
   if (/\b(kudos|shoutout|recognize|props)\b.*\b(to|for)\b/i.test(text))
     return { type: 'kudos', confidence: 0.9 };
   if (/\b(log|update|add)\b.*\b(call|meeting|visit|deal)\b/i.test(text))
     return { type: 'pipeline_update', confidence: 0.85 };
   if (/\b(prep|prepare|ready)\b.*\b(call|meeting|visit)\b/i.test(text))
     return { type: 'pre_call_prep', confidence: 0.85 };
+  if (/\b(application rate|rate per acre|mix ratio|product label|active ingredient)\b/i.test(text))
+    return { type: 'product_question', confidence: 0.9 };
   if (/\b(pipeline|deals?|opportunities?|revenue|forecast)\b/i.test(text))
     return { type: 'sales_coaching', confidence: 0.8 };
   if (/\b(90.?day|target|benchmark|30.?day|sprint|7.?day)\b/i.test(text))
@@ -98,7 +211,7 @@ Respond with ONLY valid JSON: {"type":"<type>","confidence":<number>}`,
 }
 
 // ============================================================================
-// CONTEXT LOADING (mirrors chat-with-jericho patterns)
+// CONTEXT LOADING
 // ============================================================================
 
 async function loadJerichoContext(supabase: any, userId: string) {
@@ -153,16 +266,18 @@ async function loadJerichoContext(supabase: any, userId: string) {
 }
 
 // ============================================================================
-// CONVERSATION MEMORY
+// CONVERSATION MEMORY (by user_id, 24hr window)
 // ============================================================================
 
-async function loadConversationMemory(supabase: any, chatId: number, limit = 10): Promise<string> {
+async function loadConversationHistory(supabase: any, userId: string): Promise<string> {
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data } = await supabase
     .from('telegram_conversations')
     .select('message_text, response_text, created_at')
-    .eq('telegram_chat_id', chatId)
+    .eq('user_id', userId)
+    .gte('created_at', twentyFourHoursAgo)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(10);
 
   if (!data || data.length === 0) return '';
 
@@ -170,6 +285,150 @@ async function loadConversationMemory(supabase: any, chatId: number, limit = 10)
     .reverse()
     .map((m: any) => `User: ${m.message_text}\nJericho: ${m.response_text}`)
     .join('\n\n');
+}
+
+// ============================================================================
+// MANAGER CONTEXT LOADING
+// ============================================================================
+
+async function loadManagerContext(supabase: any, userId: string): Promise<string | null> {
+  // Check if user is a manager
+  const { data: managerRole } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('role', 'manager')
+    .maybeSingle();
+
+  if (!managerRole) return null;
+
+  // Load direct reports
+  const { data: assignments } = await supabase
+    .from('manager_assignments')
+    .select('assigned_user_id, profiles!manager_assignments_assigned_user_id_fkey(full_name, job_title)')
+    .eq('manager_id', userId);
+
+  if (!assignments || assignments.length === 0) return null;
+
+  const reportNames = assignments
+    .map((a: any) => a.profiles?.full_name || 'Unknown')
+    .filter((n: string) => n !== 'Unknown');
+
+  // Load team growth plan status
+  const reportIds = assignments.map((a: any) => a.assigned_user_id);
+  const { data: growthPlans } = await supabase
+    .from('individual_growth_plans')
+    .select('profile_id, status, updated_at')
+    .in('profile_id', reportIds);
+
+  const activePlans = (growthPlans || []).filter((p: any) => p.status === 'active').length;
+  const stalePlans = (growthPlans || []).filter((p: any) => {
+    if (!p.updated_at) return true;
+    const daysSinceUpdate = (Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceUpdate > 14;
+  }).length;
+
+  return `\n📋 MANAGER CONTEXT:
+You are speaking with a manager who oversees ${reportNames.length} team members.
+Team: ${reportNames.join(', ')}
+Growth plans: ${activePlans} active, ${stalePlans} potentially stale (not updated in 14+ days)
+
+When relevant, you can:
+- Report on team performance and growth plan status
+- Identify team members who may need attention
+- Suggest coaching conversations or check-ins
+- Flag overdue growth plans or missed sprint targets`;
+}
+
+// ============================================================================
+// SALES COACH PROXY
+// ============================================================================
+
+async function callSalesCoach(
+  userId: string,
+  companyId: string | null,
+  message: string,
+  conversationHistory: string,
+): Promise<any> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const salesCoachUrl = `${supabaseUrl}/functions/v1/sales-coach`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000); // 45s safety margin
+
+  try {
+    const response = await fetch(salesCoachUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        conversationHistory,
+        viewAsUserId: userId,
+        viewAsCompanyId: companyId,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[Telegram] Sales coach returned ${response.status}:`, errText);
+      throw new Error(`Sales coach error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeout);
+    throw error;
+  }
+}
+
+// ============================================================================
+// KUDOS HANDLER
+// ============================================================================
+
+async function handleKudos(supabase: any, userId: string, companyId: string | null, text: string): Promise<string> {
+  // Try to extract recipient name and reason
+  const kudosMatch = text.match(/\b(?:kudos|shoutout|recognize|props)\b.*?\b(?:to|for)\b\s+(\w+(?:\s+\w+)?)/i);
+  const recipientName = kudosMatch?.[1] || null;
+
+  if (!recipientName) {
+    return "I'd love to help send kudos! Could you tell me who you want to recognize? For example: _\"Kudos to Sarah for her great work on the Johnson account\"_";
+  }
+
+  // Find recipient by name match within the same company
+  const { data: recipients } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .eq('company_id', companyId)
+    .ilike('full_name', `%${recipientName}%`)
+    .limit(3);
+
+  if (!recipients || recipients.length === 0) {
+    return `I couldn't find "${recipientName}" in your company directory. Could you double-check the name?`;
+  }
+
+  const recipient = recipients[0];
+
+  // Extract reason (everything after the name)
+  const reasonMatch = text.match(/\b(?:for|because|on|with)\b\s+(.+)/i);
+  const reason = reasonMatch?.[1] || 'great work';
+
+  // Insert recognition
+  await supabase.from('recognitions').insert({
+    from_profile_id: userId,
+    to_profile_id: recipient.id,
+    company_id: companyId,
+    message: `Kudos to ${recipient.full_name} for ${reason}`,
+    recognition_type: 'kudos',
+  });
+
+  return `⭐ *Kudos sent to ${recipient.full_name}!*\n\n_"${reason}"_\n\nThey'll be notified. Want to recognize anyone else?`;
 }
 
 // ============================================================================
@@ -192,7 +451,6 @@ async function checkRateLimit(supabase: any, chatId: number): Promise<boolean> {
 // ============================================================================
 
 async function handleLinkingCode(supabase: any, chatId: number, code: string, username: string | null, botToken: string): Promise<boolean> {
-  // Look up valid, unused code
   const now = new Date().toISOString();
   const { data: linkCode } = await supabase
     .from('telegram_link_codes')
@@ -204,7 +462,6 @@ async function handleLinkingCode(supabase: any, chatId: number, code: string, us
 
   if (!linkCode) return false;
 
-  // Link the account
   const { error: linkError } = await supabase
     .from('telegram_links')
     .upsert({
@@ -220,7 +477,6 @@ async function handleLinkingCode(supabase: any, chatId: number, code: string, us
     return false;
   }
 
-  // Mark code as used
   await supabase
     .from('telegram_link_codes')
     .update({ used_at: now })
@@ -231,9 +487,11 @@ async function handleLinkingCode(supabase: any, chatId: number, code: string, us
     "📊 Sales coaching & call prep\n" +
     "🎯 Growth plan & 90-day targets\n" +
     "⭐ Send kudos to teammates\n" +
-    "📈 Pipeline updates\n" +
+    "📈 Pipeline updates & deal creation\n" +
+    "🧪 Product questions (application rates, labels, etc.)\n" +
     "📚 Training resources\n" +
-    "💪 Capability assessments\n\n" +
+    "💪 Capability assessments\n" +
+    "👥 Team overview (managers)\n\n" +
     "Just ask me anything — I have your full context.",
     botToken
   );
@@ -258,12 +516,11 @@ serve(async (req) => {
     return new Response('OK', { status: 200 });
   }
 
-  // Validate webhook secret (log values for debugging)
+  // Validate webhook secret
   const secretHeader = req.headers.get('x-telegram-bot-api-secret-token');
   if (webhookSecret && secretHeader !== webhookSecret) {
-    console.warn(`[Telegram] Invalid secret token. Expected length: ${webhookSecret.length}, Got length: ${secretHeader?.length || 0}, Match: ${secretHeader === webhookSecret}`);
-    // Allow through anyway - the bot token itself provides security
-    // return new Response('Unauthorized', { status: 401 });
+    console.warn(`[Telegram] Invalid secret token. Expected length: ${webhookSecret.length}, Got length: ${secretHeader?.length || 0}`);
+    // Allow through — the bot token itself provides security
   }
 
   try {
@@ -277,8 +534,9 @@ serve(async (req) => {
     const chatId = message.chat.id;
     const text = message.text.trim();
     const username = message.from?.username || null;
+    const updateId = update.update_id;
 
-    console.log(`[Telegram] Message from chat ${chatId}: ${text.substring(0, 100)}`);
+    console.log(`[Telegram] Message from chat ${chatId} (update_id: ${updateId}): ${text.substring(0, 100)}`);
 
     // Service role client for all DB operations
     const supabase = createClient(
@@ -286,7 +544,21 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Check if user is linked
+    // ── DUPLICATE PREVENTION ──
+    if (updateId) {
+      const { data: existing } = await supabase
+        .from('telegram_conversations')
+        .select('id')
+        .eq('telegram_update_id', updateId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`[Telegram] Duplicate update_id ${updateId}, skipping`);
+        return new Response('OK', { status: 200 });
+      }
+    }
+
+    // ── CHECK IF USER IS LINKED ──
     const { data: link } = await supabase
       .from('telegram_links')
       .select('user_id, is_active')
@@ -296,7 +568,6 @@ serve(async (req) => {
 
     // ── UNLINKED USER FLOW ──
     if (!link) {
-      // Check for /start deep link: /start CODE
       const startMatch = text.match(/^\/start\s+(\S+)/);
       if (startMatch) {
         const code = startMatch[1];
@@ -310,7 +581,6 @@ serve(async (req) => {
         return new Response('OK', { status: 200 });
       }
 
-      // Check if it's a raw 6-digit code
       if (/^\d{6}$/.test(text)) {
         const linked = await handleLinkingCode(supabase, chatId, text, username, botToken);
         if (!linked) {
@@ -322,7 +592,6 @@ serve(async (req) => {
         return new Response('OK', { status: 200 });
       }
 
-      // Welcome message for unlinked users
       await sendTelegramMessage(chatId,
         "👋 *Welcome to Jericho!*\n\n" +
         "To get started, I need to link your Telegram to your Jericho account.\n\n" +
@@ -347,14 +616,14 @@ serve(async (req) => {
       return new Response('OK', { status: 200 });
     }
 
-    // ── SEND "THINKING..." MESSAGE ──
-    sendTelegramMessage(chatId, "🧠 Thinking...", botToken).catch(() => {});
-
-    // ── LOAD CONTEXT IN PARALLEL ──
-    const [conversationMemory, jerichoContext] = await Promise.all([
-      loadConversationMemory(supabase, chatId),
+    // ── SEND "THINKING..." & LOAD CONTEXT IN PARALLEL ──
+    const [thinkingMsgId, conversationHistory, jerichoContext] = await Promise.all([
+      sendTelegramMessageWithId(chatId, "🧠 Thinking...", botToken),
+      loadConversationHistory(supabase, userId),
       loadJerichoContext(supabase, userId),
     ]);
+
+    const companyId = jerichoContext.companyId || null;
 
     // ── CLASSIFY INTENT ──
     let messageType: MessageType = 'general';
@@ -362,64 +631,101 @@ serve(async (req) => {
     if (regexResult && regexResult.confidence >= 0.7) {
       messageType = regexResult.type;
     } else {
-      const aiResult = await classifyWithAI(text, conversationMemory);
+      const aiResult = await classifyWithAI(text, conversationHistory);
       if (aiResult.confidence >= 0.6) {
         messageType = aiResult.type;
       }
-      // If confidence < 0.6, falls through to 'general' which gets full AI routing
     }
 
-    console.log(`[Telegram] Intent: ${messageType}`);
+    console.log(`[Telegram] Intent: ${messageType} for user ${userId}`);
 
     // ── GENERATE RESPONSE ──
     let responseText: string;
 
     try {
-      // Determine task type for AI router
-      const isSalesRelated = ['sales_coaching', 'pre_call_prep', 'pipeline_update', 'product_question'].includes(messageType);
-      const taskType = isSalesRelated ? 'sales-coaching' as const : 'chat' as const;
+      const isGrowthPath = ['growth_plan', 'capabilities', 'sprint_check', 'training'].includes(messageType);
+      const isKudos = messageType === 'kudos';
 
-      const systemPrompt = `You are Jericho, an AI coach for ag retail professionals. You're responding via Telegram, so keep responses concise but helpful (2-4 short paragraphs max). Use emoji sparingly for readability.
+      if (isKudos) {
+        // ── KUDOS SHORTCUT: Direct DB insert ──
+        responseText = await handleKudos(supabase, userId, companyId, text);
+
+      } else if (isGrowthPath) {
+        // ── GROWTH PATH: Enhanced AI via ai-router (Gemini Pro) ──
+        const managerContext = await loadManagerContext(supabase, userId);
+
+        const systemPrompt = `You are Jericho, an AI coach for ag retail professionals. You're responding via Telegram, so keep responses concise but helpful (2-4 short paragraphs max). Use emoji sparingly for readability.
 
 ${jerichoContext.context}
+${managerContext || ''}
 
 Recent conversation:
-${conversationMemory || 'No previous messages.'}
+${conversationHistory || 'No previous messages.'}
 
 The user's message was classified as: ${messageType}
 
 Guidelines:
-- Be direct and actionable — these are busy salespeople in the field
-- Reference their specific data (targets, capabilities, accounts) when relevant
-- For kudos requests, confirm the recognition with specific details
-- For pipeline updates, confirm what was logged
-- For sales coaching, reference their actual accounts and pipeline when possible
-- Keep markdown simple (bold, italic only — no headers or tables, Telegram doesn't support them well)
-- If you don't have enough context, ask a focused follow-up question`;
+- Be direct and actionable — these are busy professionals in the field
+- Reference their specific data (targets, capabilities, growth plan) when relevant
+- For sprint checks, show progress against their 90-day targets
+- For capability questions, reference their current levels and next steps
+- For training requests, suggest specific resources if you know them
+- Keep markdown simple (bold, italic only — no headers or tables)
+- If you don't have enough context, ask a focused follow-up question
+${managerContext ? '- This user is a manager — proactively mention team insights when relevant' : ''}`;
 
-      const result = await callAI(
-        {
-          taskType,
-          functionName: 'telegram-webhook',
-          profileId: userId,
-          companyId: jerichoContext.companyId,
-        },
-        [{ role: 'user', content: text }],
-        {
-          systemPrompt,
-          maxTokens: 1024,
-          temperature: 0.8,
-        }
-      );
+        const result = await callAI(
+          {
+            taskType: 'telegram-chat',
+            functionName: 'telegram-webhook',
+            profileId: userId,
+            companyId,
+          },
+          [{ role: 'user', content: text }],
+          {
+            systemPrompt,
+            maxTokens: 1500,
+            temperature: 0.7,
+          }
+        );
 
-      responseText = result.content;
-    } catch (aiError) {
-      console.error('[Telegram] AI error:', aiError);
-      responseText = "Something went wrong on my end. Try again in a moment, or hop into the web app for now.";
+        responseText = result.content;
+
+      } else {
+        // ── SALES PATH + GENERAL + UNCLEAR: Proxy through sales-coach ──
+        // Route everything else through sales-coach for maximum intelligence.
+        // The sales-coach handles: pipeline queries, customer lookup, KB search,
+        // deal creation, Pareto analysis, research, email drafting, and general coaching.
+        const salesResponse = await callSalesCoach(userId, companyId, text, conversationHistory);
+        responseText = formatForTelegram(salesResponse);
+      }
+
+    } catch (error) {
+      console.error('[Telegram] Response generation error:', error);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        responseText = "That's a complex question — I'm still working on it. Check the Jericho app in a minute for the full answer, or ask me again shortly.";
+      } else {
+        responseText = "I hit a snag processing that. Here's what you can do:\n\n" +
+          "• Try rephrasing your question\n" +
+          "• Check the Jericho web app for full details\n" +
+          "• I've flagged this for review\n\n" +
+          "What else can I help with?";
+      }
+
+      // Log error
+      await supabase.from('telegram_conversations').insert({
+        user_id: userId,
+        telegram_chat_id: chatId,
+        message_text: text,
+        response_text: responseText,
+        message_type: 'error',
+        telegram_update_id: updateId || null,
+      }).catch(() => {});
     }
 
-    // ── SEND RESPONSE ──
-    await sendTelegramMessage(chatId, responseText, botToken);
+    // ── EDIT "THINKING..." WITH REAL RESPONSE ──
+    await editTelegramMessage(chatId, thinkingMsgId, responseText, botToken);
 
     // ── LOG CONVERSATION ──
     await supabase.from('telegram_conversations').insert({
@@ -428,6 +734,7 @@ Guidelines:
       message_text: text,
       response_text: responseText,
       message_type: messageType,
+      telegram_update_id: updateId || null,
     });
 
     return new Response('OK', { status: 200 });
