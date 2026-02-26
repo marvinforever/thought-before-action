@@ -216,7 +216,7 @@ Types:
 - training: Learning resources, courses, assigned training
 - general: Anything else
 
-Respond with ONLY valid JSON: {"type":"<type>","confidence":<number>}`,
+Respond with ONLY raw JSON, no markdown fences or extra text: {"type":"<type>","confidence":<number>}`,
         maxTokens: 100,
         temperature: 0.1,
       }
