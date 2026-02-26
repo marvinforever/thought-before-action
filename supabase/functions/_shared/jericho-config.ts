@@ -128,6 +128,7 @@ Keep it conversational, warm, and direct. Make them feel like you're genuinely i
 
 // ============================================================================
 // JERICHO COACHING PHILOSOPHY
+// @deprecated — use JERICHO_PERSONALITY instead
 // ============================================================================
 export const COACHING_PHILOSOPHY = `
 THE MOMENTUM COMPANY PHILOSOPHY:
