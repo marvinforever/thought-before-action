@@ -243,7 +243,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     supabase.from('personal_goals').select('*').eq('profile_id', userId).single(),
     supabase.from('ninety_day_targets').select('*').eq('profile_id', userId).order('created_at', { ascending: false }).limit(10),
     supabase.from('achievements').select('*').eq('profile_id', userId).order('achieved_date', { ascending: false }).limit(5),
-    supabase.from('leading_indicators').select('*').eq('profile_id', userId).eq('is_active', true),
+    supabase.from('leading_indicators').select('id, habit_name, habit_description, current_streak, target_frequency, habit_type, is_active').eq('profile_id', userId).eq('is_active', true),
   ]);
 
   const profile = profileRes.data;
