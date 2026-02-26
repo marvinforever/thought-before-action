@@ -6269,6 +6269,126 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          message_text: string
+          message_type: string
+          response_text: string
+          telegram_chat_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_text: string
+          message_type?: string
+          response_text: string
+          telegram_chat_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_text?: string
+          message_type?: string
+          response_text?: string
+          telegram_chat_id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_link_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_links: {
+        Row: {
+          id: string
+          is_active: boolean
+          linked_at: string
+          telegram_chat_id: number
+          telegram_username: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          linked_at?: string
+          telegram_chat_id: number
+          telegram_username?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          linked_at?: string
+          telegram_chat_id?: number
+          telegram_username?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_scheduled_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message_text: string
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          telegram_chat_id: number
+          trigger_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_text: string
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string
+          telegram_chat_id: number
+          trigger_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_text?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          telegram_chat_id?: number
+          trigger_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       training_cohorts: {
         Row: {
           capability_name: string | null
