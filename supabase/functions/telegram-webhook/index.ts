@@ -502,17 +502,25 @@ async function handleLinkingCode(supabase: any, chatId: number, code: string, us
     .update({ used_at: now })
     .eq('id', linkCode.id);
 
+  // Auto-create outreach preferences with defaults
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+  await supabaseAdmin.from('telegram_outreach_preferences').upsert({
+    user_id: linkCode.user_id,
+  }, { onConflict: 'user_id' });
+
   await sendTelegramMessage(chatId,
-    "✅ *Account linked successfully!*\n\nYou're connected to Jericho. I can help you with:\n\n" +
-    "📊 Sales coaching & call prep\n" +
-    "🎯 Growth plan & 90-day targets\n" +
-    "⭐ Send kudos to teammates\n" +
-    "📈 Pipeline updates & deal creation\n" +
-    "🧪 Product questions (application rates, labels, etc.)\n" +
-    "📚 Training resources\n" +
-    "💪 Capability assessments\n" +
-    "👥 Team overview (managers)\n\n" +
-    "Just ask me anything — I have your full context.",
+    "Welcome to Jericho on Telegram! 🎯\n\n" +
+    "I'm your AI performance coach. Think of me as the teammate who always has your numbers ready, never forgets a customer detail, and helps you sell smarter.\n\n" +
+    "A few things I can do right now:\n" +
+    "- Prep you for customer calls with real data\n" +
+    "- Track your pipeline and goals\n" +
+    "- Answer product questions instantly\n" +
+    "- Coach you on sales techniques\n\n" +
+    "Want to try one? Tell me about your next customer meeting and I'll build you a pre-call plan.\n\n" +
+    "(Or just start chatting — I'm here whenever you need me.)",
     botToken
   );
 
