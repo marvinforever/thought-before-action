@@ -237,13 +237,15 @@ Respond with ONLY raw JSON, no markdown fences or extra text: {"type":"<type>","
 // ============================================================================
 
 async function loadJerichoContext(supabase: any, userId: string) {
-  const [profileRes, capsRes, goalsRes, targetsRes, achievementsRes, habitsRes] = await Promise.all([
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [profileRes, capsRes, goalsRes, targetsRes, achievementsRes, habitsRes, completionsRes] = await Promise.all([
     supabase.from('profiles').select('*, companies(name)').eq('id', userId).single(),
     supabase.from('employee_capabilities').select('*, capabilities(name, description, category)').eq('profile_id', userId),
     supabase.from('personal_goals').select('*').eq('profile_id', userId).single(),
     supabase.from('ninety_day_targets').select('*').eq('profile_id', userId).order('created_at', { ascending: false }).limit(10),
     supabase.from('achievements').select('*').eq('profile_id', userId).order('achieved_date', { ascending: false }).limit(5),
     supabase.from('leading_indicators').select('id, habit_name, habit_description, current_streak, target_frequency, habit_type, is_active').eq('profile_id', userId).eq('is_active', true),
+    supabase.from('habit_completions').select('habit_id').eq('profile_id', userId).eq('completed_date', todayStr),
   ]);
 
   const profile = profileRes.data;
@@ -252,6 +254,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
   const targets = targetsRes.data || [];
   const achievements = achievementsRes.data || [];
   const habits = habitsRes.data || [];
+  const todayCompletions = new Set((completionsRes.data || []).map((c: any) => c.habit_id));
 
   let contextStr = '';
 
@@ -281,8 +284,16 @@ async function loadJerichoContext(supabase: any, userId: string) {
   }
 
   if (habits.length > 0) {
-    contextStr += `\nActive Leading Indicators (Daily Habits):\n${habits.map((h: any) => `- ${h.habit_name}: ${h.habit_description || ''} (${h.current_streak || 0} day streak, target: ${h.target_frequency || 'daily'})`).join('\n')}\n`;
-    contextStr += `\nIMPORTANT: You CAN track and discuss the user's habits. They are stored as "leading indicators" in the system. When a user asks about logging habits, reference their active habits above and encourage them to check them off in the app or report completions here.\n`;
+    const done = habits.filter((h: any) => todayCompletions.has(h.id));
+    const pending = habits.filter((h: any) => !todayCompletions.has(h.id));
+    contextStr += `\nActive Daily Habits (Leading Indicators):\n`;
+    if (done.length > 0) {
+      contextStr += `✅ COMPLETED TODAY:\n${done.map((h: any) => `- ${h.habit_name} (${h.current_streak || 0} day streak)`).join('\n')}\n`;
+    }
+    if (pending.length > 0) {
+      contextStr += `⬜ NOT YET DONE TODAY:\n${pending.map((h: any) => `- ${h.habit_name}: ${h.habit_description || ''} (${h.current_streak || 0} day streak)`).join('\n')}\n`;
+    }
+    contextStr += `\nHABIT CHECK-OFF BEHAVIOR: When the user asks about their habits or wants to check them off, walk through PENDING habits ONE BY ONE. Ask "Did you [habit name] today?" and wait for their answer before moving to the next. When they confirm, celebrate briefly and move to the next pending one. If ALL are done, congratulate them. You can log completions conversationally — the user confirms, you acknowledge. Don't dump all habits at once and ask generically.\n`;
   } else {
     contextStr += `\nThe user has no active habits/leading indicators set up yet. You CAN help them think about what daily habits to track. Habits are called "Leading Indicators" in the system — the user can add them from their Growth Plan page.\n`;
   }
