@@ -733,14 +733,16 @@ ${managerContext ? '- Mention team insights when relevant' : ''}`;
       }
 
       // Log error
-      await supabase.from('telegram_conversations').insert({
-        user_id: userId,
-        telegram_chat_id: chatId,
-        message_text: text,
-        response_text: responseText,
-        message_type: 'error',
-        telegram_update_id: updateId || null,
-      }).catch(() => {});
+      try {
+        await supabase.from('telegram_conversations').insert({
+          user_id: userId,
+          telegram_chat_id: chatId,
+          message_text: text,
+          response_text: responseText,
+          message_type: 'error',
+          telegram_update_id: updateId || null,
+        });
+      } catch (_) { /* ignore logging failures */ }
     }
 
     // ── EDIT "THINKING..." WITH REAL RESPONSE ──
