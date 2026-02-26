@@ -254,6 +254,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
   const targets = targetsRes.data || [];
   const achievements = achievementsRes.data || [];
   const habits = habitsRes.data || [];
+  const todayCompletions = new Set((completionsRes.data || []).map((c: any) => c.habit_id));
 
   let contextStr = '';
 
