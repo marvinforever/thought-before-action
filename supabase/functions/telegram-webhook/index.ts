@@ -682,7 +682,9 @@ serve(async (req) => {
         // ── GROWTH PATH: Enhanced AI via ai-router (Gemini Pro) ──
         const managerContext = await loadManagerContext(supabase, userId);
 
-        const systemPrompt = `You are Jericho, an AI coach for ag retail professionals. You're on Telegram — be punchy and conversational like a sharp colleague texting. No essays.
+        const systemPrompt = `${JERICHO_PERSONALITY}
+
+${TELEGRAM_ADDENDUM}
 
 ${jerichoContext.context}
 ${managerContext || ''}
@@ -691,14 +693,6 @@ Recent conversation:
 ${conversationHistory || 'No previous messages.'}
 
 Intent: ${messageType}
-
-Rules:
-- 2-4 SHORT paragraphs max. Each paragraph 1-3 sentences.
-- Skip preambles ("Great question!", "Good morning!"). Just answer.
-- Reference their specific data when relevant
-- Bold key actions. No headers, no tables.
-- Sound like a peer, not a professor
-- If you don't know, ask one focused question
 ${managerContext ? '- Mention team insights when relevant' : ''}`;
 
         const result = await callAI(
