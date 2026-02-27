@@ -3879,13 +3879,19 @@ export type Database = {
       }
       ninety_day_targets: {
         Row: {
+          auto_roll_enabled: boolean | null
           benchmarks: Json | null
           by_when: string | null
           category: string
           company_id: string
           completed: boolean | null
           created_at: string
+          goal_cycle: string | null
+          goal_expires_at: string | null
           goal_number: number
+          goal_reviewed_at: string | null
+          goal_set_at: string | null
+          goal_status: string | null
           goal_text: string | null
           goal_type: string
           id: string
@@ -3897,13 +3903,19 @@ export type Database = {
           year: number
         }
         Insert: {
+          auto_roll_enabled?: boolean | null
           benchmarks?: Json | null
           by_when?: string | null
           category: string
           company_id: string
           completed?: boolean | null
           created_at?: string
+          goal_cycle?: string | null
+          goal_expires_at?: string | null
           goal_number: number
+          goal_reviewed_at?: string | null
+          goal_set_at?: string | null
+          goal_status?: string | null
           goal_text?: string | null
           goal_type?: string
           id?: string
@@ -3915,13 +3927,19 @@ export type Database = {
           year: number
         }
         Update: {
+          auto_roll_enabled?: boolean | null
           benchmarks?: Json | null
           by_when?: string | null
           category?: string
           company_id?: string
           completed?: boolean | null
           created_at?: string
+          goal_cycle?: string | null
+          goal_expires_at?: string | null
           goal_number?: number
+          goal_reviewed_at?: string | null
+          goal_set_at?: string | null
+          goal_status?: string | null
           goal_text?: string | null
           goal_type?: string
           id?: string
@@ -4532,6 +4550,7 @@ export type Database = {
           has_seen_manager_onboarding: boolean | null
           hide_daily_brief: boolean
           id: string
+          industry: string | null
           is_active: boolean | null
           is_admin: boolean | null
           is_super_admin: boolean | null
@@ -4558,6 +4577,7 @@ export type Database = {
           has_seen_manager_onboarding?: boolean | null
           hide_daily_brief?: boolean
           id: string
+          industry?: string | null
           is_active?: boolean | null
           is_admin?: boolean | null
           is_super_admin?: boolean | null
@@ -4584,6 +4604,7 @@ export type Database = {
           has_seen_manager_onboarding?: boolean | null
           hide_daily_brief?: boolean
           id?: string
+          industry?: string | null
           is_active?: boolean | null
           is_admin?: boolean | null
           is_super_admin?: boolean | null
