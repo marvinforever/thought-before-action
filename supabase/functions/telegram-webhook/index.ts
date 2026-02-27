@@ -671,8 +671,9 @@ serve(async (req) => {
       return new Response('OK', { status: 200 });
     }
 
-    // ── SEND "THINKING..." & LOAD CONTEXT IN PARALLEL ──
-    const [thinkingMsgId, conversationHistory, jerichoContext] = await Promise.all([
+    // ── SHOW TYPING INDICATOR, SEND "THINKING..." & LOAD CONTEXT IN PARALLEL ──
+    const [, thinkingMsgId, conversationHistory, jerichoContext] = await Promise.all([
+      sendTypingAction(chatId, botToken),
       sendTelegramMessageWithId(chatId, "🧠 Thinking...", botToken),
       loadConversationHistory(supabase, userId),
       loadJerichoContext(supabase, userId),
