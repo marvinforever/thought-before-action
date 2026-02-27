@@ -35,6 +35,17 @@ async function sendTelegramMessage(chatId: number, text: string, botToken: strin
   }
 }
 
+/** Show "typing..." indicator in the chat */
+async function sendTypingAction(chatId: number, botToken: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
+    });
+  } catch (_) { /* ignore */ }
+}
+
 /** Send a message and return its message_id for later editing */
 async function sendTelegramMessageWithId(chatId: number, text: string, botToken: string): Promise<number | null> {
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
