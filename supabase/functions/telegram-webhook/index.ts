@@ -287,7 +287,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
   let contextStr = '';
 
   if (profile) {
-    contextStr += `User: ${profile.full_name || 'Unknown'}, Role: ${profile.job_title || 'N/A'}, Company: ${profile.companies?.name || 'N/A'}\n`;
+    contextStr += `User: ${profile.full_name || 'Unknown'}, Role: ${profile.job_title || 'N/A'}, Company: ${profile.companies?.name || 'N/A'}, Industry: ${profile.industry || 'Not set'}\n`;
   }
 
   if (caps.length > 0) {
