@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-router.ts";
-import { JERICHO_PERSONALITY, TELEGRAM_ADDENDUM } from "../_shared/jericho-config.ts";
+import { JERICHO_PERSONALITY, TELEGRAM_ADDENDUM, SALES_INTELLIGENCE_FRAMEWORK } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -249,7 +249,12 @@ Respond with ONLY raw JSON, no markdown fences or extra text: {"type":"<type>","
 
 async function loadJerichoContext(supabase: any, userId: string) {
   const todayStr = new Date().toISOString().slice(0, 10);
-  const [profileRes, capsRes, goalsRes, targetsRes, achievementsRes, habitsRes, completionsRes] = await Promise.all([
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    profileRes, capsRes, goalsRes, targetsRes, achievementsRes, habitsRes, completionsRes,
+    recognitionsGivenRes, recognitionsReceivedRes, dealsRes, recentCallPlansRes,
+  ] = await Promise.all([
     supabase.from('profiles').select('*, companies(name)').eq('id', userId).single(),
     supabase.from('employee_capabilities').select('*, capabilities(name, description, category)').eq('profile_id', userId),
     supabase.from('personal_goals').select('*').eq('profile_id', userId).single(),
@@ -257,6 +262,14 @@ async function loadJerichoContext(supabase: any, userId: string) {
     supabase.from('achievements').select('*').eq('profile_id', userId).order('achieved_date', { ascending: false }).limit(5),
     supabase.from('leading_indicators').select('id, habit_name, habit_description, current_streak, target_frequency, habit_type, is_active').eq('profile_id', userId).eq('is_active', true),
     supabase.from('habit_completions').select('habit_id').eq('profile_id', userId).eq('completed_date', todayStr),
+    // Recognition given
+    supabase.from('recognition_notes').select('title, given_to, recognition_date, profiles!recognition_notes_given_to_fkey(full_name)').eq('given_by', userId).order('recognition_date', { ascending: false }).limit(5),
+    // Recognition received
+    supabase.from('recognition_notes').select('title, given_by, recognition_date, profiles!recognition_notes_given_by_fkey(full_name)').eq('given_to', userId).order('recognition_date', { ascending: false }).limit(5),
+    // Pipeline deals
+    supabase.from('sales_deals').select('deal_name, value, stage, expected_close_date, estimated_acres').eq('profile_id', userId).order('created_at', { ascending: false }).limit(20),
+    // Recent call plan activity
+    supabase.from('call_plan_tracking').select('customer_name, call_1_completed, call_2_completed, call_3_completed, call_4_completed, call_1_date, call_2_date, call_3_date, call_4_date').eq('profile_id', userId).order('updated_at', { ascending: false }).limit(5),
   ]);
 
   const profile = profileRes.data;
@@ -266,6 +279,10 @@ async function loadJerichoContext(supabase: any, userId: string) {
   const achievements = achievementsRes.data || [];
   const habits = habitsRes.data || [];
   const todayCompletions = new Set((completionsRes.data || []).map((c: any) => c.habit_id));
+  const recognitionsGiven = recognitionsGivenRes.data || [];
+  const recognitionsReceived = recognitionsReceivedRes.data || [];
+  const deals = dealsRes.data || [];
+  const callPlans = recentCallPlansRes.data || [];
 
   let contextStr = '';
 
@@ -274,26 +291,63 @@ async function loadJerichoContext(supabase: any, userId: string) {
   }
 
   if (caps.length > 0) {
-    contextStr += `\nCapabilities:\n${caps.map((c: any) => `- ${c.capabilities?.name}: Level ${c.current_level}/${c.required_level}`).join('\n')}\n`;
+    contextStr += `\nCapabilities:\n${caps.map((c: any) => `- ${c.capabilities?.name}: Level ${c.current_level}/${c.required_level} (priority: ${c.priority || 'N/A'})`).join('\n')}\n`;
   }
 
   if (goals) {
     contextStr += `\nGrowth Plan:\n- 1-Year Vision: ${goals.one_year_vision || 'Not set'}\n- 3-Year Vision: ${goals.three_year_vision || 'Not set'}\n`;
+    if (goals.personal_one_year_vision) contextStr += `- Personal 1-Year Vision: ${goals.personal_one_year_vision}\n`;
+    if (goals.personal_three_year_vision) contextStr += `- Personal 3-Year Vision: ${goals.personal_three_year_vision}\n`;
   }
 
+  // ── 90-DAY TARGETS with BENCHMARKS and SPRINTS ──
   if (targets.length > 0) {
     const active = targets.filter((t: any) => !t.completed);
     const completed = targets.filter((t: any) => t.completed);
-    contextStr += `\n90-Day Targets: ${active.length} active, ${completed.length} completed\n`;
-    active.slice(0, 5).forEach((t: any) => {
-      contextStr += `- ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'})\n`;
+    contextStr += `\n📊 90-DAY TARGETS: ${active.length} active, ${completed.length} completed\n`;
+
+    active.slice(0, 5).forEach((t: any, idx: number) => {
+      contextStr += `\n🎯 Target ${idx + 1}: ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'})\n`;
+
+      // Parse benchmarks (30-day milestones)
+      if (t.benchmarks) {
+        try {
+          const benchmarks = typeof t.benchmarks === 'string' ? JSON.parse(t.benchmarks) : t.benchmarks;
+          if (Array.isArray(benchmarks) && benchmarks.length > 0) {
+            contextStr += `  30-Day Benchmarks:\n`;
+            benchmarks.forEach((b: any) => {
+              const status = b.completed ? '✅' : '⬜';
+              contextStr += `  ${status} ${b.text || b.title || b.description || 'Benchmark'} (due: ${b.due_date || b.by_when || 'not set'})\n`;
+            });
+          }
+        } catch (_) { /* ignore parse errors */ }
+      }
+
+      // Parse sprints (7-day actions)
+      if (t.sprints) {
+        try {
+          const sprints = typeof t.sprints === 'string' ? JSON.parse(t.sprints) : t.sprints;
+          if (Array.isArray(sprints) && sprints.length > 0) {
+            contextStr += `  7-Day Sprints:\n`;
+            sprints.forEach((s: any) => {
+              const status = s.completed ? '✅' : '⬜';
+              contextStr += `  ${status} ${s.text || s.title || s.description || 'Sprint'} (due: ${s.due_date || s.by_when || 'not set'})\n`;
+            });
+          }
+        } catch (_) { /* ignore parse errors */ }
+      }
     });
+
+    if (completed.length > 0) {
+      contextStr += `\nCompleted targets: ${completed.map((t: any) => t.goal_text).join(', ')}\n`;
+    }
   }
 
   if (achievements.length > 0) {
     contextStr += `\nRecent Achievements:\n${achievements.map((a: any) => `- ${a.achievement_text}`).join('\n')}\n`;
   }
 
+  // ── DAILY HABITS (Leading Indicators) ──
   if (habits.length > 0) {
     const done = habits.filter((h: any) => todayCompletions.has(h.id));
     const pending = habits.filter((h: any) => !todayCompletions.has(h.id));
@@ -304,9 +358,59 @@ async function loadJerichoContext(supabase: any, userId: string) {
     if (pending.length > 0) {
       contextStr += `⬜ NOT YET DONE TODAY:\n${pending.map((h: any) => `- ${h.habit_name}: ${h.habit_description || ''} (${h.current_streak || 0} day streak)`).join('\n')}\n`;
     }
-    contextStr += `\nHABIT CHECK-OFF BEHAVIOR: When the user asks about their habits or wants to check them off, walk through PENDING habits ONE BY ONE. Ask "Did you [habit name] today?" and wait for their answer before moving to the next. When they confirm, celebrate briefly and move to the next pending one. If ALL are done, congratulate them. You can log completions conversationally — the user confirms, you acknowledge. Don't dump all habits at once and ask generically.\n`;
+    contextStr += `\nHABIT CHECK-OFF BEHAVIOR: When the user asks about their habits or wants to check them off, walk through PENDING habits ONE BY ONE. Ask "Did you [habit name] today?" and wait for their answer before moving to the next. When they confirm, celebrate briefly and move to the next pending one. If ALL are done, congratulate them.\n`;
   } else {
     contextStr += `\nThe user has no active habits/leading indicators set up yet. You CAN help them think about what daily habits to track. Habits are called "Leading Indicators" in the system — the user can add them from their Growth Plan page.\n`;
+  }
+
+  // ── RECOGNITION HISTORY ──
+  if (recognitionsGiven.length > 0 || recognitionsReceived.length > 0) {
+    contextStr += `\n🌟 Recognition History:\n`;
+    if (recognitionsReceived.length > 0) {
+      contextStr += `Received:\n${recognitionsReceived.map((r: any) => `- "${r.title}" from ${r.profiles?.full_name || 'someone'} (${r.recognition_date})`).join('\n')}\n`;
+    }
+    if (recognitionsGiven.length > 0) {
+      contextStr += `Given:\n${recognitionsGiven.map((r: any) => `- "${r.title}" to ${r.profiles?.full_name || 'someone'} (${r.recognition_date})`).join('\n')}\n`;
+    }
+  }
+
+  // ── PIPELINE SUMMARY ──
+  if (deals.length > 0) {
+    const activeDeals = deals.filter((d: any) => !['closed_won', 'closed_lost'].includes(d.stage));
+    const totalValue = activeDeals.reduce((sum: number, d: any) => sum + (d.value || 0), 0);
+    const totalAcres = activeDeals.reduce((sum: number, d: any) => sum + (d.estimated_acres || 0), 0);
+
+    // Group by stage
+    const byStage: Record<string, { count: number; value: number }> = {};
+    activeDeals.forEach((d: any) => {
+      if (!byStage[d.stage]) byStage[d.stage] = { count: 0, value: 0 };
+      byStage[d.stage].count++;
+      byStage[d.stage].value += (d.value || 0);
+    });
+
+    contextStr += `\n💰 Pipeline Summary: ${activeDeals.length} active deals, $${totalValue.toLocaleString()} total value, ${totalAcres.toLocaleString()} acres\n`;
+    Object.entries(byStage).forEach(([stage, info]) => {
+      contextStr += `  - ${stage}: ${info.count} deals ($${info.value.toLocaleString()})\n`;
+    });
+
+    // Next upcoming closes
+    const upcoming = activeDeals
+      .filter((d: any) => d.expected_close_date)
+      .sort((a: any, b: any) => new Date(a.expected_close_date).getTime() - new Date(b.expected_close_date).getTime())
+      .slice(0, 3);
+    if (upcoming.length > 0) {
+      contextStr += `  Next closes: ${upcoming.map((d: any) => `${d.deal_name} ($${(d.value || 0).toLocaleString()}) by ${d.expected_close_date}`).join(', ')}\n`;
+    }
+  }
+
+  // ── RECENT CUSTOMER INTERACTIONS (4-Call Plans) ──
+  if (callPlans.length > 0) {
+    contextStr += `\n📞 Recent Customer Activity:\n`;
+    callPlans.forEach((cp: any) => {
+      const callsDone = [cp.call_1_completed, cp.call_2_completed, cp.call_3_completed, cp.call_4_completed].filter(Boolean).length;
+      const nextCallDate = !cp.call_1_completed ? cp.call_1_date : !cp.call_2_completed ? cp.call_2_date : !cp.call_3_completed ? cp.call_3_date : cp.call_4_date;
+      contextStr += `- ${cp.customer_name}: ${callsDone}/4 calls done${nextCallDate ? `, next: ${nextCallDate}` : ''}\n`;
+    });
   }
 
   return { context: contextStr, profile, companyId: profile?.company_id };
@@ -699,7 +803,7 @@ serve(async (req) => {
     let responseText: string;
 
     try {
-      const isGrowthPath = ['growth_plan', 'capabilities', 'sprint_check', 'training'].includes(messageType);
+      const isGrowthPath = ['growth_plan', 'capabilities', 'sprint_check', 'training', 'general'].includes(messageType);
       const isKudos = messageType === 'kudos';
 
       if (isKudos) {
