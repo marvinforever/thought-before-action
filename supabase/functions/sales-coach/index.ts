@@ -793,8 +793,12 @@ async function gatherContext(
   userContext: string,
   userMessage: string = ""
 ) {
-  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [] };
+  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [], industry: null };
   if (!userId) return context;
+
+  // Fetch industry from profile for conditional intelligence injection
+  const { data: userProfile } = await client.from("profiles").select("industry").eq("id", userId).maybeSingle();
+  context.industry = userProfile?.industry || null;
 
   const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult] = await withTimeout(
     Promise.all([
