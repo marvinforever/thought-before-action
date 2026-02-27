@@ -307,7 +307,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     contextStr += `\n📊 90-DAY TARGETS: ${active.length} active, ${completed.length} completed\n`;
 
     active.slice(0, 5).forEach((t: any, idx: number) => {
-      contextStr += `\n🎯 Target ${idx + 1}: ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'})\n`;
+      contextStr += `\n🎯 Target ${idx + 1}: ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'}, status: ${t.goal_status || 'active'}${t.goal_expires_at ? `, expires: ${t.goal_expires_at}` : ''}${t.goal_cycle ? `, cycle: ${t.goal_cycle}` : ''})\n`;
 
       // Parse benchmarks (30-day milestones)
       if (t.benchmarks) {
