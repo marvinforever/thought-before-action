@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-router.ts";
-import { JERICHO_PERSONALITY, TELEGRAM_ADDENDUM, SALES_INTELLIGENCE_FRAMEWORK } from "../_shared/jericho-config.ts";
+import { JERICHO_PERSONALITY, TELEGRAM_ADDENDUM, SALES_INTELLIGENCE_FRAMEWORK, AGRICULTURE_INTELLIGENCE } from "../_shared/jericho-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -287,7 +287,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
   let contextStr = '';
 
   if (profile) {
-    contextStr += `User: ${profile.full_name || 'Unknown'}, Role: ${profile.job_title || 'N/A'}, Company: ${profile.companies?.name || 'N/A'}\n`;
+    contextStr += `User: ${profile.full_name || 'Unknown'}, Role: ${profile.job_title || 'N/A'}, Company: ${profile.companies?.name || 'N/A'}, Industry: ${profile.industry || 'Not set'}\n`;
   }
 
   if (caps.length > 0) {
@@ -307,7 +307,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     contextStr += `\n📊 90-DAY TARGETS: ${active.length} active, ${completed.length} completed\n`;
 
     active.slice(0, 5).forEach((t: any, idx: number) => {
-      contextStr += `\n🎯 Target ${idx + 1}: ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'})\n`;
+      contextStr += `\n🎯 Target ${idx + 1}: ${t.goal_text || 'No description'} (${t.category}, due: ${t.by_when || 'no date'}, status: ${t.goal_status || 'active'}${t.goal_expires_at ? `, expires: ${t.goal_expires_at}` : ''}${t.goal_cycle ? `, cycle: ${t.goal_cycle}` : ''})\n`;
 
       // Parse benchmarks (30-day milestones)
       if (t.benchmarks) {
@@ -413,7 +413,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     });
   }
 
-  return { context: contextStr, profile, companyId: profile?.company_id };
+  return { context: contextStr, profile, companyId: profile?.company_id, industry: profile?.industry || null };
 }
 
 // ============================================================================
@@ -814,10 +814,16 @@ serve(async (req) => {
         // ── GROWTH PATH: Enhanced AI via ai-router (Gemini Pro) ──
         const managerContext = await loadManagerContext(supabase, userId);
 
+        // Industry-conditional context for growth path
+        const industryContext = jerichoContext.industry === 'agriculture' ? '\nThe user works in agriculture. Use ag terminology naturally (acres, bushels, crop protection, pre-pay, co-op dynamics). Reference seasonal timing when relevant.\n' : '';
+
         const systemPrompt = `${JERICHO_PERSONALITY}
 
 ${TELEGRAM_ADDENDUM}
 
+FLEXIBILITY PRINCIPLE:
+If the user says "skip", "not sure", "later", "I don't know", "pass", or ignores a multi-step question — move forward with sensible defaults. Push back ONCE with a friendly nudge. If they still resist, accept gracefully and move on. Never get stuck waiting for a "correct" answer.
+${industryContext}
 ${jerichoContext.context}
 ${managerContext || ''}
 

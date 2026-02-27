@@ -1,134 +1,73 @@
 
 
-# Jericho Master Execution — Phase 1 (Ship Today, Feb 27)
+# Upgrade Telegram Bot to Full Jericho Intelligence
 
-This plan covers the 4 priorities from your master doc. Priorities 1 and 2 are **already mostly done** from previous work. Here's what's left and what's new.
+## Status: ✅ IMPLEMENTED
 
----
+## What was done
 
-## Current State Assessment
+### 1. Database Migration ✅
+- Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
+- Added index on `telegram_update_id` for duplicate detection
+- Added index on `(user_id, created_at DESC)` for fast conversation history
 
-| Priority | Status | What's Left |
-|---|---|---|
-| P1: Growth/Performance Data | ~90% done | Context loading is already rich. Missing: `individual_growth_plans` table doesn't exist — goals live in `ninety_day_targets`. No `industry` column on profiles yet. |
-| P2: Personality + Sales Intelligence | ~95% done | `JERICHO_PERSONALITY`, `TELEGRAM_ADDENDUM`, `SALES_INTELLIGENCE_FRAMEWORK` already exist and are injected. Need: split ag content into `AGRICULTURE_INTELLIGENCE`, add industry-conditional injection, update personality per new spec wording. |
-| P3: Seed Test Data | 0% done | Need to insert seed data for your account via SQL. |
-| P4: Onboarding Flexibility + Goal Lifecycle | 0% done | Need DB migration for goal lifecycle fields + bot skip-path logic. |
+### 2. Sales Coach Auth Bypass ✅
+- Added 8-line internal service call detection in `sales-coach/index.ts` (after auth block)
+- When token matches service role key and `viewAsUserId` is provided, trusts the IDs directly
 
----
+### 3. AI Router ✅
+- Added `'telegram-chat'` task type routed to `'gemini-pro'`
 
-## Implementation Steps
-
-### Step 1: Database Migration — `profiles.industry` + goal lifecycle fields
-
-Add `industry` column to `profiles`:
-```sql
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS industry text DEFAULT null;
-```
-
-Add goal lifecycle fields to `ninety_day_targets` (this is where goals live — there is no `individual_growth_plans` table):
-```sql
-ALTER TABLE ninety_day_targets 
-  ADD COLUMN IF NOT EXISTS goal_status text DEFAULT 'active',
-  ADD COLUMN IF NOT EXISTS goal_cycle text,
-  ADD COLUMN IF NOT EXISTS goal_set_at timestamptz,
-  ADD COLUMN IF NOT EXISTS goal_reviewed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS goal_expires_at timestamptz,
-  ADD COLUMN IF NOT EXISTS auto_roll_enabled boolean DEFAULT true;
-```
-
-Backfill existing goals:
-```sql
-UPDATE ninety_day_targets 
-SET goal_status = 'active', 
-    goal_set_at = created_at,
-    goal_reviewed_at = updated_at,
-    auto_roll_enabled = true
-WHERE goal_status IS NULL;
-```
-
-### Step 2: Update `jericho-config.ts` — Split Ag Intelligence, Update Personality
-
-- **Update `JERICHO_PERSONALITY`**: Replace current text with the new spec wording (adds "Coaching-oriented: Ask questions before giving answers", "Mirror their world" industry terminology rule, and the `→` action format instruction).
-- **Update `TELEGRAM_ADDENDUM`**: Add "Voice notes are welcome" and "Offer inline keyboard buttons" lines from spec.
-- **Extract `AGRICULTURE_INTELLIGENCE`**: Move the "AG-SPECIFIC SELLING INTELLIGENCE" and "AGRONOMIC PRODUCT INTELLIGENCE" sections (lines 381-476) out of `SALES_INTELLIGENCE_FRAMEWORK` into a new exported constant `AGRICULTURE_INTELLIGENCE`.
-- **`SALES_INTELLIGENCE_FRAMEWORK`** retains all universal methodologies (SPIN through Negotiation Principles, plus the "HOW TO APPLY" and "WHAT YOU NEVER DO" sections).
-
-### Step 3: Update `sales-coach/index.ts` — Industry-Conditional Injection
-
-- Import `AGRICULTURE_INTELLIGENCE` from jericho-config.
-- In `gatherContext`, fetch `profile.industry` (already fetched via profile query).
-- In `generateResponse`, after `SALES_INTELLIGENCE_FRAMEWORK`, conditionally append:
-  ```
-  ${profile?.industry === 'agriculture' ? AGRICULTURE_INTELLIGENCE : ''}
-  ```
-- This pattern supports future industry constants.
-
-### Step 4: Update `telegram-webhook/index.ts` — Industry-Conditional + Goal Lifecycle Context
-
-- Import `AGRICULTURE_INTELLIGENCE`.
-- In `loadJerichoContext`, add `profile.industry` to the context string.
-- For sales-path messages, conditionally inject ag intelligence when `profile.industry === 'agriculture'`.
-- Add goal lifecycle fields to the 90-day targets context display (show `goal_status`, `goal_expires_at`, `goal_cycle`).
-
-### Step 5: Update `chat-with-jericho/index.ts` — No changes needed
-
-Already uses `JERICHO_PERSONALITY`. Growth coaching doesn't need sales/ag intelligence. No action required.
-
-### Step 6: Seed Test Data (via SQL insert tool)
-
-This uses the data insert tool (NOT migration). Will insert:
-
-1. **Profile update**: Set `industry = 'agriculture'` on your admin account.
-2. **90-day targets** (3 goals with benchmarks + sprints as JSON):
-   - Revenue: $340K target, 40% progress
-   - New customer acquisition: 8 accounts, 38% progress
-   - Capability focus: Consultative Selling Level 3
-3. **Leading indicators** (3 daily habits):
-   - Pre-call planning
-   - 5 customer touches per day
-   - End-of-day reflection
-4. **Employee capabilities** (3 entries):
-   - Consultative Selling: Level 2 → 3
-   - Objection Handling: Level 1 → 2
-   - Territory Planning: Level 2 → 3
-5. **Sales companies** (5 customers with contacts)
-6. **Sales deals** (3 pipeline deals)
-
-Note: Need to identify your admin user ID to insert the seed data. Will query `profiles` where `is_admin = true` or `is_super_admin = true`.
-
-### Step 7: Onboarding Flexibility (Telegram Skip Paths)
-
-In `telegram-webhook/index.ts`, add skip-path detection to the growth coaching system prompt:
-
-```
-FLEXIBILITY PRINCIPLE:
-If the user says "skip", "not sure", "later", "I don't know", "pass", 
-or ignores a multi-step question — move forward with sensible defaults.
-Push back ONCE with a friendly nudge. If they still resist, accept 
-gracefully and move on. Never get stuck waiting for a "correct" answer.
-```
-
-This is a prompt-level instruction, not a code-level state machine. The AI handles it naturally.
+### 4. Telegram Webhook Rewrite ✅
+- **Sales-coach proxy**: All sales/general/unclear messages route through sales-coach via internal fetch
+- **Growth path**: Growth/capabilities/training/sprint queries use Gemini Pro via ai-router
+- **Kudos shortcut**: Direct DB insert into recognitions table
+- **Conversation history**: Last 10 messages within 24hrs by user_id
+- **Edit-message UX**: "Thinking..." replaced via editMessageText
+- **Duplicate prevention**: update_id checked before processing
+- **Manager context**: Loads team data for manager users
+- **Error handling**: 45s timeout, graceful fallbacks, all paths return 200
+- **Response formatting**: Strips unsupported markdown, appends action confirmations, truncates at 4000 chars
 
 ---
 
-## Deployment Order
+# Phase 1 + Phase 5: Personality Overhaul + Database Migration
 
-1. Database migration (industry column + goal lifecycle fields)
-2. Backfill existing goals via insert tool
-3. `jericho-config.ts` updates (personality, ag split)
-4. `sales-coach/index.ts` (industry-conditional injection)
-5. `telegram-webhook/index.ts` (industry context + flexibility prompt)
-6. Seed data insertion for your account
+## Status: ✅ IMPLEMENTED
 
----
+### Phase 5: Database Migration ✅
+- Created `telegram_outreach_preferences` table (user_id PK, proactive_enabled, max_daily_messages, quiet_hours, consecutive_ignored, preferred_response_format)
+- Created `telegram_outreach_log` table (trigger_type, message_text, was_engaged)
+- RLS: users manage own prefs, users read own outreach log
 
-## Technical Details
+### Phase 1A: jericho-config.ts ✅
+- Added `JERICHO_PERSONALITY` — unified voice/behavior for ALL AI calls
+- Added `TELEGRAM_ADDENDUM` — mobile formatting rules for Telegram only
+- Added `SALES_INTELLIGENCE_FRAMEWORK` — full multi-methodology framework (SPIN, Challenger, MEDDIC, Sandler, Gap Selling, Integrity Selling, Miller Heiman, Objection Handling, Negotiation, Ag Intelligence, Agronomic Product Intelligence)
+- Deprecated old `COACHING_PHILOSOPHY`, `COACHING_STYLE`, `MISSING_PLAN_GUIDANCE` (kept for backward compat)
 
-- No new tables needed — `ninety_day_targets` already serves as the goal store.
-- `individual_growth_plans` referenced in the master doc doesn't exist in this DB. All goal/target logic uses `ninety_day_targets`.
-- The `AGRICULTURE_INTELLIGENCE` constant will be ~100 lines (extracted from current `SALES_INTELLIGENCE_FRAMEWORK` lines 381-476).
-- `SALES_INTELLIGENCE_FRAMEWORK` drops to ~180 lines (universal methodologies only).
-- Seed data requires knowing your user ID — will query for it during implementation.
+### Phase 1B: sales-coach/index.ts ✅
+- Imported `JERICHO_PERSONALITY` and `SALES_INTELLIGENCE_FRAMEWORK`
+- Deleted `methodologyReference` constant (replaced by framework)
+- Rec mode: personality + framework + data-first override
+- Coach mode: personality + framework + agentic action suggestions (→ format)
 
+### Phase 1C: chat-with-jericho/index.ts ✅
+- Imported `JERICHO_PERSONALITY`
+- Replaced philosophy + style blocks with personality
+- Kept role context (career coach mission, manager context, tools)
+- Kept missing benchmarks guidance
+- Did NOT inject sales framework (growth coaching only)
+
+### Phase 1D: telegram-webhook/index.ts ✅
+- Imported `JERICHO_PERSONALITY` and `TELEGRAM_ADDENDUM`
+- Growth path: personality + addendum + user context
+- Sales path: addendum flows through sales-coach proxy
+- Upgraded onboarding message with richer welcome
+- Auto-creates `telegram_outreach_preferences` row on account linking
+
+### Notes for future phases
+- `was_engaged` in outreach_log needs engagement tracking logic (check user reply within 5 min of outreach)
+- Habit completion detection needs state tracking (last_prompt_type flag)
+- consecutive_ignored >= 10 should drop to weekly outreach
+- Confirm pg_cron availability for outreach scheduling

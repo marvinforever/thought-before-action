@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-router.ts";
-import { JERICHO_PERSONALITY, SALES_INTELLIGENCE_FRAMEWORK } from "../_shared/jericho-config.ts";
+import { JERICHO_PERSONALITY, SALES_INTELLIGENCE_FRAMEWORK, AGRICULTURE_INTELLIGENCE } from "../_shared/jericho-config.ts";
 import {
   getOrCreateBackboardThread,
   createBackboardClient,
@@ -93,9 +93,9 @@ serve(async (req) => {
       userId = userData?.user?.id || null;
 
       if (userId) {
-        const { data: profile } = await adminClient
+      const { data: profile } = await adminClient
           .from("profiles")
-          .select("company_id, is_super_admin")
+          .select("company_id, is_super_admin, industry")
           .eq("id", userId)
           .single();
         companyId = profile?.company_id || null;
@@ -793,8 +793,12 @@ async function gatherContext(
   userContext: string,
   userMessage: string = ""
 ) {
-  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [] };
+  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [], industry: null };
   if (!userId) return context;
+
+  // Fetch industry from profile for conditional intelligence injection
+  const { data: userProfile } = await client.from("profiles").select("industry").eq("id", userId).maybeSingle();
+  context.industry = userProfile?.industry || null;
 
   const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult] = await withTimeout(
     Promise.all([
@@ -1221,13 +1225,16 @@ async function generateResponse(
 - Use line breaks between list items for readability`;
 
 
+  // Industry-conditional intelligence
+  const industryIntelligence = context.industry === 'agriculture' ? `\n${AGRICULTURE_INTELLIGENCE}` : '';
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
 
 REC MODE OVERRIDE: Be direct, data-first, 2-3 sentences max. No teaching moments. Peer-to-peer energy. Skip coaching frameworks — just answer fast.
 
-${SALES_INTELLIGENCE_FRAMEWORK}
+${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}
@@ -1240,7 +1247,7 @@ ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
       : `${JERICHO_PERSONALITY}
 
-${SALES_INTELLIGENCE_FRAMEWORK}
+${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 
