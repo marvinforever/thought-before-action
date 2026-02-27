@@ -1225,13 +1225,16 @@ async function generateResponse(
 - Use line breaks between list items for readability`;
 
 
+  // Industry-conditional intelligence
+  const industryIntelligence = context.industry === 'agriculture' ? `\n${AGRICULTURE_INTELLIGENCE}` : '';
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
 
 REC MODE OVERRIDE: Be direct, data-first, 2-3 sentences max. No teaching moments. Peer-to-peer energy. Skip coaching frameworks — just answer fast.
 
-${SALES_INTELLIGENCE_FRAMEWORK}
+${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}
@@ -1244,7 +1247,7 @@ ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
       : `${JERICHO_PERSONALITY}
 
-${SALES_INTELLIGENCE_FRAMEWORK}
+${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 
