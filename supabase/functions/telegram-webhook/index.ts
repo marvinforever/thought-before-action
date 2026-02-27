@@ -803,7 +803,7 @@ serve(async (req) => {
     let responseText: string;
 
     try {
-      const isGrowthPath = ['growth_plan', 'capabilities', 'sprint_check', 'training'].includes(messageType);
+      const isGrowthPath = ['growth_plan', 'capabilities', 'sprint_check', 'training', 'general'].includes(messageType);
       const isKudos = messageType === 'kudos';
 
       if (isKudos) {
