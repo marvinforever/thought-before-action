@@ -93,9 +93,9 @@ serve(async (req) => {
       userId = userData?.user?.id || null;
 
       if (userId) {
-        const { data: profile } = await adminClient
+      const { data: profile } = await adminClient
           .from("profiles")
-          .select("company_id, is_super_admin")
+          .select("company_id, is_super_admin, industry")
           .eq("id", userId)
           .single();
         companyId = profile?.company_id || null;
