@@ -413,7 +413,7 @@ async function loadJerichoContext(supabase: any, userId: string) {
     });
   }
 
-  return { context: contextStr, profile, companyId: profile?.company_id };
+  return { context: contextStr, profile, companyId: profile?.company_id, industry: profile?.industry || null };
 }
 
 // ============================================================================
