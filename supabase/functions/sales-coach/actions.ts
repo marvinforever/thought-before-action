@@ -96,6 +96,8 @@ export async function createCompany(
   }
 }
 
+// (company creation activity is logged as a note — no deal yet)
+
 export async function createContact(
   client: any,
   userId: string,
