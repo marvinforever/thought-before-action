@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-oauth-callback`;
+    const redirectUri = Deno.env.get("GOOGLE_REDIRECT_URI") || `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-oauth-callback`;
 
     const scopes = [
       "https://www.googleapis.com/auth/calendar.readonly",
