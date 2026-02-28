@@ -6594,6 +6594,87 @@ export type Database = {
           },
         ]
       }
+      user_active_context: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          current_sprint_focus: string | null
+          emotional_state: string | null
+          hot_customers: Json | null
+          id: string
+          is_free_tier: boolean | null
+          last_channel: string | null
+          last_conversation_summary: string | null
+          last_interaction_at: string | null
+          onboarding_complete: boolean | null
+          onboarding_data: Json | null
+          onboarding_path: string | null
+          onboarding_step: number | null
+          open_loops: Json | null
+          pending_actions: Json | null
+          profile_id: string | null
+          updated_at: string | null
+          user_commitments: Json | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          current_sprint_focus?: string | null
+          emotional_state?: string | null
+          hot_customers?: Json | null
+          id?: string
+          is_free_tier?: boolean | null
+          last_channel?: string | null
+          last_conversation_summary?: string | null
+          last_interaction_at?: string | null
+          onboarding_complete?: boolean | null
+          onboarding_data?: Json | null
+          onboarding_path?: string | null
+          onboarding_step?: number | null
+          open_loops?: Json | null
+          pending_actions?: Json | null
+          profile_id?: string | null
+          updated_at?: string | null
+          user_commitments?: Json | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          current_sprint_focus?: string | null
+          emotional_state?: string | null
+          hot_customers?: Json | null
+          id?: string
+          is_free_tier?: boolean | null
+          last_channel?: string | null
+          last_conversation_summary?: string | null
+          last_interaction_at?: string | null
+          onboarding_complete?: boolean | null
+          onboarding_data?: Json | null
+          onboarding_path?: string | null
+          onboarding_step?: number | null
+          open_loops?: Json | null
+          pending_actions?: Json | null
+          profile_id?: string | null
+          updated_at?: string | null
+          user_commitments?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_active_context_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_active_context_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_badges: {
         Row: {
           badge_id: string
