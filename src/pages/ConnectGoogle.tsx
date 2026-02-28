@@ -119,7 +119,7 @@ const ConnectGoogle = () => {
 
           {status === "success" && (
             <>
-              <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+              <CheckCircle2 className="h-12 w-12 text-accent mx-auto" />
               <div className="space-y-2">
                 <p className="font-medium text-accent">Google Connected!</p>
                 <p className="text-sm text-muted-foreground">
