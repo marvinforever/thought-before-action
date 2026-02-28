@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const APP_URL = "https://thought-before-action.lovable.app";
+const APP_URL = "https://askjericho.com";
 
 // Simple XOR-based encryption using a key derived from the service role key.
 // For production, use Vault or a proper KMS.
