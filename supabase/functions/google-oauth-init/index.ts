@@ -20,22 +20,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    let userId: string;
 
-    const userId = claimsData.claims.sub as string;
+    // Check if called with service role key (e.g. from Telegram webhook)
+    if (token === serviceRoleKey) {
+      // Expect userId in request body
+      const body = await req.json().catch(() => ({}));
+      if (!body.userId) {
+        return new Response(JSON.stringify({ error: "userId required when using service role key" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = body.userId;
+    } else {
+      // Standard user JWT auth
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
+      if (claimsErr || !claimsData?.claims) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = claimsData.claims.sub as string;
+    }
 
     // Generate a cryptographically secure state token
     const stateToken = crypto.randomUUID() + "-" + crypto.randomUUID();
