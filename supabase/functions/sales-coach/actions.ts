@@ -2,6 +2,29 @@
 // PIPELINE CRUD ACTIONS
 // ============================================
 
+// Fire-and-forget activity logger
+async function logActivity(
+  client: any,
+  profileId: string,
+  activityType: "call" | "email" | "meeting" | "note" | "task",
+  subject: string,
+  opts?: { dealId?: string; contactId?: string; notes?: string }
+) {
+  try {
+    await client.from("sales_activities").insert({
+      profile_id: profileId,
+      activity_type: activityType,
+      subject,
+      deal_id: opts?.dealId || null,
+      contact_id: opts?.contactId || null,
+      notes: opts?.notes || null,
+      completed_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("Failed to log sales_activity:", err);
+  }
+}
+
 export interface ActionResult {
   type: string;
   entityId: string;
