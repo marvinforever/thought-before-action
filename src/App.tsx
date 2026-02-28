@@ -51,6 +51,7 @@ import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
 import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 import TelegramSetup from "./pages/TelegramSetup";
 import ConnectGoogle from "./pages/ConnectGoogle";
+import GoogleOAuthCallback from "./pages/GoogleOAuthCallback";
 
 const queryClient = new QueryClient({
   defaultOptions: {
