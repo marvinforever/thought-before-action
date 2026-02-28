@@ -206,6 +206,7 @@ const App = () => (
             <Route path="/prep/:shareToken" element={<PublicPrepDocument />} />
             {/* Google OAuth Connect Page */}
             <Route path="/connect/google" element={<ConnectGoogle />} />
+            <Route path="/auth/google/callback" element={<GoogleOAuthCallback />} />
             {/* AI Readiness Lead Gen Tool */}
             <Route path="/ai-readiness/*" element={<AIReadinessLanding />} />
             <Route path="/ai-readiness/report/:shareToken" element={<AIReadinessReport />} />
