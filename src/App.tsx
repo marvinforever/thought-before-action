@@ -50,6 +50,7 @@ import AdminCustomerHistoryImport from "./pages/AdminCustomerHistoryImport";
 import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
 import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 import TelegramSetup from "./pages/TelegramSetup";
+import ConnectGoogle from "./pages/ConnectGoogle";
 
 const queryClient = new QueryClient({
   defaultOptions: {
