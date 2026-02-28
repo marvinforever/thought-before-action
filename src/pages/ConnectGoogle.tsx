@@ -133,7 +133,7 @@ const ConnectGoogle = () => {
             <>
               <XCircle className="h-12 w-12 text-destructive mx-auto" />
               <div className="space-y-2">
-                <p className="font-medium text-destructive">Connection Failed</p>
+                <p className="font-medium text-destructive-foreground">Connection Failed</p>
                 <p className="text-sm text-muted-foreground">{errorMsg}</p>
               </div>
               <Button variant="outline" className="w-full" onClick={initiateOAuth}>
