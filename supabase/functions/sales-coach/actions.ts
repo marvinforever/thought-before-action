@@ -131,6 +131,9 @@ export async function createContact(
       .select("id")
       .single();
 
+    // Log activity
+    logActivity(client, userId, "note", `Added contact: ${name.trim()}`, { contactId: newContact.id });
+
     return {
       type: "contact_created",
       entityId: newContact.id,
