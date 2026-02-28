@@ -215,3 +215,6 @@ verify_jwt = false
 
 [functions.google-gmail-read]
 verify_jwt = false
+
+[functions.try-jericho-onboard]
+verify_jwt = false

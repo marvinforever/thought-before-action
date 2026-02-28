@@ -52,6 +52,7 @@ import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 import TelegramSetup from "./pages/TelegramSetup";
 import ConnectGoogle from "./pages/ConnectGoogle";
 import GoogleOAuthCallback from "./pages/GoogleOAuthCallback";
+import TryJericho from "./pages/TryJericho";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,6 +86,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Sales />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/try" element={<TryJericho />} />
                 <Route path="/register" element={<RegistrationWizard />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 
