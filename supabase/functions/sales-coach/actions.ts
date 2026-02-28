@@ -222,6 +222,9 @@ export async function createDeal(
       .select("id")
       .single();
 
+    // Log activity
+    logActivity(client, userId, "note", `New deal: ${dealName} (${stage})`, { dealId: newDeal.id, notes: `Value: $${value}` });
+
     return {
       type: "deal_created",
       entityId: newDeal.id,
