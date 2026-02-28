@@ -79,6 +79,7 @@ export default function TryJericho() {
       setTimeout(() => {
         setMessages((prev) => [...prev, { id: generateId(), role: "jericho", text }]);
         setIsTyping(false);
+        setTimeout(() => inputRef.current?.focus(), 50);
         resolve();
       }, delay);
     });
