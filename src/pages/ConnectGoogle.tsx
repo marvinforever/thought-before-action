@@ -121,7 +121,7 @@ const ConnectGoogle = () => {
             <>
               <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
               <div className="space-y-2">
-                <p className="font-medium text-green-700">Google Connected!</p>
+                <p className="font-medium text-accent">Google Connected!</p>
                 <p className="text-sm text-muted-foreground">
                   Jericho now has access to your calendar and email. You can close this window and return to Telegram.
                 </p>
