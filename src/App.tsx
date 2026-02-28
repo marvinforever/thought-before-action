@@ -50,6 +50,7 @@ import AdminCustomerHistoryImport from "./pages/AdminCustomerHistoryImport";
 import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
 import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 import TelegramSetup from "./pages/TelegramSetup";
+import ConnectGoogle from "./pages/ConnectGoogle";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -202,6 +203,8 @@ const App = () => (
             <Route path="/sales-agent" element={<SalesAgentLanding />} />
             {/* Public Prep Document */}
             <Route path="/prep/:shareToken" element={<PublicPrepDocument />} />
+            {/* Google OAuth Connect Page */}
+            <Route path="/connect/google" element={<ConnectGoogle />} />
             {/* AI Readiness Lead Gen Tool */}
             <Route path="/ai-readiness/*" element={<AIReadinessLanding />} />
             <Route path="/ai-readiness/report/:shareToken" element={<AIReadinessReport />} />

@@ -6837,10 +6837,14 @@ export type Database = {
           external_user_id: string | null
           id: string
           integration_type: string
+          last_refreshed_at: string | null
           last_sync_at: string | null
           metadata: Json | null
+          oauth_state: string | null
           profile_id: string
+          provider: string | null
           refresh_token: string | null
+          revoked_at: string | null
           scopes: string[] | null
           sync_error: string | null
           sync_status: string | null
@@ -6855,10 +6859,14 @@ export type Database = {
           external_user_id?: string | null
           id?: string
           integration_type: string
+          last_refreshed_at?: string | null
           last_sync_at?: string | null
           metadata?: Json | null
+          oauth_state?: string | null
           profile_id: string
+          provider?: string | null
           refresh_token?: string | null
+          revoked_at?: string | null
           scopes?: string[] | null
           sync_error?: string | null
           sync_status?: string | null
@@ -6873,10 +6881,14 @@ export type Database = {
           external_user_id?: string | null
           id?: string
           integration_type?: string
+          last_refreshed_at?: string | null
           last_sync_at?: string | null
           metadata?: Json | null
+          oauth_state?: string | null
           profile_id?: string
+          provider?: string | null
           refresh_token?: string | null
+          revoked_at?: string | null
           scopes?: string[] | null
           sync_error?: string | null
           sync_status?: string | null
