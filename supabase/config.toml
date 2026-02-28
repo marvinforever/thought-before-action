@@ -203,3 +203,9 @@ verify_jwt = false
 
 [functions.sales-coach]
 verify_jwt = false
+
+[functions.google-oauth-init]
+verify_jwt = false
+
+[functions.google-oauth-callback]
+verify_jwt = false
