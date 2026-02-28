@@ -52,6 +52,7 @@ import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 import TelegramSetup from "./pages/TelegramSetup";
 import ConnectGoogle from "./pages/ConnectGoogle";
 import GoogleOAuthCallback from "./pages/GoogleOAuthCallback";
+import TryJericho from "./pages/TryJericho";
 
 const queryClient = new QueryClient({
   defaultOptions: {
