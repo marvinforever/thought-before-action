@@ -306,7 +306,9 @@ export async function handlePipelineActions(
     const deal = deals.find((d) => d.deal_name.toLowerCase().includes(moveMatch[1].toLowerCase()));
     if (deal) {
       const { error } = await client.from("sales_deals").update({ stage: moveMatch[2].toLowerCase() }).eq("id", deal.id);
-      actions.push({ action: "move_deal", success: !error, message: error ? "Failed to move deal" : `Moved "${deal.deal_name}" to ${moveMatch[2]}` });
+      const success = !error;
+      actions.push({ action: "move_deal", success, message: error ? "Failed to move deal" : `Moved "${deal.deal_name}" to ${moveMatch[2]}` });
+      if (success) logActivity(client, userId, "task", `Moved deal "${deal.deal_name}" to ${moveMatch[2]}`, { dealId: deal.id });
     }
   }
 
@@ -314,7 +316,9 @@ export async function handlePipelineActions(
     const deal = deals.find((d) => d.deal_name.toLowerCase().includes(updateMatch[1].toLowerCase()));
     if (deal) {
       const { error } = await client.from("sales_deals").update({ value: parseInt(updateMatch[2]) }).eq("id", deal.id);
-      actions.push({ action: "update_deal", success: !error, message: error ? "Failed to update deal" : `Updated "${deal.deal_name}" value to $${parseInt(updateMatch[2]).toLocaleString()}` });
+      const success = !error;
+      actions.push({ action: "update_deal", success, message: error ? "Failed to update deal" : `Updated "${deal.deal_name}" value to $${parseInt(updateMatch[2]).toLocaleString()}` });
+      if (success) logActivity(client, userId, "note", `Updated deal "${deal.deal_name}" value to $${parseInt(updateMatch[2]).toLocaleString()}`, { dealId: deal.id });
     }
   }
 
@@ -322,7 +326,9 @@ export async function handlePipelineActions(
     const deal = deals.find((d) => d.deal_name.toLowerCase().includes(deleteMatch[1].toLowerCase()));
     if (deal) {
       const { error } = await client.from("sales_deals").delete().eq("id", deal.id);
-      actions.push({ action: "delete_deal", success: !error, message: error ? "Failed to delete deal" : `Removed "${deal.deal_name}" from pipeline` });
+      const success = !error;
+      actions.push({ action: "delete_deal", success, message: error ? "Failed to delete deal" : `Removed "${deal.deal_name}" from pipeline` });
+      if (success) logActivity(client, userId, "note", `Deleted deal "${deal.deal_name}"`, { dealId: deal.id });
     }
   }
 
