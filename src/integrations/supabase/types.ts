@@ -2712,6 +2712,7 @@ export type Database = {
       email_deliveries: {
         Row: {
           body: string | null
+          channel: string
           company_id: string | null
           id: string
           opened_at: string | null
@@ -2723,6 +2724,7 @@ export type Database = {
         }
         Insert: {
           body?: string | null
+          channel?: string
           company_id?: string | null
           id?: string
           opened_at?: string | null
@@ -2734,6 +2736,7 @@ export type Database = {
         }
         Update: {
           body?: string | null
+          channel?: string
           company_id?: string | null
           id?: string
           opened_at?: string | null
@@ -2844,6 +2847,7 @@ export type Database = {
         Row: {
           brief_format: string | null
           created_at: string
+          delivery_channels: Json
           email_enabled: boolean
           frequency: string
           id: string
@@ -2858,6 +2862,7 @@ export type Database = {
         Insert: {
           brief_format?: string | null
           created_at?: string
+          delivery_channels?: Json
           email_enabled?: boolean
           frequency?: string
           id?: string
@@ -2872,6 +2877,7 @@ export type Database = {
         Update: {
           brief_format?: string | null
           created_at?: string
+          delivery_channels?: Json
           email_enabled?: boolean
           frequency?: string
           id?: string
