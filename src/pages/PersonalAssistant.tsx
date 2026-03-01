@@ -3,11 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, MessageSquare, Trash2, GripVertical, Folder, Calendar, RefreshCw } from "lucide-react";
+import { Plus, MessageSquare, Trash2, GripVertical, Folder, Calendar, RefreshCw, X, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { JerichoChat } from "@/components/JerichoChat";
 import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Task {
   id: string;
@@ -21,6 +29,15 @@ interface Task {
   source: string;
   category: "sales_customers" | "growth_plan" | "work" | "personal";
   user_projects?: { title: string; color: string } | null;
+}
+
+interface TaskNote {
+  id: string;
+  task_id: string;
+  profile_id: string;
+  note_text: string;
+  created_at: string;
+  profiles?: { full_name: string | null } | null;
 }
 
 interface Project {
@@ -38,11 +55,14 @@ const COLUMNS = [
 ] as const;
 
 const CATEGORIES = [
+  { id: "all", label: "All Tasks", emoji: "📋" },
   { id: "sales_customers", label: "Sales & Customers", emoji: "🎯" },
   { id: "growth_plan", label: "Growth Plan", emoji: "📈" },
   { id: "work", label: "Work", emoji: "💼" },
   { id: "personal", label: "Personal", emoji: "🏠" },
 ] as const;
+
+const CATEGORY_OPTIONS = CATEGORIES.filter(c => c.id !== "all");
 
 const PRIORITY_COLORS = {
   low: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
@@ -56,12 +76,19 @@ export default function PersonalAssistant() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskCategory, setNewTaskCategory] = useState<string>("work");
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [savingTask, setSavingTask] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -88,13 +115,8 @@ export default function PersonalAssistant() {
   const setupRealtime = () => {
     const channel = supabase
       .channel('project_tasks_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'project_tasks' },
-        () => { loadData(); }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_tasks' }, () => { loadData(); })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   };
 
@@ -117,27 +139,74 @@ export default function PersonalAssistant() {
     } else {
       setTasks((tasksResult.data || []) as Task[]);
     }
-
     if (!projectsResult.error) {
       setProjects((projectsResult.data || []) as Project[]);
     }
-
     setLoading(false);
   };
 
-  const addTask = async (columnStatus: string, category: string) => {
-    if (!newTaskTitle.trim() || !user) return;
+  const loadTaskNotes = async (taskId: string) => {
+    const { data, error } = await supabase
+      .from("task_notes")
+      .select("*, profiles(full_name)")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: false });
 
+    if (!error) {
+      setTaskNotes((data || []) as TaskNote[]);
+    }
+  };
+
+  const addNote = async () => {
+    if (!newNote.trim() || !selectedTask || !user) return;
+    const { error } = await supabase.from("task_notes").insert({
+      task_id: selectedTask.id,
+      profile_id: user.id,
+      note_text: newNote.trim(),
+    });
+    if (error) {
+      toast({ title: "Error adding note", variant: "destructive" });
+    } else {
+      setNewNote("");
+      loadTaskNotes(selectedTask.id);
+    }
+  };
+
+  const openTaskDetail = (task: Task) => {
+    setSelectedTask(task);
+    setEditTitle(task.title);
+    setEditDescription(task.description || "");
+    loadTaskNotes(task.id);
+  };
+
+  const saveTaskDetails = async (updates: Partial<Task>) => {
+    if (!selectedTask) return;
+    setSavingTask(true);
+    const { error } = await supabase
+      .from("project_tasks")
+      .update(updates)
+      .eq("id", selectedTask.id);
+
+    if (error) {
+      toast({ title: "Error saving task", variant: "destructive" });
+    } else {
+      setSelectedTask(prev => prev ? { ...prev, ...updates } : null);
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, ...updates } : t));
+    }
+    setSavingTask(false);
+  };
+
+  const addTask = async (columnStatus: string) => {
+    if (!newTaskTitle.trim() || !user) return;
     const { error } = await supabase.from("project_tasks").insert({
       profile_id: user.id,
       title: newTaskTitle,
       column_status: columnStatus,
       priority: "medium",
-      position: tasks.filter((t) => t.column_status === columnStatus && t.category === category).length,
+      position: tasks.filter((t) => t.column_status === columnStatus).length,
       source: "manual",
-      category,
+      category: newTaskCategory,
     });
-
     if (error) {
       toast({ title: "Error adding task", variant: "destructive" });
     } else {
@@ -151,12 +220,7 @@ export default function PersonalAssistant() {
     setTasks(prev => prev.map(t =>
       t.id === taskId ? { ...t, column_status: newStatus as Task["column_status"] } : t
     ));
-
-    const { error } = await supabase
-      .from("project_tasks")
-      .update({ column_status: newStatus })
-      .eq("id", taskId);
-
+    const { error } = await supabase.from("project_tasks").update({ column_status: newStatus }).eq("id", taskId);
     if (error) {
       loadData();
       toast({ title: "Error moving task", variant: "destructive" });
@@ -165,57 +229,45 @@ export default function PersonalAssistant() {
 
   const deleteTask = async (taskId: string) => {
     setTasks(prev => prev.filter(t => t.id !== taskId));
-
     const { error } = await supabase.from("project_tasks").delete().eq("id", taskId);
     if (error) {
       loadData();
       toast({ title: "Error deleting task", variant: "destructive" });
     }
+    if (selectedTask?.id === taskId) setSelectedTask(null);
   };
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = "move";
   };
-
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     setDragOverColumn(columnId);
   };
-
   const handleDragLeave = () => { setDragOverColumn(null); };
-
   const handleDrop = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
-    if (draggedTaskId) {
-      moveTask(draggedTaskId, columnId);
-    }
+    if (draggedTaskId) moveTask(draggedTaskId, columnId);
     setDraggedTaskId(null);
     setDragOverColumn(null);
   };
-
-  const handleDragEnd = () => {
-    setDraggedTaskId(null);
-    setDragOverColumn(null);
-  };
-
-  const toggleCategory = (categoryId: string) => {
-    setCollapsedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(categoryId)) next.delete(categoryId);
-      else next.add(categoryId);
-      return next;
-    });
-  };
-
-  const getTasksForCategoryColumn = (categoryId: string, columnId: string) =>
-    tasks.filter((t) => t.category === categoryId && t.column_status === columnId);
+  const handleDragEnd = () => { setDraggedTaskId(null); setDragOverColumn(null); };
 
   const handleChatClose = useCallback(() => {
     setChatOpen(false);
     loadData();
   }, []);
+
+  const filteredTasks = categoryFilter === "all" ? tasks : tasks.filter(t => t.category === categoryFilter);
+
+  const getTasksForColumn = (columnId: string) => filteredTasks.filter((t) => t.column_status === columnId);
+
+  const getCategoryLabel = (id: string) => {
+    const cat = CATEGORY_OPTIONS.find(c => c.id === id);
+    return cat ? `${cat.emoji} ${cat.label}` : id;
+  };
 
   if (loading) {
     return (
@@ -237,6 +289,18 @@ export default function PersonalAssistant() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.emoji} {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" onClick={loadData} className="gap-2">
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -252,17 +316,11 @@ export default function PersonalAssistant() {
         {projects.length > 0 && (
           <div className="mb-6">
             <h2 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-              <Folder className="h-4 w-4" />
-              Projects
+              <Folder className="h-4 w-4" /> Projects
             </h2>
             <div className="flex flex-wrap gap-2">
               {projects.map((project) => (
-                <Badge
-                  key={project.id}
-                  variant="outline"
-                  className="px-3 py-1"
-                  style={{ borderColor: project.color, color: project.color }}
-                >
+                <Badge key={project.id} variant="outline" className="px-3 py-1" style={{ borderColor: project.color, color: project.color }}>
                   {project.title}
                 </Badge>
               ))}
@@ -270,173 +328,133 @@ export default function PersonalAssistant() {
           </div>
         )}
 
-        {/* Category-grouped Kanban Boards */}
-        <div className="space-y-6">
-          {CATEGORIES.map((category) => {
-            const categoryTasks = tasks.filter(t => t.category === category.id);
-            const isCollapsed = collapsedCategories.has(category.id);
-
-            return (
-              <div key={category.id}>
-                {/* Category Header */}
-                <button
-                  onClick={() => toggleCategory(category.id)}
-                  className="flex items-center gap-2 mb-3 group cursor-pointer"
-                >
-                  <span className="text-xl">{category.emoji}</span>
-                  <h2 className="text-lg font-semibold text-foreground">{category.label}</h2>
-                  <Badge variant="secondary" className="font-normal text-xs">
-                    {categoryTasks.length}
+        {/* Kanban Board */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {COLUMNS.map((column) => (
+            <Card
+              key={column.id}
+              className={`${column.color} transition-all duration-200 ${
+                dragOverColumn === column.id ? "ring-2 ring-primary ring-offset-2" : ""
+              }`}
+              onDragOver={(e) => handleDragOver(e, column.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, column.id)}
+            >
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between text-lg">
+                  {column.title}
+                  <Badge variant="secondary" className="font-normal">
+                    {getTasksForColumn(column.id).length}
                   </Badge>
-                  <span className="text-muted-foreground text-sm ml-1">
-                    {isCollapsed ? "▸" : "▾"}
-                  </span>
-                </button>
-
-                {!isCollapsed && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {COLUMNS.map((column) => {
-                      const addKey = `${category.id}_${column.id}`;
-                      return (
-                        <Card
-                          key={column.id}
-                          className={`${column.color} transition-all duration-200 ${
-                            dragOverColumn === addKey ? "ring-2 ring-primary ring-offset-2" : ""
-                          }`}
-                          onDragOver={(e) => handleDragOver(e, addKey)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            if (draggedTaskId) moveTask(draggedTaskId, column.id);
-                            setDraggedTaskId(null);
-                            setDragOverColumn(null);
-                          }}
-                        >
-                          <CardHeader className="pb-3">
-                            <CardTitle className="flex items-center justify-between text-lg">
-                              {column.title}
-                              <Badge variant="secondary" className="font-normal">
-                                {getTasksForCategoryColumn(category.id, column.id).length}
-                              </Badge>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-2 min-h-[120px]">
-                            {getTasksForCategoryColumn(category.id, column.id).map((task) => (
-                              <div
-                                key={task.id}
-                                className={`bg-card rounded-lg p-3 shadow-sm border group cursor-grab active:cursor-grabbing transition-all duration-150 ${
-                                  draggedTaskId === task.id ? "opacity-50 scale-95" : ""
-                                }`}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, task.id)}
-                                onDragEnd={handleDragEnd}
-                              >
-                                <div className="flex items-start gap-2">
-                                  <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 mt-0.5 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm text-foreground">{task.title}</p>
-                                    {task.description && (
-                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                        {task.description}
-                                      </p>
-                                    )}
-                                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                                      <Badge className={PRIORITY_COLORS[task.priority]} variant="secondary">
-                                        {task.priority}
-                                      </Badge>
-                                      {task.due_date && (
-                                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <Calendar className="h-3 w-3" />
-                                          {new Date(task.due_date).toLocaleDateString()}
-                                        </span>
-                                      )}
-                                      {task.created_by_jericho && (
-                                        <Badge variant="outline" className="text-xs">Jericho</Badge>
-                                      )}
-                                      {task.source === "telegram" && (
-                                        <Badge variant="outline" className="text-xs">Telegram</Badge>
-                                      )}
-                                      {task.user_projects && (
-                                        <Badge
-                                          variant="outline"
-                                          className="text-xs"
-                                          style={{ borderColor: task.user_projects.color }}
-                                        >
-                                          {task.user_projects.title}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
-                                    onClick={() => deleteTask(task.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                                {column.id !== "done" && (
-                                  <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {column.id === "todo" && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="text-xs h-6"
-                                        onClick={() => moveTask(task.id, "in_progress")}
-                                      >
-                                        Start
-                                      </Button>
-                                    )}
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs h-6"
-                                      onClick={() => moveTask(task.id, "done")}
-                                    >
-                                      Complete
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-
-                            {/* Add Task Form */}
-                            {addingToColumn === addKey ? (
-                              <div className="flex gap-2">
-                                <Input
-                                  placeholder="Task title..."
-                                  value={newTaskTitle}
-                                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                                  onKeyDown={(e) => e.key === "Enter" && addTask(column.id, category.id)}
-                                  autoFocus
-                                  className="bg-background"
-                                />
-                                <Button size="sm" onClick={() => addTask(column.id, category.id)}>
-                                  Add
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setAddingToColumn(null)}>
-                                  ×
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                className="w-full justify-start text-muted-foreground hover:text-foreground"
-                                onClick={() => setAddingToColumn(addKey)}
-                              >
-                                <Plus className="h-4 w-4 mr-2" /> Add task
-                              </Button>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 min-h-[120px]">
+                {getTasksForColumn(column.id).map((task) => (
+                  <div
+                    key={task.id}
+                    className={`bg-card rounded-lg p-3 shadow-sm border group cursor-pointer transition-all duration-150 ${
+                      draggedTaskId === task.id ? "opacity-50 scale-95" : ""
+                    }`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id)}
+                    onDragEnd={handleDragEnd}
+                    onClick={() => openTaskDetail(task)}
+                  >
+                    <div className="flex items-start gap-2">
+                      <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 mt-0.5 flex-shrink-0 cursor-grab active:cursor-grabbing" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground">{task.title}</p>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          <Badge className={PRIORITY_COLORS[task.priority]} variant="secondary">
+                            {task.priority}
+                          </Badge>
+                          {categoryFilter === "all" && (
+                            <Badge variant="outline" className="text-xs">
+                              {CATEGORY_OPTIONS.find(c => c.id === task.category)?.emoji} {CATEGORY_OPTIONS.find(c => c.id === task.category)?.label}
+                            </Badge>
+                          )}
+                          {task.due_date && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(task.due_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {task.created_by_jericho && <Badge variant="outline" className="text-xs">Jericho</Badge>}
+                          {task.source === "telegram" && <Badge variant="outline" className="text-xs">Telegram</Badge>}
+                          {task.user_projects && (
+                            <Badge variant="outline" className="text-xs" style={{ borderColor: task.user_projects.color }}>
+                              {task.user_projects.title}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                        onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    {column.id !== "done" && (
+                      <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {column.id === "todo" && (
+                          <Button size="sm" variant="outline" className="text-xs h-6" onClick={(e) => { e.stopPropagation(); moveTask(task.id, "in_progress"); }}>
+                            Start
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" className="text-xs h-6" onClick={(e) => { e.stopPropagation(); moveTask(task.id, "done"); }}>
+                          Complete
+                        </Button>
+                      </div>
+                    )}
                   </div>
+                ))}
+
+                {/* Add Task Form */}
+                {addingToColumn === column.id ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Task title..."
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addTask(column.id)}
+                      autoFocus
+                      className="bg-background"
+                    />
+                    <Select value={newTaskCategory} onValueChange={setNewTaskCategory}>
+                      <SelectTrigger className="bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORY_OPTIONS.map(cat => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.emoji} {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => addTask(column.id)}>Add</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setAddingToColumn(null)}>×</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-muted-foreground hover:text-foreground"
+                    onClick={() => setAddingToColumn(column.id)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add task
+                  </Button>
                 )}
-              </div>
-            );
-          })}
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Empty State */}
@@ -450,12 +468,162 @@ export default function PersonalAssistant() {
               Start by adding tasks manually or chat with Jericho to have him manage your to-dos.
             </p>
             <Button onClick={() => setChatOpen(true)} className="gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Chat with Jericho
+              <MessageSquare className="h-4 w-4" /> Chat with Jericho
             </Button>
           </div>
         )}
       </div>
+
+      {/* Task Detail Modal */}
+      <Dialog open={!!selectedTask} onOpenChange={(open) => { if (!open) setSelectedTask(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Task Details</DialogTitle>
+          </DialogHeader>
+
+          {selectedTask && (
+            <div className="space-y-4">
+              {/* Title */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Title</Label>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={() => { if (editTitle !== selectedTask.title) saveTaskDetails({ title: editTitle }); }}
+                  className="text-lg font-semibold border-none px-0 shadow-none focus-visible:ring-0"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Description</Label>
+                <Textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  onBlur={() => { if (editDescription !== (selectedTask.description || "")) saveTaskDetails({ description: editDescription || null }); }}
+                  placeholder="Add a description..."
+                  className="min-h-[80px] resize-none"
+                />
+              </div>
+
+              {/* Status, Priority, Category row */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select
+                    value={selectedTask.column_status}
+                    onValueChange={(value) => {
+                      saveTaskDetails({ column_status: value as Task["column_status"] });
+                      moveTask(selectedTask.id, value);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {COLUMNS.map(col => <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Priority</Label>
+                  <Select
+                    value={selectedTask.priority}
+                    onValueChange={(value) => saveTaskDetails({ priority: value as Task["priority"] })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Category</Label>
+                  <Select
+                    value={selectedTask.category}
+                    onValueChange={(value) => saveTaskDetails({ category: value as Task["category"] })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CATEGORY_OPTIONS.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.emoji} {cat.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Due Date */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Due Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !selectedTask.due_date && "text-muted-foreground")}>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {selectedTask.due_date ? format(new Date(selectedTask.due_date), "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedTask.due_date ? new Date(selectedTask.due_date) : undefined}
+                      onSelect={(date) => saveTaskDetails({ due_date: date ? date.toISOString().split('T')[0] : null })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {selectedTask.due_date && (
+                  <Button variant="ghost" size="sm" className="text-xs mt-1" onClick={() => saveTaskDetails({ due_date: null })}>
+                    Clear date
+                  </Button>
+                )}
+              </div>
+
+              {/* Notes Section */}
+              <div className="border-t pt-4">
+                <Label className="text-xs text-muted-foreground mb-2 block">Notes</Label>
+                <div className="flex gap-2 mb-3">
+                  <Textarea
+                    placeholder="Add a note..."
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    className="min-h-[60px] resize-none flex-1"
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addNote(); } }}
+                  />
+                  <Button size="icon" onClick={addNote} disabled={!newNote.trim()} className="self-end">
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-3 max-h-[200px] overflow-y-auto">
+                  {taskNotes.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-2">No notes yet</p>
+                  )}
+                  {taskNotes.map((note) => (
+                    <div key={note.id} className="bg-muted rounded-lg p-3">
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{note.note_text}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-xs text-muted-foreground">
+                          {(note as any).profiles?.full_name || "You"} · {format(new Date(note.created_at), "MMM d, h:mm a")}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Delete Task */}
+              <div className="border-t pt-4">
+                <Button variant="destructive" size="sm" className="w-full" onClick={() => deleteTask(selectedTask.id)}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete Task
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Jericho Chat */}
       <JerichoChat isOpen={chatOpen} onClose={handleChatClose} />
