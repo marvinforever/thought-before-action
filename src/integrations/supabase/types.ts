@@ -4633,6 +4633,7 @@ export type Database = {
       }
       project_tasks: {
         Row: {
+          category: string
           column_status: string
           context: Json | null
           created_at: string
@@ -4649,6 +4650,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: string
           column_status?: string
           context?: Json | null
           created_at?: string
@@ -4665,6 +4667,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: string
           column_status?: string
           context?: Json | null
           created_at?: string
