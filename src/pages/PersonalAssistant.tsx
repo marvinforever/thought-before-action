@@ -103,6 +103,7 @@ export default function PersonalAssistant() {
       supabase
         .from("project_tasks")
         .select("*, user_projects(title, color)")
+        .eq("profile_id", user.id)
         .order("position", { ascending: true }),
       supabase
         .from("user_projects")
