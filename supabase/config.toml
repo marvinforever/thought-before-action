@@ -218,3 +218,9 @@ verify_jwt = false
 
 [functions.try-jericho-onboard]
 verify_jwt = false
+
+[functions.send-daily-brief-telegram]
+verify_jwt = false
+
+[functions.send-daily-brief-sms]
+verify_jwt = false
