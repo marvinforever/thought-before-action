@@ -1,10 +1,6 @@
-
-
 # Upgrade Telegram Bot to Full Jericho Intelligence
 
 ## Status: ✅ IMPLEMENTED
-
-## What was done
 
 ### 1. Database Migration ✅
 - Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
@@ -31,43 +27,48 @@
 
 ---
 
-# Phase 1 + Phase 5: Personality Overhaul + Database Migration
+# Multi-Channel Daily Brief Delivery (Telegram + SMS)
 
 ## Status: ✅ IMPLEMENTED
 
-### Phase 5: Database Migration ✅
-- Created `telegram_outreach_preferences` table (user_id PK, proactive_enabled, max_daily_messages, quiet_hours, consecutive_ignored, preferred_response_format)
-- Created `telegram_outreach_log` table (trigger_type, message_text, was_engaged)
-- RLS: users manage own prefs, users read own outreach log
+### What was done
 
-### Phase 1A: jericho-config.ts ✅
-- Added `JERICHO_PERSONALITY` — unified voice/behavior for ALL AI calls
-- Added `TELEGRAM_ADDENDUM` — mobile formatting rules for Telegram only
-- Added `SALES_INTELLIGENCE_FRAMEWORK` — full multi-methodology framework (SPIN, Challenger, MEDDIC, Sandler, Gap Selling, Integrity Selling, Miller Heiman, Objection Handling, Negotiation, Ag Intelligence, Agronomic Product Intelligence)
-- Deprecated old `COACHING_PHILOSOPHY`, `COACHING_STYLE`, `MISSING_PLAN_GUIDANCE` (kept for backward compat)
+#### 1. Database Migration ✅
+- Added `delivery_channels` (jsonb, default `{"email": true, "telegram": false, "sms": false}`) to `email_preferences`
+- Added `channel` (text, default `'email'`) to `email_deliveries`
 
-### Phase 1B: sales-coach/index.ts ✅
-- Imported `JERICHO_PERSONALITY` and `SALES_INTELLIGENCE_FRAMEWORK`
-- Deleted `methodologyReference` constant (replaced by framework)
-- Rec mode: personality + framework + data-first override
-- Coach mode: personality + framework + agentic action suggestions (→ format)
+#### 2. Shared Content Generator ✅
+- Created `supabase/functions/_shared/daily-brief-content.ts`
+- Exports `gatherUserContext()` — parallel DB queries for habits, goals, capabilities, tasks, streaks, vision
+- Exports `generateBriefContent()` — AI-powered brief in `html`, `markdown`, or `plain` format
+- Returns `{ subject, body, shortSummary }` where shortSummary is ~160 chars for SMS
 
-### Phase 1C: chat-with-jericho/index.ts ✅
-- Imported `JERICHO_PERSONALITY`
-- Replaced philosophy + style blocks with personality
-- Kept role context (career coach mission, manager context, tools)
-- Kept missing benchmarks guidance
-- Did NOT inject sales framework (growth coaching only)
+#### 3. Telegram Delivery Function ✅
+- Created `supabase/functions/send-daily-brief-telegram/index.ts`
+- Looks up `telegram_links.telegram_chat_id`
+- Sends Markdown-formatted brief with inline keyboard buttons
+- Automatic plain text fallback on Markdown parse errors
+- Logs delivery with `channel = 'telegram'`
 
-### Phase 1D: telegram-webhook/index.ts ✅
-- Imported `JERICHO_PERSONALITY` and `TELEGRAM_ADDENDUM`
-- Growth path: personality + addendum + user context
-- Sales path: addendum flows through sales-coach proxy
-- Upgraded onboarding message with richer welcome
-- Auto-creates `telegram_outreach_preferences` row on account linking
+#### 4. SMS Delivery Function ✅
+- Created `supabase/functions/send-daily-brief-sms/index.ts`
+- Checks `sms_opted_in` and phone number on profile
+- Sends `shortSummary` via existing `send-sms` function (Twilio)
+- Logs delivery with `channel = 'sms'`
 
-### Notes for future phases
-- `was_engaged` in outreach_log needs engagement tracking logic (check user reply within 5 min of outreach)
-- Habit completion detection needs state tracking (last_prompt_type flag)
-- consecutive_ignored >= 10 should drop to weekly outreach
-- Confirm pg_cron availability for outreach scheduling
+#### 5. Orchestrator Updated ✅
+- `process-daily-brief-queue` now reads `delivery_channels` from `email_preferences`
+- Dispatches to email, telegram, and/or SMS based on user preferences
+- Each channel handled independently with error isolation
+
+#### 6. Settings UI Updated ✅
+- Added Delivery Channels section under Daily Brief Email card
+- Three toggles: Email, Telegram, SMS
+- Telegram toggle disabled if no `telegram_links` record
+- SMS toggle disabled if user hasn't opted in with a phone number
+- Both check real DB state on load
+
+### Future enhancements
+- OpenClaw Jericho agent orchestration via `agent_tasks` table
+- Per-channel delivery time preferences
+- Brief content caching to avoid regenerating for multiple channels
