@@ -257,7 +257,40 @@ export default function Settings() {
     }
   };
 
-  const sendTestEmail = async () => {
+  const saveDeliveryChannels = async (updates: Partial<typeof deliveryChannels>) => {
+    setSavingEmail(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const newChannels = { ...deliveryChannels, ...updates };
+      setDeliveryChannels(newChannels);
+
+      const { error } = await supabase
+        .from("email_preferences")
+        .upsert({
+          profile_id: user.id,
+          delivery_channels: newChannels,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'profile_id' });
+
+      if (error) throw error;
+
+      toast({
+        title: "Delivery channels updated",
+        description: "Your brief delivery preferences have been saved.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save channel preferences.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
     setSendingTest(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
