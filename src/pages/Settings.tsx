@@ -87,6 +87,15 @@ export default function Settings() {
     skip_weekends: false
   });
 
+  // Delivery channel preferences
+  const [deliveryChannels, setDeliveryChannels] = useState({
+    email: true,
+    telegram: false,
+    sms: false
+  });
+  const [hasTelegramLink, setHasTelegramLink] = useState(false);
+  const [hasSmsOptIn, setHasSmsOptIn] = useState(false);
+
   const timezones = [
     { value: "America/New_York", label: "Eastern Time (ET)" },
     { value: "America/Chicago", label: "Central Time (CT)" },
