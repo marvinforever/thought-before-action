@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
-import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail, Headphones, Send, Clock } from "lucide-react";
+import { Eye, EyeOff, Lock, RefreshCw, Check, X, User, Mail, Headphones, Send, Clock, MessageSquare, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SMSOptInCard } from "@/components/SMSOptInCard";
 import { IntegrationsSection } from "@/components/IntegrationsSection";
