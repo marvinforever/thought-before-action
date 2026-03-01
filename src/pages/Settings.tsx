@@ -291,6 +291,7 @@ export default function Settings() {
     }
   };
 
+  const sendTestEmail = async () => {
     setSendingTest(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
