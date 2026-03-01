@@ -173,19 +173,57 @@ serve(async (req) => {
               });
             }
 
-            // Send daily brief
-            console.log(`Sending daily brief to ${user.email}`);
-            const emailResult = await supabase.functions.invoke("send-daily-brief-email", {
-              body: { profileId: user.id, episodeDate: today }
-            });
+            // Fetch user's delivery channel preferences
+            const { data: channelPrefs } = await supabase
+              .from("email_preferences")
+              .select("delivery_channels")
+              .eq("profile_id", user.id)
+              .single();
 
-            if (emailResult.error) {
-              console.error(`Email failed for ${user.email}:`, emailResult.error);
-              return { userId: user.id, email: user.email, type: 'brief', success: false, error: emailResult.error.message };
+            const channels = channelPrefs?.delivery_channels || { email: true, telegram: false, sms: false };
+            const channelResults: string[] = [];
+
+            // Send email if enabled (default behavior)
+            if (channels.email !== false) {
+              console.log(`Sending daily brief email to ${user.email}`);
+              const emailResult = await supabase.functions.invoke("send-daily-brief-email", {
+                body: { profileId: user.id, episodeDate: today }
+              });
+              if (emailResult.error) {
+                console.error(`Email failed for ${user.email}:`, emailResult.error);
+              } else {
+                channelResults.push('email');
+              }
             }
 
-            console.log(`Successfully sent daily brief to ${user.email}`);
-            return { userId: user.id, email: user.email, type: 'brief', success: true };
+            // Send Telegram if enabled
+            if (channels.telegram) {
+              console.log(`Sending daily brief telegram to ${user.email}`);
+              const tgResult = await supabase.functions.invoke("send-daily-brief-telegram", {
+                body: { profileId: user.id }
+              });
+              if (tgResult.error) {
+                console.error(`Telegram failed for ${user.email}:`, tgResult.error);
+              } else {
+                channelResults.push('telegram');
+              }
+            }
+
+            // Send SMS if enabled
+            if (channels.sms) {
+              console.log(`Sending daily brief SMS to ${user.email}`);
+              const smsResult = await supabase.functions.invoke("send-daily-brief-sms", {
+                body: { profileId: user.id }
+              });
+              if (smsResult.error) {
+                console.error(`SMS failed for ${user.email}:`, smsResult.error);
+              } else {
+                channelResults.push('sms');
+              }
+            }
+
+            console.log(`Successfully sent daily brief to ${user.email} via: ${channelResults.join(', ') || 'none'}`);
+            return { userId: user.id, email: user.email, type: 'brief', success: channelResults.length > 0, channels: channelResults };
           } catch (err) {
             console.error(`Exception for ${user.email}:`, err);
             return { userId: user.id, email: user.email, type: 'brief', success: false, error: String(err) };
