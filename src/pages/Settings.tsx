@@ -236,6 +236,7 @@ export default function Settings() {
           include_podcast: newPrefs.include_podcast,
           brief_format: newPrefs.brief_format,
           skip_weekends: newPrefs.skip_weekends,
+          delivery_channels: deliveryChannels,
           updated_at: new Date().toISOString()
         }, { onConflict: 'profile_id' });
 
