@@ -153,7 +153,31 @@ export default function Settings() {
             brief_format: emailData.brief_format || "both",
             skip_weekends: (emailData as any).skip_weekends ?? false
           });
+          const channels = (emailData as any).delivery_channels;
+          if (channels) {
+            setDeliveryChannels({
+              email: channels.email ?? true,
+              telegram: channels.telegram ?? false,
+              sms: channels.sms ?? false
+            });
+          }
         }
+
+        // Check if user has telegram linked
+        const { data: tgLink } = await supabase
+          .from("telegram_links")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        setHasTelegramLink(!!tgLink);
+
+        // Check if user has SMS opted in
+        const { data: smsProfile } = await supabase
+          .from("profiles")
+          .select("sms_opted_in, phone")
+          .eq("id", user.id)
+          .single();
+        setHasSmsOptIn(!!smsProfile?.sms_opted_in && !!smsProfile?.phone);
       }
     };
     fetchData();
