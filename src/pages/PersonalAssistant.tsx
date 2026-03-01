@@ -148,12 +148,24 @@ export default function PersonalAssistant() {
   const loadTaskNotes = async (taskId: string) => {
     const { data, error } = await supabase
       .from("task_notes")
-      .select("*, profiles(full_name)")
+      .select("*")
       .eq("task_id", taskId)
       .order("created_at", { ascending: false });
 
-    if (!error) {
-      setTaskNotes((data || []) as TaskNote[]);
+    if (!error && data) {
+      // Fetch profile names for note authors
+      const profileIds = [...new Set(data.map(n => n.profile_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", profileIds);
+
+      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+
+      setTaskNotes(data.map(n => ({
+        ...n,
+        profiles: { full_name: profileMap.get(n.profile_id) || null }
+      })) as TaskNote[]);
     }
   };
 
