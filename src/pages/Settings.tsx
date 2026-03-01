@@ -692,7 +692,66 @@ export default function Settings() {
                 />
               </div>
 
-              {/* Include Podcast Toggle */}
+              {/* Delivery Channels */}
+              <div className="space-y-3 pt-2 border-t">
+                <Label className="flex items-center gap-2">
+                  <Send className="h-4 w-4 text-muted-foreground" />
+                  Delivery Channels
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Choose how you receive your daily brief
+                </p>
+
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium text-sm">Email</div>
+                      <div className="text-xs text-muted-foreground">Full brief to your inbox</div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={deliveryChannels.email}
+                    onCheckedChange={(checked) => saveDeliveryChannels({ email: checked })}
+                    disabled={savingEmail}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium text-sm">Telegram</div>
+                      <div className="text-xs text-muted-foreground">
+                        {hasTelegramLink ? "Brief sent to your linked Telegram" : "Link Telegram below to enable"}
+                      </div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={deliveryChannels.telegram}
+                    onCheckedChange={(checked) => saveDeliveryChannels({ telegram: checked })}
+                    disabled={savingEmail || !hasTelegramLink}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium text-sm">SMS</div>
+                      <div className="text-xs text-muted-foreground">
+                        {hasSmsOptIn ? "Short summary to your phone" : "Opt in to SMS below to enable"}
+                      </div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={deliveryChannels.sms}
+                    onCheckedChange={(checked) => saveDeliveryChannels({ sms: checked })}
+                    disabled={savingEmail || !hasSmsOptIn}
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between pt-2 border-t">
                 <div className="space-y-0.5">
                   <Label>Generate Audio Podcast</Label>
