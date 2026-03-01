@@ -6299,6 +6299,38 @@ export type Database = {
         }
         Relationships: []
       }
+      task_notes: {
+        Row: {
+          created_at: string
+          id: string
+          note_text: string
+          profile_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note_text: string
+          profile_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note_text?: string
+          profile_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_notes_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_conversations: {
         Row: {
           created_at: string
@@ -7149,6 +7181,19 @@ export type Database = {
           total_revenue: number
           transaction_count: number
           yearly_totals: Json
+        }[]
+      }
+      get_daily_brief_tasks: {
+        Args: { p_user_id: string }
+        Returns: {
+          category: string
+          column_status: string
+          description: string
+          due_date: string
+          id: string
+          is_overdue: boolean
+          priority: string
+          title: string
         }[]
       }
       get_partner_id_by_referral_code: {
