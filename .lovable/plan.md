@@ -1,73 +1,72 @@
 
 
-# Upgrade Telegram Bot to Full Jericho Intelligence
+## Plan: Multi-Channel Daily Brief Delivery (Telegram + SMS)
 
-## Status: ✅ IMPLEMENTED
+### Current State
 
-## What was done
+The daily brief system already exists as an AI-generated personalized email (`send-daily-brief-email`) orchestrated by `process-daily-brief-queue`. It gathers rich user context (tasks, goals, habits, capabilities, streaks) and uses the Lovable AI gateway to write a ~300-word coaching email. The content generation logic is solid but tightly coupled to email/HTML output.
 
-### 1. Database Migration ✅
-- Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
-- Added index on `telegram_update_id` for duplicate detection
-- Added index on `(user_id, created_at DESC)` for fast conversation history
+Telegram infrastructure is also in place: `telegram_links` table stores chat IDs, `telegram-webhook` handles inbound messages, and `telegram-send-scheduled` dispatches outbound messages.
 
-### 2. Sales Coach Auth Bypass ✅
-- Added 8-line internal service call detection in `sales-coach/index.ts` (after auth block)
-- When token matches service role key and `viewAsUserId` is provided, trusts the IDs directly
+Twilio SMS infrastructure exists too: `send-sms` and `receive-sms` edge functions are deployed with credentials configured.
 
-### 3. AI Router ✅
-- Added `'telegram-chat'` task type routed to `'gemini-pro'`
+### What Needs to Change
 
-### 4. Telegram Webhook Rewrite ✅
-- **Sales-coach proxy**: All sales/general/unclear messages route through sales-coach via internal fetch
-- **Growth path**: Growth/capabilities/training/sprint queries use Gemini Pro via ai-router
-- **Kudos shortcut**: Direct DB insert into recognitions table
-- **Conversation history**: Last 10 messages within 24hrs by user_id
-- **Edit-message UX**: "Thinking..." replaced via editMessageText
-- **Duplicate prevention**: update_id checked before processing
-- **Manager context**: Loads team data for manager users
-- **Error handling**: 45s timeout, graceful fallbacks, all paths return 200
-- **Response formatting**: Strips unsupported markdown, appends action confirmations, truncates at 4000 chars
+**1. Extract a shared "generate daily brief content" function**
 
----
+Refactor the context-gathering and AI prompt logic out of `send-daily-brief-email` into a new shared module (`supabase/functions/_shared/daily-brief-content.ts`). This module:
+- Fetches all user context (tasks, goals, habits, capabilities, streaks, vision)
+- Calls the AI gateway with a format parameter (`html` for email, `markdown` for Telegram, `plain` for SMS)
+- Returns structured content: `{ subject, body, shortSummary }` where `shortSummary` is a ~160-char SMS-friendly version
 
-# Phase 1 + Phase 5: Personality Overhaul + Database Migration
+**2. Create `send-daily-brief-telegram` edge function**
 
-## Status: ✅ IMPLEMENTED
+- Looks up user's `telegram_links` record for their `telegram_chat_id`
+- Calls the shared content generator with `format: 'markdown'`
+- Sends via Telegram Bot API (`sendMessage` with Markdown parse mode)
+- Logs delivery in `email_deliveries` (or a new `brief_deliveries` table) with `channel = 'telegram'`
 
-### Phase 5: Database Migration ✅
-- Created `telegram_outreach_preferences` table (user_id PK, proactive_enabled, max_daily_messages, quiet_hours, consecutive_ignored, preferred_response_format)
-- Created `telegram_outreach_log` table (trigger_type, message_text, was_engaged)
-- RLS: users manage own prefs, users read own outreach log
+**3. Create `send-daily-brief-sms` edge function**
 
-### Phase 1A: jericho-config.ts ✅
-- Added `JERICHO_PERSONALITY` — unified voice/behavior for ALL AI calls
-- Added `TELEGRAM_ADDENDUM` — mobile formatting rules for Telegram only
-- Added `SALES_INTELLIGENCE_FRAMEWORK` — full multi-methodology framework (SPIN, Challenger, MEDDIC, Sandler, Gap Selling, Integrity Selling, Miller Heiman, Objection Handling, Negotiation, Ag Intelligence, Agronomic Product Intelligence)
-- Deprecated old `COACHING_PHILOSOPHY`, `COACHING_STYLE`, `MISSING_PLAN_GUIDANCE` (kept for backward compat)
+- Looks up user's phone from `profiles` where `sms_opted_in = true`
+- Calls the shared content generator with `format: 'plain'`
+- Uses the `shortSummary` (~160 chars) + a link to the full brief in-app
+- Invokes existing `send-sms` function or calls Twilio directly
+- Logs delivery with `channel = 'sms'`
 
-### Phase 1B: sales-coach/index.ts ✅
-- Imported `JERICHO_PERSONALITY` and `SALES_INTELLIGENCE_FRAMEWORK`
-- Deleted `methodologyReference` constant (replaced by framework)
-- Rec mode: personality + framework + data-first override
-- Coach mode: personality + framework + agentic action suggestions (→ format)
+**4. Update `process-daily-brief-queue` orchestrator**
 
-### Phase 1C: chat-with-jericho/index.ts ✅
-- Imported `JERICHO_PERSONALITY`
-- Replaced philosophy + style blocks with personality
-- Kept role context (career coach mission, manager context, tools)
-- Kept missing benchmarks guidance
-- Did NOT inject sales framework (growth coaching only)
+- After generating the podcast and sending email, also:
+  - Check if user has an active `telegram_links` record → invoke `send-daily-brief-telegram`
+  - Check if user has `sms_opted_in = true` + valid phone → invoke `send-daily-brief-sms`
+- Respect user channel preferences (new columns or use existing `email_preferences` table)
 
-### Phase 1D: telegram-webhook/index.ts ✅
-- Imported `JERICHO_PERSONALITY` and `TELEGRAM_ADDENDUM`
-- Growth path: personality + addendum + user context
-- Sales path: addendum flows through sales-coach proxy
-- Upgraded onboarding message with richer welcome
-- Auto-creates `telegram_outreach_preferences` row on account linking
+**5. Database changes**
 
-### Notes for future phases
-- `was_engaged` in outreach_log needs engagement tracking logic (check user reply within 5 min of outreach)
-- Habit completion detection needs state tracking (last_prompt_type flag)
-- consecutive_ignored >= 10 should drop to weekly outreach
-- Confirm pg_cron availability for outreach scheduling
+- Add `delivery_channels` column to `email_preferences` table (jsonb, default `{"email": true, "telegram": false, "sms": false}`) so users can pick which channels they receive briefs on
+- Add a `channel` column to `email_deliveries` table (text, default `'email'`) to track multi-channel delivery
+
+**6. Settings UI update**
+
+- On the Settings page, under the "Daily Brief Email" card, add toggles for:
+  - Email (existing, on by default)
+  - Telegram (enabled only if user has linked Telegram)
+  - SMS (enabled only if user has opted in to SMS)
+
+### OpenClaw / Agent Integration
+
+The OpenClaw Jericho Operations Agent already polls `agent_tasks` for pending work. To have it orchestrate daily briefs:
+- The cron job creates `agent_tasks` entries with `task_type = 'daily_brief'` for each eligible user
+- Jericho agent picks them up, calls the appropriate delivery functions
+- This replaces the direct function-to-function invocation in `process-daily-brief-queue`, making it agent-driven
+
+This is optional and can be added incrementally after the core multi-channel delivery works.
+
+### Technical Details
+
+- Telegram messages use Markdown formatting with inline buttons ("Open Full Brief" linking to `/dashboard/my-growth-plan`)
+- SMS messages are capped at 160 chars: a one-line summary + shortened app URL
+- The AI prompt includes a `format` instruction so it generates appropriate output per channel
+- All three channels share the same context-gathering code, avoiding duplication
+- Edge functions: `send-daily-brief-telegram` and `send-daily-brief-sms` both set `verify_jwt = false` (called server-to-server)
+
