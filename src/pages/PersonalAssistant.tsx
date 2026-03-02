@@ -643,9 +643,23 @@ export default function PersonalAssistant() {
 
               {/* Delete Task */}
               <div className="border-t pt-4">
-                <Button variant="destructive" size="sm" className="w-full" onClick={() => deleteTask(selectedTask.id)}>
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete Task
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="w-full">
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete Task
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete task?</AlertDialogTitle>
+                      <AlertDialogDescription>This will permanently delete "{selectedTask.title}". This action cannot be undone.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteTask(selectedTask.id)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )}
