@@ -404,14 +404,28 @@ export default function PersonalAssistant() {
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
-                        onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete task?</AlertDialogTitle>
+                            <AlertDialogDescription>This will permanently delete "{task.title}". This action cannot be undone.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteTask(task.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                     {column.id !== "done" && (
                       <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
