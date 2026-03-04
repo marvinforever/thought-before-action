@@ -851,7 +851,7 @@ const Employees = () => {
                               Send Welcome Email
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                              <AdminDownloadGrowthPlan
+                              <IGPDocument
                                 profileId={employee.id}
                                 employeeName={employee.full_name}
                                 variant="menuItem"
