@@ -240,6 +240,7 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         ];
 
         const colW = contentW / 4;
+        checkPage(32);
         scores.forEach((s, i) => {
           const col = i % 4;
           if (col === 0 && i > 0) y += 16;
@@ -270,10 +271,10 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         
         // Column positions as percentages of contentW
         const col1X = margin + 3;
-        const col2X = margin + contentW * 0.48;
-        const col3X = margin + contentW * 0.62;
-        const col4X = margin + contentW * 0.76;
-        const col5X = margin + contentW * 0.83;
+        const col2X = margin + contentW * 0.40;
+        const col3X = margin + contentW * 0.54;
+        const col4X = margin + contentW * 0.65;
+        const col5X = margin + contentW * 0.74;
         
         checkPage(9);
         drawRect(doc, margin, y, contentW, 7, LIGHT_GRAY);
@@ -298,7 +299,10 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7.5);
           setColor(doc, DARK_TEXT);
-          const capName = cap.name.length > 30 ? cap.name.substring(0, 28) + "..." : cap.name;
+          const maxCapNameW = (col2X - col1X) - 4;
+          const capName = doc.getTextWidth(cap.name) > maxCapNameW 
+            ? cap.name.substring(0, 24) + "..." 
+            : cap.name;
           doc.text(capName, col1X, y + 3.5);
 
           setColor(doc, MID_GRAY);
@@ -405,8 +409,9 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
               const titleX = margin + 9 + badgeW + 2;
               const titleMaxW = contentW - (titleX - margin) - 4;
               const titleLines = doc.splitTextToSize(item.title || '', titleMaxW);
-              doc.text(titleLines[0] || '', titleX, y);
-              y += 4;
+              checkPage(titleLines.length * 4 + 2);
+              doc.text(titleLines, titleX, y);
+              y += titleLines.length * 4;
 
               if (item.target_level) {
                 doc.setFont("helvetica", "normal");
@@ -442,7 +447,9 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
               checkPage(16);
               
               // Level badge
-              drawRect(doc, margin + 7, y - 3, contentW - 14, 0.5, GOLD);
+              y += 1;
+              drawRect(doc, margin + 7, y, contentW - 14, 0.5, GOLD);
+              y += 3;
               doc.setFont("helvetica", "bold");
               doc.setFontSize(8);
               setColor(doc, GOLD);
@@ -471,6 +478,10 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
             });
           }
 
+          // Separator line between capabilities
+          y += 4;
+          checkPage(4);
+          drawRect(doc, margin + 10, y, contentW - 20, 0.3, [220, 225, 230]);
           y += 6;
         });
       }
@@ -562,19 +573,22 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
       ];
 
       // Table header
+      const termColW = contentW * 0.32;
+      const defColW = contentW * 0.68;
+      
       checkPage(12);
-      drawRect(doc, margin, y, contentW * 0.28, 7, LIGHT_GRAY);
-      drawRect(doc, margin + contentW * 0.28, y, contentW * 0.72, 7, LIGHT_GRAY);
+      drawRect(doc, margin, y, termColW, 7, LIGHT_GRAY);
+      drawRect(doc, margin + termColW, y, defColW, 7, LIGHT_GRAY);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
       setColor(doc, NAVY);
       doc.text("TERM", margin + 3, y + 5);
-      doc.text("DEFINITION", margin + contentW * 0.28 + 3, y + 5);
+      doc.text("DEFINITION", margin + termColW + 3, y + 5);
       y += 10;
 
       glossaryItems.forEach((item, i) => {
-        const defLines = doc.splitTextToSize(item.definition, contentW * 0.72 - 6);
-        const rowH = Math.max(defLines.length * 3.8 + 3, 7);
+        const defLines = doc.splitTextToSize(item.definition, defColW - 6);
+        const rowH = Math.max(defLines.length * 3.8 + 4, 8);
         checkPage(rowH + 2);
         if (i % 2 === 0) drawRect(doc, margin, y - 1, contentW, rowH, [250, 251, 253]);
 
@@ -586,7 +600,7 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         setColor(doc, DARK_TEXT);
-        doc.text(defLines, margin + contentW * 0.28 + 3, y + 3);
+        doc.text(defLines, margin + termColW + 3, y + 3);
 
         y += rowH + 1;
       });
