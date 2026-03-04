@@ -12,6 +12,7 @@ const GREEN: RGB = [22, 163, 74];
 const RED: RGB = [220, 38, 38];
 const BLUE: RGB = [37, 99, 235];
 const AMBER: RGB = [217, 119, 6];
+const ORANGE: RGB = [234, 138, 0];
 const PURPLE: RGB = [147, 51, 234];
 
 type RGB = [number, number, number];
@@ -23,10 +24,10 @@ function fillRect(doc: jsPDF, x: number, y: number, w: number, h: number, c: RGB
 }
 
 function approachText(a: string): string {
-  return a === "natural" ? "Experiential" : a === "training_needed" ? "Instructional" : "Mixed Approach";
+  return a === "natural" ? "Natural Advancement" : a === "training_needed" ? "Training Required" : "Mixed Approach";
 }
 function approachColor(a: string): RGB {
-  return a === "natural" ? GREEN : a === "training_needed" ? PURPLE : BLUE;
+  return a === "natural" ? GREEN : a === "training_needed" ? ORANGE : BLUE;
 }
 
 const LEVEL_PDF: Record<string, { bg: RGB; text: RGB }> = {
@@ -43,6 +44,14 @@ function typeLabelText(t: string): string {
 function typeColor(t: string): RGB {
   const c = RESOURCE_TYPE_CONFIG[t];
   return c ? (c.pdfColor as RGB) : MID_GRAY;
+}
+
+function scoreBadge(score: number | null): { label: string; color: RGB } {
+  if (score === null || score === undefined) return { label: "Awaiting Data", color: MID_GRAY };
+  if (score >= 86) return { label: `${score}%`, color: GREEN };
+  if (score >= 61) return { label: `${score}%`, color: BLUE };
+  if (score >= 31) return { label: `${score}%`, color: AMBER };
+  return { label: `${score}%`, color: RED };
 }
 
 export function generateIGPPdf(data: IGPData) {
@@ -62,13 +71,22 @@ export function generateIGPPdf(data: IGPData) {
   };
 
   const sectionTitle = (t: string) => {
-    checkPage(16);
+    checkPage(18);
     y += 3;
     fillRect(doc, margin, y, cW, 9, NAVY);
     doc.setFont("helvetica", "bold"); doc.setFontSize(10);
     setC(doc, WHITE);
     doc.text(t.toUpperCase(), margin + 4, y + 6.5);
     y += 14;
+  };
+
+  const subHeader = (title: string) => {
+    checkPage(12);
+    fillRect(doc, margin, y, cW, 7, LIGHT_GRAY);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
+    setC(doc, NAVY);
+    doc.text(title, margin + 3, y + 5);
+    y += 10;
   };
 
   const bodyLines = (text: string, indent = 0, maxW?: number): number => {
@@ -117,12 +135,14 @@ export function generateIGPPdf(data: IGPData) {
   const ai = data.ai_recommendations;
 
   // ===== EXECUTIVE SUMMARY =====
-  sectionTitle("Executive Summary");
-  if (ai.overall_summary) bodyLines(ai.overall_summary);
-  y += 2;
+  if (ai?.overall_summary) {
+    sectionTitle("Executive Summary");
+    bodyLines(ai.overall_summary);
+    y += 2;
+  }
 
   // Strengths
-  if (ai.strengths_statement) {
+  if (ai?.strengths_statement) {
     checkPage(10);
     fillRect(doc, margin, y, cW, 0.5, GREEN);
     y += 3;
@@ -133,7 +153,7 @@ export function generateIGPPdf(data: IGPData) {
     y += 2;
   }
 
-  if (ai.primary_development_focus) {
+  if (ai?.primary_development_focus) {
     checkPage(10);
     doc.setFont("helvetica", "bold"); doc.setFontSize(7);
     setC(doc, BLUE);
@@ -142,24 +162,24 @@ export function generateIGPPdf(data: IGPData) {
     y += 2;
   }
 
-  // Top Priority Actions
-  if (ai.top_priority_actions?.length > 0) {
-    checkPage(12);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(8);
-    setC(doc, NAVY);
-    doc.text("TOP PRIORITY ACTIONS", margin + 2, y); y += 6;
-    ai.top_priority_actions.forEach((a, i) => {
+  // Top Priority Actions — handle both old (string[]) and new ({action,capability_name}[]) format
+  if (ai?.top_priority_actions?.length > 0) {
+    subHeader("Top Priority Actions");
+    ai.top_priority_actions.forEach((item: any, i: number) => {
       checkPage(10);
       doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
       setC(doc, NAVY);
       doc.text(`${i + 1}.`, margin + 4, y);
       doc.setFont("helvetica", "normal");
       setC(doc, DARK_TEXT);
-      const lines = doc.splitTextToSize(a.action, cW - 20);
+      // Support both string and object formats
+      const actionText = typeof item === 'string' ? item : (item.action || '');
+      const lines = doc.splitTextToSize(actionText, cW - 20);
       doc.text(lines, margin + 12, y);
-      if (a.capability_name) {
+      // Show linked capability if present
+      if (typeof item === 'object' && item.capability_name) {
         doc.setFontSize(6.5); setC(doc, MID_GRAY);
-        doc.text(`[${a.capability_name}]`, margin + 12, y + lines.length * 4);
+        doc.text(`[${item.capability_name}]`, margin + 12, y + lines.length * 4);
         y += lines.length * 4 + 4;
       } else {
         y += lines.length * 4 + 3;
@@ -169,15 +189,15 @@ export function generateIGPPdf(data: IGPData) {
   }
 
   // At a Glance
-  if (ai.at_a_glance) {
+  if (ai?.at_a_glance) {
     checkPage(16);
     const ag = ai.at_a_glance;
     const boxW = cW / 5;
     const items = [
-      { label: "Total", value: String(ag.total_capabilities), color: NAVY },
-      { label: "On Target", value: String(ag.on_target_count), color: GREEN },
-      { label: "+1 Gap", value: String(ag.gap_1_count), color: AMBER },
-      { label: "+2 Gap", value: String(ag.gap_2_plus_count), color: RED },
+      { label: "Total", value: String(ag.total_capabilities || 0), color: NAVY },
+      { label: "On Target", value: String(ag.on_target_count || 0), color: GREEN },
+      { label: "+1 Gap", value: String(ag.gap_1_count || 0), color: AMBER },
+      { label: "+2 Gap", value: String(ag.gap_2_plus_count || 0), color: RED },
       { label: "Mastery", value: String(ag.by_level?.mastery || 0), color: PURPLE },
     ];
     items.forEach((item, i) => {
@@ -193,8 +213,27 @@ export function generateIGPPdf(data: IGPData) {
     y += 16;
   }
 
+  // ===== PROFESSIONAL VISION (only if exists) =====
+  if (data.vision?.one_year_vision || data.vision?.three_year_vision) {
+    sectionTitle("Professional Vision");
+    if (data.vision.one_year_vision) {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
+      setC(doc, MID_GRAY);
+      doc.text("1-YEAR VISION", margin + 2, y); y += 5;
+      bodyLines(data.vision.one_year_vision);
+      y += 2;
+    }
+    if (data.vision.three_year_vision) {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
+      setC(doc, MID_GRAY);
+      doc.text("3-YEAR VISION", margin + 2, y); y += 5;
+      bodyLines(data.vision.three_year_vision);
+      y += 2;
+    }
+  }
+
   // ===== 90-DAY ROADMAP =====
-  if (ai.roadmap) {
+  if (ai?.roadmap) {
     sectionTitle("90-Day Development Roadmap");
     const colW = (cW - 6) / 3;
     const columns = [
@@ -225,81 +264,16 @@ export function generateIGPPdf(data: IGPData) {
         const lines = doc.splitTextToSize(item.action, colW - 4);
         doc.text(lines, x + 2, y);
         doc.setFontSize(6); setC(doc, MID_GRAY);
-        doc.text(`${item.resource_type} | ${item.time_per_week}`, x + 2, y + lines.length * 3.5);
+        doc.text(`${item.resource_type || ''} | ${item.time_per_week || ''}`, x + 2, y + lines.length * 3.5);
       });
       y += 12;
     }
     y += 4;
   }
 
-  // ===== CAPABILITY OVERVIEW TABLE =====
-  if (data.capabilities?.length > 0) {
-    sectionTitle("Capability Overview");
-    const cols = [
-      { x: margin + 3, label: "CAPABILITY" },
-      { x: margin + cW * 0.40, label: "CURRENT" },
-      { x: margin + cW * 0.54, label: "TARGET" },
-      { x: margin + cW * 0.66, label: "GAP" },
-      { x: margin + cW * 0.76, label: "APPROACH" },
-    ];
-
-    checkPage(9);
-    fillRect(doc, margin, y, cW, 7, LIGHT_GRAY);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(7);
-    setC(doc, NAVY);
-    cols.forEach(c => doc.text(c.label, c.x, y + 5));
-    y += 10;
-
-    // Sort capabilities
-    const sorted = [...data.capabilities].sort((a, b) => {
-      const gA = getGap(a.current_level, a.target_level);
-      const gB = getGap(b.current_level, b.target_level);
-      if (gA >= 2 && gB < 2) return -1;
-      if (gB >= 2 && gA < 2) return 1;
-      if (gA > 0 && gB <= 0) return -1;
-      if (gB > 0 && gA <= 0) return 1;
-      return gB - gA;
-    });
-
-    sorted.forEach((cap, i) => {
-      checkPage(8);
-      if (i % 2 === 0) fillRect(doc, margin, y - 1, cW, 7, [250, 251, 253]);
-      const rec = ai.recommendations?.find((r: any) => r.capability_name === cap.name);
-      const gap = getGap(cap.current_level, cap.target_level);
-
-      doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
-      setC(doc, DARK_TEXT);
-      const maxNameW = cols[1].x - cols[0].x - 4;
-      const name = doc.getTextWidth(cap.name) > maxNameW ? cap.name.substring(0, 24) + "..." : cap.name;
-      doc.text(name, cols[0].x, y + 3.5);
-
-      drawLevelBadge(cols[1].x, y + 3.5, cap.current_level);
-      drawLevelBadge(cols[2].x, y + 3.5, cap.target_level);
-
-      if (gap > 0) {
-        const gc: RGB = gap >= 2 ? RED : AMBER;
-        setC(doc, gc);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
-        doc.text(`+${gap}`, cols[3].x, y + 3.5);
-      } else if (gap === 0 && cap.current_level) {
-        setC(doc, GREEN);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-        doc.text("On Target", cols[3].x, y + 3.5);
-      }
-
-      if (rec) {
-        const ac = approachColor(rec.advancement_approach);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
-        setC(doc, ac);
-        doc.text(approachText(rec.advancement_approach), cols[4].x, y + 3.5);
-      }
-      y += 7;
-    });
-    y += 4;
-  }
-
-  // ===== DIAGNOSTIC =====
+  // ===== DIAGNOSTIC ASSESSMENT =====
   if (data.diagnostic) {
+    checkPage(30);
     sectionTitle("Diagnostic Assessment");
     const scores = [
       { name: "Engagement", value: data.diagnostic.engagement_score },
@@ -343,37 +317,110 @@ export function generateIGPPdf(data: IGPData) {
       if (col === 0 && i > 0) y += 16;
       checkPage(16);
       const x = margin + col * colW;
+      const badge = scoreBadge(s.value);
 
       fillRect(doc, x + 2, y, colW - 4, 12, LIGHT_GRAY);
       doc.setFont("helvetica", "normal"); doc.setFontSize(7);
       setC(doc, MID_GRAY);
       doc.text(s.name, x + 4, y + 5);
 
-      if (s.value === null || s.value === undefined) {
-        doc.setFont("helvetica", "italic"); doc.setFontSize(7);
-        setC(doc, MID_GRAY);
-        doc.text("Awaiting Data", x + colW - 6, y + 5, { align: "right" });
-      } else {
-        const sc: RGB = s.value <= 30 ? RED : s.value <= 60 ? AMBER : s.value <= 85 ? BLUE : GREEN;
-        doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-        setC(doc, sc);
-        doc.text(`${s.value}%`, x + colW - 6, y + 5, { align: "right" });
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+      setC(doc, badge.color);
+      doc.text(badge.label, x + colW - 6, y + 5, { align: "right" });
+
+      if (s.value !== null && s.value !== undefined) {
         const barW = ((colW - 8) * Math.min(s.value, 100)) / 100;
         fillRect(doc, x + 4, y + 7.5, colW - 8, 3, [220, 225, 230]);
-        fillRect(doc, x + 4, y + 7.5, barW, 3, sc);
+        fillRect(doc, x + 4, y + 7.5, barW, 3, badge.color);
       }
     });
     y += 20;
   }
 
+  // ===== CAPABILITY OVERVIEW TABLE =====
+  if (data.capabilities?.length > 0) {
+    sectionTitle("Capability Overview");
+    const col1X = margin + 3;
+    const col2X = margin + cW * 0.40;
+    const col3X = margin + cW * 0.54;
+    const col4X = margin + cW * 0.65;
+    const col5X = margin + cW * 0.74;
+
+    checkPage(9);
+    fillRect(doc, margin, y, cW, 7, LIGHT_GRAY);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7);
+    setC(doc, NAVY);
+    doc.text("CAPABILITY", col1X, y + 5);
+    doc.text("CURRENT", col2X, y + 5);
+    doc.text("TARGET", col3X, y + 5);
+    doc.text("GAP", col4X, y + 5);
+    doc.text("APPROACH", col5X, y + 5);
+    y += 10;
+
+    // Sort capabilities: gap 2+ first, then gap 1, then on-target
+    const sorted = [...data.capabilities].sort((a, b) => {
+      const gA = getGap(a.current_level, a.target_level);
+      const gB = getGap(b.current_level, b.target_level);
+      if (gA >= 2 && gB < 2) return -1;
+      if (gB >= 2 && gA < 2) return 1;
+      if (gA > 0 && gB <= 0) return -1;
+      if (gB > 0 && gA <= 0) return 1;
+      return gB - gA;
+    });
+
+    sorted.forEach((cap, i) => {
+      checkPage(8);
+      if (i % 2 === 0) fillRect(doc, margin, y - 1, cW, 7, [250, 251, 253]);
+      const rec = ai?.recommendations?.find((r: any) => r.capability_name === cap.name);
+      const gap = getGap(cap.current_level, cap.target_level);
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+      setC(doc, DARK_TEXT);
+      const maxNameW = col2X - col1X - 4;
+      const name = doc.getTextWidth(cap.name) > maxNameW ? cap.name.substring(0, 24) + "..." : cap.name;
+      doc.text(name, col1X, y + 3.5);
+
+      // Level badges
+      drawLevelBadge(col2X, y + 3.5, cap.current_level);
+      drawLevelBadge(col3X, y + 3.5, cap.target_level);
+
+      // Gap
+      if (gap > 0) {
+        const gc: RGB = gap >= 2 ? RED : AMBER;
+        setC(doc, gc);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
+        doc.text(`+${gap}`, col4X, y + 3.5);
+      } else if (gap === 0 && cap.current_level) {
+        setC(doc, GREEN);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7);
+        doc.text("On Target", col4X, y + 3.5);
+      } else {
+        setC(doc, MID_GRAY);
+        doc.text("-", col4X, y + 3.5);
+      }
+
+      // Approach
+      if (rec) {
+        const ac = approachColor(rec.advancement_approach);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
+        setC(doc, ac);
+        doc.text(approachText(rec.advancement_approach), col5X, y + 3.5);
+      }
+      y += 7;
+    });
+    y += 4;
+  }
+
   // ===== DETAILED CAPABILITY RECOMMENDATIONS =====
-  if (ai.recommendations?.length > 0) {
-    sectionTitle("Detailed Training & Development");
-    const topPriorityNames = new Set((ai.top_priority_actions || []).map(a => a.capability_name));
+  if (ai?.recommendations?.length > 0) {
+    sectionTitle("Detailed Training & Development Recommendations");
+    const topPriorityNames = new Set(
+      (ai.top_priority_actions || []).map((a: any) => typeof a === 'string' ? '' : a.capability_name)
+    );
 
     ai.recommendations.forEach((rec: any) => {
       const cap = data.capabilities?.find(c => c.name === rec.capability_name);
-      checkPage(30);
+      checkPage(22);
 
       // Header bar
       fillRect(doc, margin, y, cW, 8, [235, 238, 245]);
@@ -395,7 +442,7 @@ export function generateIGPPdf(data: IGPData) {
       if (cap) {
         doc.setFont("helvetica", "normal"); doc.setFontSize(7);
         setC(doc, MID_GRAY);
-        doc.text(`${formatLevel(cap.current_level)} > ${formatLevel(cap.target_level)}`, pageW - margin - 3, y + 5.5, { align: "right" });
+        doc.text(`${formatLevel(cap.current_level)}  >  ${formatLevel(cap.target_level)}`, pageW - margin - 3, y + 5.5, { align: "right" });
       }
       y += 12;
 
@@ -449,7 +496,7 @@ export function generateIGPPdf(data: IGPData) {
         doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
         setC(doc, NAVY);
         checkPage(8);
-        doc.text("TRAINING RECOMMENDATIONS:", margin + 5, y);
+        doc.text("RECOMMENDED TRAINING:", margin + 5, y);
         y += 6;
 
         rec.training_items.forEach((item: any) => {
@@ -472,7 +519,7 @@ export function generateIGPPdf(data: IGPData) {
             fillRect(doc, costX, y - 2.5, cw2, 4, GREEN);
             setC(doc, WHITE);
             doc.text(cl, costX + 2, y);
-          } else {
+          } else if (item.cost_indicator === "paid") {
             const costLabel = item.cost_detail ? `PAID (${item.cost_detail})` : "PAID";
             const cw2 = doc.getTextWidth(costLabel) + 4;
             fillRect(doc, costX, y - 2.5, cw2, 4, RED);
@@ -572,21 +619,86 @@ export function generateIGPPdf(data: IGPData) {
     });
   }
 
+  // ===== 90-DAY GOALS (only if exists) =====
+  if (data.goals && data.goals.length > 0) {
+    sectionTitle("90-Day Professional Goals");
+    const completed = data.goals.filter(g => g.completed).length;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+    setC(doc, MID_GRAY);
+    doc.text(`${completed} of ${data.goals.length} completed`, margin + 2, y);
+    y += 6;
+
+    data.goals.forEach((goal) => {
+      checkPage(10);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+      setC(doc, goal.completed ? GREEN : DARK_TEXT);
+      const prefix = goal.completed ? "[x]" : "[ ]";
+      doc.text(prefix, margin + 4, y);
+      const lines = doc.splitTextToSize(goal.goal_text || "No description", cW - 24);
+      doc.text(lines, margin + 14, y);
+      if (goal.by_when) {
+        doc.setFontSize(6.5); setC(doc, MID_GRAY);
+        doc.text(`Due: ${new Date(goal.by_when).toLocaleDateString()}`, pageW - margin, y, { align: "right" });
+      }
+      y += lines.length * 4.2 + 3;
+    });
+    y += 2;
+  }
+
+  // ===== HABITS (only if exists) =====
+  if (data.habits && data.habits.length > 0) {
+    sectionTitle("Professional Habits & Streaks");
+    data.habits.forEach((habit) => {
+      checkPage(8);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+      setC(doc, DARK_TEXT);
+      doc.text(`- ${habit.habit_name}`, margin + 4, y);
+      doc.setFontSize(7);
+      setC(doc, MID_GRAY);
+      if (habit.target_frequency) {
+        doc.text(habit.target_frequency, margin + cW * 0.5, y);
+      }
+      if (habit.current_streak > 0) {
+        setC(doc, GOLD);
+        doc.text(`${habit.current_streak} day streak`, pageW - margin, y, { align: "right" });
+      }
+      y += 7;
+    });
+    y += 2;
+  }
+
+  // ===== ACHIEVEMENTS (only if exists) =====
+  if (data.achievements && data.achievements.length > 0) {
+    sectionTitle("Recent Professional Achievements");
+    data.achievements.forEach((a) => {
+      checkPage(10);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+      setC(doc, DARK_TEXT);
+      const lines = doc.splitTextToSize(`* ${a.achievement_text}`, cW - 30);
+      doc.text(lines, margin + 4, y);
+      if (a.achieved_date) {
+        doc.setFontSize(6.5); setC(doc, MID_GRAY);
+        doc.text(new Date(a.achieved_date).toLocaleDateString(), pageW - margin, y, { align: "right" });
+      }
+      y += lines.length * 4.2 + 3;
+    });
+  }
+
   // ===== GLOSSARY =====
   sectionTitle("Glossary of Terms");
   const glossary = [
-    { term: "Foundational", def: "Beginning stage -- building awareness and basic understanding. Requires guidance." },
-    { term: "Advancing", def: "Developing stage -- can apply with some support. Building confidence and consistency." },
-    { term: "Independent", def: "Proficient stage -- consistently demonstrates without supervision. Can mentor others." },
-    { term: "Mastery", def: "Expert stage -- recognized authority. Innovates and elevates others." },
-    { term: "Gap", def: "Difference between current and target level. +1 = one level below; +2 = two levels below." },
-    { term: "On Target", def: "Current level meets or exceeds target level." },
-    { term: "Experiential", def: "Develops organically through day-to-day work and practice." },
-    { term: "Instructional", def: "Requires structured learning (courses, books, coaching)." },
-    { term: "Mixed Approach", def: "Combination of experience and targeted training." },
+    { term: "Foundational", def: "Beginning stage -- the individual is building awareness and basic understanding of the capability. They require guidance and supervision to apply it." },
+    { term: "Advancing", def: "Developing stage -- the individual can apply the capability with some support. They are building confidence and consistency but still refining their approach." },
+    { term: "Independent", def: "Proficient stage -- the individual consistently demonstrates the capability without supervision. They can adapt their approach to different situations and mentor others." },
+    { term: "Mastery", def: "Expert stage -- the individual is a recognized authority in this capability. They innovate, lead strategic initiatives, and elevate others across the organization." },
+    { term: "Gap", def: "The difference between an employee's current capability level and their target level. A gap of +1 means one level below target; +2 means two levels below." },
+    { term: "On Target", def: "The employee's current level meets or exceeds the target level for that capability. No additional development is required in this area." },
+    { term: "Natural Advancement", def: "The capability is expected to develop organically through day-to-day work experience, exposure, and on-the-job practice without formal training intervention." },
+    { term: "Training Required", def: "The capability gap is unlikely to close through experience alone. Deliberate, structured learning (courses, books, coaching, etc.) is recommended." },
+    { term: "Mixed Approach", def: "A combination of on-the-job experience and targeted training is recommended to close the capability gap effectively." },
   ];
-  const termW = cW * 0.28;
-  const defW = cW * 0.72;
+  const termW = cW * 0.32;
+  const defW = cW * 0.68;
   checkPage(12);
   fillRect(doc, margin, y, termW, 7, LIGHT_GRAY);
   fillRect(doc, margin + termW, y, defW, 7, LIGHT_GRAY);
@@ -610,7 +722,7 @@ export function generateIGPPdf(data: IGPData) {
     y += rh + 1;
   });
 
-  // ===== FOOTER =====
+  // ===== FOOTER on every page =====
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
