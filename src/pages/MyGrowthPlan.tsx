@@ -189,6 +189,7 @@ export default function MyGrowthPlan() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <DownloadGrowthPlan />
             <Button 
               variant="secondary" 
               size="sm"
