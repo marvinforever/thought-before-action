@@ -270,10 +270,10 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         
         // Column positions as percentages of contentW
         const col1X = margin + 3;
-        const col2X = margin + contentW * 0.48;
-        const col3X = margin + contentW * 0.62;
-        const col4X = margin + contentW * 0.76;
-        const col5X = margin + contentW * 0.83;
+        const col2X = margin + contentW * 0.40;
+        const col3X = margin + contentW * 0.54;
+        const col4X = margin + contentW * 0.65;
+        const col5X = margin + contentW * 0.74;
         
         checkPage(9);
         drawRect(doc, margin, y, contentW, 7, LIGHT_GRAY);
