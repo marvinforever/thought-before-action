@@ -27,6 +27,7 @@ import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
 import { AIProductivityTips } from "@/components/AIProductivityTips";
 import { JerichoChat } from "@/components/JerichoChat";
 import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
+import { DownloadGrowthPlan } from "@/components/DownloadGrowthPlan";
 
 interface AITask {
   task: string;
