@@ -647,8 +647,28 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
             </div>
           </div>
         ) : (
-          <div className="text-center py-4 text-sm text-muted-foreground">
-            Audio generation in progress...
+          <div className="flex flex-col items-center gap-3 py-4">
+            <p className="text-sm text-muted-foreground">
+              Audio not yet available for this episode.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => generateAudioForExistingScript()}
+              disabled={generating}
+              className="gap-2"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating audio...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Generate Audio
+                </>
+              )}
+            </Button>
           </div>
         )}
 
