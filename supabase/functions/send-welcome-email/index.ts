@@ -53,8 +53,8 @@ const handler = async (req: Request): Promise<Response> => {
   </noscript>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #0F1419; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0F1419;">
+<body style="margin: 0; padding: 0; background-color: #1D3557; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #1D3557;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; width: 100%;">
@@ -64,8 +64,8 @@ const handler = async (req: Request): Promise<Response> => {
             <td align="center" style="padding-bottom: 32px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="background: linear-gradient(135deg, #E5A530 0%, #F5C563 100%); width: 48px; height: 48px; border-radius: 12px; text-align: center; vertical-align: middle;">
-                    <span style="font-size: 24px; font-weight: bold; color: #0F1419;">J</span>
+                  <td style="background: linear-gradient(135deg, #F0A500 0%, #F5C563 100%); width: 48px; height: 48px; border-radius: 12px; text-align: center; vertical-align: middle;">
+                    <span style="font-size: 24px; font-weight: bold; color: #1D3557;">J</span>
                   </td>
                   <td style="padding-left: 12px;">
                     <span style="font-size: 28px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.5px;">Jericho</span>
@@ -78,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Main Content Card -->
           <tr>
             <td>
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(180deg, #1A2332 0%, #151D2B 100%); border-radius: 16px; border: 1px solid rgba(229, 165, 48, 0.2);">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(180deg, #24466E 0%, #1D3557 100%); border-radius: 16px; border: 1px solid rgba(240, 165, 0, 0.2);">
                 
                 <!-- Welcome Header -->
                 <tr>
@@ -103,29 +103,29 @@ const handler = async (req: Request): Promise<Response> => {
                   <td style="padding: 0 40px 32px 40px;">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
-                        <td style="padding: 20px; background-color: rgba(229, 165, 48, 0.08); border-radius: 12px; border-left: 3px solid #E5A530;">
-                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #E5A530; text-transform: uppercase; letter-spacing: 1px;">
+                        <td style="padding: 20px; background-color: rgba(240, 165, 0, 0.08); border-radius: 12px; border-left: 3px solid #F0A500;">
+                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #F0A500; text-transform: uppercase; letter-spacing: 1px;">
                             What you'll get
                           </p>
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> Personalized daily growth podcasts
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> Personalized daily growth podcasts
                               </td>
                             </tr>
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> AI coaching with Jericho, your growth guide
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> AI coaching with Jericho, your growth guide
                               </td>
                             </tr>
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> Curated learning resources tailored to you
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> Curated learning resources tailored to you
                               </td>
                             </tr>
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> Track your capability development
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> Track your capability development
                               </td>
                             </tr>
                           </table>
@@ -138,10 +138,10 @@ const handler = async (req: Request): Promise<Response> => {
                 <!-- Credentials Box -->
                 <tr>
                   <td style="padding: 0 40px 32px 40px;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: rgba(59, 130, 246, 0.08); border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.25);">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: rgba(240, 165, 0, 0.06); border-radius: 12px; border: 1px solid rgba(240, 165, 0, 0.25);">
                       <tr>
                         <td style="padding: 24px;">
-                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #60A5FA; text-transform: uppercase; letter-spacing: 1px;">
+                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #F0A500; text-transform: uppercase; letter-spacing: 1px;">
                             🔐 Your Login Credentials
                           </p>
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
@@ -154,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
                             <tr>
                               <td style="padding: 10px 0;">
                                 <span style="color: #9CA3AF; font-size: 14px;">Temporary Password:</span>
-                                <code style="color: #60A5FA; font-size: 15px; font-weight: 600; margin-left: 12px; background: rgba(59, 130, 246, 0.15); padding: 6px 12px; border-radius: 6px; letter-spacing: 0.5px;">${password}</code>
+                                <code style="color: #F0A500; font-size: 15px; font-weight: 600; margin-left: 12px; background: rgba(240, 165, 0, 0.15); padding: 6px 12px; border-radius: 6px; letter-spacing: 0.5px;">${password}</code>
                               </td>
                             </tr>
                           </table>
@@ -176,25 +176,25 @@ const handler = async (req: Request): Promise<Response> => {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">1</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">1</span>
                           Click the button below to log in
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">2</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">2</span>
                           Change your password for security
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">3</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">3</span>
                           Complete your onboarding checklist
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">4</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">4</span>
                           Meet Jericho, your AI growth coach!
                         </td>
                       </tr>
@@ -207,15 +207,15 @@ const handler = async (req: Request): Promise<Response> => {
                   <td style="padding: 0 40px 40px 40px;" align="center">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                       <tr>
-                        <td style="border-radius: 10px; background: linear-gradient(135deg, #E5A530 0%, #D4942A 100%); box-shadow: 0 4px 14px rgba(229, 165, 48, 0.35);">
-                          <a href="${loginUrl}" target="_blank" style="display: inline-block; padding: 16px 48px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none; border-radius: 10px;">
+                        <td style="border-radius: 10px; background: linear-gradient(135deg, #F0A500 0%, #D4942A 100%); box-shadow: 0 4px 14px rgba(240, 165, 0, 0.35);">
+                          <a href="${loginUrl}" target="_blank" style="display: inline-block; padding: 16px 48px; font-size: 16px; font-weight: 600; color: #1D3557; text-decoration: none; border-radius: 10px;">
                             Log In to Jericho →
                           </a>
                         </td>
                       </tr>
                     </table>
                     <p style="margin: 20px 0 0 0; font-size: 12px; color: #6B7280;">
-                      or copy this link: <a href="${loginUrl}" style="color: #E5A530; text-decoration: underline;">${loginUrl}</a>
+                      or copy this link: <a href="${loginUrl}" style="color: #F0A500; text-decoration: underline;">${loginUrl}</a>
                     </p>
                   </td>
                 </tr>
@@ -228,7 +228,7 @@ const handler = async (req: Request): Promise<Response> => {
           <tr>
             <td style="padding: 32px 20px; text-align: center;">
               <p style="margin: 0 0 8px 0; font-size: 14px; color: #6B7280;">
-                Powered by <span style="color: #E5A530; font-weight: 600;">The Momentum Company</span>
+                Powered by <span style="color: #F0A500; font-weight: 600;">The Momentum Company</span>
               </p>
               <p style="margin: 0; font-size: 12px; color: #4B5563;">
                 Questions? Reach out to your administrator.
