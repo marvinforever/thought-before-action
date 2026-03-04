@@ -446,7 +446,9 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
               checkPage(16);
               
               // Level badge
-              drawRect(doc, margin + 7, y - 3, contentW - 14, 0.5, GOLD);
+              y += 1;
+              drawRect(doc, margin + 7, y, contentW - 14, 0.5, GOLD);
+              y += 3;
               doc.setFont("helvetica", "bold");
               doc.setFontSize(8);
               setColor(doc, GOLD);
