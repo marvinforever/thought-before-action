@@ -138,10 +138,10 @@ const handler = async (req: Request): Promise<Response> => {
                 <!-- Credentials Box -->
                 <tr>
                   <td style="padding: 0 40px 32px 40px;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: rgba(59, 130, 246, 0.08); border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.25);">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: rgba(240, 165, 0, 0.06); border-radius: 12px; border: 1px solid rgba(240, 165, 0, 0.25);">
                       <tr>
                         <td style="padding: 24px;">
-                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #60A5FA; text-transform: uppercase; letter-spacing: 1px;">
+                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #F0A500; text-transform: uppercase; letter-spacing: 1px;">
                             🔐 Your Login Credentials
                           </p>
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
@@ -154,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
                             <tr>
                               <td style="padding: 10px 0;">
                                 <span style="color: #9CA3AF; font-size: 14px;">Temporary Password:</span>
-                                <code style="color: #60A5FA; font-size: 15px; font-weight: 600; margin-left: 12px; background: rgba(59, 130, 246, 0.15); padding: 6px 12px; border-radius: 6px; letter-spacing: 0.5px;">${password}</code>
+                                <code style="color: #F0A500; font-size: 15px; font-weight: 600; margin-left: 12px; background: rgba(240, 165, 0, 0.15); padding: 6px 12px; border-radius: 6px; letter-spacing: 0.5px;">${password}</code>
                               </td>
                             </tr>
                           </table>
