@@ -478,6 +478,10 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
             });
           }
 
+          // Separator line between capabilities
+          y += 4;
+          checkPage(4);
+          drawRect(doc, margin + 10, y, contentW - 20, 0.3, [220, 225, 230]);
           y += 6;
         });
       }
