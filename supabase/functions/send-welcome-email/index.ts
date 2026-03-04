@@ -207,15 +207,15 @@ const handler = async (req: Request): Promise<Response> => {
                   <td style="padding: 0 40px 40px 40px;" align="center">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                       <tr>
-                        <td style="border-radius: 10px; background: linear-gradient(135deg, #E5A530 0%, #D4942A 100%); box-shadow: 0 4px 14px rgba(229, 165, 48, 0.35);">
-                          <a href="${loginUrl}" target="_blank" style="display: inline-block; padding: 16px 48px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none; border-radius: 10px;">
+                        <td style="border-radius: 10px; background: linear-gradient(135deg, #F0A500 0%, #D4942A 100%); box-shadow: 0 4px 14px rgba(240, 165, 0, 0.35);">
+                          <a href="${loginUrl}" target="_blank" style="display: inline-block; padding: 16px 48px; font-size: 16px; font-weight: 600; color: #1D3557; text-decoration: none; border-radius: 10px;">
                             Log In to Jericho →
                           </a>
                         </td>
                       </tr>
                     </table>
                     <p style="margin: 20px 0 0 0; font-size: 12px; color: #6B7280;">
-                      or copy this link: <a href="${loginUrl}" style="color: #E5A530; text-decoration: underline;">${loginUrl}</a>
+                      or copy this link: <a href="${loginUrl}" style="color: #F0A500; text-decoration: underline;">${loginUrl}</a>
                     </p>
                   </td>
                 </tr>
