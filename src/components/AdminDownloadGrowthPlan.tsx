@@ -240,6 +240,7 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         ];
 
         const colW = contentW / 4;
+        checkPage(32);
         scores.forEach((s, i) => {
           const col = i % 4;
           if (col === 0 && i > 0) y += 16;
