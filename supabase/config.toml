@@ -224,3 +224,6 @@ verify_jwt = false
 
 [functions.send-daily-brief-sms]
 verify_jwt = false
+
+[functions.generate-growth-plan-recommendations]
+verify_jwt = true

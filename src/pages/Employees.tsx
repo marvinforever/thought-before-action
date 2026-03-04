@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2, Shield, KeyRound, Mail } from "lucide-react";
+import { Upload, Search, FileText, UserPlus, Trash2, UserX, UserCheck, MoreVertical, Brain, Target, Pencil, Users2, Copy, CheckCircle2, Shield, KeyRound, Mail, Download } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -23,6 +23,7 @@ import { BatchJobDescriptionDialog } from "@/components/BatchJobDescriptionDialo
 import { AssignRoleDialog } from "@/components/AssignRoleDialog";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { AdminDownloadGrowthPlan } from "@/components/AdminDownloadGrowthPlan";
 
 interface Employee {
   id: string;
@@ -848,6 +849,13 @@ const Employees = () => {
                             <DropdownMenuItem onClick={() => handleSendWelcomeEmail(employee)}>
                               <Mail className="mr-2 h-4 w-4" />
                               Send Welcome Email
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <AdminDownloadGrowthPlan
+                                profileId={employee.id}
+                                employeeName={employee.full_name}
+                                variant="menuItem"
+                              />
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
                               {employee.is_active ? (
