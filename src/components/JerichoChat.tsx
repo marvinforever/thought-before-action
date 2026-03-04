@@ -280,47 +280,76 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
     setStreamBuffer(''); // Reset buffer for new message
     setDisplayedChars(0); // Reset displayed chars
 
-    try {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 1000;
+    const TIMEOUT_MS = 45000; // 45-second timeout
+
+    const attemptFetch = async (attempt: number): Promise<Response> => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.access_token) {
         throw new Error('No active session. Please log in again.');
       }
 
-      console.log('Calling chat-with-jericho function...');
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-jericho`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            conversationId,
-            message: textToSend,
-            contextType,
-            viewAsCompanyId,
-            stream: true,
-            taskDetails: taskDetailsRef.current, // Pass task details to backend
-          }),
-        }
-      );
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-      console.log('Response status:', response.status);
+      try {
+        console.log(`Calling chat-with-jericho (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-jericho`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              conversationId,
+              message: textToSend,
+              contextType,
+              viewAsCompanyId,
+              stream: true,
+              taskDetails: taskDetailsRef.current,
+            }),
+            signal: controller.signal,
+          }
+        );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Edge function error:', response.status, errorText);
-        
-        // Parse error message if it's JSON
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || `Failed to get response: ${response.status}`);
-        } catch {
-          throw new Error(`Failed to get response: ${response.status} - ${errorText}`);
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Edge function error:', response.status, errorText);
+          let msg = `Failed to get response: ${response.status}`;
+          try { msg = JSON.parse(errorText).error || msg; } catch {}
+          throw new Error(msg);
         }
+
+        return response;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        // Retry on transient errors (timeout, network, 5xx)
+        const isRetryable = err instanceof Error && (
+          err.name === 'AbortError' ||
+          err.message.includes('Failed to fetch') ||
+          err.message.includes('500') ||
+          err.message.includes('502') ||
+          err.message.includes('503') ||
+          err.message.includes('504') ||
+          err.message.includes('unavailable')
+        );
+        if (isRetryable && attempt < MAX_RETRIES - 1) {
+          console.log(`Retrying in ${RETRY_DELAY_MS}ms...`);
+          await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+          return attemptFetch(attempt + 1);
+        }
+        throw err;
       }
+    };
+
+    try {
+      const response = await attemptFetch(0);
       
       if (!response.body) throw new Error('No response body');
 
@@ -379,7 +408,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
                     role: 'assistant',
                     content: accumulatedContent,
                     timestamp: new Date(),
-                    hasGeneratedContent: contextType === 'ai-task-agent', // Mark as having actionable content
+                    hasGeneratedContent: contextType === 'ai-task-agent',
                   };
                   return next;
                 });
@@ -456,12 +485,25 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
       }
     } catch (error) {
       console.error('Error chatting with Jericho:', error);
-      setMessages(prev => prev.slice(0, -1)); // Remove placeholder
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to get response from Jericho. Please try again.',
-        variant: 'destructive',
-      });
+      const failedMessage = textToSend;
+      // Replace placeholder with a "tap to retry" message
+      const assistantIndex = activeAssistantIndexRef.current;
+      if (assistantIndex !== null) {
+        setMessages(prev => {
+          if (!prev[assistantIndex]) return prev.slice(0, -1);
+          const next = [...prev];
+          next[assistantIndex] = {
+            role: 'assistant',
+            content: '⏳ Still thinking… tap to retry',
+            timestamp: new Date(),
+          };
+          return next;
+        });
+      } else {
+        setMessages(prev => prev.slice(0, -1));
+      }
+      // Store the failed message so clicking retry resends it
+      setRetryMessage(failedMessage);
     } finally {
       setIsLoading(false);
     }
