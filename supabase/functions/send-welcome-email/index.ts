@@ -176,25 +176,25 @@ const handler = async (req: Request): Promise<Response> => {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">1</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">1</span>
                           Click the button below to log in
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">2</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">2</span>
                           Change your password for security
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">3</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">3</span>
                           Complete your onboarding checklist
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 10px 0; color: #9CA3AF; font-size: 15px;">
-                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(229, 165, 48, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #E5A530; font-size: 13px; font-weight: 600; margin-right: 12px;">4</span>
+                          <span style="display: inline-block; width: 24px; height: 24px; background: rgba(240, 165, 0, 0.2); border-radius: 50%; text-align: center; line-height: 24px; color: #F0A500; font-size: 13px; font-weight: 600; margin-right: 12px;">4</span>
                           Meet Jericho, your AI growth coach!
                         </td>
                       </tr>
