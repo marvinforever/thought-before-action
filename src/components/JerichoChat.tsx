@@ -42,6 +42,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
   const [hasSummarized, setHasSummarized] = useState(false); // Track if we've summarized this session
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [retryMessage, setRetryMessage] = useState<string | null>(null);
 
   const initialMessageSentRef = useRef(false); // Use ref to prevent race conditions
   const activeAssistantIndexRef = useRef<number | null>(null);
