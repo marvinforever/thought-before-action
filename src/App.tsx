@@ -203,7 +203,7 @@ const App = () => (
             {/* Sales Trainer - Public with auth */}
             <Route path="/sales-trainer" element={<SalesTrainer />} />
             {/* Jericho Sales Agent Landing Page */}
-            <Route path="/sales-agent" element={<SalesAgentLanding />} />
+            <Route path="/sales-agent" element={<ProtectedRoute><SalesAgentLanding /></ProtectedRoute>} />
             {/* Public Prep Document */}
             <Route path="/prep/:shareToken" element={<PublicPrepDocument />} />
             {/* Google OAuth Connect Page */}
