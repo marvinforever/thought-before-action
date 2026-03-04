@@ -78,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Main Content Card -->
           <tr>
             <td>
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(180deg, #1A2332 0%, #151D2B 100%); border-radius: 16px; border: 1px solid rgba(229, 165, 48, 0.2);">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(180deg, #24466E 0%, #1D3557 100%); border-radius: 16px; border: 1px solid rgba(240, 165, 0, 0.2);">
                 
                 <!-- Welcome Header -->
                 <tr>
