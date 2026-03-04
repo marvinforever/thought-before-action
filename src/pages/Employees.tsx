@@ -427,7 +427,7 @@ const Employees = () => {
       if (resetError) throw resetError;
 
       // Send the welcome email - use production URL, not preview URL
-      const loginUrl = 'https://thought-before-action.lovable.app/auth';
+      const loginUrl = 'https://thought-before-action.lovable.app/sales-agent';
       const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
         body: {
           email: employeeForWelcomeEmail.email,
