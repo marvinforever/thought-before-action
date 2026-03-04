@@ -97,6 +97,66 @@ export const DailyPodcastPlayer = ({ profileId, companyId, autoPlay = false }: D
     }
   };
 
+  const generateAudioForExistingScript = async () => {
+    if (!episode?.script) return;
+    try {
+      setGenerating(true);
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      toast({
+        title: "Generating audio...",
+        description: "Converting your brief to audio",
+      });
+
+      const { data: ttsData, error: ttsError } = await supabase.functions.invoke('elevenlabs-tts', {
+        body: {
+          script: episode.script,
+          profileId,
+          episodeDate: today,
+          voice: 'jericho',
+          storeAudio: true
+        }
+      });
+
+      if (ttsError || !ttsData?.success) {
+        throw new Error(ttsData?.error || 'Failed to generate audio');
+      }
+
+      const { data: updated, error: updateError } = await supabase
+        .from('podcast_episodes')
+        .update({
+          audio_url: ttsData.audioUrl,
+          duration_seconds: ttsData.durationSeconds,
+        })
+        .eq('id', episode.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      setEpisode({
+        ...updated,
+        topics_covered: (updated.topics_covered as string[]) || []
+      });
+      setAudioVersion(Date.now());
+
+      toast({
+        title: "Audio ready! 🎧",
+        description: "Press play to listen.",
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error generating audio:', error);
+      toast({
+        title: "Audio generation failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const generateEpisode = async (regenerate = false) => {
     try {
       setGenerating(true);
