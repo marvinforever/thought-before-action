@@ -467,7 +467,7 @@ const Employees = () => {
 
     try {
       // Use production URL, not preview URL
-      const loginUrl = 'https://thought-before-action.lovable.app/auth';
+      const loginUrl = 'https://thought-before-action.lovable.app/sales-agent';
       
       for (const employeeId of Array.from(selectedEmployees)) {
         const employee = employees.find(e => e.id === employeeId);
