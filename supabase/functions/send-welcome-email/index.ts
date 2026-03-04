@@ -228,7 +228,7 @@ const handler = async (req: Request): Promise<Response> => {
           <tr>
             <td style="padding: 32px 20px; text-align: center;">
               <p style="margin: 0 0 8px 0; font-size: 14px; color: #6B7280;">
-                Powered by <span style="color: #E5A530; font-weight: 600;">The Momentum Company</span>
+                Powered by <span style="color: #F0A500; font-weight: 600;">The Momentum Company</span>
               </p>
               <p style="margin: 0; font-size: 12px; color: #4B5563;">
                 Questions? Reach out to your administrator.
