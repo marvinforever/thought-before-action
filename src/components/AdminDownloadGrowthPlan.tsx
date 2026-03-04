@@ -568,19 +568,22 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
       ];
 
       // Table header
+      const termColW = contentW * 0.32;
+      const defColW = contentW * 0.68;
+      
       checkPage(12);
-      drawRect(doc, margin, y, contentW * 0.28, 7, LIGHT_GRAY);
-      drawRect(doc, margin + contentW * 0.28, y, contentW * 0.72, 7, LIGHT_GRAY);
+      drawRect(doc, margin, y, termColW, 7, LIGHT_GRAY);
+      drawRect(doc, margin + termColW, y, defColW, 7, LIGHT_GRAY);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
       setColor(doc, NAVY);
       doc.text("TERM", margin + 3, y + 5);
-      doc.text("DEFINITION", margin + contentW * 0.28 + 3, y + 5);
+      doc.text("DEFINITION", margin + termColW + 3, y + 5);
       y += 10;
 
       glossaryItems.forEach((item, i) => {
-        const defLines = doc.splitTextToSize(item.definition, contentW * 0.72 - 6);
-        const rowH = Math.max(defLines.length * 3.8 + 3, 7);
+        const defLines = doc.splitTextToSize(item.definition, defColW - 6);
+        const rowH = Math.max(defLines.length * 3.8 + 4, 8);
         checkPage(rowH + 2);
         if (i % 2 === 0) drawRect(doc, margin, y - 1, contentW, rowH, [250, 251, 253]);
 
@@ -592,7 +595,7 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         setColor(doc, DARK_TEXT);
-        doc.text(defLines, margin + contentW * 0.28 + 3, y + 3);
+        doc.text(defLines, margin + termColW + 3, y + 3);
 
         y += rowH + 1;
       });
