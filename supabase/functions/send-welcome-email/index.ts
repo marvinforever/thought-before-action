@@ -110,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> Personalized daily growth podcasts
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> Personalized daily growth podcasts
                               </td>
                             </tr>
                             <tr>
