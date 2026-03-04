@@ -298,7 +298,10 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7.5);
           setColor(doc, DARK_TEXT);
-          const capName = cap.name.length > 30 ? cap.name.substring(0, 28) + "..." : cap.name;
+          const maxCapNameW = (col2X - col1X) - 4;
+          const capName = doc.getTextWidth(cap.name) > maxCapNameW 
+            ? cap.name.substring(0, 24) + "..." 
+            : cap.name;
           doc.text(capName, col1X, y + 3.5);
 
           setColor(doc, MID_GRAY);
