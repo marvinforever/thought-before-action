@@ -648,6 +648,19 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
                         <span className="inline-block w-2 h-4 ml-1 bg-foreground/70 animate-pulse" />
                       )}
                     </p>
+                  ) : msg.content === '⏳ Still thinking… tap to retry' && retryMessage ? (
+                    <button
+                      className="text-sm cursor-pointer hover:underline text-left w-full"
+                      onClick={() => {
+                        const msgToRetry = retryMessage;
+                        setRetryMessage(null);
+                        // Remove the retry placeholder
+                        setMessages(prev => prev.filter((_, i) => i !== idx));
+                        handleSendMessage(msgToRetry);
+                      }}
+                    >
+                      ⏳ Still thinking… <span className="underline">tap to retry</span>
+                    </button>
                   ) : (
                     <FormattedMessage content={msg.content} />
                   )}
