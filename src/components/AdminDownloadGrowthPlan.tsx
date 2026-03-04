@@ -56,15 +56,15 @@ function scoreBadge(score: number | null): { label: string; color: RGB } {
   return { label: `${score}%`, color: RED };
 }
 
-function typeIcon(type: string): string {
+function typeLabel(type: string): string {
   switch (type) {
-    case "book": return "📖";
-    case "video": return "🎬";
-    case "podcast": return "🎧";
-    case "course": return "🎓";
-    case "exercise": return "💪";
-    case "mentorship": return "🤝";
-    default: return "→";
+    case "book": return "BOOK";
+    case "video": return "VIDEO";
+    case "podcast": return "PODCAST";
+    case "course": return "COURSE";
+    case "exercise": return "EXERCISE";
+    case "mentorship": return "MENTORSHIP";
+    default: return type?.toUpperCase() || "RESOURCE";
   }
 }
 
@@ -103,75 +103,79 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
       let y = 0;
 
       const checkPage = (needed: number) => {
-        if (y + needed > pageH - 18) {
+        if (y + needed > pageH - 20) {
           doc.addPage();
-          y = 18;
+          y = 16;
           drawRect(doc, 0, 0, pageW, 2, GOLD);
         }
       };
 
       const sectionHeader = (title: string) => {
-        checkPage(16);
-        drawRect(doc, margin, y, contentW, 8, NAVY);
+        checkPage(18);
+        y += 3;
+        drawRect(doc, margin, y, contentW, 9, NAVY);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
         setColor(doc, WHITE);
-        doc.text(title.toUpperCase(), margin + 4, y + 5.5);
-        y += 12;
+        doc.text(title.toUpperCase(), margin + 4, y + 6.5);
+        y += 14;
       };
 
       const subHeader = (title: string) => {
-        checkPage(10);
-        drawRect(doc, margin, y, contentW, 6, LIGHT_GRAY);
+        checkPage(12);
+        drawRect(doc, margin, y, contentW, 7, LIGHT_GRAY);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8.5);
         setColor(doc, NAVY);
-        doc.text(title, margin + 3, y + 4);
-        y += 8;
+        doc.text(title, margin + 3, y + 5);
+        y += 10;
       };
 
       const bodyText = (text: string, indent = 0, maxW?: number) => {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8.5);
         setColor(doc, DARK_TEXT);
-        const lines = doc.splitTextToSize(text, (maxW || contentW) - indent - 2);
-        checkPage(lines.length * 3.8 + 2);
+        const w = (maxW || contentW) - indent - 4;
+        const lines = doc.splitTextToSize(text, w);
+        checkPage(lines.length * 4 + 2);
         doc.text(lines, margin + indent + 2, y);
-        y += lines.length * 3.8 + 1;
+        y += lines.length * 4 + 2;
       };
 
       // ===== HEADER =====
-      drawRect(doc, 0, 0, pageW, 40, NAVY);
-      drawRect(doc, 0, 40, pageW, 2.5, GOLD);
+      drawRect(doc, 0, 0, pageW, 42, NAVY);
+      drawRect(doc, 0, 42, pageW, 2.5, GOLD);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
       setColor(doc, WHITE);
-      doc.text("INDIVIDUAL GROWTH PLAN", margin, 16);
+      doc.text("INDIVIDUAL GROWTH PLAN", margin, 17);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
       setColor(doc, [200, 210, 225]);
-      doc.text(profile?.full_name || employeeName, margin, 24);
+      doc.text(profile?.full_name || employeeName, margin, 26);
       if (profile?.job_title) {
         doc.setFontSize(9);
-        doc.text(profile.job_title, margin, 30);
+        doc.text(profile.job_title, margin, 33);
       }
 
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       setColor(doc, GOLD);
-      doc.text("JERICHO", pageW - margin, 13, { align: "right" });
+      doc.text("JERICHO", pageW - margin, 14, { align: "right" });
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       setColor(doc, [160, 170, 185]);
-      doc.text("by The Momentum Company", pageW - margin, 17.5, { align: "right" });
+      doc.text("by The Momentum Company", pageW - margin, 19, { align: "right" });
       doc.setFontSize(7.5);
       setColor(doc, [200, 210, 225]);
-      doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, pageW - margin, 25, { align: "right" });
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, pageW - margin, 27, { align: "right" });
       if (profile?.company_name) {
-        doc.text(profile.company_name, pageW - margin, 31, { align: "right" });
+        doc.text(profile.company_name, pageW - margin, 34, { align: "right" });
       }
 
-      y = 48;
+      y = 50;
 
       // ===== EXECUTIVE SUMMARY =====
       if (ai?.overall_summary) {
@@ -184,16 +188,16 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
       if (ai?.top_priority_actions?.length > 0) {
         subHeader("Top Priority Actions");
         ai.top_priority_actions.forEach((action: string, i: number) => {
-          checkPage(6);
+          checkPage(8);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(8.5);
           setColor(doc, NAVY);
-          doc.text(`${i + 1}.`, margin + 3, y);
+          doc.text(`${i + 1}.`, margin + 4, y);
           doc.setFont("helvetica", "normal");
           setColor(doc, DARK_TEXT);
-          const lines = doc.splitTextToSize(action, contentW - 12);
-          doc.text(lines, margin + 10, y);
-          y += lines.length * 3.8 + 2;
+          const lines = doc.splitTextToSize(action, contentW - 16);
+          doc.text(lines, margin + 12, y);
+          y += lines.length * 4 + 3;
         });
         y += 2;
       }
@@ -206,7 +210,7 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
           doc.setFontSize(7.5);
           setColor(doc, MID_GRAY);
           doc.text("1-YEAR VISION", margin + 2, y);
-          y += 4;
+          y += 5;
           bodyText(vision.one_year_vision);
           y += 2;
         }
@@ -215,7 +219,7 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
           doc.setFontSize(7.5);
           setColor(doc, MID_GRAY);
           doc.text("3-YEAR VISION", margin + 2, y);
-          y += 4;
+          y += 5;
           bodyText(vision.three_year_vision);
           y += 2;
         }
@@ -238,75 +242,85 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         const colW = contentW / 4;
         scores.forEach((s, i) => {
           const col = i % 4;
-          if (col === 0 && i > 0) y += 14;
-          checkPage(14);
+          if (col === 0 && i > 0) y += 16;
+          checkPage(16);
           const x = margin + col * colW;
           const badge = scoreBadge(s.value);
-          drawRect(doc, x + 2, y, colW - 4, 10, LIGHT_GRAY);
-          if (s.value !== null && s.value !== undefined) {
-            const barW = ((colW - 6) * Math.min(s.value, 100)) / 100;
-            drawRect(doc, x + 3, y + 6, barW, 3, badge.color as unknown as RGB);
-          }
+          drawRect(doc, x + 2, y, colW - 4, 12, LIGHT_GRAY);
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7);
           setColor(doc, MID_GRAY);
-          doc.text(s.name, x + 3, y + 4);
+          doc.text(s.name, x + 4, y + 5);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
           setColor(doc, badge.color as unknown as RGB);
-          doc.text(badge.label, x + colW - 5, y + 4, { align: "right" });
+          doc.text(badge.label, x + colW - 6, y + 5, { align: "right" });
+          if (s.value !== null && s.value !== undefined) {
+            const barW = ((colW - 8) * Math.min(s.value, 100)) / 100;
+            drawRect(doc, x + 4, y + 7.5, colW - 8, 3, [220, 225, 230]);
+            drawRect(doc, x + 4, y + 7.5, barW, 3, badge.color as unknown as RGB);
+          }
         });
-        y += 18;
+        y += 20;
       }
 
       // ===== CAPABILITY OVERVIEW TABLE =====
       if (capabilities?.length > 0) {
         sectionHeader("Capability Overview");
-        checkPage(8);
+        
+        // Column positions as percentages of contentW
+        const col1X = margin + 3;
+        const col2X = margin + contentW * 0.48;
+        const col3X = margin + contentW * 0.62;
+        const col4X = margin + contentW * 0.76;
+        const col5X = margin + contentW * 0.83;
+        
+        checkPage(9);
         drawRect(doc, margin, y, contentW, 7, LIGHT_GRAY);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7);
         setColor(doc, NAVY);
-        doc.text("CAPABILITY", margin + 3, y + 4.5);
-        doc.text("CURRENT", margin + 90, y + 4.5);
-        doc.text("TARGET", margin + 115, y + 4.5);
-        doc.text("GAP", margin + 140, y + 4.5);
-        doc.text("APPROACH", margin + 152, y + 4.5);
-        y += 9;
+        doc.text("CAPABILITY", col1X, y + 5);
+        doc.text("CURRENT", col2X, y + 5);
+        doc.text("TARGET", col3X, y + 5);
+        doc.text("GAP", col4X, y + 5);
+        doc.text("APPROACH", col5X, y + 5);
+        y += 10;
 
         capabilities.forEach((cap: any, i: number) => {
-          checkPage(7);
-          if (i % 2 === 0) drawRect(doc, margin, y - 1, contentW, 6, [250, 251, 253]);
+          checkPage(8);
+          if (i % 2 === 0) drawRect(doc, margin, y - 1, contentW, 7, [250, 251, 253]);
           
           const rec = ai?.recommendations?.find((r: any) => r.capability_name === cap.name);
           const gap = levelToNumber(cap.target_level) - levelToNumber(cap.current_level);
-          const appr = rec ? approachLabel(rec.advancement_approach) : { text: "—", color: MID_GRAY };
+          const appr = rec ? approachLabel(rec.advancement_approach) : { text: "-", color: MID_GRAY };
 
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7.5);
           setColor(doc, DARK_TEXT);
-          doc.text(cap.name.substring(0, 42), margin + 3, y + 3);
+          const capName = cap.name.length > 30 ? cap.name.substring(0, 28) + "..." : cap.name;
+          doc.text(capName, col1X, y + 3.5);
 
           setColor(doc, MID_GRAY);
-          doc.text(formatLevel(cap.current_level), margin + 90, y + 3);
-          doc.text(formatLevel(cap.target_level), margin + 115, y + 3);
+          doc.text(formatLevel(cap.current_level), col2X, y + 3.5);
+          doc.text(formatLevel(cap.target_level), col3X, y + 3.5);
 
           if (gap > 0) {
             setColor(doc, RED);
-            doc.text(`▲ ${gap}`, margin + 140, y + 3);
+            doc.text(`+${gap}`, col4X, y + 3.5);
           } else if (gap === 0 && cap.current_level) {
             setColor(doc, GREEN);
-            doc.text("✓", margin + 140, y + 3);
+            doc.text("On Target", col4X, y + 3.5);
           } else {
             setColor(doc, MID_GRAY);
-            doc.text("—", margin + 140, y + 3);
+            doc.text("-", col4X, y + 3.5);
           }
 
           doc.setFontSize(6.5);
           setColor(doc, appr.color as unknown as RGB);
-          doc.text(appr.text, margin + 152, y + 3);
+          doc.text(appr.text, col5X, y + 3.5);
 
-          y += 6;
+          y += 7;
         });
         y += 4;
       }
@@ -319,30 +333,30 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
           const cap = capabilities?.find((c: any) => c.name === rec.capability_name);
           
           // Capability name header
-          checkPage(20);
-          drawRect(doc, margin, y, contentW, 7, [240, 243, 248]);
+          checkPage(22);
+          drawRect(doc, margin, y, contentW, 8, [235, 238, 245]);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
           setColor(doc, NAVY);
-          doc.text(rec.capability_name || "Capability", margin + 3, y + 5);
+          doc.text(rec.capability_name || "Capability", margin + 4, y + 5.5);
           
           if (cap) {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(7);
             setColor(doc, MID_GRAY);
-            doc.text(`${formatLevel(cap.current_level)} → ${formatLevel(cap.target_level)}`, pageW - margin - 2, y + 5, { align: "right" });
+            doc.text(`${formatLevel(cap.current_level)}  >  ${formatLevel(cap.target_level)}`, pageW - margin - 3, y + 5.5, { align: "right" });
           }
-          y += 10;
+          y += 12;
 
           // Assessment
           if (rec.current_assessment) {
             doc.setFont("helvetica", "italic");
             doc.setFontSize(8);
             setColor(doc, MID_GRAY);
-            const assessLines = doc.splitTextToSize(rec.current_assessment, contentW - 8);
-            checkPage(assessLines.length * 3.5 + 2);
-            doc.text(assessLines, margin + 4, y);
-            y += assessLines.length * 3.5 + 2;
+            const assessLines = doc.splitTextToSize(rec.current_assessment, contentW - 10);
+            checkPage(assessLines.length * 4 + 3);
+            doc.text(assessLines, margin + 5, y);
+            y += assessLines.length * 4 + 3;
           }
 
           // Advancement approach
@@ -350,17 +364,17 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7.5);
           setColor(doc, appr.color as unknown as RGB);
-          checkPage(5);
-          doc.text(`● ${appr.text}`, margin + 4, y);
-          y += 4;
+          checkPage(6);
+          doc.text(`[${appr.text}]`, margin + 5, y);
+          y += 5;
           if (rec.advancement_reasoning) {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(7.5);
             setColor(doc, DARK_TEXT);
-            const reasonLines = doc.splitTextToSize(rec.advancement_reasoning, contentW - 12);
-            checkPage(reasonLines.length * 3.5 + 2);
-            doc.text(reasonLines, margin + 6, y);
-            y += reasonLines.length * 3.5 + 3;
+            const reasonLines = doc.splitTextToSize(rec.advancement_reasoning, contentW - 14);
+            checkPage(reasonLines.length * 3.8 + 3);
+            doc.text(reasonLines, margin + 7, y);
+            y += reasonLines.length * 3.8 + 4;
           }
 
           // Training items
@@ -368,40 +382,51 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
             doc.setFont("helvetica", "bold");
             doc.setFontSize(7.5);
             setColor(doc, NAVY);
-            checkPage(6);
-            doc.text("RECOMMENDED TRAINING:", margin + 4, y);
-            y += 4;
+            checkPage(8);
+            doc.text("RECOMMENDED TRAINING:", margin + 5, y);
+            y += 6;
 
             rec.training_items.forEach((item: any) => {
-              checkPage(10);
-              const icon = typeIcon(item.type);
+              checkPage(14);
+              
+              // Type badge
+              const label = typeLabel(item.type);
               doc.setFont("helvetica", "bold");
-              doc.setFontSize(7.5);
+              doc.setFontSize(6);
+              setColor(doc, WHITE);
+              const badgeW = doc.getTextWidth(label) + 4;
+              drawRect(doc, margin + 7, y - 2.5, badgeW, 4, BLUE);
+              doc.text(label, margin + 9, y);
+              
+              // Title
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(8);
               setColor(doc, DARK_TEXT);
-              doc.text(`${icon} ${item.title || ''}`, margin + 6, y);
-              
-              doc.setFont("helvetica", "normal");
-              doc.setFontSize(6.5);
-              setColor(doc, BLUE);
-              doc.text(`[${(item.type || '').toUpperCase()}]`, margin + 6, y + 3.5);
-              
-              if (item.target_level) {
-                setColor(doc, MID_GRAY);
-                doc.text(`→ ${formatLevel(item.target_level)}`, margin + 30, y + 3.5);
-              }
+              const titleX = margin + 9 + badgeW + 2;
+              const titleMaxW = contentW - (titleX - margin) - 4;
+              const titleLines = doc.splitTextToSize(item.title || '', titleMaxW);
+              doc.text(titleLines[0] || '', titleX, y);
               y += 4;
+
+              if (item.target_level) {
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(6.5);
+                setColor(doc, MID_GRAY);
+                doc.text(`Target: ${formatLevel(item.target_level)}`, margin + 9, y);
+                y += 3.5;
+              }
 
               if (item.description) {
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(7);
                 setColor(doc, MID_GRAY);
-                const descLines = doc.splitTextToSize(item.description, contentW - 16);
-                checkPage(descLines.length * 3.2 + 2);
-                doc.text(descLines, margin + 8, y);
-                y += descLines.length * 3.2 + 2;
+                const descLines = doc.splitTextToSize(item.description, contentW - 18);
+                checkPage(descLines.length * 3.5 + 2);
+                doc.text(descLines, margin + 9, y);
+                y += descLines.length * 3.5 + 3;
               }
             });
-            y += 1;
+            y += 2;
           }
 
           // Level progression
@@ -409,41 +434,44 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
             doc.setFont("helvetica", "bold");
             doc.setFontSize(7.5);
             setColor(doc, NAVY);
-            checkPage(6);
-            doc.text("LEVEL PROGRESSION PATH:", margin + 4, y);
-            y += 5;
+            checkPage(8);
+            doc.text("LEVEL PROGRESSION PATH:", margin + 5, y);
+            y += 6;
 
             rec.level_progression.forEach((lp: any) => {
-              checkPage(14);
+              checkPage(16);
+              
+              // Level badge
+              drawRect(doc, margin + 7, y - 3, contentW - 14, 0.5, GOLD);
               doc.setFont("helvetica", "bold");
-              doc.setFontSize(7.5);
+              doc.setFontSize(8);
               setColor(doc, GOLD);
-              doc.text(`▸ ${formatLevel(lp.level)}`, margin + 6, y);
-              y += 4;
+              doc.text(formatLevel(lp.level), margin + 7, y + 2);
+              y += 6;
 
               if (lp.definition) {
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(7);
                 setColor(doc, DARK_TEXT);
-                const defLines = doc.splitTextToSize(`What it looks like: ${lp.definition}`, contentW - 16);
-                checkPage(defLines.length * 3.2 + 2);
-                doc.text(defLines, margin + 8, y);
-                y += defLines.length * 3.2 + 1;
+                const defLines = doc.splitTextToSize(`What it looks like: ${lp.definition}`, contentW - 20);
+                checkPage(defLines.length * 3.5 + 2);
+                doc.text(defLines, margin + 9, y);
+                y += defLines.length * 3.5 + 2;
               }
 
               if (lp.how_to_achieve) {
                 doc.setFont("helvetica", "italic");
                 doc.setFontSize(7);
                 setColor(doc, MID_GRAY);
-                const howLines = doc.splitTextToSize(`How to achieve: ${lp.how_to_achieve}`, contentW - 16);
-                checkPage(howLines.length * 3.2 + 2);
-                doc.text(howLines, margin + 8, y);
-                y += howLines.length * 3.2 + 2;
+                const howLines = doc.splitTextToSize(`How to achieve: ${lp.how_to_achieve}`, contentW - 20);
+                checkPage(howLines.length * 3.5 + 2);
+                doc.text(howLines, margin + 9, y);
+                y += howLines.length * 3.5 + 3;
               }
             });
           }
 
-          y += 4;
+          y += 6;
         });
       }
 
@@ -455,23 +483,23 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         doc.setFontSize(8);
         setColor(doc, MID_GRAY);
         doc.text(`${completed} of ${goals.length} completed`, margin + 2, y);
-        y += 5;
+        y += 6;
 
         goals.forEach((goal: any) => {
-          checkPage(8);
-          const icon = goal.completed ? "☑" : "☐";
+          checkPage(10);
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8.5);
           setColor(doc, goal.completed ? GREEN : DARK_TEXT);
-          doc.text(icon, margin + 3, y + 3);
-          const lines = doc.splitTextToSize(goal.goal_text || "No description", contentW - 20);
-          doc.text(lines, margin + 10, y + 3);
+          const prefix = goal.completed ? "[x]" : "[ ]";
+          doc.text(prefix, margin + 4, y);
+          const lines = doc.splitTextToSize(goal.goal_text || "No description", contentW - 24);
+          doc.text(lines, margin + 14, y);
           if (goal.by_when) {
             doc.setFontSize(6.5);
             setColor(doc, MID_GRAY);
-            doc.text(`Due: ${new Date(goal.by_when).toLocaleDateString()}`, pageW - margin, y + 3, { align: "right" });
+            doc.text(`Due: ${new Date(goal.by_when).toLocaleDateString()}`, pageW - margin, y, { align: "right" });
           }
-          y += lines.length * 4 + 3;
+          y += lines.length * 4.2 + 3;
         });
         y += 2;
       }
@@ -480,19 +508,21 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
       if (habits?.length > 0) {
         sectionHeader("Professional Habits & Streaks");
         habits.forEach((habit: any) => {
-          checkPage(7);
+          checkPage(8);
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8.5);
           setColor(doc, DARK_TEXT);
-          doc.text(`• ${habit.habit_name}`, margin + 3, y + 3);
+          doc.text(`- ${habit.habit_name}`, margin + 4, y);
           doc.setFontSize(7);
           setColor(doc, MID_GRAY);
-          doc.text(habit.target_frequency || "", margin + 90, y + 3);
+          if (habit.target_frequency) {
+            doc.text(habit.target_frequency, margin + contentW * 0.5, y);
+          }
           if (habit.current_streak > 0) {
             setColor(doc, GOLD);
-            doc.text(`${habit.current_streak} streak`, pageW - margin, y + 3, { align: "right" });
+            doc.text(`${habit.current_streak} day streak`, pageW - margin, y, { align: "right" });
           }
-          y += 6;
+          y += 7;
         });
         y += 2;
       }
@@ -501,18 +531,18 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
       if (achievements?.length > 0) {
         sectionHeader("Recent Professional Achievements");
         achievements.forEach((a: any) => {
-          checkPage(8);
+          checkPage(10);
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8.5);
           setColor(doc, DARK_TEXT);
-          const lines = doc.splitTextToSize(`★ ${a.achievement_text}`, contentW - 30);
-          doc.text(lines, margin + 3, y + 3);
+          const lines = doc.splitTextToSize(`* ${a.achievement_text}`, contentW - 30);
+          doc.text(lines, margin + 4, y);
           if (a.achieved_date) {
             doc.setFontSize(6.5);
             setColor(doc, MID_GRAY);
-            doc.text(new Date(a.achieved_date).toLocaleDateString(), pageW - margin, y + 3, { align: "right" });
+            doc.text(new Date(a.achieved_date).toLocaleDateString(), pageW - margin, y, { align: "right" });
           }
-          y += lines.length * 4 + 2;
+          y += lines.length * 4.2 + 3;
         });
       }
 
@@ -525,7 +555,7 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         setColor(doc, [160, 170, 185]);
-        doc.text("Jericho by The Momentum Company  •  Confidential Individual Growth Plan", margin, pageH - 5);
+        doc.text("Jericho by The Momentum Company  |  Confidential Individual Growth Plan", margin, pageH - 5);
         doc.text(`Page ${p} of ${totalPages}`, pageW - margin, pageH - 5, { align: "right" });
       }
 
