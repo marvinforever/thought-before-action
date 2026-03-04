@@ -533,7 +533,7 @@ export function JerichoChat({ isOpen, onClose, initialMessage, contextType, task
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-background border-l border-border shadow-2xl z-50 flex flex-col">
+    <div className="fixed top-0 bottom-0 right-0 w-full sm:w-96 bg-background border-l border-border shadow-2xl z-[60] flex flex-col max-h-dvh">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border bg-primary text-primary-foreground">
         <div className="flex items-center gap-3">
