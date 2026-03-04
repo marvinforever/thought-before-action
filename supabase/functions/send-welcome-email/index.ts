@@ -115,17 +115,17 @@ const handler = async (req: Request): Promise<Response> => {
                             </tr>
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> AI coaching with Jericho, your growth guide
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> AI coaching with Jericho, your growth guide
                               </td>
                             </tr>
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> Curated learning resources tailored to you
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> Curated learning resources tailored to you
                               </td>
                             </tr>
                             <tr>
                               <td style="padding: 8px 0; color: #D1D5DB; font-size: 15px;">
-                                <span style="color: #E5A530; margin-right: 10px;">✦</span> Track your capability development
+                                <span style="color: #F0A500; margin-right: 10px;">✦</span> Track your capability development
                               </td>
                             </tr>
                           </table>
