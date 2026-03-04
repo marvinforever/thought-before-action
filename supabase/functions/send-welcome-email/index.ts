@@ -103,8 +103,8 @@ const handler = async (req: Request): Promise<Response> => {
                   <td style="padding: 0 40px 32px 40px;">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
-                        <td style="padding: 20px; background-color: rgba(229, 165, 48, 0.08); border-radius: 12px; border-left: 3px solid #E5A530;">
-                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #E5A530; text-transform: uppercase; letter-spacing: 1px;">
+                        <td style="padding: 20px; background-color: rgba(240, 165, 0, 0.08); border-radius: 12px; border-left: 3px solid #F0A500;">
+                          <p style="margin: 0 0 16px 0; font-size: 13px; font-weight: 600; color: #F0A500; text-transform: uppercase; letter-spacing: 1px;">
                             What you'll get
                           </p>
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
