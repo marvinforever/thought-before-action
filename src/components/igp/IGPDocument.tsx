@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Loader2, X } from "lucide-react";
+import { Download, FileText, Loader2, X, Target, Flame, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { IGPData } from "./igp-types";
+import { IGPData, formatLevel } from "./igp-types";
 import { IGPHeader } from "./IGPHeader";
 import { IGPExecutiveSummary } from "./IGPExecutiveSummary";
 import { IGPDevelopmentRoadmap } from "./IGPDevelopmentRoadmap";
@@ -76,7 +76,9 @@ export function IGPDocument({ profileId, employeeName, variant = "button", onCom
   // Full-screen viewer
   if (showViewer && data) {
     const topPriorityNames = new Set(
-      (data.ai_recommendations.top_priority_actions || []).map(a => a.capability_name)
+      (data.ai_recommendations?.top_priority_actions || []).map((a: any) =>
+        typeof a === 'string' ? '' : a.capability_name
+      )
     );
 
     return (
@@ -109,13 +111,32 @@ export function IGPDocument({ profileId, employeeName, variant = "button", onCom
             <IGPHeader profile={data.profile} generatedAt={data.generated_at} />
             <IGPProgressBar capabilities={data.capabilities} />
             <IGPExecutiveSummary profile={data.profile} ai={data.ai_recommendations} diagnostic={data.diagnostic} />
-            <IGPDevelopmentRoadmap roadmap={data.ai_recommendations.roadmap} />
-            <IGPCapabilityOverview capabilities={data.capabilities} recommendations={data.ai_recommendations.recommendations || []} />
+            <IGPDevelopmentRoadmap roadmap={data.ai_recommendations?.roadmap} />
+            <IGPCapabilityOverview capabilities={data.capabilities} recommendations={data.ai_recommendations?.recommendations || []} />
             
             {data.diagnostic && <IGPDiagnosticScorecard diagnostic={data.diagnostic} />}
 
+            {/* Professional Vision */}
+            {(data.vision?.one_year_vision || data.vision?.three_year_vision) && (
+              <div className="space-y-3 print:break-inside-avoid" id="igp-vision">
+                <h2 className="text-lg font-bold text-foreground">Professional Vision</h2>
+                {data.vision.one_year_vision && (
+                  <div className="rounded-lg border bg-card p-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">1-Year Vision</p>
+                    <p className="text-sm text-foreground/80">{data.vision.one_year_vision}</p>
+                  </div>
+                )}
+                {data.vision.three_year_vision && (
+                  <div className="rounded-lg border bg-card p-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">3-Year Vision</p>
+                    <p className="text-sm text-foreground/80">{data.vision.three_year_vision}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Detailed Capability Cards */}
-            {data.ai_recommendations.recommendations?.length > 0 && (
+            {data.ai_recommendations?.recommendations?.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-lg font-bold text-foreground">Detailed Training & Development</h2>
                 {data.ai_recommendations.recommendations.map((rec) => (
@@ -126,6 +147,86 @@ export function IGPDocument({ profileId, employeeName, variant = "button", onCom
                     isTopPriority={topPriorityNames.has(rec.capability_name)}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* 90-Day Goals */}
+            {data.goals && data.goals.length > 0 && (
+              <div className="space-y-3 print:break-inside-avoid" id="igp-goals">
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <Target className="h-5 w-5 text-accent" />
+                  90-Day Professional Goals
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {data.goals.filter(g => g.completed).length} of {data.goals.length} completed
+                </p>
+                <div className="space-y-2">
+                  {data.goals.map((goal, i) => (
+                    <div key={i} className={`flex items-start gap-3 rounded-lg border p-3 ${goal.completed ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" : "bg-card"}`}>
+                      <span className={`text-sm ${goal.completed ? "text-green-600" : "text-muted-foreground"}`}>
+                        {goal.completed ? "✓" : "○"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${goal.completed ? "text-green-700 dark:text-green-400 line-through" : "text-foreground"}`}>
+                          {goal.goal_text || "No description"}
+                        </p>
+                        {goal.by_when && (
+                          <p className="text-xs text-muted-foreground mt-0.5">Due: {new Date(goal.by_when).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Habits */}
+            {data.habits && data.habits.length > 0 && (
+              <div className="space-y-3 print:break-inside-avoid" id="igp-habits">
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-accent" />
+                  Professional Habits & Streaks
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {data.habits.map((habit, i) => (
+                    <div key={i} className="rounded-lg border bg-card p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{habit.habit_name}</p>
+                        {habit.target_frequency && (
+                          <p className="text-xs text-muted-foreground">{habit.target_frequency}</p>
+                        )}
+                      </div>
+                      {habit.current_streak > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 text-xs font-bold">
+                          🔥 {habit.current_streak} day streak
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Achievements */}
+            {data.achievements && data.achievements.length > 0 && (
+              <div className="space-y-3 print:break-inside-avoid" id="igp-achievements">
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-accent" />
+                  Recent Professional Achievements
+                </h2>
+                <div className="space-y-2">
+                  {data.achievements.map((a, i) => (
+                    <div key={i} className="flex items-start gap-3 rounded-lg border bg-card p-3">
+                      <span className="text-accent text-sm">★</span>
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{a.achievement_text}</p>
+                        {a.achieved_date && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.achieved_date).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
