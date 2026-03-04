@@ -23,6 +23,7 @@ import { BatchJobDescriptionDialog } from "@/components/BatchJobDescriptionDialo
 import { AssignRoleDialog } from "@/components/AssignRoleDialog";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { AdminDownloadGrowthPlan } from "@/components/AdminDownloadGrowthPlan";
 
 interface Employee {
   id: string;
