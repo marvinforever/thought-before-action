@@ -53,8 +53,8 @@ const handler = async (req: Request): Promise<Response> => {
   </noscript>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #0F1419; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0F1419;">
+<body style="margin: 0; padding: 0; background-color: #1D3557; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #1D3557;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; width: 100%;">
@@ -64,8 +64,8 @@ const handler = async (req: Request): Promise<Response> => {
             <td align="center" style="padding-bottom: 32px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="background: linear-gradient(135deg, #E5A530 0%, #F5C563 100%); width: 48px; height: 48px; border-radius: 12px; text-align: center; vertical-align: middle;">
-                    <span style="font-size: 24px; font-weight: bold; color: #0F1419;">J</span>
+                  <td style="background: linear-gradient(135deg, #F0A500 0%, #F5C563 100%); width: 48px; height: 48px; border-radius: 12px; text-align: center; vertical-align: middle;">
+                    <span style="font-size: 24px; font-weight: bold; color: #1D3557;">J</span>
                   </td>
                   <td style="padding-left: 12px;">
                     <span style="font-size: 28px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.5px;">Jericho</span>
