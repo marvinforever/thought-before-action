@@ -24,7 +24,6 @@ serve(async (req) => {
       });
     }
 
-    // Fetch all data in parallel
     const [profileRes, capabilitiesRes, capLevelsRes, diagnosticRes, visionRes, goalsRes, habitsRes, achievementsRes] = await Promise.all([
       supabase.from("profiles").select("full_name, job_title, company_id, role").eq("id", profile_id).single(),
       supabase.from("employee_capabilities")
@@ -55,14 +54,12 @@ serve(async (req) => {
       companyName = company?.name || "";
     }
 
-    // Build capability level definitions map
     const levelDefsMap: Record<string, Record<string, string>> = {};
     for (const cl of capLevels) {
       if (!levelDefsMap[cl.capability_id]) levelDefsMap[cl.capability_id] = {};
       levelDefsMap[cl.capability_id][cl.level] = cl.description;
     }
 
-    // Build capability context for AI
     const capDetails = capabilities.map((cap: any) => {
       const defs = levelDefsMap[cap.capability_id] || {};
       const allLevels = ['foundational', 'advancing', 'independent', 'mastery'];
@@ -85,20 +82,19 @@ serve(async (req) => {
       };
     });
 
-    // Call AI for training recommendations
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
-    const prompt = `You are generating training recommendations for an Individual Growth Plan (IGP).
+    const prompt = `You are generating a comprehensive Individual Growth Plan (IGP) document.
 
-EMPLOYEE: ${profile?.full_name || 'Unknown'} 
+EMPLOYEE: ${profile?.full_name || 'Unknown'}
 ROLE: ${profile?.job_title || profile?.role || 'Not specified'}
 COMPANY: ${companyName}
 
 CAPABILITIES WITH LEVEL DEFINITIONS:
 ${JSON.stringify(capDetails, null, 2)}
 
-DIAGNOSTIC SCORES (if available):
+DIAGNOSTIC SCORES:
 ${diagnostic ? JSON.stringify({
   engagement: diagnostic.engagement_score,
   clarity: diagnostic.clarity_score,
@@ -110,46 +106,83 @@ ${diagnostic ? JSON.stringify({
   burnout: diagnostic.burnout_score,
 }) : 'No diagnostic data available'}
 
-For EACH capability, provide:
-1. A brief assessment of where they stand
-2. Whether advancement will happen naturally through on-the-job experience or requires deliberate training
-3. Specific, actionable training recommendations. Be specific — suggest actual:
-   - YouTube channels or types of videos to watch
-   - Podcast recommendations (by name or topic)
-   - Book titles when possible (use real, well-known books)
-   - Online courses or certifications
-   - Practical exercises or on-the-job activities
-4. For each remaining level they can achieve, describe what demonstrating that level looks like
+CRITICAL INSTRUCTIONS:
+1. For EVERY capability (not just the first few), provide EQUAL depth and specificity
+2. Reference the employee's specific role "${profile?.job_title || profile?.role || 'their role'}" in every assessment
+3. Every capability MUST have exactly 5 training_items with a diverse mix of types
+4. Every training item MUST include cost_indicator ("free" or "paid") and cost_detail if paid
+5. For paid resources, include a free_alternative field with a specific free option
+6. Include why_this_matters connecting the capability to their business impact
+7. Include estimated_timeline for each capability (e.g., "3-6 months with focused effort")
+8. Level progression MUST include ALL remaining levels with both definition AND how_to_achieve
+9. FREE resources: YouTube, TED Talks, podcasts, OSHA resources, HBR podcasts, university extensions
+10. PAID resources: Books ($15-$30), certifications, formal courses. Always include cost range.
 
-Keep recommendations practical and varied. Not everything needs formal training — some skills advance through practice, mentorship, or exposure.
+COST RULES:
+- YouTube videos = free
+- TED Talks = free
+- Podcasts = free
+- OSHA official resources = free
+- HBR articles/podcasts = free
+- LinkedIn Learning = free (note "FREE with LinkedIn subscription")
+- Books = paid ($15-$30)
+- Certifications (PMP, SAMA, OSHA Trainer, APICS) = paid (include estimated cost)
+- Formal courses (Dale Carnegie, Miller Heiman, Harvard) = paid (include estimated cost)
 
-Return ONLY valid JSON (no markdown) in this format:
+Return ONLY valid JSON (no markdown, no code fences) in this exact format:
 {
   "recommendations": [
     {
       "capability_name": "string",
-      "current_assessment": "1-2 sentence assessment",
+      "current_assessment": "2-3 sentences specific to this employee and their role",
+      "why_this_matters": "1-2 sentences on business impact",
       "advancement_approach": "natural" | "training_needed" | "mixed",
       "advancement_reasoning": "Why this approach",
+      "estimated_timeline": "e.g. 3-6 months with focused effort",
       "training_items": [
         {
           "type": "book" | "video" | "podcast" | "course" | "exercise" | "mentorship",
-          "title": "Specific recommendation",
-          "description": "Brief why this helps",
-          "target_level": "which level this helps achieve"
+          "title": "Specific real recommendation",
+          "description": "Why this helps",
+          "target_level": "which level this helps achieve",
+          "cost_indicator": "free" | "paid",
+          "cost_detail": "$15-$30 for books, ~$500-$2000 for courses, etc.",
+          "free_alternative": "Only for paid items - a specific free alternative"
         }
       ],
       "level_progression": [
         {
-          "level": "advancing",
-          "definition": "What this level looks like",
+          "level": "advancing | independent | mastery",
+          "definition": "What demonstrating this level looks like",
           "how_to_achieve": "Specific steps to get here"
         }
       ]
     }
   ],
-  "overall_summary": "2-3 sentence summary of the employee's growth trajectory",
-  "top_priority_actions": ["action 1", "action 2", "action 3"]
+  "overall_summary": "2-3 sentence summary of growth trajectory",
+  "strengths_statement": "2-3 sentences on what this employee does well, referencing specific capabilities at Independent or Mastery level",
+  "primary_development_focus": "1 sentence summary of the development theme",
+  "top_priority_actions": [
+    { "action": "Specific actionable step", "capability_name": "Which capability this develops" }
+  ],
+  "roadmap": {
+    "month_1": [
+      { "action": "What to do", "capability": "Which capability", "resource_type": "Type of resource", "time_per_week": "e.g. 2 hours" }
+    ],
+    "month_2_3": [
+      { "action": "What to do", "capability": "Which capability", "resource_type": "Type of resource", "time_per_week": "e.g. 1.5 hours" }
+    ],
+    "month_3_plus": [
+      { "action": "What to do", "capability": "Which capability", "resource_type": "Type of resource", "time_per_week": "e.g. 1 hour" }
+    ]
+  },
+  "at_a_glance": {
+    "total_capabilities": number,
+    "by_level": { "foundational": number, "advancing": number, "independent": number, "mastery": number },
+    "gap_1_count": number,
+    "gap_2_plus_count": number,
+    "on_target_count": number
+  }
 }`;
 
     console.log('Calling AI for growth plan recommendations...');

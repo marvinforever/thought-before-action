@@ -23,7 +23,7 @@ import { BatchJobDescriptionDialog } from "@/components/BatchJobDescriptionDialo
 import { AssignRoleDialog } from "@/components/AssignRoleDialog";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { useViewAs } from "@/contexts/ViewAsContext";
-import { AdminDownloadGrowthPlan } from "@/components/AdminDownloadGrowthPlan";
+import { IGPDocument } from "@/components/igp/IGPDocument";
 
 interface Employee {
   id: string;
@@ -851,7 +851,7 @@ const Employees = () => {
                               Send Welcome Email
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                              <AdminDownloadGrowthPlan
+                              <IGPDocument
                                 profileId={employee.id}
                                 employeeName={employee.full_name}
                                 variant="menuItem"
