@@ -546,6 +546,52 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
         });
       }
 
+      // ===== GLOSSARY OF TERMS =====
+      sectionHeader("Glossary of Terms");
+
+      const glossaryItems = [
+        { term: "Foundational", definition: "Beginning stage — the individual is building awareness and basic understanding of the capability. They require guidance and supervision to apply it." },
+        { term: "Advancing", definition: "Developing stage — the individual can apply the capability with some support. They are building confidence and consistency but still refining their approach." },
+        { term: "Independent", definition: "Proficient stage — the individual consistently demonstrates the capability without supervision. They can adapt their approach to different situations and mentor others." },
+        { term: "Mastery", definition: "Expert stage — the individual is a recognized authority in this capability. They innovate, lead strategic initiatives, and elevate others across the organization." },
+        { term: "Gap", definition: "The difference between an employee's current capability level and their target level. A gap of +1 means one level below target; +2 means two levels below." },
+        { term: "On Target", definition: "The employee's current level meets or exceeds the target level for that capability. No additional development is required in this area." },
+        { term: "Natural Advancement", definition: "The capability is expected to develop organically through day-to-day work experience, exposure, and on-the-job practice without formal training intervention." },
+        { term: "Training Required", definition: "The capability gap is unlikely to close through experience alone. Deliberate, structured learning (courses, books, coaching, etc.) is recommended." },
+        { term: "Mixed Approach", definition: "A combination of on-the-job experience and targeted training is recommended to close the capability gap effectively." },
+      ];
+
+      // Table header
+      checkPage(12);
+      drawRect(doc, margin, y, contentW * 0.28, 7, LIGHT_GRAY);
+      drawRect(doc, margin + contentW * 0.28, y, contentW * 0.72, 7, LIGHT_GRAY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      setColor(doc, NAVY);
+      doc.text("TERM", margin + 3, y + 5);
+      doc.text("DEFINITION", margin + contentW * 0.28 + 3, y + 5);
+      y += 10;
+
+      glossaryItems.forEach((item, i) => {
+        const defLines = doc.splitTextToSize(item.definition, contentW * 0.72 - 6);
+        const rowH = Math.max(defLines.length * 3.8 + 3, 7);
+        checkPage(rowH + 2);
+        if (i % 2 === 0) drawRect(doc, margin, y - 1, contentW, rowH, [250, 251, 253]);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        setColor(doc, NAVY);
+        doc.text(item.term, margin + 3, y + 3);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        setColor(doc, DARK_TEXT);
+        doc.text(defLines, margin + contentW * 0.28 + 3, y + 3);
+
+        y += rowH + 1;
+      });
+      y += 4;
+
       // ===== FOOTER on every page =====
       const totalPages = doc.getNumberOfPages();
       for (let p = 1; p <= totalPages; p++) {
