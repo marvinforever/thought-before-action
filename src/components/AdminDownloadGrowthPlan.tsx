@@ -408,8 +408,9 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
               const titleX = margin + 9 + badgeW + 2;
               const titleMaxW = contentW - (titleX - margin) - 4;
               const titleLines = doc.splitTextToSize(item.title || '', titleMaxW);
-              doc.text(titleLines[0] || '', titleX, y);
-              y += 4;
+              checkPage(titleLines.length * 4 + 2);
+              doc.text(titleLines, titleX, y);
+              y += titleLines.length * 4;
 
               if (item.target_level) {
                 doc.setFont("helvetica", "normal");
