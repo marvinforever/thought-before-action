@@ -395,6 +395,21 @@ serve(async (req) => {
 
     const pipelineActions = await handlePipelineActions(adminClient, effectiveUserId, message, resolvedContext.deals);
 
+    // Step 5b: Detect unknown contacts (people not in sales_contacts)
+    if (extracted.contacts.length > 0 && effectiveUserId) {
+      const contactNames = extracted.contacts.map(c => c.name);
+      const { data: existingContacts } = await adminClient
+        .from("sales_contacts")
+        .select("name")
+        .eq("profile_id", effectiveUserId);
+      const existingSet = new Set((existingContacts || []).map((c: any) => c.name.toLowerCase().trim()));
+      for (const contact of extracted.contacts) {
+        if (!existingSet.has(contact.name.toLowerCase().trim())) {
+          newContactPrompts.push({ name: contact.name, companyName: contact.companyName });
+        }
+      }
+    }
+
     // Step 6: Generate Response
     const responseMessage = await generateResponse(
       message, conversationHistory, resolvedContext, actions, extracted, chatMode, deal,
