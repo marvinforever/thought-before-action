@@ -478,6 +478,9 @@ const SalesTrainer = () => {
         setNewCustomerPrompt(response.data.newCustomerPrompt);
       }
 
+      // Attach contact prompts to the assistant message
+      const contactPrompts = response.data?.newContactPrompts || [];
+
       if (response.error) throw response.error;
 
       const assistantMessage = response.data?.message || "Let me think on that...";
