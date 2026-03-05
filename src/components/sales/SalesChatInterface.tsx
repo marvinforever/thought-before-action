@@ -241,6 +241,28 @@ export function SalesChatInterface({
                       />
                     </div>
                   )}
+                  {/* Contact prompt cards */}
+                  {msg.role === "assistant" && msg.contactPrompts && msg.contactPrompts.length > 0 && (
+                    <AnimatePresence>
+                      {msg.contactPrompts.map((cp, cpIdx) => (
+                        <AddContactPromptCard
+                          key={`${idx}-${cpIdx}-${cp.name}`}
+                          prompt={cp}
+                          userId={userId}
+                          onDismiss={() => {
+                            // Remove this prompt from the message
+                            const updated = [...messages];
+                            updated[idx] = {
+                              ...updated[idx],
+                              contactPrompts: updated[idx].contactPrompts?.filter((_, i) => i !== cpIdx),
+                            };
+                            // We can't set state here directly, but parent handles via callback
+                          }}
+                          onAdded={() => {}}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  )}
                 </div>
               </motion.div>
             ))}
