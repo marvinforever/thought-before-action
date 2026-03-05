@@ -78,6 +78,8 @@ export function SalesChatInterface({
   onAddDeal,
   onShowProposalWizard,
   onShowCallPlanTracker,
+  onDismissContactPrompt,
+  onContactAdded,
 }: SalesChatInterfaceProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
