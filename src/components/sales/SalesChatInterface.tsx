@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormattedMessage } from "@/components/ui/formatted-message";
 import { MessageFeedback } from "./MessageFeedback";
 import { VoiceRecorder } from "./VoiceRecorder";
+import { AddContactPromptCard } from "./AddContactPromptCard";
 import {
   Sparkles,
   Send,
