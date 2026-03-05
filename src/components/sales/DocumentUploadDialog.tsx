@@ -118,7 +118,7 @@ export function DocumentUploadDialog({
         .insert({
           company_id: companyId,
           uploaded_by: userId,
-          customer_id: customerId || null,
+          customer_id: (customerId && customerId !== '__none__') ? customerId : null,
           file_name: file.name,
           file_type: file.type,
           file_size: file.size,
