@@ -253,16 +253,8 @@ export function SalesChatInterface({
                           key={`${idx}-${cpIdx}-${cp.name}`}
                           prompt={cp}
                           userId={userId}
-                          onDismiss={() => {
-                            // Remove this prompt from the message
-                            const updated = [...messages];
-                            updated[idx] = {
-                              ...updated[idx],
-                              contactPrompts: updated[idx].contactPrompts?.filter((_, i) => i !== cpIdx),
-                            };
-                            // We can't set state here directly, but parent handles via callback
-                          }}
-                          onAdded={() => {}}
+                          onDismiss={() => onDismissContactPrompt?.(idx, cpIdx)}
+                          onAdded={(name) => onContactAdded?.(name)}
                         />
                       ))}
                     </AnimatePresence>
