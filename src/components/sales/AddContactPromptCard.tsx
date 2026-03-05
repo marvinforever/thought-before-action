@@ -102,7 +102,7 @@ export function AddContactPromptCard({ prompt, userId, onDismiss, onAdded }: Add
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0, height: 0 }}
-        className="ml-10 mt-1 mb-2 text-sm text-green-600 dark:text-green-400 flex items-center gap-1.5"
+        className="ml-10 mt-1 mb-2 text-sm text-primary flex items-center gap-1.5"
       >
         <Check className="h-3.5 w-3.5" />
         {form.name} added to your contacts.
