@@ -490,7 +490,7 @@ const SalesTrainer = () => {
         msgId = await saveMessage(currentConvId, "assistant", assistantMessage);
       }
       
-      setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId }]);
+      setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId, contactPrompts: contactPrompts.length > 0 ? contactPrompts : undefined }]);
       
       // Show action notifications with undo buttons
       const actions = response.data?.actions || [];
