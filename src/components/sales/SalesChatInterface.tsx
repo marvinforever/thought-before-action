@@ -52,6 +52,8 @@ interface SalesChatInterfaceProps {
   onAddDeal: () => void;
   onShowProposalWizard: () => void;
   onShowCallPlanTracker: () => void;
+  onDismissContactPrompt?: (messageIdx: number, promptIdx: number) => void;
+  onContactAdded?: (name: string) => void;
 }
 
 export function SalesChatInterface({
