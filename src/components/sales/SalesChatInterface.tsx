@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormattedMessage } from "@/components/ui/formatted-message";
 import { MessageFeedback } from "./MessageFeedback";
 import { VoiceRecorder } from "./VoiceRecorder";
+import { AddContactPromptCard } from "./AddContactPromptCard";
 import {
   Sparkles,
   Send,
@@ -26,6 +27,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   id?: string;
+  contactPrompts?: { name: string; companyName?: string }[];
 }
 
 interface SalesChatInterfaceProps {
@@ -50,6 +52,8 @@ interface SalesChatInterfaceProps {
   onAddDeal: () => void;
   onShowProposalWizard: () => void;
   onShowCallPlanTracker: () => void;
+  onDismissContactPrompt?: (messageIdx: number, promptIdx: number) => void;
+  onContactAdded?: (name: string) => void;
 }
 
 export function SalesChatInterface({
@@ -74,6 +78,8 @@ export function SalesChatInterface({
   onAddDeal,
   onShowProposalWizard,
   onShowCallPlanTracker,
+  onDismissContactPrompt,
+  onContactAdded,
 }: SalesChatInterfaceProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -238,6 +244,20 @@ export function SalesChatInterface({
                         conversationContext={messages.slice(Math.max(0, idx - 4), idx).map(m => `${m.role}: ${m.content}`).join("\n")}
                       />
                     </div>
+                  )}
+                  {/* Contact prompt cards */}
+                  {msg.role === "assistant" && msg.contactPrompts && msg.contactPrompts.length > 0 && (
+                    <AnimatePresence>
+                      {msg.contactPrompts.map((cp, cpIdx) => (
+                        <AddContactPromptCard
+                          key={`${idx}-${cpIdx}-${cp.name}`}
+                          prompt={cp}
+                          userId={userId}
+                          onDismiss={() => onDismissContactPrompt?.(idx, cpIdx)}
+                          onAdded={(name) => onContactAdded?.(name)}
+                        />
+                      ))}
+                    </AnimatePresence>
                   )}
                 </div>
               </motion.div>

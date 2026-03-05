@@ -21,6 +21,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   id?: string;
+  contactPrompts?: { name: string; companyName?: string }[];
 }
 
 interface Company {
@@ -477,6 +478,9 @@ const SalesTrainer = () => {
         setNewCustomerPrompt(response.data.newCustomerPrompt);
       }
 
+      // Attach contact prompts to the assistant message
+      const contactPrompts = response.data?.newContactPrompts || [];
+
       if (response.error) throw response.error;
 
       const assistantMessage = response.data?.message || "Let me think on that...";
@@ -486,7 +490,7 @@ const SalesTrainer = () => {
         msgId = await saveMessage(currentConvId, "assistant", assistantMessage);
       }
       
-      setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId }]);
+      setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId, contactPrompts: contactPrompts.length > 0 ? contactPrompts : undefined }]);
       
       // Show action notifications with undo buttons
       const actions = response.data?.actions || [];
@@ -714,6 +718,16 @@ const SalesTrainer = () => {
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
           onShowCallPlanTracker={() => setShowCallPlanTracker(true)}
+          onDismissContactPrompt={(msgIdx, promptIdx) => {
+            setMessages(prev => prev.map((m, i) =>
+              i === msgIdx
+                ? { ...m, contactPrompts: m.contactPrompts?.filter((_, j) => j !== promptIdx) }
+                : m
+            ));
+          }}
+          onContactAdded={(name) => {
+            toast({ title: `✅ ${name} added to your contacts.` });
+          }}
         />
       </main>
 
