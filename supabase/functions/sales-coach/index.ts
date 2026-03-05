@@ -299,6 +299,7 @@ serve(async (req) => {
     let emailDrafted: { id: string; subject: string; preview: string } | null = null;
     let researchCompleted: { company: string; summary: string } | null = null;
     let newCustomerPrompt: { name: string } | null = null;
+    let newContactPrompts: { name: string; companyName?: string }[] = [];
 
     if (extracted.companies.length > 0 && effectiveUserId && effectiveCompanyId) {
       const hasDealSignals = !!(extracted.dealSignals && Object.keys(extracted.dealSignals).length > 0);
