@@ -234,7 +234,7 @@ export function DocumentUploadDialog({
                 <SelectValue placeholder="General knowledge (all customers)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">General knowledge (all customers)</SelectItem>
+                <SelectItem value="__none__">General knowledge (all customers)</SelectItem>
                 {customers.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
