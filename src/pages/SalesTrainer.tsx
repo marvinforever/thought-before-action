@@ -718,6 +718,16 @@ const SalesTrainer = () => {
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
           onShowCallPlanTracker={() => setShowCallPlanTracker(true)}
+          onDismissContactPrompt={(msgIdx, promptIdx) => {
+            setMessages(prev => prev.map((m, i) =>
+              i === msgIdx
+                ? { ...m, contactPrompts: m.contactPrompts?.filter((_, j) => j !== promptIdx) }
+                : m
+            ));
+          }}
+          onContactAdded={(name) => {
+            toast({ title: `✅ ${name} added to your contacts.` });
+          }}
         />
       </main>
 
