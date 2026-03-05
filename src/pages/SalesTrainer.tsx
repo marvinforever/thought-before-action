@@ -21,6 +21,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   id?: string;
+  contactPrompts?: { name: string; companyName?: string }[];
 }
 
 interface Company {
