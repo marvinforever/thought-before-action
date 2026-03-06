@@ -776,7 +776,18 @@ const Employees = () => {
                           aria-label={`Select ${employee.full_name}`}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{employee.full_name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-2">
+                          <span className="font-medium">{employee.full_name}</span>
+                          <div className="w-fit">
+                            <IGPDocument
+                              profileId={employee.id}
+                              employeeName={employee.full_name}
+                              variant="inline"
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{employee.role || <span className="text-muted-foreground">—</span>}</TableCell>
                       {isSuperAdmin && (
@@ -802,86 +813,79 @@ const Employees = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <IGPDocument
-                            profileId={employee.id}
-                            employeeName={employee.full_name}
-                            variant="inline"
-                          />
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-                              <DropdownMenuItem onClick={() => handleEditClick(employee)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit Employee
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setCapabilitiesEmployee(employee)}>
-                                <Target className="mr-2 h-4 w-4" />
-                                View Capabilities
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setAssignCapabilitiesEmployee(employee)}>
-                                <Target className="mr-2 h-4 w-4" />
-                                Assign Capabilities
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
-                                <Brain className="mr-2 h-4 w-4" />
-                                Analyze Job Description
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setManagerAssignEmployee(employee);
-                                setManagerDialogOpen(true);
-                              }}>
-                              <Users2 className="mr-2 h-4 w-4" />
-                              Assign Manager
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                            <DropdownMenuItem onClick={() => handleEditClick(employee)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit Employee
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setCapabilitiesEmployee(employee)}>
+                              <Target className="mr-2 h-4 w-4" />
+                              View Capabilities
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setAssignCapabilitiesEmployee(employee)}>
+                              <Target className="mr-2 h-4 w-4" />
+                              Assign Capabilities
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
+                              <Brain className="mr-2 h-4 w-4" />
+                              Analyze Job Description
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
-                              setRoleDialogEmployee(employee);
-                              setRoleDialogOpen(true);
+                              setManagerAssignEmployee(employee);
+                              setManagerDialogOpen(true);
                             }}>
-                              <Shield className="mr-2 h-4 w-4" />
-                              Manage Roles
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              setResetPasswordEmployee(employee);
-                              setResetPasswordDialogOpen(true);
-                            }}>
-                              <KeyRound className="mr-2 h-4 w-4" />
-                              Reset Password
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSendWelcomeEmail(employee)}>
-                              <Mail className="mr-2 h-4 w-4" />
-                              Send Welcome Email
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
-                              {employee.is_active ? (
-                                <>
-                                  <UserX className="mr-2 h-4 w-4" />
-                                  Suspend
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="mr-2 h-4 w-4" />
-                                  Reactivate
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                setSelectedEmployee(employee);
-                                setDeleteDialogOpen(true);
-                              }}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                            <Users2 className="mr-2 h-4 w-4" />
+                            Assign Manager
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setRoleDialogEmployee(employee);
+                            setRoleDialogOpen(true);
+                          }}>
+                            <Shield className="mr-2 h-4 w-4" />
+                            Manage Roles
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setResetPasswordEmployee(employee);
+                            setResetPasswordDialogOpen(true);
+                          }}>
+                            <KeyRound className="mr-2 h-4 w-4" />
+                            Reset Password
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSendWelcomeEmail(employee)}>
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Welcome Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
+                            {employee.is_active ? (
+                              <>
+                                <UserX className="mr-2 h-4 w-4" />
+                                Suspend
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                Reactivate
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedEmployee(employee);
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
