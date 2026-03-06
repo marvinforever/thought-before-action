@@ -54,7 +54,7 @@ function scoreBadge(score: number | null): { label: string; color: RGB } {
   return { label: `${score}%`, color: RED };
 }
 
-export function generateIGPPdf(data: IGPData) {
+export function generateIGPPdf(data: IGPData, options?: { returnBlob?: boolean }): Blob | void {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
