@@ -855,6 +855,7 @@ const Employees = () => {
                               <Mail className="mr-2 h-4 w-4" />
                               Send Welcome Email
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSuspendEmployee(employee)}>
                               {employee.is_active ? (
                                 <>
                                   <UserX className="mr-2 h-4 w-4" />
