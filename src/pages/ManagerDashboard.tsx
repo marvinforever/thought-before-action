@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo, BookOpen, Zap, Rocket } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo, BookOpen, Zap, Rocket, FileText } from "lucide-react";
+import { IGPDocument } from "@/components/igp/IGPDocument";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
@@ -402,15 +403,11 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      className="w-full mb-2"
-                                      onClick={() => handleViewGrowthPlan(report)}
-                                    >
-                                      <Compass className="h-3 w-3 mr-1" />
-                                      View Growth Plan
-                                    </Button>
+                        <IGPDocument
+                          profileId={report.id}
+                          employeeName={report.full_name}
+                          variant="button"
+                        />
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           variant="outline"
