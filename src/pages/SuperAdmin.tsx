@@ -2482,6 +2482,10 @@ const SuperAdmin = () => {
         <TabsContent value="onboarding" className="space-y-6">
           <OnboardingPreview />
         </TabsContent>
+
+        <TabsContent value="bulk-igp" className="space-y-6">
+          <BulkIGPExport />
+        </TabsContent>
       </Tabs>
 
       <AdminUserDebugPanel 
