@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, Loader2, X, Target, Flame, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { IGPData, formatLevel } from "./igp-types";
 import { IGPHeader } from "./IGPHeader";
 import { IGPExecutiveSummary } from "./IGPExecutiveSummary";
