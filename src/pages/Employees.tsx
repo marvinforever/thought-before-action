@@ -832,6 +832,19 @@ const Employees = () => {
                               <Target className="mr-2 h-4 w-4" />
                               Assign Capabilities
                             </DropdownMenuItem>
+                            {employee.has_diagnostic ? (
+                              <IGPDocument
+                                profileId={employee.id}
+                                employeeName={employee.full_name}
+                                variant="menuItem"
+                                menuAction="download"
+                              />
+                            ) : (
+                              <DropdownMenuItem disabled>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download Growth Plan PDF (Diagnostic Required)
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
                               <Brain className="mr-2 h-4 w-4" />
                               Analyze Job Description

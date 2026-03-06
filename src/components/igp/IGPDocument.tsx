@@ -247,16 +247,24 @@ export function IGPDocument({ profileId, employeeName, variant = "button", menuA
 
   // Button/menu trigger
   if (variant === "menuItem") {
+    const isDownloadAction = menuAction === "download";
+
     return (
       <DropdownMenuItem
         onSelect={(event) => {
           event.preventDefault();
-          void handleViewIGP();
+          void (isDownloadAction ? handleDownloadPdf() : handleViewIGP());
         }}
         disabled={loading}
       >
-        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-        {loading ? "Generating IGP..." : "View Growth Plan"}
+        {loading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : isDownloadAction ? (
+          <Download className="mr-2 h-4 w-4" />
+        ) : (
+          <FileText className="mr-2 h-4 w-4" />
+        )}
+        {loading ? (isDownloadAction ? "Generating PDF..." : "Generating IGP...") : isDownloadAction ? "Download Growth Plan PDF" : "View Growth Plan"}
       </DropdownMenuItem>
     );
   }
