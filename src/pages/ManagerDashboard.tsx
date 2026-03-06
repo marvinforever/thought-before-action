@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo, BookOpen, Zap, Rocket } from "lucide-react";
+import { Users, Target, Calendar, TrendingUp, MessageSquare, Award, ClipboardCheck, UserPlus, Compass, ListTodo, BookOpen, Zap, Rocket, FileText } from "lucide-react";
+import { IGPDocument } from "@/components/igp/IGPDocument";
 import { EmployeeCapabilitiesDialog } from "@/components/EmployeeCapabilitiesDialog";
 import { AssignCapabilitiesDialog } from "@/components/AssignCapabilitiesDialog";
 import { AdjustCapabilityDialog } from "@/components/AdjustCapabilityDialog";
