@@ -735,5 +735,8 @@ export function generateIGPPdf(data: IGPData, options?: { returnBlob?: boolean }
   }
 
   const safeName = (data.profile.full_name || "growth-plan").replace(/\s+/g, "-").toLowerCase();
+  if (options?.returnBlob) {
+    return doc.output("blob");
+  }
   doc.save(`${safeName}-igp-${new Date().toISOString().split("T")[0]}.pdf`);
 }
