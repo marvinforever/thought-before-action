@@ -268,6 +268,7 @@ export function IGPDocument({ profileId, employeeName, variant = "button", onCom
       </Button>
     );
   }
+  return (
     <div className="flex gap-2">
       <Button onClick={handleViewIGP} disabled={loading} variant="outline" className="bg-primary text-primary-foreground hover:bg-primary/90 border-primary">
         {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
