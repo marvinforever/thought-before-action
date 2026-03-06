@@ -19,7 +19,7 @@ import { generateIGPPdf } from "./igp-pdf-export";
 interface IGPDocumentProps {
   profileId: string;
   employeeName: string;
-  variant?: "button" | "menuItem";
+  variant?: "button" | "menuItem" | "inline";
   onComplete?: () => void;
 }
 
@@ -260,6 +260,14 @@ export function IGPDocument({ profileId, employeeName, variant = "button", onCom
     );
   }
 
+  if (variant === "inline") {
+    return (
+      <Button onClick={handleViewIGP} disabled={loading} variant="outline" size="sm">
+        {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+        {loading ? "Generating..." : "Growth Plan"}
+      </Button>
+    );
+  }
   return (
     <div className="flex gap-2">
       <Button onClick={handleViewIGP} disabled={loading} variant="outline" className="bg-primary text-primary-foreground hover:bg-primary/90 border-primary">

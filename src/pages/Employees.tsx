@@ -802,38 +802,39 @@ const Employees = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-                            <DropdownMenuItem onClick={() => handleEditClick(employee)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit Employee
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setCapabilitiesEmployee(employee)}>
-                              <Target className="mr-2 h-4 w-4" />
-                              View Capabilities
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setAssignCapabilitiesEmployee(employee)}>
-                              <Target className="mr-2 h-4 w-4" />
-                              Assign Capabilities
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
-                              <Brain className="mr-2 h-4 w-4" />
-                              Analyze Job Description
-                            </DropdownMenuItem>
-                            <IGPDocument
-                              profileId={employee.id}
-                              employeeName={employee.full_name}
-                              variant="menuItem"
-                            />
-                            <DropdownMenuItem onClick={() => {
-                              setManagerAssignEmployee(employee);
-                              setManagerDialogOpen(true);
-                            }}>
+                        <div className="flex items-center gap-2">
+                          <IGPDocument
+                            profileId={employee.id}
+                            employeeName={employee.full_name}
+                            variant="inline"
+                          />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                              <DropdownMenuItem onClick={() => handleEditClick(employee)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit Employee
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setCapabilitiesEmployee(employee)}>
+                                <Target className="mr-2 h-4 w-4" />
+                                View Capabilities
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setAssignCapabilitiesEmployee(employee)}>
+                                <Target className="mr-2 h-4 w-4" />
+                                Assign Capabilities
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setJobDescEmployee(employee)}>
+                                <Brain className="mr-2 h-4 w-4" />
+                                Analyze Job Description
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setManagerAssignEmployee(employee);
+                                setManagerDialogOpen(true);
+                              }}>
                               <Users2 className="mr-2 h-4 w-4" />
                               Assign Manager
                             </DropdownMenuItem>
@@ -878,8 +879,9 @@ const Employees = () => {
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
