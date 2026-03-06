@@ -20,10 +20,11 @@ interface IGPDocumentProps {
   profileId: string;
   employeeName: string;
   variant?: "button" | "menuItem" | "inline";
+  menuAction?: "view" | "download";
   onComplete?: () => void;
 }
 
-export function IGPDocument({ profileId, employeeName, variant = "button", onComplete }: IGPDocumentProps) {
+export function IGPDocument({ profileId, employeeName, variant = "button", menuAction = "view", onComplete }: IGPDocumentProps) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<IGPData | null>(null);
   const [showViewer, setShowViewer] = useState(false);
