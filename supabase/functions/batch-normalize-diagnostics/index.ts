@@ -39,20 +39,30 @@ serve(async (req) => {
       errors: [] as any[]
     };
     
+    const { forceAll } = await req.json().catch(() => ({ forceAll: false }));
+
     // Process each diagnostic
     for (const diagnostic of diagnostics || []) {
       try {
-        // Check if already normalized
+        // Check if already normalized (skip unless forceAll or has zero scores)
         const { data: existing } = await supabase
           .from('diagnostic_scores')
-          .select('id')
+          .select('id, clarity_score, career_score, learning_score')
           .eq('profile_id', diagnostic.profile_id)
           .single();
           
-        if (existing) {
-          console.log(`Skipping ${diagnostic.profile_id} - already normalized`);
+        const hasZeros = existing && (
+          existing.clarity_score === 0 || existing.career_score === 0 || existing.learning_score === 0
+        );
+        
+        if (existing && !hasZeros && !forceAll) {
+          console.log(`Skipping ${diagnostic.profile_id} - already normalized with valid scores`);
           results.processed++;
           continue;
+        }
+        
+        if (hasZeros) {
+          console.log(`Re-processing ${diagnostic.profile_id} - has zero scores that need fixing`);
         }
         
         // Call normalization function
