@@ -403,22 +403,11 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex gap-2">
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      className="flex-1"
-                                      onClick={() => handleViewGrowthPlan(report)}
-                                    >
-                                      <Compass className="h-3 w-3 mr-1" />
-                                      View Growth Plan
-                                    </Button>
                         <IGPDocument
                           profileId={report.id}
                           employeeName={report.full_name}
                           variant="button"
                         />
-                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           variant="outline"
