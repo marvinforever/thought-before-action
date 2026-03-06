@@ -19,7 +19,7 @@ import { generateIGPPdf } from "./igp-pdf-export";
 interface IGPDocumentProps {
   profileId: string;
   employeeName: string;
-  variant?: "button" | "menuItem";
+  variant?: "button" | "menuItem" | "inline";
   onComplete?: () => void;
 }
 
