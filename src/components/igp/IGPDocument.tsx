@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, Loader2, X, Target, Flame, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { IGPData, formatLevel } from "./igp-types";
 import { IGPHeader } from "./IGPHeader";
 import { IGPExecutiveSummary } from "./IGPExecutiveSummary";
@@ -246,14 +247,16 @@ export function IGPDocument({ profileId, employeeName, variant = "button", onCom
   // Button/menu trigger
   if (variant === "menuItem") {
     return (
-      <button
-        onClick={handleViewIGP}
+      <DropdownMenuItem
+        onSelect={(event) => {
+          event.preventDefault();
+          void handleViewIGP();
+        }}
         disabled={loading}
-        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full text-left disabled:opacity-50"
       >
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
         {loading ? "Generating IGP..." : "View Growth Plan"}
-      </button>
+      </DropdownMenuItem>
     );
   }
 
