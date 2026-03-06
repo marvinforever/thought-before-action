@@ -167,12 +167,18 @@ function extractFromTextFields(d: any): NormalizedInputs {
       ? (d.weekly_development_hours <= 1 ? 20 : d.weekly_development_hours <= 3 ? 50 : d.weekly_development_hours <= 6 ? 75 : 90)
       : null,
     clear_path: d.sees_growth_path === true ? 80 : d.sees_growth_path === false ? 30 : normalizeScale10(d.clear_path_growth),
-    manager_support: typeof d.manager_support_quality === 'number'
-      ? normalizeScale10(d.manager_support_quality)
-      : (d.manager_support_quality?.includes('very_supportive') || d.manager_support_quality?.includes('very supportive') ? 90
-        : d.manager_support_quality?.includes('somewhat_supportive') || d.manager_support_quality?.includes('somewhat supportive') ? 65
-        : d.manager_support_quality?.includes('not_supportive') || d.manager_support_quality?.includes('not supportive') ? 25
-        : null),
+    manager_support: (() => {
+      const raw = d.manager_support_quality;
+      if (raw === null || raw === undefined) return null;
+      const num = typeof raw === 'number' ? raw : parseFloat(raw);
+      if (!isNaN(num) && num >= 1 && num <= 10) return Math.round(num * 10);
+      if (typeof raw === 'string') {
+        if (raw.includes('very_supportive') || raw.includes('very supportive')) return 90;
+        if (raw.includes('somewhat_supportive') || raw.includes('somewhat supportive')) return 65;
+        if (raw.includes('not_supportive') || raw.includes('not supportive')) return 25;
+      }
+      return null;
+    })(),
     feel_valued: d.feels_valued === true ? 80 : d.feels_valued === false ? 25 : normalizeScale10(d.feel_valued),
     energized: normalizeEnergized(d.daily_energy_level),
     stay: (() => {
