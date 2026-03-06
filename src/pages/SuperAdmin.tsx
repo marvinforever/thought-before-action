@@ -1761,6 +1761,10 @@ const SuperAdmin = () => {
               <Sparkles className="h-4 w-4 mr-2" />
               Onboarding
             </TabsTrigger>
+            <TabsTrigger value="bulk-igp">
+              <FileUp className="h-4 w-4 mr-2" />
+              Bulk IGP Export
+            </TabsTrigger>
           </TabsList>
         </div>
 
