@@ -33,27 +33,34 @@ const normalizeYesNo = (value: any): number | null => {
 
 const normalizeFrequency = (value: string | undefined): number | null => {
   const text = (value || '').toLowerCase();
-  if (text.includes('never') || text.includes('rarely')) return 90;
-  if (text.includes('sometimes') || text.includes('occasionally')) return 60;
-  if (text.includes('often') || text.includes('frequently')) return 30;
+  if (text.includes('never')) return 95;
+  if (text.includes('rarely') || text.includes('less than monthly')) return 80;
+  if (text.includes('sometimes') || text.includes('occasionally') || text.includes('monthly')) return 55;
+  if (text.includes('often') || text.includes('frequently') || text.includes('weekly')) return 30;
   if (text.includes('always') || text.includes('constantly')) return 10;
   return null;
 };
 
 const normalizeWorkload = (value: string | undefined): number | null => {
-  switch (value) {
-    case 'very_manageable': return 90;
-    case 'somewhat_manageable': return 60;
-    case 'not_manageable': return 25;
-    default: return null;
-  }
+  const text = (value || '').toLowerCase().trim();
+  if (text === 'very_manageable' || text === 'very manageable') return 90;
+  if (text === 'manageable' || text === 'somewhat_manageable' || text === 'somewhat manageable') return 70;
+  if (text === 'stretched') return 50;
+  if (text === 'not_manageable' || text === 'not manageable' || text === 'overwhelmed') return 25;
+  if (text === 'unsustainable') return 10;
+  return null;
 };
 
 const normalizeEnergized = (value: string | undefined): number | null => {
-  const text = (value || '').toLowerCase();
-  if (text.includes('very_energized') || text.includes('very energized')) return 100;
-  if (text.includes('somewhat_energized') || text.includes('somewhat energized')) return 70;
-  if (text.includes('not_energized') || text.includes('not energized') || text.includes('drained')) return 30;
+  const text = (value || '').toLowerCase().trim();
+  // Handle numeric values (1-10 scale stored as text)
+  const num = parseFloat(text);
+  if (!isNaN(num) && num >= 1 && num <= 10) {
+    return Math.round(num * 10);
+  }
+  if (text.includes('very_energized') || text.includes('very energized') || text === 'high') return 90;
+  if (text.includes('somewhat_energized') || text.includes('somewhat energized') || text === 'medium') return 60;
+  if (text.includes('not_energized') || text.includes('not energized') || text.includes('drained') || text === 'low') return 30;
   if (text.includes('neutral')) return 50;
   return null;
 };
