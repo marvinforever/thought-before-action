@@ -33,27 +33,34 @@ const normalizeYesNo = (value: any): number | null => {
 
 const normalizeFrequency = (value: string | undefined): number | null => {
   const text = (value || '').toLowerCase();
-  if (text.includes('never') || text.includes('rarely')) return 90;
-  if (text.includes('sometimes') || text.includes('occasionally')) return 60;
-  if (text.includes('often') || text.includes('frequently')) return 30;
+  if (text.includes('never')) return 95;
+  if (text.includes('rarely') || text.includes('less than monthly')) return 80;
+  if (text.includes('sometimes') || text.includes('occasionally') || text.includes('monthly')) return 55;
+  if (text.includes('often') || text.includes('frequently') || text.includes('weekly')) return 30;
   if (text.includes('always') || text.includes('constantly')) return 10;
   return null;
 };
 
 const normalizeWorkload = (value: string | undefined): number | null => {
-  switch (value) {
-    case 'very_manageable': return 90;
-    case 'somewhat_manageable': return 60;
-    case 'not_manageable': return 25;
-    default: return null;
-  }
+  const text = (value || '').toLowerCase().trim();
+  if (text === 'very_manageable' || text === 'very manageable') return 90;
+  if (text === 'manageable' || text === 'somewhat_manageable' || text === 'somewhat manageable') return 70;
+  if (text === 'stretched') return 50;
+  if (text === 'not_manageable' || text === 'not manageable' || text === 'overwhelmed') return 25;
+  if (text === 'unsustainable') return 10;
+  return null;
 };
 
 const normalizeEnergized = (value: string | undefined): number | null => {
-  const text = (value || '').toLowerCase();
-  if (text.includes('very_energized') || text.includes('very energized')) return 100;
-  if (text.includes('somewhat_energized') || text.includes('somewhat energized')) return 70;
-  if (text.includes('not_energized') || text.includes('not energized') || text.includes('drained')) return 30;
+  const text = (value || '').toLowerCase().trim();
+  // Handle numeric values (1-10 scale stored as text)
+  const num = parseFloat(text);
+  if (!isNaN(num) && num >= 1 && num <= 10) {
+    return Math.round(num * 10);
+  }
+  if (text.includes('very_energized') || text.includes('very energized') || text === 'high') return 90;
+  if (text.includes('somewhat_energized') || text.includes('somewhat energized') || text === 'medium') return 60;
+  if (text.includes('not_energized') || text.includes('not energized') || text.includes('drained') || text === 'low') return 30;
   if (text.includes('neutral')) return 50;
   return null;
 };
@@ -160,18 +167,30 @@ function extractFromTextFields(d: any): NormalizedInputs {
       ? (d.weekly_development_hours <= 1 ? 20 : d.weekly_development_hours <= 3 ? 50 : d.weekly_development_hours <= 6 ? 75 : 90)
       : null,
     clear_path: d.sees_growth_path === true ? 80 : d.sees_growth_path === false ? 30 : normalizeScale10(d.clear_path_growth),
-    manager_support: typeof d.manager_support_quality === 'number'
-      ? normalizeScale10(d.manager_support_quality)
-      : (d.manager_support_quality?.includes('very_supportive') || d.manager_support_quality?.includes('very supportive') ? 90
-        : d.manager_support_quality?.includes('somewhat_supportive') || d.manager_support_quality?.includes('somewhat supportive') ? 65
-        : d.manager_support_quality?.includes('not_supportive') || d.manager_support_quality?.includes('not supportive') ? 25
-        : null),
+    manager_support: (() => {
+      const raw = d.manager_support_quality;
+      if (raw === null || raw === undefined) return null;
+      const num = typeof raw === 'number' ? raw : parseFloat(raw);
+      if (!isNaN(num) && num >= 1 && num <= 10) return Math.round(num * 10);
+      if (typeof raw === 'string') {
+        if (raw.includes('very_supportive') || raw.includes('very supportive')) return 90;
+        if (raw.includes('somewhat_supportive') || raw.includes('somewhat supportive')) return 65;
+        if (raw.includes('not_supportive') || raw.includes('not supportive')) return 25;
+      }
+      return null;
+    })(),
     feel_valued: d.feels_valued === true ? 80 : d.feels_valued === false ? 25 : normalizeScale10(d.feel_valued),
     energized: normalizeEnergized(d.daily_energy_level),
-    stay: d.would_stay_if_offered_similar === 'yes' || d.would_stay_if_offered_similar === 'definitely stay' ? 90
-      : d.would_stay_if_offered_similar === 'maybe' || d.would_stay_if_offered_similar === 'probably stay' ? 60
-      : d.would_stay_if_offered_similar === 'no' || d.would_stay_if_offered_similar === 'probably leave' ? 25
-      : normalizeScale10(d.retention_likelihood),
+    stay: (() => {
+      const raw = d.would_stay_if_offered_similar;
+      if (raw === 'yes' || raw === 'definitely stay') return 90;
+      if (raw === 'maybe' || raw === 'probably stay') return 60;
+      if (raw === 'no' || raw === 'probably leave') return 25;
+      // Handle numeric values (1-10 scale)
+      const num = typeof raw === 'number' ? raw : parseFloat(raw);
+      if (!isNaN(num) && num >= 1 && num <= 10) return Math.round(num * 10);
+      return normalizeScale10(d.retention_likelihood);
+    })(),
     org_helping: normalizeYesNo(d.company_supporting_goal),
   };
 }
