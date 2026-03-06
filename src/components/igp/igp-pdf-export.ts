@@ -54,7 +54,7 @@ function scoreBadge(score: number | null): { label: string; color: RGB } {
   return { label: `${score}%`, color: RED };
 }
 
-export function generateIGPPdf(data: IGPData) {
+export function generateIGPPdf(data: IGPData, options?: { returnBlob?: boolean }): Blob | void {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -735,5 +735,8 @@ export function generateIGPPdf(data: IGPData) {
   }
 
   const safeName = (data.profile.full_name || "growth-plan").replace(/\s+/g, "-").toLowerCase();
+  if (options?.returnBlob) {
+    return doc.output("blob");
+  }
   doc.save(`${safeName}-igp-${new Date().toISOString().split("T")[0]}.pdf`);
 }
