@@ -24,6 +24,7 @@ import ReferralAdminTab from "@/components/ReferralAdminTab";
 import { SystemHealthDashboard } from "@/components/SystemHealthDashboard";
 import { AdminUserDebugPanel } from "@/components/AdminUserDebugPanel";
 import { OnboardingPreview } from "@/components/OnboardingPreview";
+import { BulkIGPExport } from "@/components/igp/BulkIGPExport";
 
 interface CompanyStats {
   id: string;
