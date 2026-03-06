@@ -175,10 +175,16 @@ function extractFromTextFields(d: any): NormalizedInputs {
         : null),
     feel_valued: d.feels_valued === true ? 80 : d.feels_valued === false ? 25 : normalizeScale10(d.feel_valued),
     energized: normalizeEnergized(d.daily_energy_level),
-    stay: d.would_stay_if_offered_similar === 'yes' || d.would_stay_if_offered_similar === 'definitely stay' ? 90
-      : d.would_stay_if_offered_similar === 'maybe' || d.would_stay_if_offered_similar === 'probably stay' ? 60
-      : d.would_stay_if_offered_similar === 'no' || d.would_stay_if_offered_similar === 'probably leave' ? 25
-      : normalizeScale10(d.retention_likelihood),
+    stay: (() => {
+      const raw = d.would_stay_if_offered_similar;
+      if (raw === 'yes' || raw === 'definitely stay') return 90;
+      if (raw === 'maybe' || raw === 'probably stay') return 60;
+      if (raw === 'no' || raw === 'probably leave') return 25;
+      // Handle numeric values (1-10 scale)
+      const num = typeof raw === 'number' ? raw : parseFloat(raw);
+      if (!isNaN(num) && num >= 1 && num <= 10) return Math.round(num * 10);
+      return normalizeScale10(d.retention_likelihood);
+    })(),
     org_helping: normalizeYesNo(d.company_supporting_goal),
   };
 }
