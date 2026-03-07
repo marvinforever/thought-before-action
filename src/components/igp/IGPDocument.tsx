@@ -20,7 +20,7 @@ interface IGPDocumentProps {
   profileId: string;
   employeeName: string;
   variant?: "button" | "menuItem" | "inline";
-  menuAction?: "view" | "download";
+  menuAction?: "view" | "download" | "downloadJson";
   onComplete?: () => void;
 }
 
