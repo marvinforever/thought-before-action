@@ -1,0 +1,1 @@
+UPDATE diagnostic_scores SET clarity_score = NULL WHERE clarity_score = 0;
