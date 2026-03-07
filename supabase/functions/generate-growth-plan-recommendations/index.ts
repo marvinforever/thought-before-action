@@ -262,7 +262,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
         job_title: profile?.job_title || profile?.role,
         company_name: companyName,
       },
-      capabilities: capDetails,
+      capabilities: allCapDetails,
       diagnostic,
       vision,
       goals: goals.length > 0 ? goals : null,
