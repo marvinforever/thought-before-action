@@ -1,42 +1,74 @@
+# Upgrade Telegram Bot to Full Jericho Intelligence
 
+## Status: ✅ IMPLEMENTED
 
-## Problem Analysis
+### 1. Database Migration ✅
+- Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
+- Added index on `telegram_update_id` for duplicate detection
+- Added index on `(user_id, created_at DESC)` for fast conversation history
 
-Two issues identified:
+### 2. Sales Coach Auth Bypass ✅
+- Added 8-line internal service call detection in `sales-coach/index.ts` (after auth block)
+- When token matches service role key and `viewAsUserId` is provided, trusts the IDs directly
 
-1. **Sarah Farrington generation failed** — The edge function logs show `SyntaxError: Expected ',' or '}' after property value in JSON at position 86020`. The AI model returns JSON that's too large or contains invalid characters, and the parser chokes. This is a recurring fragility with asking an LLM to return 80KB+ of structured JSON.
+### 3. AI Router ✅
+- Added `'telegram-chat'` task type routed to `'gemini-pro'`
 
-2. **PDF formatting issues** — The jsPDF-based PDF generation (742 lines of manual layout code) produces inconsistent formatting that's hard to maintain.
+### 4. Telegram Webhook Rewrite ✅
+- **Sales-coach proxy**: All sales/general/unclear messages route through sales-coach via internal fetch
+- **Growth path**: Growth/capabilities/training/sprint queries use Gemini Pro via ai-router
+- **Kudos shortcut**: Direct DB insert into recognitions table
+- **Conversation history**: Last 10 messages within 24hrs by user_id
+- **Edit-message UX**: "Thinking..." replaced via editMessageText
+- **Duplicate prevention**: update_id checked before processing
+- **Manager context**: Loads team data for manager users
+- **Error handling**: 45s timeout, graceful fallbacks, all paths return 200
+- **Response formatting**: Strips unsupported markdown, appends action confirmations, truncates at 4000 chars
 
-## Proposed Solution: Add "Download Raw Data (JSON)" Option
+---
 
-Instead of fighting with PDF formatting, add an option to export the raw IGP data as a clean JSON file that can be imported into Word, Google Docs, or any formatting tool.
+# Multi-Channel Daily Brief Delivery (Telegram + SMS)
 
-### Changes
+## Status: ✅ IMPLEMENTED
 
-**1. Fix the JSON parsing failure in the edge function** (`supabase/functions/generate-growth-plan-recommendations/index.ts`)
-- Add `response_format: { type: "json_object" }` to the AI request to enforce valid JSON output
-- Add a retry mechanism (1 retry) if JSON parsing fails
-- Truncate overly long prompts if the employee has many capabilities (cap at 15 most important)
+### What was done
 
-**2. Add "Download Raw Data" menu option** (`src/components/igp/IGPDocument.tsx`)
-- Add a new `menuAction="downloadJson"` variant
-- When triggered, fetch the IGP data and save as a formatted JSON file
-- Also offer a simple CSV-like text export with the key data in a readable format
+#### 1. Database Migration ✅
+- Added `delivery_channels` (jsonb, default `{"email": true, "telegram": false, "sms": false}`) to `email_preferences`
+- Added `channel` (text, default `'email'`) to `email_deliveries`
 
-**3. Wire it into the Employees page** (`src/pages/Employees.tsx`)
-- Add a second dropdown item: "Download Growth Plan Data" alongside the existing PDF option
-- This gives users the raw AI-generated recommendations, capability assessments, diagnostic scores, and training resources as structured data
+#### 2. Shared Content Generator ✅
+- Created `supabase/functions/_shared/daily-brief-content.ts`
+- Exports `gatherUserContext()` — parallel DB queries for habits, goals, capabilities, tasks, streaks, vision
+- Exports `generateBriefContent()` — AI-powered brief in `html`, `markdown`, or `plain` format
+- Returns `{ subject, body, shortSummary }` where shortSummary is ~160 chars for SMS
 
-### Output Format
+#### 3. Telegram Delivery Function ✅
+- Created `supabase/functions/send-daily-brief-telegram/index.ts`
+- Looks up `telegram_links.telegram_chat_id`
+- Sends Markdown-formatted brief with inline keyboard buttons
+- Automatic plain text fallback on Markdown parse errors
+- Logs delivery with `channel = 'telegram'`
 
-The exported JSON will contain:
-- Employee profile info
-- All capability assessments with levels and definitions
-- AI recommendations with training items, costs, and progression paths
-- Diagnostic scores
-- Development roadmap
-- Vision, goals, habits, achievements
+#### 4. SMS Delivery Function ✅
+- Created `supabase/functions/send-daily-brief-sms/index.ts`
+- Checks `sms_opted_in` and phone number on profile
+- Sends `shortSummary` via existing `send-sms` function (Twilio)
+- Logs delivery with `channel = 'sms'`
 
-Users can then paste this into ChatGPT, format in Word/Docs, or use any tool they prefer.
+#### 5. Orchestrator Updated ✅
+- `process-daily-brief-queue` now reads `delivery_channels` from `email_preferences`
+- Dispatches to email, telegram, and/or SMS based on user preferences
+- Each channel handled independently with error isolation
 
+#### 6. Settings UI Updated ✅
+- Added Delivery Channels section under Daily Brief Email card
+- Three toggles: Email, Telegram, SMS
+- Telegram toggle disabled if no `telegram_links` record
+- SMS toggle disabled if user hasn't opted in with a phone number
+- Both check real DB state on load
+
+### Future enhancements
+- OpenClaw Jericho agent orchestration via `agent_tasks` table
+- Per-channel delivery time preferences
+- Brief content caching to avoid regenerating for multiple channels

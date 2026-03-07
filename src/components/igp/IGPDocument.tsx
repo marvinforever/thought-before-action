@@ -20,7 +20,7 @@ interface IGPDocumentProps {
   profileId: string;
   employeeName: string;
   variant?: "button" | "menuItem" | "inline";
-  menuAction?: "view" | "download";
+  menuAction?: "view" | "download" | "downloadJson";
   onComplete?: () => void;
 }
 
@@ -70,6 +70,30 @@ export function IGPDocument({ profileId, employeeName, variant = "button", menuA
     } catch (error: any) {
       console.error("Error generating IGP PDF:", error);
       toast({ title: "Failed to generate PDF", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadJson = async () => {
+    setLoading(true);
+    try {
+      toast({ title: "Generating Growth Plan Data", description: `Fetching data for ${employeeName}...` });
+      const igpData = data || await fetchData();
+      if (!data) setData(igpData);
+      const jsonStr = JSON.stringify(igpData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `IGP-${employeeName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Data Downloaded", description: `Raw IGP data for ${employeeName} saved as JSON.` });
+      onComplete?.();
+    } catch (error: any) {
+      console.error("Error downloading IGP data:", error);
+      toast({ title: "Failed to download data", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -248,23 +272,32 @@ export function IGPDocument({ profileId, employeeName, variant = "button", menuA
   // Button/menu trigger
   if (variant === "menuItem") {
     const isDownloadAction = menuAction === "download";
+    const isJsonAction = menuAction === "downloadJson";
+    const handler = isJsonAction ? handleDownloadJson : isDownloadAction ? handleDownloadPdf : handleViewIGP;
+    const label = isJsonAction
+      ? (loading ? "Exporting Data..." : "Download Growth Plan Data (JSON)")
+      : isDownloadAction
+        ? (loading ? "Generating PDF..." : "Download Growth Plan PDF")
+        : (loading ? "Generating IGP..." : "View Growth Plan");
 
     return (
       <DropdownMenuItem
         onSelect={(event) => {
           event.preventDefault();
-          void (isDownloadAction ? handleDownloadPdf() : handleViewIGP());
+          void handler();
         }}
         disabled={loading}
       >
         {loading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : isJsonAction ? (
+          <FileText className="mr-2 h-4 w-4" />
         ) : isDownloadAction ? (
           <Download className="mr-2 h-4 w-4" />
         ) : (
           <FileText className="mr-2 h-4 w-4" />
         )}
-        {loading ? (isDownloadAction ? "Generating PDF..." : "Generating IGP...") : isDownloadAction ? "Download Growth Plan PDF" : "View Growth Plan"}
+        {label}
       </DropdownMenuItem>
     );
   }

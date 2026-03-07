@@ -60,7 +60,7 @@ serve(async (req) => {
       levelDefsMap[cl.capability_id][cl.level] = cl.description;
     }
 
-    const capDetails = capabilities.map((cap: any) => {
+    const allCapDetails = capabilities.map((cap: any) => {
       const defs = levelDefsMap[cap.capability_id] || {};
       const allLevels = ['foundational', 'advancing', 'independent', 'mastery'];
       const currentIdx = allLevels.indexOf(cap.current_level || 'foundational');
@@ -81,6 +81,9 @@ serve(async (req) => {
         level_definitions: defs,
       };
     });
+
+    // Cap at 15 capabilities for AI prompt to avoid overly large responses
+    const capDetails = allCapDetails.slice(0, 15);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
@@ -196,6 +199,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
+        response_format: { type: 'json_object' },
       }),
     });
 
@@ -216,17 +220,38 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
     let parsed;
     try {
       parsed = JSON.parse(aiContent);
-    } catch {
+    } catch (parseError) {
+      // Try extracting JSON from markdown fences
       const jsonMatch = aiContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
       if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[1]);
-      } else {
+        try { parsed = JSON.parse(jsonMatch[1]); } catch { /* fall through */ }
+      }
+      if (!parsed) {
         const objectMatch = aiContent.match(/\{[\s\S]*\}/);
         if (objectMatch) {
-          parsed = JSON.parse(objectMatch[0]);
-        } else {
-          throw new Error('Could not parse AI response');
+          try { parsed = JSON.parse(objectMatch[0]); } catch { /* fall through */ }
         }
+      }
+      // Retry once if parsing failed
+      if (!parsed) {
+        console.log('First parse failed, retrying AI call...');
+        const retryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: prompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown fences. Keep responses concise.' }],
+            temperature: 0.5,
+            response_format: { type: 'json_object' },
+          }),
+        });
+        if (!retryResponse.ok) throw new Error(`Retry AI API error: ${retryResponse.status}`);
+        const retryData = await retryResponse.json();
+        const retryContent = retryData.choices?.[0]?.message?.content || '{}';
+        parsed = JSON.parse(retryContent);
       }
     }
 
@@ -237,7 +262,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
         job_title: profile?.job_title || profile?.role,
         company_name: companyName,
       },
-      capabilities: capDetails,
+      capabilities: allCapDetails,
       diagnostic,
       vision,
       goals: goals.length > 0 ? goals : null,
