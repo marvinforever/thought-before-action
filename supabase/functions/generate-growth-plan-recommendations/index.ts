@@ -60,7 +60,7 @@ serve(async (req) => {
       levelDefsMap[cl.capability_id][cl.level] = cl.description;
     }
 
-    const capDetails = capabilities.map((cap: any) => {
+    const allCapDetails = capabilities.map((cap: any) => {
       const defs = levelDefsMap[cap.capability_id] || {};
       const allLevels = ['foundational', 'advancing', 'independent', 'mastery'];
       const currentIdx = allLevels.indexOf(cap.current_level || 'foundational');
@@ -81,6 +81,9 @@ serve(async (req) => {
         level_definitions: defs,
       };
     });
+
+    // Cap at 15 capabilities for AI prompt to avoid overly large responses
+    const capDetails = allCapDetails.slice(0, 15);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
