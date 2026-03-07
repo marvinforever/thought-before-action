@@ -833,12 +833,20 @@ const Employees = () => {
                               Assign Capabilities
                             </DropdownMenuItem>
                             {employee.has_diagnostic ? (
-                              <IGPDocument
-                                profileId={employee.id}
-                                employeeName={employee.full_name}
-                                variant="menuItem"
-                                menuAction="download"
-                              />
+                              <>
+                                <IGPDocument
+                                  profileId={employee.id}
+                                  employeeName={employee.full_name}
+                                  variant="menuItem"
+                                  menuAction="download"
+                                />
+                                <IGPDocument
+                                  profileId={employee.id}
+                                  employeeName={employee.full_name}
+                                  variant="menuItem"
+                                  menuAction="downloadJson"
+                                />
+                              </>
                             ) : (
                               <DropdownMenuItem disabled>
                                 <Download className="mr-2 h-4 w-4" />
