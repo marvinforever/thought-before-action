@@ -233,6 +233,10 @@ serve(async (req) => {
       inputs = extractFromTextFields(diagnostic);
     }
 
+    // Clarity always comes from the diagnostic assessment, not Jericho chat
+    const textInputs = extractFromTextFields(diagnostic);
+    inputs.role_clarity = textInputs.role_clarity;
+
     const scores = calculateFromSpec(inputs);
     console.log('Calculated scores (spec-aligned):', scores);
 
