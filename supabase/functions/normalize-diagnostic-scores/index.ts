@@ -111,7 +111,7 @@ interface NormalizedInputs {
 
 function calculateFromSpec(inputs: NormalizedInputs) {
   return {
-    clarity_score: avg(inputs.role_clarity, inputs.job_description),
+    clarity_score: inputs.role_clarity,
     skills_score: inputs.confidence,
     engagement_score: avg(inputs.energized, inputs.feel_valued),
     manager_score: inputs.manager_support,
