@@ -220,17 +220,38 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
     let parsed;
     try {
       parsed = JSON.parse(aiContent);
-    } catch {
+    } catch (parseError) {
+      // Try extracting JSON from markdown fences
       const jsonMatch = aiContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
       if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[1]);
-      } else {
+        try { parsed = JSON.parse(jsonMatch[1]); } catch { /* fall through */ }
+      }
+      if (!parsed) {
         const objectMatch = aiContent.match(/\{[\s\S]*\}/);
         if (objectMatch) {
-          parsed = JSON.parse(objectMatch[0]);
-        } else {
-          throw new Error('Could not parse AI response');
+          try { parsed = JSON.parse(objectMatch[0]); } catch { /* fall through */ }
         }
+      }
+      // Retry once if parsing failed
+      if (!parsed) {
+        console.log('First parse failed, retrying AI call...');
+        const retryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: prompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown fences. Keep responses concise.' }],
+            temperature: 0.5,
+            response_format: { type: 'json_object' },
+          }),
+        });
+        if (!retryResponse.ok) throw new Error(`Retry AI API error: ${retryResponse.status}`);
+        const retryData = await retryResponse.json();
+        const retryContent = retryData.choices?.[0]?.message?.content || '{}';
+        parsed = JSON.parse(retryContent);
       }
     }
 
