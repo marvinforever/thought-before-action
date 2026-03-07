@@ -75,6 +75,30 @@ export function IGPDocument({ profileId, employeeName, variant = "button", menuA
     }
   };
 
+  const handleDownloadJson = async () => {
+    setLoading(true);
+    try {
+      toast({ title: "Generating Growth Plan Data", description: `Fetching data for ${employeeName}...` });
+      const igpData = data || await fetchData();
+      if (!data) setData(igpData);
+      const jsonStr = JSON.stringify(igpData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `IGP-${employeeName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Data Downloaded", description: `Raw IGP data for ${employeeName} saved as JSON.` });
+      onComplete?.();
+    } catch (error: any) {
+      console.error("Error downloading IGP data:", error);
+      toast({ title: "Failed to download data", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Full-screen viewer
   if (showViewer && data) {
     const topPriorityNames = new Set(
