@@ -199,6 +199,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
+        response_format: { type: 'json_object' },
       }),
     });
 
