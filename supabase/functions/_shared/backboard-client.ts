@@ -24,7 +24,6 @@ interface BackboardResponse {
 export class BackboardClient {
   private apiKey: string;
   private maxRetries: number;
-  private workingBaseUrl: string | null = null;
 
   constructor(apiKey: string, maxRetries: number = 3) {
     this.apiKey = apiKey;
