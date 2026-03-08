@@ -121,14 +121,10 @@ export class BackboardClient {
       modelName?: string;
     } = {}
   ): Promise<Response> {
-    // Use working URL if known, otherwise try primary URL
-    const baseUrl = this.workingBaseUrl || BACKBOARD_API_URLS[0];
-    
-    const response = await fetch(`${baseUrl}/threads/${threadId}/messages`, {
+    const response = await fetch(`${JERICHO_WEBHOOK_URL}/threads/${threadId}/messages`, {
       method: 'POST',
       headers: {
-        'X-API-Key': this.apiKey,
-        'Authorization': `Bearer ${this.apiKey}`,
+        'Authorization': JERICHO_WEBHOOK_AUTH,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -141,7 +137,7 @@ export class BackboardClient {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Backboard API error: ${response.status} - ${error}`);
+      throw new Error(`Jericho webhook error: ${response.status} - ${error}`);
     }
 
     return response;
