@@ -1,12 +1,8 @@
 // Backboard.io client for persistent memory
 
-// Updated endpoint based on SDK docs - they use /api/ path on app.backboard.io
-// Trying multiple URL patterns based on their documentation
-const BACKBOARD_API_URLS = [
-  'https://app.backboard.io/api',          // Primary - from SDK/changelog examples
-  'https://app.backboard.io/api/v1',       // Alternate versioned path
-  'https://backboard.io/api',              // Root domain
-];
+// Jericho webhook endpoint
+const JERICHO_WEBHOOK_URL = 'https://vista-fraser-chargers-subscribers.trycloudflare.com/hooks/agent';
+const JERICHO_WEBHOOK_AUTH = 'Bearer jericho-web-integration-2026';
 
 interface BackboardThread {
   thread_id: string;
