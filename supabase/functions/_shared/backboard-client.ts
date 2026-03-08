@@ -32,55 +32,31 @@ export class BackboardClient {
   }
 
   private async request(endpoint: string, options: RequestInit = {}, retries = 0): Promise<any> {
-    // If we already found a working URL, use it
-    const urlsToTry = this.workingBaseUrl 
-      ? [this.workingBaseUrl] 
-      : BACKBOARD_API_URLS;
-    
-    let lastError: Error | null = null;
-    
-    for (const baseUrl of urlsToTry) {
-      try {
-        console.log(`Trying Backboard: ${baseUrl}${endpoint}`);
-        const response = await fetch(`${baseUrl}${endpoint}`, {
-          ...options,
-          headers: {
-            // Try both auth header formats - Backboard docs show X-API-Key
-            'X-API-Key': this.apiKey,
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-            ...options.headers,
-          },
-        });
+    try {
+      console.log(`Calling Jericho webhook: ${JERICHO_WEBHOOK_URL}${endpoint}`);
+      const response = await fetch(`${JERICHO_WEBHOOK_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          'Authorization': JERICHO_WEBHOOK_AUTH,
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
 
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`Backboard API error: ${response.status} - ${error}`);
-        }
-
-        // Remember the working URL for future requests
-        if (!this.workingBaseUrl) {
-          this.workingBaseUrl = baseUrl;
-          console.log(`Backboard API connected via: ${baseUrl}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        lastError = error as Error;
-        console.warn(`Backboard request to ${baseUrl} failed:`, (error as Error).message);
-        // Continue to try next URL
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Jericho webhook error: ${response.status} - ${error}`);
       }
+
+      return response.json();
+    } catch (error) {
+      if (retries < this.maxRetries) {
+        console.warn(`Jericho webhook request failed (attempt ${retries + 1}/${this.maxRetries}), retrying...`, (error as Error).message);
+        await new Promise(r => setTimeout(r, 1000 * (retries + 1)));
+        return this.request(endpoint, options, retries + 1);
+      }
+      throw error;
     }
-    
-    // All URLs failed - retry with exponential backoff
-    if (retries < this.maxRetries) {
-      console.warn(`All Backboard URLs failed (attempt ${retries + 1}/${this.maxRetries}), retrying...`);
-      this.workingBaseUrl = null; // Reset to try all URLs again
-      await new Promise(r => setTimeout(r, 1000 * (retries + 1)));
-      return this.request(endpoint, options, retries + 1);
-    }
-    
-    throw lastError;
   }
 
   async createAssistant(name: string, systemPrompt: string, tools?: any[]): Promise<{ assistant_id: string }> {
