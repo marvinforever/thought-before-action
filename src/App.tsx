@@ -11,6 +11,10 @@ import { AuthHashRedirect } from "@/components/AuthHashRedirect";
 import { BuildStamp } from "@/components/BuildStamp";
 import { GlobalErrorHandler } from "@/components/GlobalErrorHandler";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { initPostHog } from "@/lib/posthog";
+
+// Initialize PostHog analytics on app load
+initPostHog();
 
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";

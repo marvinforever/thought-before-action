@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { trackEvent } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +96,7 @@ export default function AIReadinessReport() {
   useEffect(() => {
     loadAssessment();
     checkAuth();
+    trackEvent('report_viewed', {});
   }, [shareToken]);
 
   const checkAuth = async () => {
@@ -717,10 +719,10 @@ export default function AIReadinessReport() {
                 <div className="flex flex-wrap justify-center gap-4">
                   {isUnlocked ? (
                     <>
-                      <Button size="lg" variant="secondary">
+                      <Button size="lg" variant="secondary" onClick={() => trackEvent('try_cta_clicked', { source: 'report' })}>
                         Book a Demo
                       </Button>
-                      <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10">
+                      <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10" onClick={() => trackEvent('try_cta_clicked', { source: 'report' })}>
                         Start Free Trial
                       </Button>
                     </>

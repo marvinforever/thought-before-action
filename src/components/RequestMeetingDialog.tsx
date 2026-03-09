@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/posthog";
 
 interface RequestMeetingDialogProps {
   open: boolean;
@@ -138,6 +139,7 @@ export function RequestMeetingDialog({ open, onOpenChange, onSuccess }: RequestM
         title: "Meeting Requested",
         description: `Your request has been sent to ${selectedPerson?.name || "them"}.`
       });
+      trackEvent('meeting_booked', {});
 
       // Reset form
       setTopic("");

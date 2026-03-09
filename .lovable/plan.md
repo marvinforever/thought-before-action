@@ -1,59 +1,74 @@
+# Upgrade Telegram Bot to Full Jericho Intelligence
 
+## Status: ✅ IMPLEMENTED
 
-# PostHog Analytics Integration
+### 1. Database Migration ✅
+- Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
+- Added index on `telegram_update_id` for duplicate detection
+- Added index on `(user_id, created_at DESC)` for fast conversation history
 
-## Overview
-Install PostHog client-side SDK, initialize it globally, and fire custom events at key moments across the diagnostic funnel, /try coaching page, and conversion points. Also create 3 A/B feature flags client-side with localStorage persistence.
+### 2. Sales Coach Auth Bypass ✅
+- Added 8-line internal service call detection in `sales-coach/index.ts` (after auth block)
+- When token matches service role key and `viewAsUserId` is provided, trusts the IDs directly
 
-## Technical Plan
+### 3. AI Router ✅
+- Added `'telegram-chat'` task type routed to `'gemini-pro'`
 
-### 1. Install PostHog SDK
-- Add `posthog-js` npm package
+### 4. Telegram Webhook Rewrite ✅
+- **Sales-coach proxy**: All sales/general/unclear messages route through sales-coach via internal fetch
+- **Growth path**: Growth/capabilities/training/sprint queries use Gemini Pro via ai-router
+- **Kudos shortcut**: Direct DB insert into recognitions table
+- **Conversation history**: Last 10 messages within 24hrs by user_id
+- **Edit-message UX**: "Thinking..." replaced via editMessageText
+- **Duplicate prevention**: update_id checked before processing
+- **Manager context**: Loads team data for manager users
+- **Error handling**: 45s timeout, graceful fallbacks, all paths return 200
+- **Response formatting**: Strips unsupported markdown, appends action confirmations, truncates at 4000 chars
 
-### 2. Secret: PostHog API Key
-- The PostHog project API key is a **publishable** client-side key (like Stripe's publishable key) — safe to store in code
-- Add it as a constant in a new `src/lib/posthog.ts` init file
-- User will need to provide the API key after creating their PostHog account
+---
 
-### 3. Create `src/lib/posthog.ts` — Init + Helper
-- Initialize `posthog.init(apiKey, { api_host })` 
-- Export typed helper: `trackEvent(name, properties)`
-- Export A/B flag helper that reads/sets localStorage variants
+# Multi-Channel Daily Brief Delivery (Telegram + SMS)
 
-### 4. Load PostHog globally in `src/App.tsx`
-- Import and call init from `src/lib/posthog.ts` at module level (runs once on app load)
+## Status: ✅ IMPLEMENTED
 
-### 5. A/B Feature Flags (localStorage-based)
-In `src/lib/posthog.ts`:
-- On init, check localStorage for `ph_landing_headline_variant`, `ph_cta_copy_variant`, `ph_try_opening_variant`
-- If not set, randomly assign A/B/C and persist
-- Export `getVariant(flagName)` helper
-- Register variants as PostHog person properties via `posthog.register()`
+### What was done
 
-### 6. Fire Custom Events — File Changes
+#### 1. Database Migration ✅
+- Added `delivery_channels` (jsonb, default `{"email": true, "telegram": false, "sms": false}`) to `email_preferences`
+- Added `channel` (text, default `'email'`) to `email_deliveries`
 
-| Event | File | Trigger |
-|-------|------|---------|
-| `landing_page_viewed` | `AIReadinessLanding.tsx` | useEffect on mount, read utm_source from URL params |
-| `diagnostic_started` | `AIReadinessLanding.tsx` | When user clicks Start |
-| `diagnostic_phase_completed` | `AIReadinessLanding.tsx` | After each phase transition |
-| `diagnostic_abandoned` | `AIReadinessLanding.tsx` | beforeunload listener + cleanup |
-| `diagnostic_completed` | `AIReadinessLanding.tsx` | Final phase completion |
-| `report_viewed` | `AIReadinessReport.tsx` | useEffect on mount |
-| `try_cta_clicked` | `AIReadinessReport.tsx` | CTA click handler |
-| `coaching_conversation_started` | `TryJericho.tsx` | When handleStart fires |
-| `buying_signal_expressed` | `TryJericho.tsx` | Detect pricing/team keywords in user messages |
-| `meeting_booked` | Where meeting booking occurs (likely `RequestMeetingDialog.tsx`) | On successful booking |
+#### 2. Shared Content Generator ✅
+- Created `supabase/functions/_shared/daily-brief-content.ts`
+- Exports `gatherUserContext()` — parallel DB queries for habits, goals, capabilities, tasks, streaks, vision
+- Exports `generateBriefContent()` — AI-powered brief in `html`, `markdown`, or `plain` format
+- Returns `{ subject, body, shortSummary }` where shortSummary is ~160 chars for SMS
 
-### 7. Files Modified
-- `index.html` — no changes needed (SDK loaded via JS import)
-- `src/lib/posthog.ts` — **new file**
-- `src/App.tsx` — import posthog init
-- `src/pages/AIReadinessLanding.tsx` — 5 events
-- `src/pages/AIReadinessReport.tsx` — 2 events
-- `src/pages/TryJericho.tsx` — 2-3 events
-- `src/components/RequestMeetingDialog.tsx` — meeting_booked event
+#### 3. Telegram Delivery Function ✅
+- Created `supabase/functions/send-daily-brief-telegram/index.ts`
+- Looks up `telegram_links.telegram_chat_id`
+- Sends Markdown-formatted brief with inline keyboard buttons
+- Automatic plain text fallback on Markdown parse errors
+- Logs delivery with `channel = 'telegram'`
 
-### Prerequisites
-- User needs to create a PostHog account and provide the project API key + API host URL before implementation
+#### 4. SMS Delivery Function ✅
+- Created `supabase/functions/send-daily-brief-sms/index.ts`
+- Checks `sms_opted_in` and phone number on profile
+- Sends `shortSummary` via existing `send-sms` function (Twilio)
+- Logs delivery with `channel = 'sms'`
 
+#### 5. Orchestrator Updated ✅
+- `process-daily-brief-queue` now reads `delivery_channels` from `email_preferences`
+- Dispatches to email, telegram, and/or SMS based on user preferences
+- Each channel handled independently with error isolation
+
+#### 6. Settings UI Updated ✅
+- Added Delivery Channels section under Daily Brief Email card
+- Three toggles: Email, Telegram, SMS
+- Telegram toggle disabled if no `telegram_links` record
+- SMS toggle disabled if user hasn't opted in with a phone number
+- Both check real DB state on load
+
+### Future enhancements
+- OpenClaw Jericho agent orchestration via `agent_tasks` table
+- Per-channel delivery time preferences
+- Brief content caching to avoid regenerating for multiple channels

@@ -5,6 +5,7 @@ import { MessageSquare, Send, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent, detectBuyingSignal, getVariant } from "@/lib/posthog";
 
 type Message = {
   id: string;
@@ -88,6 +89,7 @@ export default function TryJericho() {
   const handleStart = async () => {
     setStarted(true);
     setState("ask_name");
+    trackEvent('coaching_conversation_started', { variant: getVariant('try_opening_variant') });
     setTimeout(() => inputRef.current?.focus(), 400);
     await addJerichoMsg("Hey! I'm Jericho. What's your name?", 600);
   };
@@ -95,6 +97,12 @@ export default function TryJericho() {
   const handleSend = async () => {
     const value = input.trim();
     if (!value || isTyping) return;
+
+    // Detect buying signals in user messages
+    const signal = detectBuyingSignal(value);
+    if (signal) {
+      trackEvent('buying_signal_expressed', { signal_type: signal });
+    }
 
     setMessages((prev) => [...prev, { id: generateId(), role: "user", text: value }]);
     setInput("");

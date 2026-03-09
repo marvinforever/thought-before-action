@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { trackEvent, getVariant } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -100,6 +101,27 @@ export default function AIReadinessLanding() {
   const utmMedium = searchParams.get('utm_medium') || '';
   const utmCampaign = searchParams.get('utm_campaign') || '';
   const referralCode = searchParams.get('ref') || '';
+
+  // Track diagnostic start time for completion_time calculation
+  const diagnosticStartRef = useRef<number | null>(null);
+  const highestPhaseRef = useRef(1);
+
+  // PostHog: Track landing page view on mount
+  useEffect(() => {
+    trackEvent('landing_page_viewed', {
+      source: utmSource,
+      variant: getVariant('landing_headline_variant'),
+    });
+
+    // Track abandonment on page leave
+    const handleBeforeUnload = () => {
+      if (step > 1 && step < 3) {
+        trackEvent('diagnostic_abandoned', { last_phase: highestPhaseRef.current });
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addJobDescription = () => {
     if (jobDescriptions.length < 5) {
@@ -237,6 +259,7 @@ export default function AIReadinessLanding() {
     }
 
     setIsAnalyzing(true);
+    trackEvent('diagnostic_phase_completed', { phase: 3 });
 
     try {
       const allTools = otherTool 
@@ -267,6 +290,10 @@ export default function AIReadinessLanding() {
       if (error) throw error;
 
       if (data?.shareToken) {
+        const completionMinutes = diagnosticStartRef.current
+          ? Math.round((Date.now() - diagnosticStartRef.current) / 60000)
+          : null;
+        trackEvent('diagnostic_completed', { completion_time_minutes: completionMinutes });
         navigate(`/ai-readiness/report/${data.shareToken}`);
       } else {
         throw new Error("No share token returned");
@@ -613,7 +640,13 @@ export default function AIReadinessLanding() {
 
                     <div className="flex justify-end pt-4">
                       <Button
-                        onClick={() => setStep(2)}
+                        onClick={() => {
+                          if (!diagnosticStartRef.current) diagnosticStartRef.current = Date.now();
+                          trackEvent('diagnostic_started', { source: utmSource });
+                          trackEvent('diagnostic_phase_completed', { phase: 1 });
+                          highestPhaseRef.current = 1;
+                          setStep(2);
+                        }}
                         disabled={!canProceedStep1}
                         size="lg"
                         className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold px-8"
@@ -772,7 +805,11 @@ export default function AIReadinessLanding() {
                         Back
                       </Button>
                       <Button 
-                        onClick={() => setStep(3)} 
+                        onClick={() => {
+                          trackEvent('diagnostic_phase_completed', { phase: 2 });
+                          highestPhaseRef.current = 2;
+                          setStep(3);
+                        }}
                         size="lg"
                         className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold px-8"
                       >
