@@ -204,8 +204,11 @@ export default function MyGrowthPlan() {
         </div>
       </div>
 
-      {/* Welcome Modal for incomplete onboarding */}
-      <WelcomeModal onStartChat={handleOpenJericho} />
+      {/* Conversational Onboarding for new users */}
+      <ConversationalOnboarding onComplete={() => {
+        setOnboardingProgressKey((v) => v + 1);
+        setPodcastRefreshKey(prev => prev + 1);
+      }} />
 
       {/* Phased Onboarding */}
       <PhasedOnboarding
