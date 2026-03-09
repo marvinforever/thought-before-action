@@ -20,7 +20,7 @@ import { BadgeShowcase } from "@/components/BadgeShowcase";
 import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
 import { CompanyLeaderboard } from "@/components/CompanyLeaderboard";
 import { DailyPodcastPlayer } from "@/components/DailyPodcastPlayer";
-import { WelcomeModal } from "@/components/WelcomeModal";
+import { ConversationalOnboarding } from "@/components/ConversationalOnboarding";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
