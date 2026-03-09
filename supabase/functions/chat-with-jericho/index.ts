@@ -291,6 +291,12 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         .eq('profile_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false }),
+      // User active context (onboarding answers, sprint focus, etc.)
+      supabase
+        .from('user_active_context')
+        .select('onboarding_data, onboarding_complete, current_sprint_focus, emotional_state, hot_customers')
+        .eq('profile_id', user.id)
+        .maybeSingle(),
     ]);
 
     // ==================== HISTORICAL GOAL INTELLIGENCE ====================
