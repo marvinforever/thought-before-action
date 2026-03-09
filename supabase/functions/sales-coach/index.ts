@@ -816,7 +816,7 @@ async function gatherContext(
   const { data: userProfile } = await client.from("profiles").select("industry").eq("id", userId).maybeSingle();
   context.industry = userProfile?.industry || null;
 
-  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult] = await withTimeout(
+  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult, contactsResult] = await withTimeout(
     Promise.all([
       client.from("sales_deals").select(`id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at, sales_companies(id, name), sales_contacts(id, name, title)`).eq("profile_id", userId).order("priority").limit(50),
       client.from("sales_companies").select("id, name").eq("profile_id", userId).order("name").limit(500),
@@ -824,6 +824,7 @@ async function gatherContext(
       companyId
         ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
         : Promise.resolve({ data: [] }),
+      client.from("sales_contacts").select("id, name, title, pipeline_stage, last_purchase_date, sales_companies(name)").eq("profile_id", userId).order("name").limit(200),
     ]),
     10_000,
     "gatherContext:base-queries"
@@ -832,6 +833,7 @@ async function gatherContext(
   context.deals = dealsResult.data || [];
   context.existingCompanies = companiesResult.data || [];
   context.salesKnowledge = [...(globalKnowledgeResult.data || []), ...(companyKnowledgeResult.data || [])];
+  context.contacts = contactsResult.data || [];
 
   if (extracted.companies.length > 0) {
     const companyName = extracted.companies[0].name;
