@@ -687,6 +687,20 @@ Consider naturally checking in on these topics during the conversation!
 ` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+${userContext.onboarding_context ? `
+🎯 ONBOARDING INSIGHTS (from their initial conversation with you):
+${userContext.onboarding_context.engagement_score ? `- Engagement: ${userContext.onboarding_context.engagement_score}/10` : ''}
+${userContext.onboarding_context.career_growth_score ? `- Career Growth Satisfaction: ${userContext.onboarding_context.career_growth_score}/10` : ''}
+${userContext.onboarding_context.role_clarity_score ? `- Role Clarity: ${userContext.onboarding_context.role_clarity_score}/10` : ''}
+${userContext.onboarding_context.vision_great_year ? `- What makes a great year: ${userContext.onboarding_context.vision_great_year}` : ''}
+${userContext.onboarding_context.natural_strengths ? `- Natural strengths: ${userContext.onboarding_context.natural_strengths}` : ''}
+${userContext.onboarding_context.hardest_part ? `- Hardest part of job: ${userContext.onboarding_context.hardest_part}` : ''}
+${userContext.onboarding_context.obstacles ? `- Obstacles: ${userContext.onboarding_context.obstacles}` : ''}
+${userContext.onboarding_context.proudest_accomplishment ? `- Proudest accomplishment: ${userContext.onboarding_context.proudest_accomplishment}` : ''}
+${userContext.onboarding_context.learning_formats ? `- Learning preference: ${userContext.onboarding_context.learning_formats}` : ''}
+${userContext.onboarding_context.time_available ? `- Weekly development time: ${userContext.onboarding_context.time_available}` : ''}
+Use these insights to personalize coaching. Reference their strengths, obstacles, and goals naturally.
+` : ''}
 
 USER'S CURRENT GROWTH PLAN DATA:
 ${JSON.stringify(userContext, null, 2)}
