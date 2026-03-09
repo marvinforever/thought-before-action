@@ -125,7 +125,13 @@ export function levelToNumber(level: string | null | undefined): number {
 
 export function formatLevel(level: string | null | undefined): string {
   if (!level) return "Not Assessed";
-  return level.charAt(0).toUpperCase() + level.slice(1);
+  const map: Record<string, string> = {
+    foundational: "Level 1",
+    advancing: "Level 2",
+    independent: "Level 3",
+    mastery: "Level 4",
+  };
+  return map[level.toLowerCase()] || "Level 1";
 }
 
 export function getGap(current: string, target: string): number {

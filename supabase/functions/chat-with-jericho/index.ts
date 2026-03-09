@@ -32,7 +32,7 @@ Available Platform Resources & Tools:
 - **Performance Management**: Schedule and conduct structured performance reviews with AI-generated drafts
 - **1-on-1 Meetings**: Regular manager-employee check-ins with documented wins, concerns, and action items
 - **90-Day Goal Setting**: Help employees set and track quarterly SMART goals in career, skills, and leadership categories
-- **Capability Framework**: Define and track skill progression across foundational, intermediate, advanced, and expert levels
+- **Capability Framework**: Define and track skill progression across Level 1, Level 2, Level 3, and Level 4. Always refer to levels by number (e.g. "Level 2") not by name (e.g. never say "Advancing")
 - **Learning Resources**: Curated books, videos, and courses mapped to specific capabilities
 - **Recognition System**: Peer and manager recognition to boost engagement
 - **Diagnostic Assessments**: Regular pulse surveys to track employee sentiment and identify risks

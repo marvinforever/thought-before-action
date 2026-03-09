@@ -30,10 +30,10 @@ interface CreateCapabilityDialogProps {
 }
 
 const LEVEL_LABELS = {
-  foundational: "Foundational (Awareness)",
-  advancing: "Advancing (Working Knowledge)",
-  independent: "Independent (Skill)",
-  mastery: "Mastery"
+  foundational: "Level 1 · Foundational",
+  advancing: "Level 2 · Advancing",
+  independent: "Level 3 · Independent",
+  mastery: "Level 4 · Mastery"
 };
 
 const LEVEL_DESCRIPTIONS = {
