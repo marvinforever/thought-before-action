@@ -800,7 +800,11 @@ export default function AIReadinessLanding() {
                         Back
                       </Button>
                       <Button 
-                        onClick={() => setStep(3)} 
+                        onClick={() => {
+                          trackEvent('diagnostic_phase_completed', { phase: 2 });
+                          highestPhaseRef.current = 2;
+                          setStep(3);
+                        }}
                         size="lg"
                         className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold px-8"
                       >
