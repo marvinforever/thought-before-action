@@ -520,6 +520,14 @@ export function SalesAgentHeader({
           onOpenChange={setShowDevRequestsAdmin}
         />
       )}
+
+      {/* CSV Contact Import */}
+      <ContactCSVImport
+        open={showCSVImport}
+        onOpenChange={setShowCSVImport}
+        userId={viewAsUserId || user?.id}
+        onImportComplete={onDealsRefresh}
+      />
     </>
   );
 }
