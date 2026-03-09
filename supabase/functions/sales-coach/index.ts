@@ -816,7 +816,7 @@ async function gatherContext(
   const { data: userProfile } = await client.from("profiles").select("industry").eq("id", userId).maybeSingle();
   context.industry = userProfile?.industry || null;
 
-  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult] = await withTimeout(
+  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult, contactsResult] = await withTimeout(
     Promise.all([
       client.from("sales_deals").select(`id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at, sales_companies(id, name), sales_contacts(id, name, title)`).eq("profile_id", userId).order("priority").limit(50),
       client.from("sales_companies").select("id, name").eq("profile_id", userId).order("name").limit(500),
@@ -824,6 +824,7 @@ async function gatherContext(
       companyId
         ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
         : Promise.resolve({ data: [] }),
+      client.from("sales_contacts").select("id, name, title, pipeline_stage, last_purchase_date, sales_companies(name)").eq("profile_id", userId).order("name").limit(200),
     ]),
     10_000,
     "gatherContext:base-queries"
@@ -832,6 +833,7 @@ async function gatherContext(
   context.deals = dealsResult.data || [];
   context.existingCompanies = companiesResult.data || [];
   context.salesKnowledge = [...(globalKnowledgeResult.data || []), ...(companyKnowledgeResult.data || [])];
+  context.contacts = contactsResult.data || [];
 
   if (extracted.companies.length > 0) {
     const companyName = extracted.companies[0].name;
@@ -1228,6 +1230,30 @@ async function generateResponse(
   // methodologyReference removed — replaced by SALES_INTELLIGENCE_FRAMEWORK
   const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nIMPORTANT: You HAVE year-by-year revenue data above. You CAN break down revenue by year, compare years, show top customers per year, etc. NEVER say "I only have all-time data" or "I can't break it down by year" — the year data IS provided above. Use it. NEVER say "check your CRM" when this data is available.` : "";
 
+  // Build contacts context for the AI
+  let contactsContext = "";
+  const contactsList = context.contacts || [];
+  if (contactsList.length > 0) {
+    const byStage: Record<string, any[]> = { prospect: [], active: [], at_risk: [], won: [] };
+    for (const c of contactsList) {
+      const stage = c.pipeline_stage || "prospect";
+      if (byStage[stage]) byStage[stage].push(c);
+      else byStage.prospect.push(c);
+    }
+    contactsContext = `\n## YOUR CONTACTS (${contactsList.length} total):`;
+    for (const [stage, contacts] of Object.entries(byStage)) {
+      if (contacts.length === 0) continue;
+      const stageLabel = stage === "at_risk" ? "At-Risk" : stage.charAt(0).toUpperCase() + stage.slice(1);
+      contactsContext += `\n${stageLabel} (${contacts.length}): ${contacts.slice(0, 15).map((c: any) => `${c.name}${c.sales_companies?.name ? ` @ ${c.sales_companies.name}` : ""}`).join(", ")}`;
+      if (contacts.length > 15) contactsContext += `, +${contacts.length - 15} more`;
+    }
+    if (byStage.at_risk.length > 0) {
+      contactsContext += `\n⚠️ AT-RISK ACCOUNTS: ${byStage.at_risk.map((c: any) => c.name).join(", ")} — proactively suggest follow-up actions for these.`;
+    }
+  } else {
+    contactsContext = "\n## CONTACTS: No contacts loaded yet. If this is a new user, suggest importing their customer list: 'Want to load your customer list? Takes 2 minutes — open Pipeline → Contacts → Import CSV.'";
+  }
+
   const formattingRules = `
 ## RESPONSE FORMATTING RULES (ALWAYS follow these):
 - When listing customers/accounts, use numbered lists: "1. **Customer Name** — $Amount (X%)"
@@ -1254,6 +1280,7 @@ ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}
 ${repDataBlock}
+${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
 ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.purchaseHistorySummary}` : ""}
@@ -1273,6 +1300,7 @@ AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actio
 ${focusInstruction}
 ${knowledgeContext}
 ${repDataBlock}
+${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
 ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.purchaseHistorySummary}` : ""}

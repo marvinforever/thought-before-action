@@ -5865,9 +5865,11 @@ export type Database = {
           id: string
           is_decision_maker: boolean | null
           is_primary: boolean | null
+          last_purchase_date: string | null
           name: string
           notes: string | null
           phone: string | null
+          pipeline_stage: string
           profile_id: string
           title: string | null
           updated_at: string
@@ -5879,9 +5881,11 @@ export type Database = {
           id?: string
           is_decision_maker?: boolean | null
           is_primary?: boolean | null
+          last_purchase_date?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          pipeline_stage?: string
           profile_id: string
           title?: string | null
           updated_at?: string
@@ -5893,9 +5897,11 @@ export type Database = {
           id?: string
           is_decision_maker?: boolean | null
           is_primary?: boolean | null
+          last_purchase_date?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          pipeline_stage?: string
           profile_id?: string
           title?: string | null
           updated_at?: string
