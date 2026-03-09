@@ -204,7 +204,7 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     // Fetch user context for Jericho (including onboarding data and coaching memory)
     // Fetch ALL historical targets for pattern analysis (no limit)
     // Also fetch company knowledge base for HR/policy questions
-    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData, coachingInsightsData, allConversationSummariesData, pendingFollowUpsData, companyKnowledgeData, projectTasksData, userProjectsData] = await Promise.all([
+    const [capabilitiesData, goalsData, allTargetsData, diagnosticData, achievementsData, greatnessKeysData, habitsData, onboardingData, coachingInsightsData, allConversationSummariesData, pendingFollowUpsData, companyKnowledgeData, projectTasksData, userProjectsData, activeContextData] = await Promise.all([
       supabase
         .from('employee_capabilities')
         .select('*, capabilities(name, description, category)')
