@@ -719,10 +719,10 @@ export default function AIReadinessReport() {
                 <div className="flex flex-wrap justify-center gap-4">
                   {isUnlocked ? (
                     <>
-                      <Button size="lg" variant="secondary">
+                      <Button size="lg" variant="secondary" onClick={() => trackEvent('try_cta_clicked', { source: 'report' })}>
                         Book a Demo
                       </Button>
-                      <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10">
+                      <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10" onClick={() => trackEvent('try_cta_clicked', { source: 'report' })}>
                         Start Free Trial
                       </Button>
                     </>
