@@ -89,6 +89,7 @@ export default function TryJericho() {
   const handleStart = async () => {
     setStarted(true);
     setState("ask_name");
+    trackEvent('coaching_conversation_started', { variant: getVariant('try_opening_variant') });
     setTimeout(() => inputRef.current?.focus(), 400);
     await addJerichoMsg("Hey! I'm Jericho. What's your name?", 600);
   };
