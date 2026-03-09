@@ -635,7 +635,13 @@ export default function AIReadinessLanding() {
 
                     <div className="flex justify-end pt-4">
                       <Button
-                        onClick={() => setStep(2)}
+                        onClick={() => {
+                          if (!diagnosticStartRef.current) diagnosticStartRef.current = Date.now();
+                          trackEvent('diagnostic_started', { source: utmSource });
+                          trackEvent('diagnostic_phase_completed', { phase: 1 });
+                          highestPhaseRef.current = 1;
+                          setStep(2);
+                        }}
                         disabled={!canProceedStep1}
                         size="lg"
                         className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold px-8"
