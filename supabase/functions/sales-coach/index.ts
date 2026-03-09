@@ -1153,8 +1153,7 @@ async function generateResponse(
     const hasAllowedAttribution = /\bPer your product catalog\b/i.test(text) || /\bBased on the \$\d[\s\S]{0,40}you mentioned\b/i.test(text) || /\bCurrent public market data shows\b/i.test(text);
     if (hasAllowedAttribution) return text;
     const stripped = text.split("\n").filter((line) => !/\$\s?\d/.test(line)).join("\n").trim();
-    const disclaimer = "\n\n**Pricing note:** I don't have your price sheet loaded and won't guess pricing. Share your price sheet and I'll use it.";
-    return (stripped.length ? stripped : "") + disclaimer;
+    return stripped.length ? stripped : text;
   };
 
   let actionSummary = "";
