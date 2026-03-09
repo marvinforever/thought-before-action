@@ -5,6 +5,7 @@ import { MessageSquare, Send, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent, detectBuyingSignal, getVariant } from "@/lib/posthog";
 
 type Message = {
   id: string;
