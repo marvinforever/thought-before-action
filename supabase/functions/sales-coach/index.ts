@@ -1230,6 +1230,30 @@ async function generateResponse(
   // methodologyReference removed — replaced by SALES_INTELLIGENCE_FRAMEWORK
   const repDataBlock = context.repDataSummary ? `\n## YOUR SALES DATA (from imported purchase history):\n${context.repDataSummary}\nIMPORTANT: You HAVE year-by-year revenue data above. You CAN break down revenue by year, compare years, show top customers per year, etc. NEVER say "I only have all-time data" or "I can't break it down by year" — the year data IS provided above. Use it. NEVER say "check your CRM" when this data is available.` : "";
 
+  // Build contacts context for the AI
+  let contactsContext = "";
+  const contactsList = context.contacts || [];
+  if (contactsList.length > 0) {
+    const byStage: Record<string, any[]> = { prospect: [], active: [], at_risk: [], won: [] };
+    for (const c of contactsList) {
+      const stage = c.pipeline_stage || "prospect";
+      if (byStage[stage]) byStage[stage].push(c);
+      else byStage.prospect.push(c);
+    }
+    contactsContext = `\n## YOUR CONTACTS (${contactsList.length} total):`;
+    for (const [stage, contacts] of Object.entries(byStage)) {
+      if (contacts.length === 0) continue;
+      const stageLabel = stage === "at_risk" ? "At-Risk" : stage.charAt(0).toUpperCase() + stage.slice(1);
+      contactsContext += `\n${stageLabel} (${contacts.length}): ${contacts.slice(0, 15).map((c: any) => `${c.name}${c.sales_companies?.name ? ` @ ${c.sales_companies.name}` : ""}`).join(", ")}`;
+      if (contacts.length > 15) contactsContext += `, +${contacts.length - 15} more`;
+    }
+    if (byStage.at_risk.length > 0) {
+      contactsContext += `\n⚠️ AT-RISK ACCOUNTS: ${byStage.at_risk.map((c: any) => c.name).join(", ")} — proactively suggest follow-up actions for these.`;
+    }
+  } else {
+    contactsContext = "\n## CONTACTS: No contacts loaded yet. If this is a new user, suggest importing their customer list: 'Want to load your customer list? Takes 2 minutes — open Pipeline → Contacts → Import CSV.'";
+  }
+
   const formattingRules = `
 ## RESPONSE FORMATTING RULES (ALWAYS follow these):
 - When listing customers/accounts, use numbered lists: "1. **Customer Name** — $Amount (X%)"
