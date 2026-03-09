@@ -98,6 +98,12 @@ export default function TryJericho() {
     const value = input.trim();
     if (!value || isTyping) return;
 
+    // Detect buying signals in user messages
+    const signal = detectBuyingSignal(value);
+    if (signal) {
+      trackEvent('buying_signal_expressed', { signal_type: signal });
+    }
+
     setMessages((prev) => [...prev, { id: generateId(), role: "user", text: value }]);
     setInput("");
 

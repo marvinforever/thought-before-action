@@ -290,6 +290,10 @@ export default function AIReadinessLanding() {
       if (error) throw error;
 
       if (data?.shareToken) {
+        const completionMinutes = diagnosticStartRef.current
+          ? Math.round((Date.now() - diagnosticStartRef.current) / 60000)
+          : null;
+        trackEvent('diagnostic_completed', { completion_time_minutes: completionMinutes });
         navigate(`/ai-readiness/report/${data.shareToken}`);
       } else {
         throw new Error("No share token returned");

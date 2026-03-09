@@ -96,6 +96,7 @@ export default function AIReadinessReport() {
   useEffect(() => {
     loadAssessment();
     checkAuth();
+    trackEvent('report_viewed', {});
   }, [shareToken]);
 
   const checkAuth = async () => {
