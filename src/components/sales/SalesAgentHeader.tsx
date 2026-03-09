@@ -34,6 +34,8 @@ import { PipelineView } from "./PipelineView";
 import { DealsTable } from "./DealsTable";
 import { CompaniesManager } from "./CompaniesManager";
 import { ContactsManager } from "./ContactsManager";
+import { ContactPipelineView } from "./ContactPipelineView";
+import { ContactCSVImport } from "./ContactCSVImport";
 import { SalesKnowledgePodcasts } from "./SalesKnowledgePodcasts";
 import { SalesKnowledgeManager } from "./SalesKnowledgeManager";
 import { AddDealDialog } from "./AddDealDialog";
