@@ -566,6 +566,14 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
         due_date: t.due_date,
         project: t.user_projects?.title,
       })),
+      // Onboarding context from conversational onboarding
+      onboarding_context: activeContextData.data ? {
+        completed: (activeContextData.data as any).onboarding_complete,
+        sprint_focus: (activeContextData.data as any).current_sprint_focus,
+        emotional_state: (activeContextData.data as any).emotional_state,
+        hot_customers: (activeContextData.data as any).hot_customers,
+        ...(((activeContextData.data as any).onboarding_data) || {}),
+      } : null,
     };
 
     // Build system prompt
