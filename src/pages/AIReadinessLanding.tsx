@@ -102,6 +102,27 @@ export default function AIReadinessLanding() {
   const utmCampaign = searchParams.get('utm_campaign') || '';
   const referralCode = searchParams.get('ref') || '';
 
+  // Track diagnostic start time for completion_time calculation
+  const diagnosticStartRef = useRef<number | null>(null);
+  const highestPhaseRef = useRef(1);
+
+  // PostHog: Track landing page view on mount
+  useEffect(() => {
+    trackEvent('landing_page_viewed', {
+      source: utmSource,
+      variant: getVariant('landing_headline_variant'),
+    });
+
+    // Track abandonment on page leave
+    const handleBeforeUnload = () => {
+      if (step > 1 && step < 3) {
+        trackEvent('diagnostic_abandoned', { last_phase: highestPhaseRef.current });
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const addJobDescription = () => {
     if (jobDescriptions.length < 5) {
       setJobDescriptions([...jobDescriptions, { title: "", description: "" }]);
