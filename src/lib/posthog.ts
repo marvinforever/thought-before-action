@@ -1,7 +1,7 @@
 import posthog from 'posthog-js';
 
 // PostHog publishable API key — safe to store in code
-const POSTHOG_API_KEY = 'YOUR_POSTHOG_API_KEY'; // Replace with your actual PostHog project API key
+const POSTHOG_API_KEY = 'phc_y8c83PLLFVIXjda71000PKruHbWRdXcqWMYNI8tfMhB';
 const POSTHOG_HOST = 'https://us.i.posthog.com'; // or https://eu.i.posthog.com
 
 let initialized = false;
