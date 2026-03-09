@@ -1300,6 +1300,7 @@ AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actio
 ${focusInstruction}
 ${knowledgeContext}
 ${repDataBlock}
+${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}
 ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.purchaseHistorySummary}` : ""}
