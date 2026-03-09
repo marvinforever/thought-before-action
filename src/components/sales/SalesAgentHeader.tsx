@@ -115,6 +115,7 @@ export function SalesAgentHeader({
   const [showManagerDashboard, setShowManagerDashboard] = useState(false);
   const [showDevRequest, setShowDevRequest] = useState(false);
   const [showDevRequestsAdmin, setShowDevRequestsAdmin] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
   const [isManager, setIsManager] = useState(false);
 
   // Check if user has manager/admin role
