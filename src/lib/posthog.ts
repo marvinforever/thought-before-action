@@ -7,7 +7,7 @@ const POSTHOG_HOST = 'https://us.i.posthog.com'; // or https://eu.i.posthog.com
 let initialized = false;
 
 export function initPostHog() {
-  if (initialized || POSTHOG_API_KEY === 'YOUR_POSTHOG_API_KEY') return;
+  if (initialized) return;
 
   posthog.init(POSTHOG_API_KEY, {
     api_host: POSTHOG_HOST,
