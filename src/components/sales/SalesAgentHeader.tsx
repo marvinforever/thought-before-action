@@ -357,10 +357,14 @@ export function SalesAgentHeader({
                   </DialogTitle>
                 </DialogHeader>
                 <Tabs defaultValue="pipeline" className="flex-1 flex flex-col min-h-0 px-6">
-                  <TabsList className="grid grid-cols-6 w-full shrink-0">
+                  <TabsList className="grid grid-cols-7 w-full shrink-0">
                     <TabsTrigger value="pipeline" className="gap-1">
                       <Target className="h-4 w-4" />
                       <span className="hidden sm:inline">Pipeline</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="contact-pipeline" className="gap-1">
+                      <Route className="h-4 w-4" />
+                      <span className="hidden sm:inline">Contacts</span>
                     </TabsTrigger>
                     <TabsTrigger value="deals" className="gap-1">
                       <TrendingUp className="h-4 w-4" />
@@ -372,7 +376,7 @@ export function SalesAgentHeader({
                     </TabsTrigger>
                     <TabsTrigger value="contacts" className="gap-1">
                       <Users className="h-4 w-4" />
-                      <span className="hidden sm:inline">Contacts</span>
+                      <span className="hidden sm:inline">List</span>
                     </TabsTrigger>
                     <TabsTrigger value="knowledge" className="gap-1">
                       <BookOpen className="h-4 w-4" />
@@ -393,6 +397,19 @@ export function SalesAgentHeader({
                         enableFieldMaps={enableFieldMaps}
                       />
                     </TabsContent>
+                    <TabsContent value="contact-pipeline" className="mt-0">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-muted-foreground">Drag contacts between stages to update their status.</p>
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowCSVImport(true)}>
+                          <Upload className="h-4 w-4" />
+                          Import CSV
+                        </Button>
+                      </div>
+                      <ContactPipelineView 
+                        userId={viewAsUserId || user?.id}
+                        onContactsChange={onDealsRefresh}
+                      />
+                    </TabsContent>
                     <TabsContent value="deals" className="mt-0">
                       <DealsTable userId={viewAsUserId || user?.id} onDealsChange={onDealsRefresh} />
                     </TabsContent>
@@ -400,6 +417,12 @@ export function SalesAgentHeader({
                       <CompaniesManager userId={viewAsUserId || user?.id} enableFieldMaps={enableFieldMaps} />
                     </TabsContent>
                     <TabsContent value="contacts" className="mt-0">
+                      <div className="flex items-center justify-end mb-4">
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowCSVImport(true)}>
+                          <Upload className="h-4 w-4" />
+                          Import CSV
+                        </Button>
+                      </div>
                       <ContactsManager userId={viewAsUserId || user?.id} />
                     </TabsContent>
                     <TabsContent value="knowledge" className="mt-0">
