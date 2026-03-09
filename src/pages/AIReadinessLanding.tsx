@@ -259,6 +259,7 @@ export default function AIReadinessLanding() {
     }
 
     setIsAnalyzing(true);
+    trackEvent('diagnostic_phase_completed', { phase: 3 });
 
     try {
       const allTools = otherTool 
