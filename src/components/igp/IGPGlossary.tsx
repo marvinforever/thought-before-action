@@ -1,8 +1,8 @@
 const GLOSSARY = [
-  { term: "Foundational", definition: "Beginning stage — building awareness and basic understanding. Requires guidance and supervision to apply." },
-  { term: "Advancing", definition: "Developing stage — can apply with some support. Building confidence and consistency but still refining approach." },
-  { term: "Independent", definition: "Proficient stage — consistently demonstrates without supervision. Can adapt approach and mentor others." },
-  { term: "Mastery", definition: "Expert stage — recognized authority. Innovates, leads strategic initiatives, and elevates others." },
+  { term: "Level 1 · Foundational", definition: "Beginning stage — building awareness and basic understanding. Requires guidance and supervision to apply." },
+  { term: "Level 2 · Advancing", definition: "Developing stage — can apply with some support. Building confidence and consistency but still refining approach." },
+  { term: "Level 3 · Independent", definition: "Proficient stage — consistently demonstrates without supervision. Can adapt approach and mentor others." },
+  { term: "Level 4 · Mastery", definition: "Expert stage — recognized authority. Innovates, leads strategic initiatives, and elevates others." },
   { term: "Gap", definition: "Difference between current and target level. +1 = one level below target; +2 = two levels below." },
   { term: "On Target", definition: "Current level meets or exceeds target. No additional development required." },
   { term: "Experiential", definition: "Capability develops organically through day-to-day work, exposure, and on-the-job practice." },

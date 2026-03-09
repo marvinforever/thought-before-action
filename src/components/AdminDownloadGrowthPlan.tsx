@@ -46,7 +46,13 @@ function levelToNumber(level: string | null): number {
 
 function formatLevel(level: string | null): string {
   if (!level) return "Not Assessed";
-  return level.charAt(0).toUpperCase() + level.slice(1);
+  const map: Record<string, string> = {
+    foundational: "Level 1",
+    advancing: "Level 2",
+    independent: "Level 3",
+    mastery: "Level 4",
+  };
+  return map[level.toLowerCase()] || "Level 1";
 }
 
 function scoreBadge(score: number | null): { label: string; color: RGB } {
@@ -561,10 +567,10 @@ export function AdminDownloadGrowthPlan({ profileId, employeeName, variant = "bu
       sectionHeader("Glossary of Terms");
 
       const glossaryItems = [
-        { term: "Foundational", definition: "Beginning stage — the individual is building awareness and basic understanding of the capability. They require guidance and supervision to apply it." },
-        { term: "Advancing", definition: "Developing stage — the individual can apply the capability with some support. They are building confidence and consistency but still refining their approach." },
-        { term: "Independent", definition: "Proficient stage — the individual consistently demonstrates the capability without supervision. They can adapt their approach to different situations and mentor others." },
-        { term: "Mastery", definition: "Expert stage — the individual is a recognized authority in this capability. They innovate, lead strategic initiatives, and elevate others across the organization." },
+        { term: "Level 1 · Foundational", definition: "Beginning stage — the individual is building awareness and basic understanding of the capability. They require guidance and supervision to apply it." },
+        { term: "Level 2 · Advancing", definition: "Developing stage — the individual can apply the capability with some support. They are building confidence and consistency but still refining their approach." },
+        { term: "Level 3 · Independent", definition: "Proficient stage — the individual consistently demonstrates the capability without supervision. They can adapt their approach to different situations and mentor others." },
+        { term: "Level 4 · Mastery", definition: "Expert stage — the individual is a recognized authority in this capability. They innovate, lead strategic initiatives, and elevate others across the organization." },
         { term: "Gap", definition: "The difference between an employee's current capability level and their target level. A gap of +1 means one level below target; +2 means two levels below." },
         { term: "On Target", definition: "The employee's current level meets or exceeds the target level for that capability. No additional development is required in this area." },
         { term: "Natural Advancement", definition: "The capability is expected to develop organically through day-to-day work experience, exposure, and on-the-job practice without formal training intervention." },

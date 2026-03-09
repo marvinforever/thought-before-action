@@ -893,7 +893,7 @@ export default function StrategicLearningDesignReport() {
                   .map(([level, profileIds]) => (
                     <div key={level} className="border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium capitalize">{level}</span>
+                        <span className="font-medium">{({'foundational':'Level 1','advancing':'Level 2','independent':'Level 3','mastery':'Level 4'} as Record<string,string>)[level] || level}</span>
                         <Badge variant="secondary">{profileIds.length} people</Badge>
                       </div>
                       <div className="flex flex-wrap gap-2">
