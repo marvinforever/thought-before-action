@@ -3592,6 +3592,72 @@ export type Database = {
         }
         Relationships: []
       }
+      leadership_reports: {
+        Row: {
+          capability_matrix: Json | null
+          company_id: string | null
+          completed_at: string | null
+          created_at: string
+          delivered_at: string | null
+          delivery_email: string | null
+          id: string
+          pdf_url: string | null
+          profile_id: string
+          quality_checks: Json | null
+          report_content: Json | null
+          share_token: string | null
+          status: string
+          word_count: number | null
+        }
+        Insert: {
+          capability_matrix?: Json | null
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_email?: string | null
+          id?: string
+          pdf_url?: string | null
+          profile_id: string
+          quality_checks?: Json | null
+          report_content?: Json | null
+          share_token?: string | null
+          status?: string
+          word_count?: number | null
+        }
+        Update: {
+          capability_matrix?: Json | null
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_email?: string | null
+          id?: string
+          pdf_url?: string | null
+          profile_id?: string
+          quality_checks?: Json | null
+          report_content?: Json | null
+          share_token?: string | null
+          status?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leadership_reports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leadership_reports_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leading_indicators: {
         Row: {
           company_id: string
@@ -6660,6 +6726,7 @@ export type Database = {
           open_loops: Json | null
           pending_actions: Json | null
           profile_id: string | null
+          report_url: string | null
           updated_at: string | null
           user_commitments: Json | null
         }
@@ -6681,6 +6748,7 @@ export type Database = {
           open_loops?: Json | null
           pending_actions?: Json | null
           profile_id?: string | null
+          report_url?: string | null
           updated_at?: string | null
           user_commitments?: Json | null
         }
@@ -6702,6 +6770,7 @@ export type Database = {
           open_loops?: Json | null
           pending_actions?: Json | null
           profile_id?: string | null
+          report_url?: string | null
           updated_at?: string | null
           user_commitments?: Json | null
         }
