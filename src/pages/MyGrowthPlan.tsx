@@ -20,7 +20,7 @@ import { BadgeShowcase } from "@/components/BadgeShowcase";
 import { CelebrationOverlay, useCelebration } from "@/components/CelebrationOverlay";
 import { CompanyLeaderboard } from "@/components/CompanyLeaderboard";
 import { DailyPodcastPlayer } from "@/components/DailyPodcastPlayer";
-import { WelcomeModal } from "@/components/WelcomeModal";
+import { ConversationalOnboarding } from "@/components/ConversationalOnboarding";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
@@ -204,8 +204,11 @@ export default function MyGrowthPlan() {
         </div>
       </div>
 
-      {/* Welcome Modal for incomplete onboarding */}
-      <WelcomeModal onStartChat={handleOpenJericho} />
+      {/* Conversational Onboarding for new users */}
+      <ConversationalOnboarding onComplete={() => {
+        setOnboardingProgressKey((v) => v + 1);
+        setPodcastRefreshKey(prev => prev + 1);
+      }} />
 
       {/* Phased Onboarding */}
       <PhasedOnboarding
