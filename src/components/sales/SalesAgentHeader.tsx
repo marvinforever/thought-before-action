@@ -29,6 +29,8 @@ import {
   BarChart3,
   Lightbulb,
   Settings,
+  Upload,
+  Route,
 } from "lucide-react";
 import { PipelineView } from "./PipelineView";
 import { DealsTable } from "./DealsTable";
