@@ -273,13 +273,21 @@ export function ConversationalOnboarding({ onComplete }: ConversationalOnboardin
         } as any);
       }
 
-      // Trigger IGP generation
+      // Trigger Leadership Acceleration Report generation (which also triggers IGP)
       try {
-        await supabase.functions.invoke("generate-growth-plan-recommendations", {
+        await supabase.functions.invoke("generate-leadership-report", {
           body: { profileId },
         });
       } catch (e) {
-        console.error("IGP trigger error (non-blocking):", e);
+        console.error("Leadership report trigger error (non-blocking):", e);
+        // Fallback: trigger IGP directly
+        try {
+          await supabase.functions.invoke("generate-growth-plan-recommendations", {
+            body: { profileId },
+          });
+        } catch (e2) {
+          console.error("IGP fallback trigger error:", e2);
+        }
       }
     } catch (e) {
       console.error("Error writing onboarding data:", e);

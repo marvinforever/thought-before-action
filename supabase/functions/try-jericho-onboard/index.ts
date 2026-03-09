@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       console.error("Profile error:", profileError);
     }
 
-    // 4. Store challenge context for Jericho to reference later
+    // 4. Store challenge context for Jericho to reference later + preload into user_active_context
     if (challenge) {
       try {
         await supabaseAdmin.from("conversations").insert({
@@ -102,6 +102,26 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("Conversation seed error:", e);
       }
+    }
+
+    // 4b. Preload diagnostic data into user_active_context for /try → coaching continuity
+    try {
+      await supabaseAdmin.from("user_active_context").upsert({
+        profile_id: userId,
+        company_id: targetCompanyId,
+        onboarding_path: "try-page",
+        onboarding_step: 0,
+        onboarding_complete: false,
+        onboarding_data: {
+          role_org: role || null,
+          challenge: challenge || null,
+          source: "try-page",
+          company_name: company || null,
+        },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "profile_id" });
+    } catch (e) {
+      console.error("Active context preload error:", e);
     }
 
     // 5. Send welcome email
