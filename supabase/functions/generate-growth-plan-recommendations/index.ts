@@ -450,6 +450,132 @@ ${top3.map((c: any, i: number) => `${i + 1}. ${c.capability_name} — Level ${c.
 // STAGE 4: BUILD HTML REPORT EMAIL
 // ============================================================================
 
+function svgArcGauge(score: number | null, label: string, benchmark: number = 60): string {
+  const val = score ?? 0;
+  const color = val >= benchmark + 10 ? '#2ecc71' : val >= benchmark - 10 ? '#e67e22' : '#e74c3c';
+  const radius = 54;
+  const strokeWidth = 10;
+  const cx = 65, cy = 65;
+  // 260-degree arc
+  const startAngle = 140; // degrees from 12 o'clock (bottom-left start)
+  const totalAngle = 260;
+  const endAngleFill = startAngle + (totalAngle * Math.min(val, 100) / 100);
+  const toRad = (deg: number) => (deg - 90) * Math.PI / 180;
+  const arcPoint = (angle: number) => ({
+    x: cx + radius * Math.cos(toRad(angle)),
+    y: cy + radius * Math.sin(toRad(angle)),
+  });
+  const trackStart = arcPoint(startAngle);
+  const trackEnd = arcPoint(startAngle + totalAngle);
+  const fillEnd = arcPoint(endAngleFill);
+  const largeTrack = totalAngle > 180 ? 1 : 0;
+  const largeFill = (endAngleFill - startAngle) > 180 ? 1 : 0;
+
+  const trackPath = `M ${trackStart.x} ${trackStart.y} A ${radius} ${radius} 0 ${largeTrack} 1 ${trackEnd.x} ${trackEnd.y}`;
+  const fillPath = val > 0
+    ? `M ${trackStart.x} ${trackStart.y} A ${radius} ${radius} 0 ${largeFill} 1 ${fillEnd.x} ${fillEnd.y}`
+    : '';
+
+  return `<div style="text-align:center;width:160px;">
+    <svg viewBox="0 0 130 130" width="140" height="140" xmlns="http://www.w3.org/2000/svg">
+      <path d="${trackPath}" fill="none" stroke="#e8ecf0" stroke-width="${strokeWidth}" stroke-linecap="round"/>
+      ${fillPath ? `<path d="${fillPath}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round"/>` : ''}
+      <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-family="'Merriweather',Georgia,serif" font-size="28" font-weight="700" fill="${color}">${score ?? '—'}</text>
+      <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="'Inter',Arial,sans-serif" font-size="9" fill="#999" text-transform="uppercase" letter-spacing="0.5">/100</text>
+    </svg>
+    <p style="margin:4px 0 0;font-family:'Inter',Arial,sans-serif;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">${label}</p>
+  </div>`;
+}
+
+function capabilityProgressBar(current: number, target: number | null, currentName: string, targetName: string | null): string {
+  const levels = ['Foundational', 'Advancing', 'Independent', 'Mastery'];
+  const fillPct = (current / 4) * 100;
+  const targetPct = target ? (target / 4) * 100 : null;
+
+  const dots = levels.map((lvl, i) => {
+    const pct = ((i + 1) / 4) * 100;
+    const isCurrent = (i + 1) === current;
+    const isTarget = (i + 1) === (target ?? 0);
+    const isPast = (i + 1) <= current;
+    return `
+      <div style="position:absolute;left:${pct}%;transform:translateX(-50%);top:-8px;text-align:center;">
+        <div style="width:${isCurrent || isTarget ? 14 : 8}px;height:${isCurrent || isTarget ? 14 : 8}px;border-radius:50%;background:${isTarget ? '#c9963b' : isPast ? '#3d8bd4' : '#d1d5db'};border:${isCurrent ? '3px solid #0d1b2a' : isTarget ? '3px solid #c9963b' : 'none'};margin:0 auto;box-sizing:border-box;"></div>
+        <p style="font-size:9px;color:${isCurrent ? '#0d1b2a' : isTarget ? '#c9963b' : '#999'};font-weight:${isCurrent || isTarget ? '700' : '400'};margin:4px 0 0;white-space:nowrap;font-family:'Inter',Arial,sans-serif;">${lvl}</p>
+        ${isCurrent ? '<p style="font-size:8px;color:#3d8bd4;margin:1px 0 0;font-weight:600;font-family:\'Inter\',Arial,sans-serif;">YOU</p>' : ''}
+        ${isTarget ? '<p style="font-size:8px;color:#c9963b;margin:1px 0 0;font-weight:600;font-family:\'Inter\',Arial,sans-serif;">TARGET</p>' : ''}
+      </div>`;
+  }).join('');
+
+  return `<div style="position:relative;height:60px;margin:30px 20px 40px;">
+    <div style="position:absolute;top:0;left:0;right:0;height:6px;background:#e8ecf0;border-radius:3px;">
+      <div style="width:${fillPct}%;height:100%;background:linear-gradient(90deg,#3d8bd4,#2c6faa);border-radius:3px;transition:width 0.3s;"></div>
+      ${targetPct ? `<div style="position:absolute;left:${targetPct}%;top:-4px;width:3px;height:14px;background:#c9963b;border-radius:2px;transform:translateX(-50%);"></div>` : ''}
+    </div>
+    ${dots}
+  </div>`;
+}
+
+function sprintTimeline(): string {
+  const phases = [
+    { label: 'WEEKS 1–2', title: 'Establish Baselines', desc: 'Set benchmarks, identify starting points, begin first moves' },
+    { label: 'WEEKS 3–6', title: 'Build & Practice', desc: 'Deepen habits, apply skills daily, gather feedback' },
+    { label: 'WEEKS 7–12', title: 'Execute & Measure', desc: 'Demonstrate growth, measure against baselines' },
+    { label: 'DAY 90', title: 'Sprint Review', desc: 'Self-assess, celebrate wins, plan Sprint 2 with Jericho' },
+  ];
+
+  const dots = phases.map((p, i) => {
+    const left = (i / (phases.length - 1)) * 100;
+    const isFirst = i === 0;
+    return `<div style="position:absolute;left:${left}%;transform:translateX(-50%);text-align:center;width:140px;">
+      <p style="font-family:'Inter',Arial,sans-serif;font-size:9px;color:#c9963b;font-weight:700;letter-spacing:1.5px;margin:0 0 8px;">${p.label}</p>
+      <div style="width:${isFirst ? 18 : 14}px;height:${isFirst ? 18 : 14}px;background:${isFirst ? '#c9963b' : '#3d8bd4'};border-radius:50%;margin:0 auto;border:${isFirst ? '3px solid #f0dbb8' : 'none'};box-sizing:border-box;"></div>
+      <p style="font-family:'Merriweather',Georgia,serif;font-size:12px;font-weight:700;color:#0d1b2a;margin:8px 0 2px;">${p.title}</p>
+      <p style="font-family:'Inter',Arial,sans-serif;font-size:10px;color:#666;margin:0;line-height:1.4;">${p.desc}</p>
+    </div>`;
+  }).join('');
+
+  return `<div style="position:relative;margin:50px 30px 80px;height:160px;">
+    <div style="position:absolute;top:29px;left:0;right:0;height:3px;background:linear-gradient(90deg,#c9963b,#3d8bd4,#3d8bd4,#2c6faa);border-radius:2px;"></div>
+    ${dots}
+  </div>`;
+}
+
+function careerPathway(context: UserContext): string {
+  const goal = context.career_goal_3yr || 'Your Career Goal';
+  const cards = [
+    { year: 'Year 1', title: 'Foundation', color: '#3d8bd4', desc: 'Build core capabilities, establish habits, prove growth trajectory' },
+    { year: 'Year 2', title: 'Expansion', color: '#c9963b', desc: 'Broaden scope, develop others, take on strategic projects' },
+    { year: 'Year 3', title: 'Strategic Impact', color: '#2ecc71', desc: 'Lead at scale, shape direction, arrive at your goal' },
+  ];
+
+  const cardHtml = cards.map((c, i) => {
+    const isFirst = i === 0;
+    return `<td style="width:30%;vertical-align:top;">
+      <div style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);border:1px solid #eee;position:relative;">
+        <div style="height:5px;background:${c.color};"></div>
+        ${isFirst ? '<div style="position:absolute;top:12px;right:10px;background:#e74c3c;color:#fff;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:\'Inter\',Arial,sans-serif;letter-spacing:0.5px;">YOU ARE HERE</div>' : ''}
+        <div style="padding:18px 14px;">
+          <p style="font-family:'Inter',Arial,sans-serif;font-size:10px;color:${c.color};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 4px;">${c.year}</p>
+          <p style="font-family:'Merriweather',Georgia,serif;font-size:15px;font-weight:700;color:#0d1b2a;margin:0 0 8px;">${c.title}</p>
+          <p style="font-family:'Inter',Arial,sans-serif;font-size:11px;color:#666;margin:0;line-height:1.5;">${c.desc}</p>
+        </div>
+      </div>
+    </td>
+    ${i < 2 ? '<td style="width:5%;text-align:center;vertical-align:middle;"><span style="color:#c9963b;font-size:22px;">→</span></td>' : ''}`;
+  }).join('');
+
+  return `<div style="margin:25px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <tr>${cardHtml}</tr>
+    </table>
+    <div style="text-align:center;margin-top:16px;">
+      <div style="display:inline-block;background:linear-gradient(135deg,#0d1b2a,#1b3a5c);color:#fff;padding:8px 24px;border-radius:20px;font-family:'Inter',Arial,sans-serif;font-size:11px;font-weight:600;">
+        🎯 GOAL: ${goal.length > 80 ? goal.substring(0, 80) + '…' : goal}
+      </div>
+    </div>
+  </div>`;
+}
+
 function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMarkdown: string): string {
   const top3 = (capabilityMatrix.capability_matrix || []).filter((c: any) => c.is_top3);
   const summary = capabilityMatrix.profile_summary || {};
@@ -464,79 +590,73 @@ function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMark
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Personalized Growth Plan — ${context.full_name}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
-    body { margin: 0; padding: 0; font-family: 'Georgia', 'Times New Roman', serif; background: #f5f5f0; color: #2c3e50; line-height: 1.7; }
-    .container { max-width: 720px; margin: 0 auto; background: #ffffff; }
+    body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f0ea; color: #2c3e50; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    .container { max-width: 760px; margin: 0 auto; background: #ffffff; box-shadow: 0 4px 40px rgba(0,0,0,0.08); }
     
     /* Cover */
-    .cover { background: linear-gradient(135deg, #0d1b2a 0%, #1b3a5c 100%); color: #ffffff; padding: 60px 50px; text-align: center; }
-    .cover h1 { font-size: 32px; margin: 0 0 8px; font-weight: 400; letter-spacing: 1px; }
-    .cover .subtitle { color: #c9963b; font-size: 18px; margin: 0 0 30px; font-style: italic; }
-    .cover .tagline { color: #8bafc9; font-size: 14px; margin: 20px 0 0; letter-spacing: 0.5px; }
-    .cover .valued { color: #c9963b; font-size: 12px; margin-top: 30px; text-transform: uppercase; letter-spacing: 2px; }
-    .gold-rule { height: 3px; background: linear-gradient(90deg, transparent, #c9963b, transparent); margin: 0; border: none; }
+    .cover { background: linear-gradient(145deg, #0a1628 0%, #0d1b2a 40%, #1b3a5c 100%); color: #ffffff; padding: 70px 55px 60px; text-align: center; position: relative; overflow: hidden; }
+    .cover::before { content: ''; position: absolute; top: -50%; right: -30%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(201,150,59,0.08) 0%, transparent 70%); }
+    .cover-logo { display: inline-block; width: 52px; height: 52px; background: linear-gradient(135deg, #c9963b, #dbb065); border-radius: 14px; line-height: 52px; font-family: 'Merriweather', Georgia, serif; font-size: 28px; font-weight: 900; color: #0d1b2a; margin-bottom: 24px; }
+    .cover h1 { font-family: 'Merriweather', Georgia, serif; font-size: 30px; margin: 0 0 6px; font-weight: 700; letter-spacing: 0.5px; }
+    .cover .subtitle { color: #c9963b; font-family: 'Merriweather', Georgia, serif; font-size: 20px; margin: 0 0 6px; font-weight: 400; }
+    .cover .role-line { color: #7da8c9; font-size: 14px; margin: 0 0 28px; }
+    .cover .tagline { color: #5b88a6; font-size: 13px; margin: 24px 0 0; letter-spacing: 0.3px; }
+    .cover .valued { color: #c9963b; font-size: 11px; margin-top: 28px; text-transform: uppercase; letter-spacing: 2.5px; font-weight: 600; }
+    .cover .date-line { color: #4a6a80; font-size: 12px; margin-top: 12px; }
+    .gold-rule { height: 3px; background: linear-gradient(90deg, transparent 5%, #c9963b 30%, #dbb065 50%, #c9963b 70%, transparent 95%); margin: 0; border: none; }
     
     /* Sections */
-    .section { padding: 40px 50px; }
-    .section h2 { color: #0d1b2a; font-size: 22px; margin: 0 0 8px; border-bottom: 2px solid #c9963b; padding-bottom: 8px; }
-    .section h3 { color: #2c6faa; font-size: 17px; margin: 25px 0 10px; }
-    .section h4 { color: #0d1b2a; font-size: 15px; margin: 20px 0 8px; }
-    .section p { margin: 8px 0; font-size: 15px; }
+    .section { padding: 45px 55px; }
+    .section h2 { font-family: 'Merriweather', Georgia, serif; color: #0d1b2a; font-size: 22px; margin: 0 0 8px; border-bottom: 2px solid #c9963b; padding-bottom: 10px; font-weight: 700; }
+    .section h3 { font-family: 'Merriweather', Georgia, serif; color: #2c6faa; font-size: 17px; margin: 28px 0 10px; font-weight: 700; }
+    .section h4 { font-family: 'Inter', sans-serif; color: #0d1b2a; font-size: 14px; margin: 22px 0 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .section p { margin: 8px 0; font-size: 14.5px; line-height: 1.75; }
     .section ul { padding-left: 20px; }
-    .section li { margin: 6px 0; font-size: 15px; }
+    .section li { margin: 6px 0; font-size: 14.5px; line-height: 1.65; }
     
     /* Score Dashboard */
-    .scores { display: flex; justify-content: space-around; margin: 25px 0; }
-    .score-card { text-align: center; padding: 20px; background: #f8f9fa; border-radius: 12px; width: 28%; }
-    .score-value { font-size: 36px; font-weight: 700; margin: 0; }
-    .score-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
-    .score-green { color: #2ecc71; }
-    .score-amber { color: #e67e22; }
-    .score-red { color: #e74c3c; }
+    .scores { display: flex; justify-content: center; gap: 20px; margin: 30px 0; padding: 25px 0; background: linear-gradient(180deg, #f8f9fb 0%, #fff 100%); border-radius: 16px; border: 1px solid #eef1f5; }
     
     /* Big 3 Cards */
-    .big3-card { background: #f8f9fa; border-left: 4px solid #c9963b; padding: 25px; margin: 20px 0; border-radius: 0 8px 8px 0; }
-    .big3-card h3 { color: #0d1b2a; margin-top: 0; border: none; }
-    .level-bar { background: #e9ecef; border-radius: 20px; height: 28px; margin: 12px 0; position: relative; overflow: hidden; }
-    .level-fill { height: 100%; border-radius: 20px; display: flex; align-items: center; padding: 0 12px; color: #fff; font-size: 12px; font-weight: 600; }
-    .level-1 { background: linear-gradient(90deg, #e74c3c, #e67e22); width: 25%; }
-    .level-2 { background: linear-gradient(90deg, #e67e22, #f1c40f); width: 50%; }
-    .level-3 { background: linear-gradient(90deg, #2ecc71, #3a9bb5); width: 75%; }
-    .level-4 { background: linear-gradient(90deg, #3a9bb5, #2c6faa); width: 100%; }
+    .big3-card { background: linear-gradient(135deg, #f9fafb 0%, #f3f5f8 100%); border-left: 4px solid #c9963b; padding: 28px 25px; margin: 22px 0; border-radius: 0 12px 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .big3-card h3 { font-family: 'Merriweather', Georgia, serif; color: #0d1b2a; margin-top: 0; border: none; font-size: 18px; }
+    .big3-meta { font-family: 'Inter', sans-serif; font-size: 12px; color: #888; margin: 4px 0 16px; }
     
     /* Moves */
-    .move { background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 10px 0; }
-    .move-label { color: #c9963b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .move { background: #ffffff; border: 1px solid #e5e8ed; border-radius: 10px; padding: 16px 18px; margin: 10px 0; box-shadow: 0 1px 4px rgba(0,0,0,0.02); }
+    .move-label { color: #c9963b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; font-family: 'Inter', sans-serif; }
     
     /* Pattern/Advantage cards */
-    .pattern-card { background: linear-gradient(135deg, #f8f9fa, #eef2f7); border-radius: 8px; padding: 20px; margin: 15px 0; border: 1px solid #dee2e6; }
-    .pattern-card .name { color: #0d1b2a; font-weight: 700; font-size: 16px; margin-bottom: 6px; }
-    .advantage-card { background: linear-gradient(135deg, #fffcf5, #fef6e4); border-radius: 8px; padding: 20px; margin: 15px 0; border: 1px solid #f0e0c0; }
-    
-    /* Sprint Timeline */
-    .sprint-timeline { display: flex; margin: 20px 0; }
-    .sprint-phase { flex: 1; text-align: center; padding: 15px 10px; position: relative; }
-    .sprint-phase::after { content: '→'; position: absolute; right: -8px; top: 50%; transform: translateY(-50%); color: #c9963b; font-size: 20px; }
-    .sprint-phase:last-child::after { display: none; }
-    .phase-dot { width: 16px; height: 16px; background: #c9963b; border-radius: 50%; margin: 0 auto 8px; }
-    .phase-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-    .phase-title { font-size: 13px; font-weight: 600; color: #0d1b2a; margin-top: 4px; }
+    .pattern-card { background: linear-gradient(135deg, #f8f9fb, #eef2f7); border-radius: 10px; padding: 22px; margin: 15px 0; border: 1px solid #dde3ea; }
+    .pattern-card .name { font-family: 'Merriweather', Georgia, serif; color: #0d1b2a; font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+    .advantage-card { background: linear-gradient(135deg, #fffcf5, #fef6e4); border-radius: 10px; padding: 22px; margin: 15px 0; border: 1px solid #f0e0c0; }
     
     /* CTA */
-    .cta-section { background: linear-gradient(135deg, #0d1b2a, #1b3a5c); color: #fff; padding: 40px 50px; text-align: center; }
-    .cta-section p { color: #8bafc9; }
-    .cta-button { display: inline-block; background: #c9963b; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 700; font-size: 16px; margin: 20px 0; }
-    .cta-quote { font-style: italic; color: #c9963b; margin-top: 30px; font-size: 14px; }
+    .cta-section { background: linear-gradient(145deg, #0a1628, #0d1b2a 40%, #1b3a5c); color: #fff; padding: 50px 55px; text-align: center; position: relative; }
+    .cta-section p { color: #7da8c9; font-size: 14px; }
+    .cta-button { display: inline-block; background: linear-gradient(135deg, #c9963b, #dbb065); color: #0d1b2a; text-decoration: none; padding: 16px 44px; border-radius: 10px; font-weight: 700; font-size: 15px; margin: 22px 0; font-family: 'Inter', sans-serif; letter-spacing: 0.3px; box-shadow: 0 4px 16px rgba(201,150,59,0.3); }
+    .cta-quote { font-family: 'Merriweather', Georgia, serif; font-style: italic; color: #c9963b; margin-top: 30px; font-size: 14px; }
     
     /* Footer */
-    .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
+    .footer { text-align: center; padding: 24px; font-size: 12px; color: #999; background: #f8f9fb; }
     
     @media (max-width: 600px) {
-      .section, .cover, .cta-section { padding: 30px 25px; }
-      .scores { flex-direction: column; gap: 10px; }
-      .score-card { width: 100%; }
-      .sprint-timeline { flex-direction: column; }
-      .sprint-phase::after { display: none; }
+      .section, .cover, .cta-section { padding: 30px 22px; }
+      .scores { flex-direction: column; align-items: center; gap: 15px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .container { box-shadow: none; max-width: 100%; }
+      .cover { break-after: page; }
+      .section { break-inside: avoid; }
+      .big3-card { break-inside: avoid; }
+      .cta-section { break-before: page; }
+      .cta-button { box-shadow: none; }
     }
   </style>
 </head>
@@ -544,13 +664,14 @@ function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMark
   <div class="container">
     <!-- COVER -->
     <div class="cover">
-      <p style="color: #c9963b; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 20px;">The Momentum Company presents</p>
+      <div class="cover-logo">J</div>
+      <p style="color: #c9963b; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 24px; font-weight: 600;">The Momentum Company presents</p>
       <h1>PERSONALIZED GROWTH PLAN</h1>
       <p class="subtitle">${context.full_name}</p>
-      <p style="color: #8bafc9; font-size: 14px; margin: 0;">${context.job_title}${context.company_name ? ' · ' + context.company_name : ''}</p>
+      <p class="role-line">${context.job_title}${context.company_name ? ' · ' + context.company_name : ''}</p>
       <p class="tagline">${(capabilityMatrix.capability_matrix || []).length} capabilities analyzed · ${top3.length} priorities identified · 1 clear path forward</p>
       <p class="valued">Complimentary Leadership Diagnostic — Valued at $2,500</p>
-      <p style="color: #666; font-size: 12px; margin-top: 15px;">${date}</p>
+      <p class="date-line">${date}</p>
     </div>
     <hr class="gold-rule">
 
@@ -558,18 +679,9 @@ function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMark
     <div class="section">
       <h2>📊 Your Leadership Profile</h2>
       <div class="scores">
-        <div class="score-card">
-          <p class="score-value ${scoreColor(context.engagement_score)}">${context.engagement_score ?? '—'}</p>
-          <p class="score-label">Engagement</p>
-        </div>
-        <div class="score-card">
-          <p class="score-value ${scoreColor(context.career_growth_score)}">${context.career_growth_score ?? '—'}</p>
-          <p class="score-label">Career Growth</p>
-        </div>
-        <div class="score-card">
-          <p class="score-value ${scoreColor(context.role_clarity_score)}">${context.role_clarity_score ?? '—'}</p>
-          <p class="score-label">Role Clarity</p>
-        </div>
+        ${svgArcGauge(context.engagement_score, 'Engagement', 60)}
+        ${svgArcGauge(context.career_growth_score, 'Career Growth', 60)}
+        ${svgArcGauge(context.role_clarity_score, 'Role Clarity', 60)}
       </div>
     </div>
     <hr class="gold-rule">
@@ -580,12 +692,25 @@ function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMark
       ${top3.map((c: any, i: number) => `
       <div class="big3-card">
         <h3>#${i + 1}: ${c.capability_name}</h3>
-        <p style="font-size: 13px; color: #666;">${c.domain} · ${c.timeline_months || '4-8'} months</p>
-        <div class="level-bar">
-          <div class="level-fill level-${c.current_level}">${c.current_level_name} → ${c.target_level_name}</div>
-        </div>
-        <p style="font-size: 13px; color: #555;"><em>"${c.evidence}"</em></p>
+        <p class="big3-meta">${c.domain} · ${c.timeline_months || '4-8'} months · Level ${c.current_level} → ${c.target_level}</p>
+        ${capabilityProgressBar(c.current_level, c.target_level, c.current_level_name, c.target_level_name)}
+        <p style="font-size: 13px; color: #555; font-style: italic; margin-top: 20px; border-left: 3px solid #c9963b; padding-left: 12px;">"${c.evidence}"</p>
       </div>`).join('')}
+    </div>
+    <hr class="gold-rule">
+
+    <!-- 90-DAY SPRINT TIMELINE -->
+    <div class="section">
+      <h2>🏃 Your 90-Day Sprint</h2>
+      <p style="color:#666;font-size:13px;margin-bottom:5px;">Sprint 1 — the only sprint built from prediction. Sprint 2 comes from real results.</p>
+      ${sprintTimeline()}
+    </div>
+    <hr class="gold-rule">
+
+    <!-- CAREER PATHWAY -->
+    <div class="section">
+      <h2>🗺️ Path to Your Career Goal — The 3-Year View</h2>
+      ${careerPathway(context)}
     </div>
     <hr class="gold-rule">
 
@@ -597,26 +722,19 @@ function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMark
 
     <!-- CTA -->
     <div class="cta-section">
-      <p style="color: #c9963b; font-size: 14px; margin-bottom: 5px;">Your first move is above. It takes 20 minutes.</p>
-      <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0;">Do it this week. Then tell Jericho what happened.</p>
+      <p style="color: #c9963b; font-size: 14px; margin-bottom: 5px; font-weight: 600;">Your first move is above. It takes 20 minutes.</p>
+      <p style="color: #ffffff; font-family: 'Merriweather', Georgia, serif; font-size: 22px; font-weight: 700; margin: 8px 0 0;">Do it this week. Then tell Jericho what happened.</p>
       <a href="https://askjericho.com/try" class="cta-button">Continue with Jericho →</a>
       <p class="cta-quote">"You don't rise to your goals. You fall to your systems."</p>
     </div>
 
     <div class="footer">
-      <p>The Momentum Company · <a href="https://askjericho.com" style="color: #2c6faa;">askjericho.com</a></p>
-      <p>This plan was built for ${context.full_name}. No one else has these scores, this capability map, or this growth path.</p>
+      <p style="margin:0 0 4px;">The Momentum Company · <a href="https://askjericho.com" style="color: #2c6faa; text-decoration: none;">askjericho.com</a></p>
+      <p style="margin:0;">This plan was built for ${context.full_name}. No one else has these scores, this capability map, or this growth path.</p>
     </div>
   </div>
 </body>
 </html>`;
-}
-
-function scoreColor(score: number | null): string {
-  if (score === null) return '';
-  if (score >= 70) return 'score-green';
-  if (score >= 40) return 'score-amber';
-  return 'score-red';
 }
 
 function markdownToHtml(md: string): string {
