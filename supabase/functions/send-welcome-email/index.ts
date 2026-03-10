@@ -26,6 +26,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     const firstName = fullName?.split(' ')[0] || 'there';
 
+    // Check proofing mode
+    const proofing = await isProofingMode();
+    if (proofing) {
+      await logEmail({
+        to: email,
+        subject: `Welcome to Jericho, ${firstName}! 🚀`,
+        bodyPreview: `Welcome email for ${fullName}. Login URL: ${loginUrl}. Password provided.`,
+        functionName: "send-welcome-email",
+      });
+      return new Response(JSON.stringify({ success: true, proofing: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
