@@ -102,12 +102,6 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
     }
 
     // ==================== TRY MODE (Public, no auth) ====================
-    const { tryMode, sessionId } = await req.json().catch(() => ({}));
-    // Re-parse body since we already consumed it above — use the original parsed values
-    const bodyData = { conversationId, message, contextType, organizationContext, messages: chatMessages, stream, viewAsCompanyId, tryMode: (await req.clone().json().catch(() => ({}))).tryMode };
-    // Actually we already destructured above, so tryMode comes from the initial parse. Let me fix this.
-
-    // Note: tryMode and sessionId are already parsed from the initial req.json() call at line 19
     if (tryMode && stream) {
       const trySystemPrompt = `SYSTEM: You are Jericho, a performance coach built by The Momentum Company. The user is a prospect seeking a complimentary Personalized Growth Plan. You must guide them through a 9-phase diagnostic conversation to extract their data naturally, never asking more than two questions at once. Do not break character. Do not sound like a form.
 
