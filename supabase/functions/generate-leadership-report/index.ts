@@ -395,7 +395,7 @@ FORMATTING:
           body: JSON.stringify({
             from: "Jericho <jericho@sender.askjericho.com>",
             to: [profile.email],
-            subject: `${name}, your Leadership Acceleration Report is ready`,
+            subject: `${name}, your Growth Map is ready`,
             html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background-color:#0F1419;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
