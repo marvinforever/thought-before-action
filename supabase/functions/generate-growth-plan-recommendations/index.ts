@@ -182,10 +182,11 @@ interface UserContext {
 }
 
 async function loadContext(supabase: any, profile_id: string): Promise<UserContext | null> {
-  const [profileRes, contextRes, capsRes] = await Promise.all([
+  const [profileRes, contextRes, capsRes, scoresRes] = await Promise.all([
     supabase.from('profiles').select('full_name, job_title, role, email, phone, company_id').eq('id', profile_id).single(),
     supabase.from('user_active_context').select('onboarding_data, error_log').eq('profile_id', profile_id).single(),
     supabase.from('capabilities').select('id, name, category, description').eq('status', 'approved').order('category'),
+    supabase.from('diagnostic_scores').select('engagement_score, career_score, clarity_score').eq('profile_id', profile_id).single(),
   ]);
 
   const profile = profileRes.data;
