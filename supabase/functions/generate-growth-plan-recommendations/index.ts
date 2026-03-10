@@ -762,38 +762,41 @@ async function deliver(supabase: any, profile_id: string, growthPlanId: string |
   const top3Names = top3.map((c: any) => c.capability_name).join(', ');
   const capCount = (capabilityMatrix.capability_matrix || []).length;
 
+  let emailSent = false;
+  let smsSent = false;
+
   // EMAIL
   if (context.email) {
     try {
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-      const RESEND_FROM = Deno.env.get('RESEND_FROM') || 'jericho@askjericho.com';
-
-      if (RESEND_API_KEY) {
-        const emailResponse = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: RESEND_FROM,
-            to: [context.email],
-            subject: `${context.first_name}, your Personalized Growth Plan is ready`,
-            html: reportHtml,
-          }),
-        });
-
-        if (emailResponse.ok) {
-          console.log('[growth-plan] Email sent successfully to', context.email);
-        } else {
-          const err = await emailResponse.text();
-          console.error('[growth-plan] Email send error:', err);
-        }
-      } else {
-        console.warn('[growth-plan] No RESEND_API_KEY — skipping email');
+      if (!RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY not configured');
       }
+
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Jericho <jericho@sender.askjericho.com>',
+          to: [context.email],
+          subject: `${context.first_name}, your Personalized Growth Plan is ready`,
+          html: reportHtml,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        const errText = await emailResponse.text();
+        throw new Error(`Resend API ${emailResponse.status}: ${errText}`);
+      }
+
+      emailSent = true;
+      console.log('[growth-plan] Email sent to', context.email);
     } catch (e: any) {
-      console.error('[growth-plan] Email delivery error:', e.message);
+      console.error('[growth-plan] Email failed:', e.message);
+      await writeError(supabase, profile_id, growthPlanId, 'email_delivery', e.message);
     }
   }
 
@@ -821,6 +824,7 @@ async function deliver(supabase: any, profile_id: string, growthPlanId: string |
         });
 
         if (twilioRes.ok) {
+          smsSent = true;
           console.log('[growth-plan] SMS sent to', context.phone);
         } else {
           const err = await twilioRes.text();
@@ -832,17 +836,22 @@ async function deliver(supabase: any, profile_id: string, growthPlanId: string |
     }
   }
 
-  // Update status
+  // STATUS — only "delivered" if email actually sent
+  const finalStatus = emailSent ? 'delivered' : 'generated_not_delivered';
+
   if (growthPlanId) {
     await supabase.from('growth_plans').update({
-      status: 'delivered',
-      delivered_at: new Date().toISOString(),
-      delivery_method: context.phone ? 'email+sms' : 'email',
+      status: finalStatus,
+      delivered_at: emailSent ? new Date().toISOString() : null,
+      delivery_method: emailSent && smsSent ? 'email+sms'
+        : emailSent ? 'email'
+        : smsSent ? 'sms'
+        : 'none',
     }).eq('id', growthPlanId);
   }
 
   await supabase.from('user_active_context').update({
-    report_status: 'delivered',
+    report_status: finalStatus,
     updated_at: new Date().toISOString(),
   }).eq('profile_id', profile_id);
 }
@@ -876,7 +885,7 @@ async function writeError(supabase: any, profile_id: string, growthPlanId: strin
     // Send fallback email if we have context
     if (stage !== 'context_load') {
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-      const RESEND_FROM = Deno.env.get('RESEND_FROM') || 'jericho@askjericho.com';
+      const RESEND_FROM = 'Jericho <jericho@sender.askjericho.com>';
       
       // Try to get email from profile
       const { data: profile } = await supabase.from('profiles').select('email, full_name').eq('id', profile_id).single();
@@ -886,7 +895,7 @@ async function writeError(supabase: any, profile_id: string, growthPlanId: strin
           method: 'POST',
           headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from: RESEND_FROM,
+            from: 'Jericho <jericho@sender.askjericho.com>',
             to: [profile.email],
             subject: `${firstName}, your growth plan is on its way`,
             html: `<p>Hey ${firstName},</p><p>Your growth plan is taking a little longer than usual to render. We're on it — you'll have it within 24 hours.</p><p>— Jericho</p>`,
