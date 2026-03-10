@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     console.log('Chat with Jericho function called');
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream, viewAsCompanyId } = await req.json();
+    const { conversationId, message, contextType, organizationContext, messages: chatMessages, stream, viewAsCompanyId, tryMode, sessionId } = await req.json();
     console.log('Request params:', { hasConversationId: !!conversationId, hasMessage: !!message, stream, hasOrgContext: !!organizationContext });
 
     // Check if this is an org health advisory request (no auth needed, streaming)
