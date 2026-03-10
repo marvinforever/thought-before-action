@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, ArrowRight, Loader2 } from "lucide-react";
+import { MessageSquare, Send, ArrowRight, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import { trackEvent, getVariant } from "@/lib/posthog";
+import { supabase } from "@/integrations/supabase/client";
 
 type Message = {
   id: string;
@@ -17,14 +18,32 @@ function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// ── Session token management via cookie ──
+function getOrCreateSessionToken(): string {
+  const COOKIE_NAME = "jericho_try_session";
+  const existing = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(`${COOKIE_NAME}=`));
+  if (existing) {
+    return existing.split("=")[1];
+  }
+  const token = crypto.randomUUID();
+  // 30-day cookie
+  document.cookie = `${COOKIE_NAME}=${token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+  return token;
+}
+
 export default function TryJericho() {
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionToken] = useState(() => getOrCreateSessionToken());
+  const [reportReady, setReportReady] = useState(false);
+  const [reportProfileId, setReportProfileId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const scrollToBottom = useCallback(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -34,12 +53,39 @@ export default function TryJericho() {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
 
+  // ── Poll for report readiness once we have a profile_id ──
+  useEffect(() => {
+    if (!reportProfileId || reportReady) return;
+
+    const poll = async () => {
+      try {
+        const { data } = await supabase
+          .from("user_active_context")
+          .select("report_status")
+          .eq("profile_id", reportProfileId)
+          .single();
+
+        if (data?.report_status === "delivered" || data?.report_status === "generated") {
+          setReportReady(true);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      } catch {
+        // silently retry
+      }
+    };
+
+    pollRef.current = setInterval(poll, 8000);
+    poll(); // immediate first check
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [reportProfileId, reportReady]);
+
   const handleStart = async () => {
     setStarted(true);
     trackEvent("coaching_conversation_started", { variant: getVariant("try_opening_variant") });
     setTimeout(() => inputRef.current?.focus(), 400);
-
-    // Send empty first message to trigger the Phase 1 opening from the system prompt
     await sendToJericho("hi");
   };
 
@@ -47,26 +93,23 @@ export default function TryJericho() {
     const userMsg: Message = { id: generateId(), role: "user", text: userText };
     const assistantMsg: Message = { id: generateId(), role: "jericho", text: "" };
 
-    // Only show user message if it's not the initial "hi" trigger
     const isInitial = messages.length === 0 && userText === "hi";
-    
+
     setMessages((prev) => isInitial ? [...prev, assistantMsg] : [...prev, userMsg, assistantMsg]);
     setIsLoading(true);
 
-    // Build conversation history for the AI
-    const history = messages
-      .map((m) => ({
-        role: m.role === "jericho" ? "assistant" : "user",
-        content: m.text,
-      }));
-    
+    const history = messages.map((m) => ({
+      role: m.role === "jericho" ? "assistant" : "user",
+      content: m.text,
+    }));
+
     if (!isInitial) {
       history.push({ role: "user", content: userText });
     }
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-jericho`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-try-chat`,
         {
           method: "POST",
           headers: {
@@ -75,7 +118,7 @@ export default function TryJericho() {
           },
           body: JSON.stringify({
             tryMode: true,
-            sessionId,
+            sessionId: sessionToken,
             messages: history,
             message: isInitial ? "" : userText,
             stream: true,
@@ -117,6 +160,11 @@ export default function TryJericho() {
           try {
             const data = JSON.parse(jsonStr);
 
+            // Check for profile_id to start polling
+            if (data.profile_id && !reportProfileId) {
+              setReportProfileId(data.profile_id);
+            }
+
             if (typeof data.content === "string" && data.content.length) {
               accumulated += data.content;
               setMessages((prev) => {
@@ -147,6 +195,9 @@ export default function TryJericho() {
           if (!jsonStr || jsonStr === "[DONE]") continue;
           try {
             const data = JSON.parse(jsonStr);
+            if (data.profile_id && !reportProfileId) {
+              setReportProfileId(data.profile_id);
+            }
             if (typeof data.content === "string" && data.content.length) {
               accumulated += data.content;
               setMessages((prev) => {
@@ -288,6 +339,34 @@ export default function TryJericho() {
               transition={{ duration: 0.4 }}
               className="flex flex-col min-h-screen pt-16"
             >
+              {/* Report Ready Banner */}
+              <AnimatePresence>
+                {reportReady && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="mx-4 mt-2"
+                  >
+                    <div className="max-w-2xl mx-auto bg-accent/15 border border-accent/30 rounded-xl p-4 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-accent font-semibold text-sm">🎉 Your Growth Plan is ready!</p>
+                        <p className="text-white/60 text-xs mt-0.5">Check your email — we've sent your full Personalized Growth Plan.</p>
+                      </div>
+                      <a
+                        href="/auth"
+                        className="shrink-0"
+                      >
+                        <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5">
+                          <Download className="w-3.5 h-3.5" />
+                          Log In to View
+                        </Button>
+                      </a>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-4 py-6">
                 <div className="max-w-2xl mx-auto space-y-4">
