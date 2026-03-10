@@ -289,13 +289,11 @@ export default function TryJericho() {
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6">
-                  Meet <span className="text-accent">Jericho</span>
-                  <br />
-                  Your AI Performance Coach
+                  Your Performance Coach.
                 </h1>
 
                 <p className="text-lg sm:text-xl text-white/70 max-w-xl mx-auto mb-10 leading-relaxed">
-                  Have a 3-minute conversation and I'll build you a free Personalized Growth Plan — a diagnostic that shows exactly where to focus to accelerate your career.
+                  Let's build your Growth Map.
                 </p>
 
                 <Button
@@ -304,7 +302,7 @@ export default function TryJericho() {
                   className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-8 py-6 rounded-xl shadow-lg shadow-accent/25 font-semibold group"
                 >
                   <MessageSquare className="w-5 h-5 mr-2" />
-                  Start Conversation
+                  Start
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
 
