@@ -178,7 +178,7 @@ Return JSON only:
     const levelName = (n: number) => ["", "foundational", "advancing", "independent", "mastery"][n] || "foundational";
     const totalCaps = matrix.length;
 
-    const MASTER_PROMPT = `You are generating a Leadership Acceleration Report for Jericho by The Momentum Company.
+    const MASTER_PROMPT = `You are generating a Growth Map for Jericho by The Momentum Company.
 
 This is a comprehensive, personalized growth document for a leader. It must feel premium, specific, and actionable — never generic.
 
