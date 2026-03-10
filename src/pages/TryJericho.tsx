@@ -176,7 +176,14 @@ export default function TryJericho() {
 
         // Reflection for score questions (section 2)
         if (currentQ.section === 2) {
-          const score = parseInt(value) || 5;
+          const numberMatch = value.match(/\d+/);
+          if (!numberMatch) {
+            await addJerichoMsg("Just to confirm — what number would you give that, 1–10?", 400);
+            return; // Don't advance — ask again
+          }
+          const score = Math.min(10, Math.max(1, parseInt(numberMatch[0])));
+          const newAnswersWithScore = { ...newAnswers, [currentQ.key]: String(score) };
+          setAnswers(newAnswersWithScore);
           await addJerichoMsg(getScoreReflection(currentQ.key, score), 500);
         } else if (currentQ.section === 3) {
           const reflections = [
