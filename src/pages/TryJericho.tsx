@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Send, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { trackEvent, detectBuyingSignal, getVariant } from "@/lib/posthog";
+import ReactMarkdown from "react-markdown";
+import { trackEvent, getVariant } from "@/lib/posthog";
 
 type Message = {
   id: string;
@@ -13,82 +13,16 @@ type Message = {
   text: string;
 };
 
-type ConvoState =
-  | "idle"
-  | "opening"
-  | "questions"
-  | "ask_email"
-  | "ask_phone"
-  | "creating_account"
-  | "done";
-
-// Same 13-question flow as ConversationalOnboarding
-const ONBOARDING_QUESTIONS = [
-  // Section 1 — Who You Are
-  { key: "role_org", section: 1, question: "What's your role and where do you work?" },
-  { key: "tenure", section: 1, question: "How long have you been in this position?" },
-  { key: "team_lead", section: 1, question: "Do you lead a team? If so, how many people?" },
-  // Section 2 — Where You Stand (1-10 ratings)
-  { key: "engagement", section: 2, question: "On a scale of 1–10, how engaged are you with your work right now?" },
-  { key: "career_growth", section: 2, question: "How satisfied are you with your career growth over the past 12 months? (1–10)" },
-  { key: "role_clarity", section: 2, question: "How clear are you on what success looks like in your role? (1–10)" },
-  // Section 3 — What Drives You
-  { key: "great_year", section: 3, question: "What would make this a great year for you professionally?" },
-  { key: "strengths", section: 3, question: "What are you naturally good at — the things that come easy to you that others seem to struggle with?" },
-  { key: "hardest_part", section: 3, question: "What's the hardest part of your job right now?" },
-  { key: "obstacles", section: 3, question: "What gets in the way of doing your best work?" },
-  { key: "proudest", section: 3, question: "What's something you've accomplished that you're genuinely proud of?" },
-  // Section 4 — How You Learn
-  { key: "learning_pref", section: 4, question: "How do you prefer to learn? Books, podcasts, videos, or just diving in and trying things?" },
-  { key: "time_available", section: 4, question: "How much time can you realistically invest in your own development each week?" },
-];
-
-const SECTION_TRANSITIONS: Record<number, string> = {
-  2: "Great — got a good picture of where you sit. Now I want to understand how you're feeling about your work right now. Quick ratings, 1–10.",
-  3: "Appreciate the honesty. Now let's dig into what drives you — this is where it gets good.",
-  4: "Love it. Last couple of questions — quick ones about how you like to learn.",
-};
-
-function getScoreReflection(key: string, score: number): string {
-  if (key === "engagement") {
-    if (score >= 8) return `A ${score} — that's solid. You're clearly plugged in. Let's keep that momentum going.`;
-    if (score >= 5) return `A ${score} — honest answer. There's room to move that needle. Let's figure out what's holding it back.`;
-    return `A ${score} — I appreciate you being real about that. That's exactly why we're doing this.`;
-  }
-  if (key === "career_growth") {
-    if (score >= 8) return `${score} out of 10 on career growth — you've been making moves. Let's build on that.`;
-    if (score >= 5) return `A ${score}. Not bad, but I bet you want more. That's what we're here for.`;
-    return `${score} — sounds like you're ready for a change. Good. That's the first step.`;
-  }
-  if (key === "role_clarity") {
-    if (score >= 8) return `${score} — you've got clarity. That's a huge advantage most people don't have.`;
-    if (score >= 5) return `A ${score}. Some things are clear, some aren't. We'll sharpen that.`;
-    return `${score} — that tells me a lot. Getting clear on what winning looks like is step one in your growth plan.`;
-  }
-  return "Got it.";
-}
-
 function generateId() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function generatePassword() {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let pw = "";
-  for (let i = 0; i < 10; i++) pw += chars[Math.floor(Math.random() * chars.length)];
-  return pw;
 }
 
 export default function TryJericho() {
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [state, setState] = useState<ConvoState>("idle");
-  const [isTyping, setIsTyping] = useState(false);
-  const [questionIndex, setQuestionIndex] = useState(-1);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionId] = useState(() => crypto.randomUUID());
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -98,228 +32,169 @@ export default function TryJericho() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping, scrollToBottom]);
-
-  const addJerichoMsg = useCallback((text: string, delay = 800) => {
-    setIsTyping(true);
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        setMessages((prev) => [...prev, { id: generateId(), role: "jericho", text }]);
-        setIsTyping(false);
-        setTimeout(() => inputRef.current?.focus(), 50);
-        resolve();
-      }, delay);
-    });
-  }, []);
+  }, [messages, isLoading, scrollToBottom]);
 
   const handleStart = async () => {
     setStarted(true);
-    setState("opening");
-    trackEvent('coaching_conversation_started', { variant: getVariant('try_opening_variant') });
+    trackEvent("coaching_conversation_started", { variant: getVariant("try_opening_variant") });
     setTimeout(() => inputRef.current?.focus(), 400);
-    await addJerichoMsg(
-      "Hey — I'm Jericho. Before I build your growth plan, I want to get to know you a little. This'll feel more like a conversation than a survey — most people find it pretty easy.\n\nReady to jump in?",
-      600
-    );
+
+    // Send empty first message to trigger the Phase 1 opening from the system prompt
+    await sendToJericho("hi");
   };
 
-  const advanceToQuestion = async (idx: number, currentAnswers: Record<string, string>) => {
-    if (idx >= ONBOARDING_QUESTIONS.length) {
-      // All questions done — ask for email to deliver the report
-      await addJerichoMsg(
-        "That's everything I need. I'm going to build your personalized Leadership Acceleration Report — it'll map your strengths, gaps, and a 90-day roadmap.\n\nWhat email should I send it to?",
-        800
+  const sendToJericho = async (userText: string) => {
+    const userMsg: Message = { id: generateId(), role: "user", text: userText };
+    const assistantMsg: Message = { id: generateId(), role: "jericho", text: "" };
+
+    // Only show user message if it's not the initial "hi" trigger
+    const isInitial = messages.length === 0 && userText === "hi";
+    
+    setMessages((prev) => isInitial ? [...prev, assistantMsg] : [...prev, userMsg, assistantMsg]);
+    setIsLoading(true);
+
+    // Build conversation history for the AI
+    const history = messages
+      .map((m) => ({
+        role: m.role === "jericho" ? "assistant" : "user",
+        content: m.text,
+      }));
+    
+    if (!isInitial) {
+      history.push({ role: "user", content: userText });
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-jericho`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            tryMode: true,
+            sessionId,
+            messages: history,
+            message: isInitial ? "" : userText,
+            stream: true,
+          }),
+        }
       );
-      setState("ask_email");
-      return;
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("Chat error:", response.status, errText);
+        throw new Error("Failed to get response");
+      }
+
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let textBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr || jsonStr === "[DONE]") continue;
+
+          try {
+            const data = JSON.parse(jsonStr);
+
+            if (typeof data.content === "string" && data.content.length) {
+              accumulated += data.content;
+              setMessages((prev) => {
+                const next = [...prev];
+                const lastIdx = next.length - 1;
+                if (next[lastIdx]?.role === "jericho") {
+                  next[lastIdx] = { ...next[lastIdx], text: accumulated };
+                }
+                return next;
+              });
+            }
+
+            if (data.done) break;
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split("\n")) {
+          if (!raw) continue;
+          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+          if (!raw.startsWith("data: ")) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (!jsonStr || jsonStr === "[DONE]") continue;
+          try {
+            const data = JSON.parse(jsonStr);
+            if (typeof data.content === "string" && data.content.length) {
+              accumulated += data.content;
+              setMessages((prev) => {
+                const next = [...prev];
+                const lastIdx = next.length - 1;
+                if (next[lastIdx]?.role === "jericho") {
+                  next[lastIdx] = { ...next[lastIdx], text: accumulated };
+                }
+                return next;
+              });
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    } catch (err) {
+      console.error("Stream error:", err);
+      setMessages((prev) => {
+        const next = [...prev];
+        const lastIdx = next.length - 1;
+        if (next[lastIdx]?.role === "jericho" && !next[lastIdx].text) {
+          next[lastIdx] = {
+            ...next[lastIdx],
+            text: "Something went wrong — try sending your message again.",
+          };
+        }
+        return next;
+      });
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
-
-    const nextQ = ONBOARDING_QUESTIONS[idx];
-    const prevQ = idx > 0 ? ONBOARDING_QUESTIONS[idx - 1] : null;
-
-    // Section transition
-    if (prevQ && nextQ.section !== prevQ.section && SECTION_TRANSITIONS[nextQ.section]) {
-      await addJerichoMsg(SECTION_TRANSITIONS[nextQ.section], 600);
-    }
-
-    await addJerichoMsg(nextQ.question, 500);
-    setQuestionIndex(idx);
-    setState("questions");
   };
 
   const handleSend = async () => {
     const value = input.trim();
-    if (!value || isTyping) return;
-
-    const signal = detectBuyingSignal(value);
-    if (signal) {
-      trackEvent('buying_signal_expressed', { signal_type: signal });
-    }
-
-    setMessages((prev) => [...prev, { id: generateId(), role: "user", text: value }]);
+    if (!value || isLoading) return;
     setInput("");
-
-    switch (state) {
-      case "opening": {
-        // User said they're ready — start questions
-        await addJerichoMsg("Let's do it. 💪", 400);
-        await advanceToQuestion(0, answers);
-        break;
-      }
-
-      case "questions": {
-        const currentQ = ONBOARDING_QUESTIONS[questionIndex];
-        if (!currentQ) return;
-
-        // --- Correction handling ---
-        const correctionPatterns = /^(wait|actually|i meant|let me change|correction|go back|sorry|hold on|no,|oops)/i;
-        if (correctionPatterns.test(value) && questionIndex > 0) {
-          // Extract the corrected value if provided inline, otherwise go back
-          const correctedValue = value.replace(correctionPatterns, "").replace(/^[\s,—–-]+/, "").trim();
-          const prevQ = ONBOARDING_QUESTIONS[questionIndex - 1];
-
-          if (correctedValue) {
-            // User provided correction inline — update previous answer
-            const updatedAnswers = { ...answers, [prevQ.key]: correctedValue };
-            // If previous was a score question, parse the number
-            if (prevQ.section === 2) {
-              const numMatch = correctedValue.match(/\d+/);
-              if (numMatch) {
-                const score = Math.min(10, Math.max(1, parseInt(numMatch[0])));
-                updatedAnswers[prevQ.key] = String(score);
-                setAnswers(updatedAnswers);
-                await addJerichoMsg(`No problem — I've updated that. A ${score}. Let's keep going.`, 400);
-              } else {
-                setAnswers(updatedAnswers);
-                await addJerichoMsg(`No problem — I've updated that to "${correctedValue}". Let's keep going.`, 400);
-              }
-            } else {
-              setAnswers(updatedAnswers);
-              await addJerichoMsg(`No problem — I've updated that to "${correctedValue}". Let's keep going.`, 400);
-            }
-            // Re-ask current question
-            await addJerichoMsg(currentQ.question, 500);
-            return;
-          } else {
-            // No inline correction — go back to previous question
-            const prevIdx = questionIndex - 1;
-            await addJerichoMsg("No problem — let's go back to the previous question.", 400);
-            await advanceToQuestion(prevIdx, answers);
-            return;
-          }
-        }
-
-        const newAnswers = { ...answers, [currentQ.key]: value };
-        setAnswers(newAnswers);
-
-        // Reflection for score questions (section 2)
-        if (currentQ.section === 2) {
-          const numberMatch = value.match(/\d+/);
-          if (!numberMatch) {
-            await addJerichoMsg("Just to confirm — what number would you give that, 1–10?", 400);
-            return; // Don't advance — ask again
-          }
-          const score = Math.min(10, Math.max(1, parseInt(numberMatch[0])));
-          const newAnswersWithScore = { ...newAnswers, [currentQ.key]: String(score) };
-          setAnswers(newAnswersWithScore);
-          await addJerichoMsg(getScoreReflection(currentQ.key, score), 500);
-        } else if (currentQ.section === 3) {
-          const reflections = [
-            "I hear you.",
-            "That's real.",
-            "Noted — this is exactly the kind of thing I'll build into your plan.",
-            "Good stuff. That tells me a lot.",
-            "I can work with that.",
-          ];
-          await addJerichoMsg(reflections[questionIndex % reflections.length], 400);
-        }
-
-        await advanceToQuestion(questionIndex + 1, newAnswers);
-        break;
-      }
-
-      case "ask_email": {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          await addJerichoMsg("Hmm, that doesn't look like a valid email. Try again?", 400);
-          return;
-        }
-        setEmail(value);
-        setState("ask_phone");
-        await addJerichoMsg("And your phone number? (I can text you coaching nudges — totally optional. Type 'skip' to skip.)");
-        break;
-      }
-
-      case "ask_phone": {
-        const phoneVal = value.toLowerCase() === "skip" || value.toLowerCase() === "no" ? undefined : value;
-        setPhone(phoneVal || "");
-        setState("creating_account");
-
-        await addJerichoMsg("Setting up your account and building your report now...", 400);
-
-        try {
-          const password = generatePassword();
-          const name = answers.role_org?.split(" at ")[0] || "New User";
-
-          const { data, error } = await supabase.functions.invoke("try-jericho-onboard", {
-            body: {
-              email: value.toLowerCase() === "skip" || value.toLowerCase() === "no" ? email : email,
-              fullName: name,
-              role: answers.role_org || null,
-              phone: phoneVal || null,
-              company: null,
-              companyId: null,
-              challenge: answers.hardest_part || null,
-              password,
-              // Pass all diagnostic answers for context seeding
-              diagnosticData: {
-                ...answers,
-                engagement_score: parseInt(answers.engagement) || null,
-                career_growth_score: parseInt(answers.career_growth) || null,
-                role_clarity_score: parseInt(answers.role_clarity) || null,
-                vision_great_year: answers.great_year,
-                natural_strengths: answers.strengths,
-                hardest_part: answers.hardest_part,
-                obstacles: answers.obstacles,
-                proudest_accomplishment: answers.proudest,
-                learning_formats: answers.learning_pref,
-                time_available: answers.time_available,
-                tenure: answers.tenure,
-                team_lead: answers.team_lead,
-              },
-            },
-          });
-
-          if (error) throw error;
-
-          setState("done");
-          const firstName = name.split(" ")[0];
-          await addJerichoMsg(
-            `You're all set, ${firstName}! 🎉\n\nI've sent your login details to **${email}**. Your Leadership Acceleration Report is being generated now — expect it in your inbox within 24 hours.\n\nWhen you log in, I'll already know everything we just talked about — we'll pick up right where we left off.\n\nSee you inside. 🤝`
-          );
-        } catch (err: any) {
-          console.error("Onboard error:", err);
-          setState("ask_email");
-          await addJerichoMsg(
-            "Something went wrong creating your account. Let's try again — what email should I use?"
-          );
-        }
-        break;
-      }
-
-      default:
-        break;
-    }
+    await sendToJericho(value);
   };
-
-  const progressPercent = Math.round(
-    ((questionIndex < 0 ? 0 : questionIndex) / ONBOARDING_QUESTIONS.length) * 100
-  );
 
   return (
     <>
       <Helmet>
         <title>Try Jericho — Your AI Performance Coach</title>
-        <meta name="description" content="Meet Jericho, your AI performance coach for sales, team development, and operations. Start a conversation and see what's possible." />
+        <meta
+          name="description"
+          content="Meet Jericho, your AI performance coach. Start a conversation and get a free Personalized Growth Plan in minutes."
+        />
       </Helmet>
 
       <div className="min-h-screen bg-primary text-primary-foreground">
@@ -332,7 +207,10 @@ export default function TryJericho() {
               </div>
               <span className="text-xl font-bold tracking-tight">Jericho</span>
             </div>
-            <a href="/auth" className="text-sm text-muted-foreground hover:text-primary-foreground transition-colors">
+            <a
+              href="/auth"
+              className="text-sm text-muted-foreground hover:text-primary-foreground transition-colors"
+            >
               Already have an account? Log in →
             </a>
           </div>
@@ -340,7 +218,6 @@ export default function TryJericho() {
 
         <AnimatePresence mode="wait">
           {!started ? (
-            /* Hero / Landing */
             <motion.div
               key="hero"
               initial={{ opacity: 0 }}
@@ -367,7 +244,7 @@ export default function TryJericho() {
                 </h1>
 
                 <p className="text-lg sm:text-xl text-white/70 max-w-xl mx-auto mb-10 leading-relaxed">
-                  Answer a few questions and I'll build you a personalized Leadership Acceleration Report — free, in 24 hours.
+                  Have a 3-minute conversation and I'll build you a free Personalized Growth Plan — a diagnostic that shows exactly where to focus to accelerate your career.
                 </p>
 
                 <Button
@@ -381,26 +258,29 @@ export default function TryJericho() {
                 </Button>
 
                 <p className="text-sm text-white/40 mt-6">
-                  No login required. Takes 10–15 minutes.
+                  No login required. Takes about 3 minutes.
                 </p>
               </motion.div>
 
-              {/* Feature pills */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
                 className="flex flex-wrap justify-center gap-3 mt-16 max-w-lg"
               >
-                {["Leadership Report", "Growth Roadmap", "AI Coaching", "90-Day Sprint", "Career Clarity"].map((f) => (
-                  <span key={f} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/60">
-                    {f}
-                  </span>
-                ))}
+                {["Growth Plan", "Career Clarity", "AI Coaching", "90-Day Sprint", "Strengths Map"].map(
+                  (f) => (
+                    <span
+                      key={f}
+                      className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/60"
+                    >
+                      {f}
+                    </span>
+                  )
+                )}
               </motion.div>
             </motion.div>
           ) : (
-            /* Chat Interface */
             <motion.div
               key="chat"
               initial={{ opacity: 0, y: 20 }}
@@ -408,26 +288,6 @@ export default function TryJericho() {
               transition={{ duration: 0.4 }}
               className="flex flex-col min-h-screen pt-16"
             >
-              {/* Progress bar */}
-              {state === "questions" && (
-                <div className="px-4 pt-3">
-                  <div className="max-w-2xl mx-auto">
-                    <div className="flex items-center justify-between text-xs text-white/50 mb-1">
-                      <span>Getting to know you</span>
-                      <span>{progressPercent}%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-accent rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPercent}%` }}
-                        transition={{ duration: 0.5 }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-4 py-6">
                 <div className="max-w-2xl mx-auto space-y-4">
@@ -440,24 +300,20 @@ export default function TryJericho() {
                       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap ${
+                        className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${
                           msg.role === "user"
                             ? "bg-accent text-accent-foreground rounded-br-md"
                             : "bg-white/10 text-primary-foreground rounded-bl-md"
                         }`}
                       >
-                        {msg.text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-                          part.startsWith("**") && part.endsWith("**") ? (
-                            <strong key={i}>{part.slice(2, -2)}</strong>
-                          ) : (
-                            <span key={i}>{part}</span>
-                          )
-                        )}
+                        <div className="prose prose-sm prose-invert max-w-none [&>p]:m-0 [&>p:not(:last-child)]:mb-2">
+                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
 
-                  {isTyping && (
+                  {isLoading && messages[messages.length - 1]?.role !== "jericho" && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -476,52 +332,32 @@ export default function TryJericho() {
               </div>
 
               {/* Input */}
-              {state !== "done" && state !== "creating_account" && (
-                <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm p-4">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSend();
-                    }}
-                    className="max-w-2xl mx-auto flex gap-2"
+              <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm p-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSend();
+                  }}
+                  className="max-w-2xl mx-auto flex gap-2"
+                >
+                  <Input
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Type your answer..."
+                    disabled={isLoading}
+                    className="flex-1 bg-white/10 border-white/20 text-primary-foreground placeholder:text-white/40 focus-visible:ring-accent"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!input.trim() || isLoading}
+                    className="bg-accent text-accent-foreground hover:bg-accent/90 shrink-0"
                   >
-                    <Input
-                      ref={inputRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder={
-                        state === "ask_email"
-                          ? "your@email.com"
-                          : state === "ask_phone"
-                          ? "Phone number (or type 'skip')"
-                          : state === "opening"
-                          ? "Type 'yes' to start..."
-                          : "Type your answer..."
-                      }
-                      disabled={isTyping}
-                      className="flex-1 bg-white/10 border-white/20 text-primary-foreground placeholder:text-white/40 focus-visible:ring-accent"
-                    />
-                    <Button
-                      type="submit"
-                      size="icon"
-                      disabled={!input.trim() || isTyping}
-                      className="bg-accent text-accent-foreground hover:bg-accent/90 shrink-0"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </form>
-                </div>
-              )}
-
-              {state === "done" && (
-                <div className="border-t border-white/10 bg-primary/95 p-4 text-center">
-                  <a href="/auth">
-                    <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-                      Log In Now →
-                    </Button>
-                  </a>
-                </div>
-              )}
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </form>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
