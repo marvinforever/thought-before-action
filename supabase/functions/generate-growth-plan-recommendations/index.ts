@@ -225,9 +225,9 @@ async function loadContext(supabase: any, profile_id: string): Promise<UserConte
     career_goal_3yr: od.career_goal_3yr || '',
     growth_feeling: od.growth_feeling || od.score?.toString() || '',
     learning_formats: od.learning_formats || od.learning_style || '',
-    engagement_score: od.engagement_score || null,
-    career_growth_score: od.career_growth_score || null,
-    role_clarity_score: od.role_clarity_score || null,
+    engagement_score: od.engagement_score ?? diagScores?.engagement_score ?? null,
+    career_growth_score: od.career_growth_score ?? diagScores?.career_score ?? null,
+    role_clarity_score: od.role_clarity_score ?? diagScores?.clarity_score ?? null,
     raw_onboarding: od,
     capabilities: capsRes.data || [],
   };
