@@ -244,7 +244,7 @@ export default function TryJericho() {
         <title>Try Jericho — Your AI Performance Coach</title>
         <meta
           name="description"
-          content="Meet Jericho, your AI performance coach. Start a conversation and get a free Personalized Growth Plan in minutes."
+          content="Meet Jericho, your performance coach. Start a conversation and get a free Growth Map in minutes."
         />
       </Helmet>
 
