@@ -617,7 +617,7 @@ const Sales = () => {
                   {
                     time: "9:00 AM",
                     icon: Smartphone,
-                    text: "A Telegram nudge: "You said you'd delegate that project update. Did you?" Quick yes/no. Streak continues.",
+                    text: 'A Telegram nudge: "You said you\'d delegate that project update. Did you?" Quick yes/no. Streak continues.',
                   },
                   {
                     time: "12:00 PM",
