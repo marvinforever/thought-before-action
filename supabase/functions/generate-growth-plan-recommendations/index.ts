@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -6,23 +5,45 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { profile_id } = await req.json();
     if (!profile_id) {
       return new Response(JSON.stringify({ error: 'profile_id is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    // Push all heavy work into the background
+    const promise = processGrowthPlan(profile_id);
+    // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions
+    EdgeRuntime.waitUntil(promise);
+
+    // Return immediately with 202 Accepted
+    return new Response(JSON.stringify({ status: 'processing', profile_id }), {
+      status: 202,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error: any) {
+    console.error('Error initiating growth plan:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+});
+
+async function processGrowthPlan(profile_id: string) {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  try {
+    console.log(`[growth-plan] Background processing started for ${profile_id}`);
 
     const [profileRes, capabilitiesRes, capLevelsRes, diagnosticRes, visionRes, goalsRes, habitsRes, achievementsRes] = await Promise.all([
       supabase.from("profiles").select("full_name, job_title, company_id, role").eq("id", profile_id).single(),
@@ -82,13 +103,131 @@ serve(async (req) => {
       };
     });
 
-    // Cap at 15 capabilities for AI prompt to avoid overly large responses
     const capDetails = allCapDetails.slice(0, 15);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
-    const prompt = `You are generating a comprehensive Individual Growth Plan (IGP) document.
+    const prompt = buildPrompt(profile, capDetails, diagnostic, companyName);
+
+    console.log('[growth-plan] Calling AI...');
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('[growth-plan] AI API error:', aiResponse.status, errorText);
+      await saveError(supabase, profile_id, `AI API error: ${aiResponse.status} - ${errorText.substring(0, 500)}`);
+      return;
+    }
+
+    const aiData = await aiResponse.json();
+    const aiContent = aiData.choices?.[0]?.message?.content || '{}';
+
+    let parsed = tryParseJSON(aiContent);
+
+    if (!parsed) {
+      console.log('[growth-plan] First parse failed, retrying...');
+      const retryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: prompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown fences. Keep responses concise.' }],
+          temperature: 0.5,
+          response_format: { type: 'json_object' },
+        }),
+      });
+      if (!retryResponse.ok) {
+        const retryErr = await retryResponse.text();
+        await saveError(supabase, profile_id, `Retry AI error: ${retryResponse.status} - ${retryErr.substring(0, 500)}`);
+        return;
+      }
+      const retryData = await retryResponse.json();
+      const retryContent = retryData.choices?.[0]?.message?.content || '{}';
+      parsed = tryParseJSON(retryContent);
+      if (!parsed) {
+        await saveError(supabase, profile_id, 'Failed to parse AI response after retry');
+        return;
+      }
+    }
+
+    // Store the result in user_active_context for the client to poll
+    const resultPayload = {
+      success: true,
+      profile: {
+        full_name: profile?.full_name,
+        job_title: profile?.job_title || profile?.role,
+        company_name: companyName,
+      },
+      capabilities: allCapDetails,
+      diagnostic,
+      vision,
+      goals: goals.length > 0 ? goals : null,
+      habits: habits.length > 0 ? habits : null,
+      achievements: achievements.length > 0 ? achievements : null,
+      ai_recommendations: parsed,
+      generated_at: new Date().toISOString(),
+    };
+
+    await supabase.from("user_active_context").upsert({
+      profile_id,
+      onboarding_data: resultPayload,
+      error_log: null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "profile_id" });
+
+    console.log(`[growth-plan] Background processing complete for ${profile_id}`);
+  } catch (error: any) {
+    console.error('[growth-plan] Background error:', error);
+    await saveError(supabase, profile_id, error.message);
+  }
+}
+
+async function saveError(supabase: any, profile_id: string, errorMsg: string) {
+  try {
+    await supabase.from("user_active_context").upsert({
+      profile_id,
+      error_log: `growth-plan error: ${errorMsg.substring(0, 1000)}`,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "profile_id" });
+  } catch (e) {
+    console.error('[growth-plan] Failed to save error:', e);
+  }
+}
+
+function tryParseJSON(content: string): any {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+    if (jsonMatch) {
+      try { return JSON.parse(jsonMatch[1]); } catch { /* fall through */ }
+    }
+    const objectMatch = content.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      try { return JSON.parse(objectMatch[0]); } catch { /* fall through */ }
+    }
+    return null;
+  }
+}
+
+function buildPrompt(profile: any, capDetails: any[], diagnostic: any, companyName: string): string {
+  return `You are generating a comprehensive Individual Growth Plan (IGP) document.
 
 EMPLOYEE: ${profile?.full_name || 'Unknown'}
 ROLE: ${profile?.job_title || profile?.role || 'Not specified'}
@@ -163,7 +302,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
     }
   ],
   "overall_summary": "2-3 sentence summary of growth trajectory",
-  "strengths_statement": "2-3 sentences on what this employee does well, referencing specific capabilities at Independent or Mastery level",
+  "strengths_statement": "2-3 sentences on what this employee does well",
   "primary_development_focus": "1 sentence summary of the development theme",
   "top_priority_actions": [
     { "action": "Specific actionable step", "capability_name": "Which capability this develops" }
@@ -187,96 +326,4 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact format:
     "on_target_count": number
   }
 }`;
-
-    console.log('Calling AI for growth plan recommendations...');
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        response_format: { type: 'json_object' },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limited, please try again shortly' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      throw new Error(`AI API error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const aiContent = aiData.choices?.[0]?.message?.content || '{}';
-
-    let parsed;
-    try {
-      parsed = JSON.parse(aiContent);
-    } catch (parseError) {
-      // Try extracting JSON from markdown fences
-      const jsonMatch = aiContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-      if (jsonMatch) {
-        try { parsed = JSON.parse(jsonMatch[1]); } catch { /* fall through */ }
-      }
-      if (!parsed) {
-        const objectMatch = aiContent.match(/\{[\s\S]*\}/);
-        if (objectMatch) {
-          try { parsed = JSON.parse(objectMatch[0]); } catch { /* fall through */ }
-        }
-      }
-      // Retry once if parsing failed
-      if (!parsed) {
-        console.log('First parse failed, retrying AI call...');
-        const retryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [{ role: 'user', content: prompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown fences. Keep responses concise.' }],
-            temperature: 0.5,
-            response_format: { type: 'json_object' },
-          }),
-        });
-        if (!retryResponse.ok) throw new Error(`Retry AI API error: ${retryResponse.status}`);
-        const retryData = await retryResponse.json();
-        const retryContent = retryData.choices?.[0]?.message?.content || '{}';
-        parsed = JSON.parse(retryContent);
-      }
-    }
-
-    return new Response(JSON.stringify({
-      success: true,
-      profile: {
-        full_name: profile?.full_name,
-        job_title: profile?.job_title || profile?.role,
-        company_name: companyName,
-      },
-      capabilities: allCapDetails,
-      diagnostic,
-      vision,
-      goals: goals.length > 0 ? goals : null,
-      habits: habits.length > 0 ? habits : null,
-      achievements: achievements.length > 0 ? achievements : null,
-      ai_recommendations: parsed,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
-  } catch (error: any) {
-    console.error('Error generating growth plan:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
+}
