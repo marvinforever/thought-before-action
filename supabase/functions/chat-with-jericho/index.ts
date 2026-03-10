@@ -101,6 +101,198 @@ ${organizationContext.domainScores?.map((d: any) => `- ${d.domain}: ${d.score}/1
       });
     }
 
+    // ==================== TRY MODE (Public, no auth) ====================
+    const { tryMode, sessionId } = await req.json().catch(() => ({}));
+    // Re-parse body since we already consumed it above — use the original parsed values
+    const bodyData = { conversationId, message, contextType, organizationContext, messages: chatMessages, stream, viewAsCompanyId, tryMode: (await req.clone().json().catch(() => ({}))).tryMode };
+    // Actually we already destructured above, so tryMode comes from the initial parse. Let me fix this.
+
+    // Note: tryMode and sessionId are already parsed from the initial req.json() call at line 19
+    if (tryMode && stream) {
+      const trySystemPrompt = `SYSTEM: You are Jericho, a performance coach built by The Momentum Company. The user is a prospect seeking a complimentary Personalized Growth Plan. You must guide them through a 9-phase diagnostic conversation to extract their data naturally, never asking more than two questions at once. Do not break character. Do not sound like a form.
+
+Phase 1 (Opening): "Hey — I'm Jericho, a performance coach built by The Momentum Company. I can build you a Personalized Growth Plan in about 3 minutes — a diagnostic that helps you see exactly where to focus to accelerate your career. Completely complimentary. What's your first name, and what do you do?"
+
+Phase 2 (Context): Reflect their role/company. If available, offer social proof (e.g., "X professionals in your industry have completed this"). Ask: "How long have you been in this role?"
+
+Phase 3 (Diagnostic Score): "Got it. Quick pulse check: on a scale of 1-10, how would you rate your overall performance and growth right now? Not your company's — yours personally."
+
+Phase 4 (Drill-Down - CRITICAL): Adapt based on score.
+If 1-4: "What's the single biggest thing that would change that number if it got fixed?"
+If 5-6: "Things aren't broken, but there's room left on the table. Usually a skills gap or you're buried in the day-to-day. Which resonates more?"
+If 7-8: "Solid. The difference between 7 and 9 is usually working differently, not harder. What do you think is in that gap for you?"
+If 9-10: "Love the confidence. The growth edge here is developing what's next (leadership, strategy). What's the thing you KNOW you should be developing but keep putting off?"
+
+Phase 5 (Strength Read): Provide a brief coaching insight connecting their obstacle to their role/tenure. Then ask: "Flip side — what's the thing you're genuinely best at in your work? The thing people come to you for?"
+
+Phase 6 (Team & Learning): Acknowledge their strength. Ask: "Two quick ones and then I'll build your growth plan: How many people do you lead? And when you need to learn something new, what works best for you — reading, watching, or just jumping in?"
+
+Phase 7 (Data Collection Close): "That's everything I need, [Name]. I'm building your Personalized Growth Plan right now. What's your last name and email? I'll send it over as soon as it's ready."
+
+Phase 8 (The Up-Sell): "Got it. Want me to text you when it's ready too? Sometimes email gets buried. Totally optional." (If yes, ask for phone number).
+
+Phase 8.5 (Optional Enhancements): "Two optional things to make your plan better: 1. Drop the results of any personality assessment (DISC, Kolbe, etc.) you've taken. 2. Paste or upload your job description. No worries if you don't have them."
+
+Phase 9 (Transition to Coaching): Acknowledge any uploads. Ask: "While the plan generates — what's the one thing you absolutely have to get done today?"
+
+IMPORTANT RULES:
+- Never ask more than 2 questions at once.
+- Keep responses conversational and brief (2-4 sentences max per turn).
+- Mirror the user's language and energy.
+- Do not sound like a survey or form. This should feel like talking to a sharp coach.
+- Do not break character. You ARE Jericho.
+- When the user provides their email in Phase 7, include this exact marker at the END of your response (it will be parsed and hidden from the user): <!--ONBOARDING_COMPLETE:{"first_name":"...","last_name":"...","email":"...","role":"...","tenure":"...","score":"...","obstacle":"...","strength":"...","team_size":"...","learning_style":"...","phone":"..."}-->`;
+
+      const aiMessages = [
+        { role: 'system', content: trySystemPrompt },
+        ...(chatMessages || []),
+      ];
+
+      // If the initial message is empty or "hi", don't add a user message — let the system prompt drive Phase 1
+      if (message && message.trim() && message.trim().toLowerCase() !== 'hi') {
+        // message is already in chatMessages from the client
+      }
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: aiMessages,
+          stream: true,
+          temperature: 0.9,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limits exceeded. Please try again in a moment.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'AI credits exhausted.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const errorText = await response.text();
+        console.error('Try mode AI error:', response.status, errorText);
+        return new Response(
+          JSON.stringify({ error: 'AI service temporarily unavailable' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Stream response back, and check for onboarding complete marker
+      const encoder = new TextEncoder();
+      const tryStream = new ReadableStream({
+        async start(controller) {
+          const reader = response.body!.getReader();
+          const decoder = new TextDecoder();
+          let accumulatedContent = '';
+          let buffer = '';
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6);
+                  if (data === '[DONE]') {
+                    // Check for onboarding complete marker and process it
+                    const markerMatch = accumulatedContent.match(/<!--ONBOARDING_COMPLETE:(.*?)-->/);
+                    if (markerMatch) {
+                      try {
+                        const onboardingData = JSON.parse(markerMatch[1]);
+                        console.log('Try mode onboarding complete:', onboardingData);
+                        
+                        // Fire and forget: create account and trigger growth plan
+                        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+                        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+                        
+                        fetch(`${supabaseUrl}/functions/v1/try-jericho-onboard`, {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${serviceKey}`,
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            email: onboardingData.email,
+                            fullName: `${onboardingData.first_name} ${onboardingData.last_name}`.trim(),
+                            role: onboardingData.role,
+                            phone: onboardingData.phone || null,
+                            diagnosticData: onboardingData,
+                          }),
+                        }).catch(err => console.error('Try onboard trigger error:', err));
+                      } catch (e) {
+                        console.error('Failed to parse onboarding marker:', e);
+                      }
+                    }
+                    
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+                    continue;
+                  }
+
+                  try {
+                    const parsed = JSON.parse(data);
+                    const content = parsed.choices?.[0]?.delta?.content;
+                    
+                    if (content) {
+                      accumulatedContent += content;
+                      // Strip the hidden marker from what we send to the client
+                      const cleanContent = content.replace(/<!--ONBOARDING_COMPLETE:.*?-->/g, '');
+                      if (cleanContent) {
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleanContent })}\n\n`));
+                      }
+                    }
+                  } catch (e) {
+                    // Skip invalid JSON
+                  }
+                }
+              }
+            }
+
+            // Handle remaining buffer
+            if (buffer.startsWith('data: ') && buffer.slice(6) !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(buffer.slice(6));
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  accumulatedContent += content;
+                  const cleanContent = content.replace(/<!--ONBOARDING_COMPLETE:.*?-->/g, '');
+                  if (cleanContent) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleanContent })}\n\n`));
+                  }
+                }
+              } catch (e) { /* skip */ }
+            }
+
+            // Final done if not already sent
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+          } catch (error) {
+            console.error('Try mode stream error:', error);
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(tryStream, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+      });
+    }
+
     // Original personal coaching mode (requires auth)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
