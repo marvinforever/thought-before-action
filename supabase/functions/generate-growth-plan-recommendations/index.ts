@@ -895,7 +895,7 @@ async function writeError(supabase: any, profile_id: string, growthPlanId: strin
           method: 'POST',
           headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from: RESEND_FROM,
+            from: 'Jericho <jericho@sender.askjericho.com>',
             to: [profile.email],
             subject: `${firstName}, your growth plan is on its way`,
             html: `<p>Hey ${firstName},</p><p>Your growth plan is taking a little longer than usual to render. We're on it — you'll have it within 24 hours.</p><p>— Jericho</p>`,
