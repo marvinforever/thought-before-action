@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, fullName, role, phone, company, companyId, challenge, password } = await req.json();
+    const { email, fullName, role, phone, company, companyId, challenge, password, diagnosticData } = await req.json();
 
     if (!email || !password) {
       throw new Error("Email and password are required");
