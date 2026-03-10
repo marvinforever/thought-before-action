@@ -415,7 +415,7 @@ FORMATTING:
 <tr><td>
 <table role="presentation" width="100%" style="background:linear-gradient(180deg,#1A2332,#151D2B);border-radius:16px;border:1px solid rgba(229,165,48,0.2);">
 <tr><td style="padding:40px 40px 24px;">
-  <h1 style="margin:0;font-size:26px;font-weight:700;color:#FFF;">Your Leadership Acceleration Report is Ready 🚀</h1>
+  <h1 style="margin:0;font-size:26px;font-weight:700;color:#FFF;">Your Growth Map is Ready 🚀</h1>
 </td></tr>
 
 <tr><td style="padding:0 40px 24px;">

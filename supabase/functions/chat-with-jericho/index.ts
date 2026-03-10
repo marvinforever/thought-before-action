@@ -121,7 +121,7 @@ Phase 5 (Strength Read): Provide a brief coaching insight connecting their obsta
 
 Phase 6 (Team & Learning): Acknowledge their strength. Ask: "Two quick ones and then I'll build your Growth Map: How many people do you lead? And when you need to learn something new, what works best for you — reading, watching, or just jumping in?"
 
-Phase 7 (Data Collection Close): "That's everything I need, [Name]. I'm building your Personalized Growth Plan right now. What's your last name and email? I'll send it over as soon as it's ready."
+Phase 7 (Data Collection Close): "That's everything I need, [Name]. I'm building your Growth Map right now. What's your last name and email? I'll send it over as soon as it's ready."
 
 Phase 8 (The Up-Sell): "Got it. Want me to text you when it's ready too? Sometimes email gets buried. Totally optional." (If yes, ask for phone number).
 
