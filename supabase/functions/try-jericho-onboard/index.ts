@@ -106,22 +106,64 @@ Deno.serve(async (req) => {
 
     // 4b. Preload diagnostic data into user_active_context for /try → coaching continuity
     try {
+      const onboardingData = diagnosticData
+        ? {
+            ...diagnosticData,
+            source: "try-page",
+            company_name: company || null,
+          }
+        : {
+            role_org: role || null,
+            challenge: challenge || null,
+            source: "try-page",
+            company_name: company || null,
+          };
+
+      const hasFullDiagnostic = diagnosticData && diagnosticData.engagement_score;
+
       await supabaseAdmin.from("user_active_context").upsert({
         profile_id: userId,
         company_id: targetCompanyId,
         onboarding_path: "try-page",
-        onboarding_step: 0,
-        onboarding_complete: false,
-        onboarding_data: {
-          role_org: role || null,
-          challenge: challenge || null,
-          source: "try-page",
-          company_name: company || null,
-        },
+        onboarding_step: hasFullDiagnostic ? 13 : 0,
+        onboarding_complete: !!hasFullDiagnostic,
+        onboarding_data: onboardingData,
         updated_at: new Date().toISOString(),
       }, { onConflict: "profile_id" });
+
+      console.log(`[try-jericho-onboard] Context saved, complete=${!!hasFullDiagnostic}`);
     } catch (e) {
       console.error("Active context preload error:", e);
+    }
+
+    // 4c. Write coaching insights if diagnostic data present
+    if (diagnosticData) {
+      try {
+        const insights: string[] = [];
+        const eng = diagnosticData.engagement_score;
+        const growth = diagnosticData.career_growth_score;
+        const clarity = diagnosticData.role_clarity_score;
+
+        if (eng && eng <= 4) insights.push(`Low engagement (${eng}/10) — may need motivation or role alignment work.`);
+        if (growth && growth <= 4) insights.push(`Dissatisfied with career growth (${growth}/10) — prioritize career pathing.`);
+        if (clarity && clarity <= 4) insights.push(`Low role clarity (${clarity}/10) — needs success metrics defined.`);
+        if (diagnosticData.obstacles) insights.push(`Self-reported obstacles: ${String(diagnosticData.obstacles).substring(0, 200)}`);
+        if (diagnosticData.natural_strengths) insights.push(`Self-reported strengths: ${String(diagnosticData.natural_strengths).substring(0, 200)}`);
+
+        for (const insight of insights) {
+          await supabaseAdmin.from("coaching_insights").insert({
+            profile_id: userId,
+            company_id: targetCompanyId,
+            insight_type: "onboarding_observation",
+            insight_text: insight,
+            confidence_level: "high",
+            is_active: true,
+          });
+        }
+        console.log(`[try-jericho-onboard] Wrote ${insights.length} coaching insights`);
+      } catch (e) {
+        console.error("Coaching insights error:", e);
+      }
     }
 
     // 5. Send welcome email
