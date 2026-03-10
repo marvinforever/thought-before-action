@@ -118,7 +118,7 @@ export default function TryJericho() {
     trackEvent('coaching_conversation_started', { variant: getVariant('try_opening_variant') });
     setTimeout(() => inputRef.current?.focus(), 400);
     await addJerichoMsg(
-      "Hey — I'm Jericho. Before I build your growth plan, I want to get to know you a little. This'll take about 10–15 minutes and feel more like a conversation than a survey.\n\nReady to jump in?",
+      "Hey — I'm Jericho. Before I build your growth plan, I want to get to know you a little. This'll feel more like a conversation than a survey — most people find it pretty easy.\n\nReady to jump in?",
       600
     );
   };
