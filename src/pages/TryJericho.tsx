@@ -348,8 +348,8 @@ export default function TryJericho() {
                   >
                     <div className="max-w-2xl mx-auto bg-accent/15 border border-accent/30 rounded-xl p-4 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-accent font-semibold text-sm">🎉 Your Growth Plan is ready!</p>
-                        <p className="text-white/60 text-xs mt-0.5">Check your email — we've sent your full Personalized Growth Plan.</p>
+                         <p className="text-accent font-semibold text-sm">🎉 Your Growth Map is ready!</p>
+                         <p className="text-white/60 text-xs mt-0.5">Check your email — we've sent your Growth Map.</p>
                       </div>
                       <a
                         href="/auth"
