@@ -885,7 +885,7 @@ async function writeError(supabase: any, profile_id: string, growthPlanId: strin
     // Send fallback email if we have context
     if (stage !== 'context_load') {
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-      const RESEND_FROM = Deno.env.get('RESEND_FROM') || 'jericho@askjericho.com';
+      const RESEND_FROM = 'Jericho <jericho@sender.askjericho.com>';
       
       // Try to get email from profile
       const { data: profile } = await supabase.from('profiles').select('email, full_name').eq('id', profile_id).single();
