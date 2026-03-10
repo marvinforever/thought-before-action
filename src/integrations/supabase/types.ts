@@ -2843,6 +2843,47 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          body_preview: string | null
+          created_at: string
+          function_name: string | null
+          id: string
+          profile_id: string | null
+          subject: string
+          to_address: string
+          triggered_at: string
+        }
+        Insert: {
+          body_preview?: string | null
+          created_at?: string
+          function_name?: string | null
+          id?: string
+          profile_id?: string | null
+          subject: string
+          to_address: string
+          triggered_at?: string
+        }
+        Update: {
+          body_preview?: string | null
+          created_at?: string
+          function_name?: string | null
+          id?: string
+          profile_id?: string | null
+          subject?: string
+          to_address?: string
+          triggered_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_preferences: {
         Row: {
           brief_format: string | null
