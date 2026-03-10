@@ -6807,6 +6807,75 @@ export type Database = {
           },
         ]
       }
+      try_sessions: {
+        Row: {
+          company_match_id: string | null
+          conversation_history: Json | null
+          created_at: string | null
+          entry_timestamp: string | null
+          extracted_data: Json | null
+          id: string
+          last_activity: string | null
+          messages_count: number | null
+          profile_id: string | null
+          referrer_url: string | null
+          session_token: string
+          status: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          company_match_id?: string | null
+          conversation_history?: Json | null
+          created_at?: string | null
+          entry_timestamp?: string | null
+          extracted_data?: Json | null
+          id?: string
+          last_activity?: string | null
+          messages_count?: number | null
+          profile_id?: string | null
+          referrer_url?: string | null
+          session_token: string
+          status?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          company_match_id?: string | null
+          conversation_history?: Json | null
+          created_at?: string | null
+          entry_timestamp?: string | null
+          extracted_data?: Json | null
+          id?: string
+          last_activity?: string | null
+          messages_count?: number | null
+          profile_id?: string | null
+          referrer_url?: string | null
+          session_token?: string
+          status?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "try_sessions_company_match_id_fkey"
+            columns: ["company_match_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "try_sessions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_active_context: {
         Row: {
           company_id: string | null
