@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import { isProofingMode, logEmail } from "../_shared/proofing-mode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,21 @@ serve(async (req) => {
 
     if (profileError || !profile) {
       throw new Error("Profile not found");
+    }
+
+    // Check proofing mode — log instead of sending
+    const proofing = await isProofingMode();
+    if (proofing) {
+      await logEmail({
+        to: profile.email,
+        subject: `Growth email for ${profile.full_name}`,
+        bodyPreview: `Weekly/daily growth email for profile ${profileId}. Skipped in proofing mode.`,
+        functionName: "send-growth-email",
+        profileId,
+      });
+      return new Response(JSON.stringify({ success: true, proofing: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fetch email preferences to determine frequency

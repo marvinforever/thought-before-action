@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-
+import { isProofingMode, logEmail } from "../_shared/proofing-mode.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
@@ -25,6 +25,20 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending welcome email to ${email} (${fullName})`);
 
     const firstName = fullName?.split(' ')[0] || 'there';
+
+    // Check proofing mode
+    const proofing = await isProofingMode();
+    if (proofing) {
+      await logEmail({
+        to: email,
+        subject: `Welcome to Jericho, ${firstName}! 🚀`,
+        bodyPreview: `Welcome email for ${fullName}. Login URL: ${loginUrl}. Password provided.`,
+        functionName: "send-welcome-email",
+      });
+      return new Response(JSON.stringify({ success: true, proofing: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",

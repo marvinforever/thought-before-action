@@ -171,6 +171,44 @@ export default function TryJericho() {
         const currentQ = ONBOARDING_QUESTIONS[questionIndex];
         if (!currentQ) return;
 
+        // --- Correction handling ---
+        const correctionPatterns = /^(wait|actually|i meant|let me change|correction|go back|sorry|hold on|no,|oops)/i;
+        if (correctionPatterns.test(value) && questionIndex > 0) {
+          // Extract the corrected value if provided inline, otherwise go back
+          const correctedValue = value.replace(correctionPatterns, "").replace(/^[\s,—–-]+/, "").trim();
+          const prevQ = ONBOARDING_QUESTIONS[questionIndex - 1];
+
+          if (correctedValue) {
+            // User provided correction inline — update previous answer
+            const updatedAnswers = { ...answers, [prevQ.key]: correctedValue };
+            // If previous was a score question, parse the number
+            if (prevQ.section === 2) {
+              const numMatch = correctedValue.match(/\d+/);
+              if (numMatch) {
+                const score = Math.min(10, Math.max(1, parseInt(numMatch[0])));
+                updatedAnswers[prevQ.key] = String(score);
+                setAnswers(updatedAnswers);
+                await addJerichoMsg(`No problem — I've updated that. A ${score}. Let's keep going.`, 400);
+              } else {
+                setAnswers(updatedAnswers);
+                await addJerichoMsg(`No problem — I've updated that to "${correctedValue}". Let's keep going.`, 400);
+              }
+            } else {
+              setAnswers(updatedAnswers);
+              await addJerichoMsg(`No problem — I've updated that to "${correctedValue}". Let's keep going.`, 400);
+            }
+            // Re-ask current question
+            await addJerichoMsg(currentQ.question, 500);
+            return;
+          } else {
+            // No inline correction — go back to previous question
+            const prevIdx = questionIndex - 1;
+            await addJerichoMsg("No problem — let's go back to the previous question.", 400);
+            await advanceToQuestion(prevIdx, answers);
+            return;
+          }
+        }
+
         const newAnswers = { ...answers, [currentQ.key]: value };
         setAnswers(newAnswers);
 
