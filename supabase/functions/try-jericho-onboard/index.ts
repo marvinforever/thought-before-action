@@ -11,11 +11,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, fullName, role, phone, company, companyId, challenge, password, diagnosticData } = await req.json();
+    const { email, fullName, role, phone, company, companyId, challenge, password: providedPassword, diagnosticData } = await req.json();
 
-    if (!email || !password) {
-      throw new Error("Email and password are required");
+    if (!email) {
+      throw new Error("Email is required");
     }
+
+    // Auto-generate a secure 16-character password if none provided
+    const password = providedPassword || Array.from(crypto.getRandomValues(new Uint8Array(12)))
+      .map(b => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%"[b % 67])
+      .join('');
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -211,7 +216,7 @@ Deno.serve(async (req) => {
     <p style="margin:0 0 16px;font-size:13px;font-weight:600;color:#60A5FA;text-transform:uppercase;letter-spacing:1px;">🔐 Your Login</p>
     <p style="margin:0;padding:10px 0;color:#FFF;font-size:14px;">Email: <strong>${email}</strong></p>
     <p style="margin:0;padding:10px 0;color:#FFF;font-size:14px;">Password: <code style="color:#60A5FA;background:rgba(59,130,246,0.15);padding:6px 12px;border-radius:6px;font-weight:600;">${password}</code></p>
-    <p style="margin:16px 0 0;font-size:13px;color:#6B7280;font-style:italic;">Change your password after first login.</p>
+    <p style="margin:16px 0 0;font-size:13px;color:#F59E0B;font-weight:600;">⚠️ Please change your password on first login.</p>
   </td></tr>
   </table>
 </td></tr>
