@@ -255,10 +255,10 @@ const SuperAdminAnalytics = () => {
       </div>
 
       {proofingMode && (
-        <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/30">
-          <FlaskConical className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800 dark:text-amber-200">
-            <strong>Proofing Mode Active.</strong> All activity routes to test environment. No real emails sent. IGP uses sample data (Samantha Farrington). Run the full flow as a test user without polluting real data.
+        <Alert className="border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <AlertDescription className="text-emerald-800 dark:text-emerald-200">
+            <strong>Proofing Mode ON — emails are being logged, not sent.</strong> All activity routes to test environment. IGP uses sample data (Samantha Farrington). Check the <code className="bg-emerald-100 dark:bg-emerald-900 px-1 rounded text-xs">email_logs</code> table to see what would have been sent.
           </AlertDescription>
         </Alert>
       )}
