@@ -317,7 +317,7 @@ export default function TryJericho() {
                 transition={{ delay: 0.8 }}
                 className="flex flex-wrap justify-center gap-3 mt-16 max-w-lg"
               >
-                {["Growth Plan", "Career Clarity", "AI Coaching", "90-Day Sprint", "Strengths Map"].map(
+                {["Growth Map", "Career Clarity", "Coaching", "90-Day Sprint", "Strengths Map"].map(
                   (f) => (
                     <span
                       key={f}
