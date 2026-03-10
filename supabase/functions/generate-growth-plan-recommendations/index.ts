@@ -1,9 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai-router.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ============================================================================
+// ENTRY POINT — Returns 202 immediately, processes in background
+// ============================================================================
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,312 +23,773 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Push all heavy work into the background
-    const promise = processGrowthPlan(profile_id);
+    // Push ALL heavy work into background
+    const promise = runPipeline(profile_id);
     // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions
     EdgeRuntime.waitUntil(promise);
 
-    // Return immediately with 202 Accepted
-    return new Response(JSON.stringify({ status: 'processing', profile_id }), {
+    return new Response(JSON.stringify({
+      status: 'generating',
+      message: 'Your growth plan is being built. You\'ll receive it via email shortly.',
+      profile_id,
+    }), {
       status: 202,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: any) {
-    console.error('Error initiating growth plan:', error);
+    console.error('[growth-plan] Request error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
 
-async function processGrowthPlan(profile_id: string) {
+// ============================================================================
+// MAIN PIPELINE
+// ============================================================================
+
+async function runPipeline(profile_id: string) {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
+  let growthPlanId: string | null = null;
+
   try {
-    console.log(`[growth-plan] Background processing started for ${profile_id}`);
+    console.log(`[growth-plan] ▶ Pipeline started for ${profile_id}`);
 
-    const [profileRes, capabilitiesRes, capLevelsRes, diagnosticRes, visionRes, goalsRes, habitsRes, achievementsRes] = await Promise.all([
-      supabase.from("profiles").select("full_name, job_title, company_id, role").eq("id", profile_id).single(),
-      supabase.from("employee_capabilities")
-        .select("current_level, target_level, self_assessed_level, priority, capability_id, marked_not_relevant, capabilities(name, category, description)")
-        .eq("profile_id", profile_id)
-        .neq("marked_not_relevant", true)
-        .order("priority", { ascending: true }),
-      supabase.from("capability_levels").select("capability_id, level, description"),
-      supabase.from("diagnostic_scores").select("*").eq("profile_id", profile_id).maybeSingle(),
-      supabase.from("personal_goals").select("one_year_vision, three_year_vision").eq("profile_id", profile_id).maybeSingle(),
-      supabase.from("ninety_day_targets").select("goal_text, category, completed, by_when").eq("profile_id", profile_id).eq("category", "professional").order("created_at", { ascending: false }),
-      supabase.from("leading_indicators").select("habit_name, target_frequency, current_streak").eq("profile_id", profile_id).neq("habit_type", "personal").eq("is_active", true),
-      supabase.from("achievements").select("achievement_text, achieved_date").eq("profile_id", profile_id).eq("category", "professional").order("achieved_date", { ascending: false }).limit(10),
-    ]);
+    // Update status
+    await supabase.from('user_active_context').update({
+      report_status: 'generating',
+      updated_at: new Date().toISOString(),
+    }).eq('profile_id', profile_id);
 
-    const profile = profileRes.data;
-    const capabilities = capabilitiesRes.data || [];
-    const capLevels = capLevelsRes.data || [];
-    const diagnostic = diagnosticRes.data;
-    const vision = visionRes.data;
-    const goals = goalsRes.data || [];
-    const habits = habitsRes.data || [];
-    const achievements = achievementsRes.data || [];
-
-    let companyName = "";
-    if (profile?.company_id) {
-      const { data: company } = await supabase.from("companies").select("name").eq("id", profile.company_id).single();
-      companyName = company?.name || "";
-    }
-
-    const levelDefsMap: Record<string, Record<string, string>> = {};
-    for (const cl of capLevels) {
-      if (!levelDefsMap[cl.capability_id]) levelDefsMap[cl.capability_id] = {};
-      levelDefsMap[cl.capability_id][cl.level] = cl.description;
-    }
-
-    const allCapDetails = capabilities.map((cap: any) => {
-      const defs = levelDefsMap[cap.capability_id] || {};
-      const allLevels = ['foundational', 'advancing', 'independent', 'mastery'];
-      const currentIdx = allLevels.indexOf(cap.current_level || 'foundational');
-      const remainingLevels = allLevels.slice(currentIdx + 1).map(l => ({
-        level: l,
-        definition: defs[l] || `${l.charAt(0).toUpperCase() + l.slice(1)} level`
-      }));
-
-      return {
-        name: cap.capabilities?.name || 'Unknown',
-        category: cap.capabilities?.category || '',
-        description: cap.capabilities?.description || '',
-        current_level: cap.current_level || 'not assessed',
-        target_level: cap.target_level || 'not set',
-        self_assessed: cap.self_assessed_level || null,
-        priority: cap.priority,
-        remaining_levels: remainingLevels,
-        level_definitions: defs,
-      };
-    });
-
-    const capDetails = allCapDetails.slice(0, 15);
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
-
-    const prompt = buildPrompt(profile, capDetails, diagnostic, companyName);
-
-    console.log('[growth-plan] Calling AI...');
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        response_format: { type: 'json_object' },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('[growth-plan] AI API error:', aiResponse.status, errorText);
-      await saveError(supabase, profile_id, `AI API error: ${aiResponse.status} - ${errorText.substring(0, 500)}`);
+    // ── STAGE 1: LOAD CONTEXT ──
+    console.log('[growth-plan] Stage 1: Loading context...');
+    const context = await loadContext(supabase, profile_id);
+    if (!context) {
+      await writeError(supabase, profile_id, growthPlanId, 'context_load', 'Failed to load required context data');
       return;
     }
 
-    const aiData = await aiResponse.json();
-    const aiContent = aiData.choices?.[0]?.message?.content || '{}';
+    // Create growth_plans record
+    const { data: gp } = await supabase.from('growth_plans').upsert({
+      profile_id,
+      status: 'generating',
+      model_used: 'claude-opus-4-20250514',
+      generated_at: new Date().toISOString(),
+    }, { onConflict: 'profile_id' }).select('id').single();
+    growthPlanId = gp?.id || null;
 
-    let parsed = tryParseJSON(aiContent);
-
-    if (!parsed) {
-      console.log('[growth-plan] First parse failed, retrying...');
-      const retryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: prompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown fences. Keep responses concise.' }],
-          temperature: 0.5,
-          response_format: { type: 'json_object' },
-        }),
-      });
-      if (!retryResponse.ok) {
-        const retryErr = await retryResponse.text();
-        await saveError(supabase, profile_id, `Retry AI error: ${retryResponse.status} - ${retryErr.substring(0, 500)}`);
-        return;
-      }
-      const retryData = await retryResponse.json();
-      const retryContent = retryData.choices?.[0]?.message?.content || '{}';
-      parsed = tryParseJSON(retryContent);
-      if (!parsed) {
-        await saveError(supabase, profile_id, 'Failed to parse AI response after retry');
-        return;
-      }
+    // ── STAGE 2: CAPABILITY MAPPING (LLM Call #1) ──
+    console.log('[growth-plan] Stage 2: Capability mapping via Claude Opus...');
+    const capabilityMatrix = await mapCapabilities(context, profile_id);
+    if (!capabilityMatrix) {
+      await writeError(supabase, profile_id, growthPlanId, 'capability_mapping', 'LLM failed to return valid capability matrix');
+      return;
     }
 
-    // Store the result in user_active_context for the client to poll
-    const resultPayload = {
-      success: true,
-      profile: {
-        full_name: profile?.full_name,
-        job_title: profile?.job_title || profile?.role,
-        company_name: companyName,
-      },
-      capabilities: allCapDetails,
-      diagnostic,
-      vision,
-      goals: goals.length > 0 ? goals : null,
-      habits: habits.length > 0 ? habits : null,
-      achievements: achievements.length > 0 ? achievements : null,
-      ai_recommendations: parsed,
-      generated_at: new Date().toISOString(),
-    };
+    // Save matrix
+    if (growthPlanId) {
+      await supabase.from('growth_plans').update({
+        capability_matrix: capabilityMatrix,
+      }).eq('id', growthPlanId);
+    }
 
-    await supabase.from("user_active_context").upsert({
-      profile_id,
-      onboarding_data: resultPayload,
+    // ── STAGE 3: REPORT GENERATION (LLM Call #2) ──
+    console.log('[growth-plan] Stage 3: Report generation via Claude Opus...');
+    const reportText = await generateReport(context, capabilityMatrix, profile_id);
+    if (!reportText) {
+      await writeError(supabase, profile_id, growthPlanId, 'report_generation', 'LLM failed to generate report text');
+      return;
+    }
+
+    const wordCount = reportText.split(/\s+/).length;
+    console.log(`[growth-plan] Report generated: ${wordCount} words`);
+
+    // ── STAGE 4: BUILD HTML EMAIL ──
+    console.log('[growth-plan] Stage 4: Building HTML report...');
+    const reportHtml = buildReportHtml(context, capabilityMatrix, reportText);
+
+    // ── STAGE 5: DATA WRITES ──
+    console.log('[growth-plan] Stage 5: Writing data...');
+    await supabase.from('growth_plans').update({
+      generated_text: reportText,
+      report_html: reportHtml,
+      status: 'generated',
+      word_count: wordCount,
+    }).eq('id', growthPlanId);
+
+    await supabase.from('user_active_context').update({
+      report_status: 'generated',
+      report_generated_at: new Date().toISOString(),
       error_log: null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "profile_id" });
+    }).eq('profile_id', profile_id);
 
-    console.log(`[growth-plan] Background processing complete for ${profile_id}`);
+    // Also store AI recommendations in onboarding_data for client polling
+    const resultPayload = {
+      success: true,
+      profile: { full_name: context.full_name, job_title: context.job_title, company_name: context.company_name },
+      ai_recommendations: capabilityMatrix,
+      generated_at: new Date().toISOString(),
+    };
+    await supabase.from('user_active_context').update({
+      onboarding_data: resultPayload,
+    }).eq('profile_id', profile_id);
+
+    // ── STAGE 6: DELIVERY ──
+    console.log('[growth-plan] Stage 6: Delivering...');
+    await deliver(supabase, profile_id, growthPlanId, context, capabilityMatrix, reportHtml);
+
+    console.log(`[growth-plan] ✅ Pipeline complete for ${profile_id}`);
+
   } catch (error: any) {
-    console.error('[growth-plan] Background error:', error);
-    await saveError(supabase, profile_id, error.message);
+    console.error('[growth-plan] Pipeline error:', error);
+    await writeError(supabase, profile_id, growthPlanId, 'pipeline', error.message);
   }
 }
 
-async function saveError(supabase: any, profile_id: string, errorMsg: string) {
-  try {
-    await supabase.from("user_active_context").upsert({
-      profile_id,
-      error_log: `growth-plan error: ${errorMsg.substring(0, 1000)}`,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "profile_id" });
-  } catch (e) {
-    console.error('[growth-plan] Failed to save error:', e);
-  }
+// ============================================================================
+// STAGE 1: LOAD CONTEXT
+// ============================================================================
+
+interface UserContext {
+  full_name: string;
+  first_name: string;
+  job_title: string;
+  company_name: string;
+  email: string;
+  phone: string | null;
+  // Diagnostic data from onboarding
+  tenure_role: string;
+  team_size: string;
+  natural_strengths: string;
+  hardest_part: string;
+  obstacles: string;
+  vision_great_year: string;
+  career_goal_3yr: string;
+  growth_feeling: string;
+  learning_formats: string;
+  engagement_score: number | null;
+  career_growth_score: number | null;
+  role_clarity_score: number | null;
+  // All onboarding data as raw object
+  raw_onboarding: Record<string, any>;
+  // Capabilities list
+  capabilities: any[];
 }
 
-function tryParseJSON(content: string): any {
+async function loadContext(supabase: any, profile_id: string): Promise<UserContext | null> {
+  const [profileRes, contextRes, capsRes] = await Promise.all([
+    supabase.from('profiles').select('full_name, job_title, role, email, phone, company_id').eq('id', profile_id).single(),
+    supabase.from('user_active_context').select('onboarding_data, error_log').eq('profile_id', profile_id).single(),
+    supabase.from('capabilities').select('id, name, category, description').eq('status', 'approved').order('category'),
+  ]);
+
+  const profile = profileRes.data;
+  const uac = contextRes.data;
+
+  if (!profile) {
+    console.error('[growth-plan] No profile found for', profile_id);
+    return null;
+  }
+
+  const od = (uac?.onboarding_data as Record<string, any>) || {};
+
+  let companyName = '';
+  if (profile.company_id) {
+    const { data: co } = await supabase.from('companies').select('name').eq('id', profile.company_id).single();
+    companyName = co?.name || '';
+  }
+
+  const fullName = od.full_name || profile.full_name || 'Unknown';
+  const firstName = fullName.split(' ')[0];
+
+  return {
+    full_name: fullName,
+    first_name: firstName,
+    job_title: od.job_title || profile.job_title || profile.role || 'Professional',
+    company_name: od.company_name || companyName,
+    email: od.email || profile.email,
+    phone: od.phone || profile.phone || null,
+    tenure_role: od.tenure_role || od.tenure || '',
+    team_size: od.team_size || '',
+    natural_strengths: od.natural_strengths || od.strength || '',
+    hardest_part: od.hardest_part || od.obstacle || '',
+    obstacles: od.obstacles || od.obstacle || '',
+    vision_great_year: od.vision_great_year || '',
+    career_goal_3yr: od.career_goal_3yr || '',
+    growth_feeling: od.growth_feeling || od.score?.toString() || '',
+    learning_formats: od.learning_formats || od.learning_style || '',
+    engagement_score: od.engagement_score || null,
+    career_growth_score: od.career_growth_score || null,
+    role_clarity_score: od.role_clarity_score || null,
+    raw_onboarding: od,
+    capabilities: capsRes.data || [],
+  };
+}
+
+// ============================================================================
+// STAGE 2: CAPABILITY MAPPING (Claude Opus — Call #1)
+// ============================================================================
+
+async function mapCapabilities(context: UserContext, profile_id: string): Promise<any | null> {
+  const systemPrompt = `You are the Jericho capability mapping engine. Given a user's role, title, industry, tenure, and diagnostic responses, select the 10-12 most relevant capabilities from the provided list and assign current levels (1-4) based on evidence from their responses.
+
+Level definitions:
+- Level 1 (Foundational): Learning the basics, needs guidance, developing awareness
+- Level 2 (Advancing): Can perform with support, building consistency, growing confidence  
+- Level 3 (Independent): Performs effectively without supervision, coaches others, reliable
+- Level 4 (Mastery): Expert level, innovates, shapes strategy, develops others, industry leader
+
+For each capability, cite the specific diagnostic response that informed your level assignment.
+
+Additionally, identify the Top 3 highest-leverage capabilities — the ones where improvement would create the biggest impact given this person's role and goals. For each of the Top 3, assign a target_level (current + 1 or current + 2 for stretch).
+
+Return ONLY valid JSON in this exact format:
+{
+  "capability_matrix": [
+    {
+      "capability_name": "string",
+      "domain": "string",
+      "current_level": 1-4,
+      "current_level_name": "Foundational|Advancing|Independent|Mastery",
+      "evidence": "quoted or paraphrased response that supports this level",
+      "is_top3": true/false,
+      "priority_rank": null or 1-3,
+      "target_level": null or 1-4,
+      "target_level_name": null or "Foundational|Advancing|Independent|Mastery",
+      "timeline_months": null or "4-8" or "6-12"
+    }
+  ],
+  "profile_summary": {
+    "strongest_domain": "string",
+    "developing_domains": ["string"],
+    "opportunity_domains": ["string"],
+    "pattern_notes": "2-3 sentence analysis of overall capability shape"
+  }
+}`;
+
+  const userMessage = `EMPLOYEE: ${context.full_name}
+ROLE: ${context.job_title}
+COMPANY: ${context.company_name}
+TENURE: ${context.tenure_role}
+TEAM SIZE: ${context.team_size}
+
+DIAGNOSTIC RESPONSES:
+- Self-rated growth score: ${context.growth_feeling}
+- Natural strengths: ${context.natural_strengths}
+- Hardest part of role: ${context.hardest_part}
+- Obstacles: ${context.obstacles}
+- Vision for a great year: ${context.vision_great_year}
+- 3-year career goal: ${context.career_goal_3yr}
+- Learning preference: ${context.learning_formats}
+- Engagement score: ${context.engagement_score ?? 'N/A'}
+- Career growth score: ${context.career_growth_score ?? 'N/A'}
+- Role clarity score: ${context.role_clarity_score ?? 'N/A'}
+
+ALL RAW ONBOARDING DATA:
+${JSON.stringify(context.raw_onboarding, null, 2)}
+
+AVAILABLE CAPABILITIES (select 10-12 most relevant):
+${context.capabilities.map((c: any) => `- ${c.name} (${c.category}): ${c.description}`).join('\n')}`;
+
   try {
-    return JSON.parse(content);
-  } catch {
-    const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-    if (jsonMatch) {
-      try { return JSON.parse(jsonMatch[1]); } catch { /* fall through */ }
+    const result = await callAI(
+      { taskType: 'leadership-assessment', profileId: profile_id, functionName: 'generate-growth-plan-recommendations' },
+      [{ role: 'user', content: userMessage }],
+      { systemPrompt, maxTokens: 4000, temperature: 0.3 }
+    );
+
+    const parsed = tryParseJSON(result.content);
+    if (!parsed) {
+      console.error('[growth-plan] Failed to parse capability matrix, retrying...');
+      // Retry once
+      const retry = await callAI(
+        { taskType: 'leadership-assessment', profileId: profile_id, functionName: 'generate-growth-plan-recommendations' },
+        [{ role: 'user', content: userMessage + '\n\nCRITICAL: Return ONLY valid JSON. No markdown fences.' }],
+        { systemPrompt, maxTokens: 4000, temperature: 0.2 }
+      );
+      return tryParseJSON(retry.content);
     }
-    const objectMatch = content.match(/\{[\s\S]*\}/);
-    if (objectMatch) {
-      try { return JSON.parse(objectMatch[0]); } catch { /* fall through */ }
-    }
+    return parsed;
+  } catch (error: any) {
+    console.error('[growth-plan] Capability mapping error:', error);
     return null;
   }
 }
 
-function buildPrompt(profile: any, capDetails: any[], diagnostic: any, companyName: string): string {
-  return `You are generating a comprehensive Individual Growth Plan (IGP) document.
+// ============================================================================
+// STAGE 3: REPORT GENERATION (Claude Opus — Call #2)
+// ============================================================================
 
-EMPLOYEE: ${profile?.full_name || 'Unknown'}
-ROLE: ${profile?.job_title || profile?.role || 'Not specified'}
-COMPANY: ${companyName}
+async function generateReport(context: UserContext, capabilityMatrix: any, profile_id: string): Promise<string | null> {
+  const top3 = (capabilityMatrix.capability_matrix || []).filter((c: any) => c.is_top3);
 
-CAPABILITIES WITH LEVEL DEFINITIONS:
-${JSON.stringify(capDetails, null, 2)}
+  const systemPrompt = `You are Jericho's report writer. You generate Personalized Growth Plans that are so specific, so insightful, and so actionable that people share them with their managers.
 
-DIAGNOSTIC SCORES:
-${diagnostic ? JSON.stringify({
-  engagement: diagnostic.engagement_score,
-  clarity: diagnostic.clarity_score,
-  career: diagnostic.career_score,
-  learning: diagnostic.learning_score,
-  manager: diagnostic.manager_score,
-  skills: diagnostic.skills_score,
-  retention: diagnostic.retention_score,
-  burnout: diagnostic.burnout_score,
-}) : 'No diagnostic data available'}
+You have been given a user's complete diagnostic data and their capability mapping. Generate the FULL report text.
 
-CRITICAL INSTRUCTIONS:
-1. For EVERY capability (not just the first few), provide EQUAL depth and specificity
-2. Reference the employee's specific role "${profile?.job_title || profile?.role || 'their role'}" in every assessment
-3. Every capability MUST have exactly 5 training_items with a diverse mix of types
-4. Every training item MUST include cost_indicator ("free" or "paid") and cost_detail if paid
-5. For paid resources, include a free_alternative field with a specific free option
-6. Include why_this_matters connecting the capability to their business impact
-7. Include estimated_timeline for each capability (e.g., "3-6 months with focused effort")
-8. Level progression MUST include ALL remaining levels with both definition AND how_to_achieve
-9. FREE resources: YouTube, TED Talks, podcasts, OSHA resources, HBR podcasts, university extensions
-10. PAID resources: Books ($15-$30), certifications, formal courses. Always include cost range.
+REPORT STRUCTURE:
 
-COST RULES:
-- YouTube videos = free
-- TED Talks = free
-- Podcasts = free
-- OSHA official resources = free
-- HBR articles/podcasts = free
-- LinkedIn Learning = free (note "FREE with LinkedIn subscription")
-- Books = paid ($15-$30)
-- Certifications (PMP, SAMA, OSHA Trainer, APICS) = paid (include estimated cost)
-- Formal courses (Dale Carnegie, Miller Heiman, Harvard) = paid (include estimated cost)
+SECTION 1: DIAGNOSTIC SNAPSHOT
+- Three scores (engagement, career_growth, role_clarity) each with score out of 100, one-line interpretive note connecting to something they actually said
+- Narrative paragraph (3-4 sentences) connecting scores to their specific situation. Reference their exact words.
 
-Return ONLY valid JSON (no markdown, no code fences) in this exact format:
-{
-  "recommendations": [
-    {
-      "capability_name": "string",
-      "current_assessment": "2-3 sentences specific to this employee and their role",
-      "why_this_matters": "1-2 sentences on business impact",
-      "advancement_approach": "natural" | "training_needed" | "mixed",
-      "advancement_reasoning": "Why this approach",
-      "estimated_timeline": "e.g. 3-6 months with focused effort",
-      "training_items": [
-        {
-          "type": "book" | "video" | "podcast" | "course" | "exercise" | "mentorship",
-          "title": "Specific real recommendation",
-          "description": "Why this helps",
-          "target_level": "which level this helps achieve",
-          "cost_indicator": "free" | "paid",
-          "cost_detail": "$15-$30 for books, ~$500-$2000 for courses, etc.",
-          "free_alternative": "Only for paid items - a specific free alternative"
-        }
-      ],
-      "level_progression": [
-        {
-          "level": "advancing | independent | mastery",
-          "definition": "What demonstrating this level looks like",
-          "how_to_achieve": "Specific steps to get here"
-        }
-      ]
+SECTION 2: PATTERN ANALYSIS — "What Your Answers Tell Us"
+- 8 capability domain categories with percentage scores for radar chart data (return as JSON block)
+- 2-3 named patterns (e.g., "The Builder's Paradox") that each reference at least 2 different diagnostic responses, name the tension or insight, connect to the Big 3 development priorities
+- 3 "Unfair Advantages" — strengths they may not recognize as strategic assets. Each cites evidence and connects to growth acceleration.
+
+SECTION 3: YOUR ACCELERATION MAP — "The Big 3"
+For EACH of the 3 highest-leverage capabilities:
+A. Header: Name, current level → target level, timeline
+B. WHY this capability (2-3 sentences connecting to stated goals, obstacles, role requirements)
+C. WHERE YOU ARE (3-4 bullet points of role-specific behavioral indicators — must reference their actual words)
+D. WHERE YOU'RE GOING (3-4 bullet points of target-level behaviors — vivid, specific, aspirational)
+E. THE GAP (2-3 sentences connecting stated challenges to the capability gap)
+F. YOUR FIRST 3 MOVES (hyper-specific, calendar-able):
+   - Move 1 (This week): 15-20 minutes
+   - Move 2 (Next week): Builds on Move 1
+   - Move 3 (End of week 2): Bigger step demonstrating growth
+G. WHAT JERICHO UNLOCKS (1-2 sentences showing what ongoing coaching adds)
+
+SECTION 4: YOUR 90-DAY SPRINT — "Where to Start"
+- Sprint 1 ONLY. Three phases:
+  - Weeks 1-2: Establish Baselines
+  - Weeks 3-6: Build & Practice
+  - Weeks 7-12: Execute & Measure
+- Note: "Sprint 2 should be built from real results, not predictions. Jericho does that."
+
+SECTION 5: PATH TO [THEIR CAREER GOAL] — "The 3-Year View"
+- Year 1: Foundation, Year 2: Expansion, Year 3: Strategic Impact
+- Gap analysis: Closest to ready, Needs development, Longer-term
+- Connect directly to their stated 3-year career goal
+
+SECTION 6: YOUR LEARNING PRESCRIPTION — "Start Here"
+- 1 book, 1 podcast/episode, 1 video (TED/YouTube)
+- Each under 1 hour/week commitment, matched to learning preference
+- Each with why THIS resource for THIS person
+
+SECTION 7: CLOSING
+- "Your first move is above. It takes 20 minutes. Do it this week."
+- "Then text Jericho what happened."
+- "This plan was built for you. No one else has these scores, this capability map, or this growth path. Own it."
+- CTA: askjericho.com/try
+
+ABSOLUTE RULES:
+1. No two Big 3 sections may share action items or resources
+2. Every 'Where You Are' must reference something the person actually said
+3. Every action item must be specific enough to put on a calendar
+4. Pattern analysis must connect at least 2 different diagnostic responses
+5. Every section must include at least one element that could ONLY apply to this person
+6. NO filler phrases like "in today's fast-paced world"
+7. Minimum 4,000 words. Maximum 7,000 words.
+8. Tone: Direct, warm, occasionally challenging. Never corporate. Never condescending.
+9. Return as structured markdown with clear section headers. Include JSON blocks for chart data.`;
+
+  const userMessage = `EMPLOYEE: ${context.full_name}
+ROLE: ${context.job_title}
+COMPANY: ${context.company_name}
+TENURE: ${context.tenure_role}
+TEAM SIZE: ${context.team_size}
+
+DIAGNOSTIC RESPONSES:
+- Self-rated growth score: ${context.growth_feeling}
+- Natural strengths: "${context.natural_strengths}"
+- Hardest part: "${context.hardest_part}"
+- Obstacles: "${context.obstacles}"
+- Vision for a great year: "${context.vision_great_year}"
+- 3-year career goal: "${context.career_goal_3yr}"
+- Learning preference: ${context.learning_formats}
+- Engagement: ${context.engagement_score ?? 'N/A'}/100
+- Career growth: ${context.career_growth_score ?? 'N/A'}/100
+- Role clarity: ${context.role_clarity_score ?? 'N/A'}/100
+
+ALL RAW DATA:
+${JSON.stringify(context.raw_onboarding, null, 2)}
+
+CAPABILITY MATRIX (from mapping stage):
+${JSON.stringify(capabilityMatrix, null, 2)}
+
+TOP 3 PRIORITIES:
+${top3.map((c: any, i: number) => `${i + 1}. ${c.capability_name} — Level ${c.current_level} → ${c.target_level} (${c.timeline_months} months)`).join('\n')}`;
+
+  try {
+    const result = await callAI(
+      { taskType: 'leadership-assessment', profileId: profile_id, functionName: 'generate-growth-plan-recommendations', estimatedOutputTokens: 12000 },
+      [{ role: 'user', content: userMessage }],
+      { systemPrompt, maxTokens: 16000, temperature: 0.7 }
+    );
+
+    // Check for truncation — if no closing section, request continuation
+    if (!result.content.includes('askjericho.com') && !result.content.includes('Own it') && result.content.length > 3000) {
+      console.log('[growth-plan] Report may be truncated, requesting continuation...');
+      const continuation = await callAI(
+        { taskType: 'leadership-assessment', profileId: profile_id, functionName: 'generate-growth-plan-recommendations' },
+        [
+          { role: 'user', content: userMessage },
+          { role: 'assistant', content: result.content },
+          { role: 'user', content: 'Continue the report from where you left off. Complete all remaining sections including the Learning Prescription and Closing.' },
+        ],
+        { systemPrompt, maxTokens: 4000, temperature: 0.7 }
+      );
+      return result.content + '\n\n' + continuation.content;
     }
-  ],
-  "overall_summary": "2-3 sentence summary of growth trajectory",
-  "strengths_statement": "2-3 sentences on what this employee does well",
-  "primary_development_focus": "1 sentence summary of the development theme",
-  "top_priority_actions": [
-    { "action": "Specific actionable step", "capability_name": "Which capability this develops" }
-  ],
-  "roadmap": {
-    "month_1": [
-      { "action": "What to do", "capability": "Which capability", "resource_type": "Type of resource", "time_per_week": "e.g. 2 hours" }
-    ],
-    "month_2_3": [
-      { "action": "What to do", "capability": "Which capability", "resource_type": "Type of resource", "time_per_week": "e.g. 1.5 hours" }
-    ],
-    "month_3_plus": [
-      { "action": "What to do", "capability": "Which capability", "resource_type": "Type of resource", "time_per_week": "e.g. 1 hour" }
-    ]
-  },
-  "at_a_glance": {
-    "total_capabilities": number,
-    "by_level": { "foundational": number, "advancing": number, "independent": number, "mastery": number },
-    "gap_1_count": number,
-    "gap_2_plus_count": number,
-    "on_target_count": number
+
+    return result.content;
+  } catch (error: any) {
+    console.error('[growth-plan] Report generation error:', error);
+    return null;
   }
-}`;
+}
+
+// ============================================================================
+// STAGE 4: BUILD HTML REPORT EMAIL
+// ============================================================================
+
+function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMarkdown: string): string {
+  const top3 = (capabilityMatrix.capability_matrix || []).filter((c: any) => c.is_top3);
+  const summary = capabilityMatrix.profile_summary || {};
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  // Convert markdown sections to HTML
+  const reportHtml = markdownToHtml(reportMarkdown);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personalized Growth Plan — ${context.full_name}</title>
+  <style>
+    body { margin: 0; padding: 0; font-family: 'Georgia', 'Times New Roman', serif; background: #f5f5f0; color: #2c3e50; line-height: 1.7; }
+    .container { max-width: 720px; margin: 0 auto; background: #ffffff; }
+    
+    /* Cover */
+    .cover { background: linear-gradient(135deg, #0d1b2a 0%, #1b3a5c 100%); color: #ffffff; padding: 60px 50px; text-align: center; }
+    .cover h1 { font-size: 32px; margin: 0 0 8px; font-weight: 400; letter-spacing: 1px; }
+    .cover .subtitle { color: #c9963b; font-size: 18px; margin: 0 0 30px; font-style: italic; }
+    .cover .tagline { color: #8bafc9; font-size: 14px; margin: 20px 0 0; letter-spacing: 0.5px; }
+    .cover .valued { color: #c9963b; font-size: 12px; margin-top: 30px; text-transform: uppercase; letter-spacing: 2px; }
+    .gold-rule { height: 3px; background: linear-gradient(90deg, transparent, #c9963b, transparent); margin: 0; border: none; }
+    
+    /* Sections */
+    .section { padding: 40px 50px; }
+    .section h2 { color: #0d1b2a; font-size: 22px; margin: 0 0 8px; border-bottom: 2px solid #c9963b; padding-bottom: 8px; }
+    .section h3 { color: #2c6faa; font-size: 17px; margin: 25px 0 10px; }
+    .section h4 { color: #0d1b2a; font-size: 15px; margin: 20px 0 8px; }
+    .section p { margin: 8px 0; font-size: 15px; }
+    .section ul { padding-left: 20px; }
+    .section li { margin: 6px 0; font-size: 15px; }
+    
+    /* Score Dashboard */
+    .scores { display: flex; justify-content: space-around; margin: 25px 0; }
+    .score-card { text-align: center; padding: 20px; background: #f8f9fa; border-radius: 12px; width: 28%; }
+    .score-value { font-size: 36px; font-weight: 700; margin: 0; }
+    .score-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+    .score-green { color: #2ecc71; }
+    .score-amber { color: #e67e22; }
+    .score-red { color: #e74c3c; }
+    
+    /* Big 3 Cards */
+    .big3-card { background: #f8f9fa; border-left: 4px solid #c9963b; padding: 25px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+    .big3-card h3 { color: #0d1b2a; margin-top: 0; border: none; }
+    .level-bar { background: #e9ecef; border-radius: 20px; height: 28px; margin: 12px 0; position: relative; overflow: hidden; }
+    .level-fill { height: 100%; border-radius: 20px; display: flex; align-items: center; padding: 0 12px; color: #fff; font-size: 12px; font-weight: 600; }
+    .level-1 { background: linear-gradient(90deg, #e74c3c, #e67e22); width: 25%; }
+    .level-2 { background: linear-gradient(90deg, #e67e22, #f1c40f); width: 50%; }
+    .level-3 { background: linear-gradient(90deg, #2ecc71, #3a9bb5); width: 75%; }
+    .level-4 { background: linear-gradient(90deg, #3a9bb5, #2c6faa); width: 100%; }
+    
+    /* Moves */
+    .move { background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 10px 0; }
+    .move-label { color: #c9963b; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    
+    /* Pattern/Advantage cards */
+    .pattern-card { background: linear-gradient(135deg, #f8f9fa, #eef2f7); border-radius: 8px; padding: 20px; margin: 15px 0; border: 1px solid #dee2e6; }
+    .pattern-card .name { color: #0d1b2a; font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+    .advantage-card { background: linear-gradient(135deg, #fffcf5, #fef6e4); border-radius: 8px; padding: 20px; margin: 15px 0; border: 1px solid #f0e0c0; }
+    
+    /* Sprint Timeline */
+    .sprint-timeline { display: flex; margin: 20px 0; }
+    .sprint-phase { flex: 1; text-align: center; padding: 15px 10px; position: relative; }
+    .sprint-phase::after { content: '→'; position: absolute; right: -8px; top: 50%; transform: translateY(-50%); color: #c9963b; font-size: 20px; }
+    .sprint-phase:last-child::after { display: none; }
+    .phase-dot { width: 16px; height: 16px; background: #c9963b; border-radius: 50%; margin: 0 auto 8px; }
+    .phase-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .phase-title { font-size: 13px; font-weight: 600; color: #0d1b2a; margin-top: 4px; }
+    
+    /* CTA */
+    .cta-section { background: linear-gradient(135deg, #0d1b2a, #1b3a5c); color: #fff; padding: 40px 50px; text-align: center; }
+    .cta-section p { color: #8bafc9; }
+    .cta-button { display: inline-block; background: #c9963b; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 700; font-size: 16px; margin: 20px 0; }
+    .cta-quote { font-style: italic; color: #c9963b; margin-top: 30px; font-size: 14px; }
+    
+    /* Footer */
+    .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
+    
+    @media (max-width: 600px) {
+      .section, .cover, .cta-section { padding: 30px 25px; }
+      .scores { flex-direction: column; gap: 10px; }
+      .score-card { width: 100%; }
+      .sprint-timeline { flex-direction: column; }
+      .sprint-phase::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- COVER -->
+    <div class="cover">
+      <p style="color: #c9963b; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 20px;">The Momentum Company presents</p>
+      <h1>PERSONALIZED GROWTH PLAN</h1>
+      <p class="subtitle">${context.full_name}</p>
+      <p style="color: #8bafc9; font-size: 14px; margin: 0;">${context.job_title}${context.company_name ? ' · ' + context.company_name : ''}</p>
+      <p class="tagline">${(capabilityMatrix.capability_matrix || []).length} capabilities analyzed · ${top3.length} priorities identified · 1 clear path forward</p>
+      <p class="valued">Complimentary Leadership Diagnostic — Valued at $2,500</p>
+      <p style="color: #666; font-size: 12px; margin-top: 15px;">${date}</p>
+    </div>
+    <hr class="gold-rule">
+
+    <!-- SCORE DASHBOARD -->
+    <div class="section">
+      <h2>📊 Your Leadership Profile</h2>
+      <div class="scores">
+        <div class="score-card">
+          <p class="score-value ${scoreColor(context.engagement_score)}">${context.engagement_score ?? '—'}</p>
+          <p class="score-label">Engagement</p>
+        </div>
+        <div class="score-card">
+          <p class="score-value ${scoreColor(context.career_growth_score)}">${context.career_growth_score ?? '—'}</p>
+          <p class="score-label">Career Growth</p>
+        </div>
+        <div class="score-card">
+          <p class="score-value ${scoreColor(context.role_clarity_score)}">${context.role_clarity_score ?? '—'}</p>
+          <p class="score-label">Role Clarity</p>
+        </div>
+      </div>
+    </div>
+    <hr class="gold-rule">
+
+    <!-- BIG 3 SUMMARY -->
+    <div class="section">
+      <h2>🎯 The Big 3 — Your Acceleration Map</h2>
+      ${top3.map((c: any, i: number) => `
+      <div class="big3-card">
+        <h3>#${i + 1}: ${c.capability_name}</h3>
+        <p style="font-size: 13px; color: #666;">${c.domain} · ${c.timeline_months || '4-8'} months</p>
+        <div class="level-bar">
+          <div class="level-fill level-${c.current_level}">${c.current_level_name} → ${c.target_level_name}</div>
+        </div>
+        <p style="font-size: 13px; color: #555;"><em>"${c.evidence}"</em></p>
+      </div>`).join('')}
+    </div>
+    <hr class="gold-rule">
+
+    <!-- FULL REPORT -->
+    <div class="section">
+      ${reportHtml}
+    </div>
+    <hr class="gold-rule">
+
+    <!-- CTA -->
+    <div class="cta-section">
+      <p style="color: #c9963b; font-size: 14px; margin-bottom: 5px;">Your first move is above. It takes 20 minutes.</p>
+      <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0;">Do it this week. Then tell Jericho what happened.</p>
+      <a href="https://askjericho.com/try" class="cta-button">Continue with Jericho →</a>
+      <p class="cta-quote">"You don't rise to your goals. You fall to your systems."</p>
+    </div>
+
+    <div class="footer">
+      <p>The Momentum Company · <a href="https://askjericho.com" style="color: #2c6faa;">askjericho.com</a></p>
+      <p>This plan was built for ${context.full_name}. No one else has these scores, this capability map, or this growth path.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function scoreColor(score: number | null): string {
+  if (score === null) return '';
+  if (score >= 70) return 'score-green';
+  if (score >= 40) return 'score-amber';
+  return 'score-red';
+}
+
+function markdownToHtml(md: string): string {
+  return md
+    .replace(/^### (.*$)/gm, '<h4>$1</h4>')
+    .replace(/^## (.*$)/gm, '<h3>$1</h3>')
+    .replace(/^# (.*$)/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^- (.*$)/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/```json\n([\s\S]*?)```/g, '<pre style="background:#f8f9fa;padding:15px;border-radius:8px;font-size:12px;overflow-x:auto;">$1</pre>')
+    .replace(/```([\s\S]*?)```/g, '<pre style="background:#f8f9fa;padding:15px;border-radius:8px;font-size:12px;">$1</pre>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hup])/gm, '')
+    ;
+}
+
+// ============================================================================
+// STAGE 6: DELIVERY
+// ============================================================================
+
+async function deliver(supabase: any, profile_id: string, growthPlanId: string | null, context: UserContext, capabilityMatrix: any, reportHtml: string) {
+  const top3 = (capabilityMatrix.capability_matrix || []).filter((c: any) => c.is_top3);
+  const top3Names = top3.map((c: any) => c.capability_name).join(', ');
+  const capCount = (capabilityMatrix.capability_matrix || []).length;
+
+  // EMAIL
+  if (context.email) {
+    try {
+      const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      const RESEND_FROM = Deno.env.get('RESEND_FROM') || 'jericho@askjericho.com';
+
+      if (RESEND_API_KEY) {
+        const emailResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: RESEND_FROM,
+            to: [context.email],
+            subject: `${context.first_name}, your Personalized Growth Plan is ready`,
+            html: reportHtml,
+          }),
+        });
+
+        if (emailResponse.ok) {
+          console.log('[growth-plan] Email sent successfully to', context.email);
+        } else {
+          const err = await emailResponse.text();
+          console.error('[growth-plan] Email send error:', err);
+        }
+      } else {
+        console.warn('[growth-plan] No RESEND_API_KEY — skipping email');
+      }
+    } catch (e: any) {
+      console.error('[growth-plan] Email delivery error:', e.message);
+    }
+  }
+
+  // SMS
+  if (context.phone) {
+    try {
+      const TWILIO_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
+      const TWILIO_AUTH = Deno.env.get('TWILIO_AUTH_TOKEN');
+      const TWILIO_FROM = Deno.env.get('TWILIO_PHONE_NUMBER');
+
+      if (TWILIO_SID && TWILIO_AUTH && TWILIO_FROM) {
+        const smsBody = `Hey ${context.first_name} — your Personalized Growth Plan just landed in your inbox. I analyzed ${capCount} capabilities and identified your top 3: ${top3Names}. Excited for you to see it. — Jericho`;
+
+        const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Basic ' + btoa(`${TWILIO_SID}:${TWILIO_AUTH}`),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            To: context.phone,
+            From: TWILIO_FROM,
+            Body: smsBody,
+          }),
+        });
+
+        if (twilioRes.ok) {
+          console.log('[growth-plan] SMS sent to', context.phone);
+        } else {
+          const err = await twilioRes.text();
+          console.error('[growth-plan] SMS error:', err);
+        }
+      }
+    } catch (e: any) {
+      console.error('[growth-plan] SMS delivery error:', e.message);
+    }
+  }
+
+  // Update status
+  if (growthPlanId) {
+    await supabase.from('growth_plans').update({
+      status: 'delivered',
+      delivered_at: new Date().toISOString(),
+      delivery_method: context.phone ? 'email+sms' : 'email',
+    }).eq('id', growthPlanId);
+  }
+
+  await supabase.from('user_active_context').update({
+    report_status: 'delivered',
+    updated_at: new Date().toISOString(),
+  }).eq('profile_id', profile_id);
+}
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+async function writeError(supabase: any, profile_id: string, growthPlanId: string | null, stage: string, errorMsg: string) {
+  const errorEntry = { stage, error: errorMsg.substring(0, 1000), timestamp: new Date().toISOString() };
+  console.error(`[growth-plan] ❌ Error at ${stage}:`, errorMsg);
+
+  try {
+    await supabase.from('user_active_context').update({
+      report_status: 'failed',
+      error_log: JSON.stringify(errorEntry),
+      updated_at: new Date().toISOString(),
+    }).eq('profile_id', profile_id);
+
+    if (growthPlanId) {
+      // Append to error_log jsonb array
+      const { data: existing } = await supabase.from('growth_plans').select('error_log').eq('id', growthPlanId).single();
+      const errors = Array.isArray(existing?.error_log) ? existing.error_log : [];
+      errors.push(errorEntry);
+      await supabase.from('growth_plans').update({
+        status: 'failed',
+        error_log: errors,
+      }).eq('id', growthPlanId);
+    }
+
+    // Send fallback email if we have context
+    if (stage !== 'context_load') {
+      const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      const RESEND_FROM = Deno.env.get('RESEND_FROM') || 'jericho@askjericho.com';
+      
+      // Try to get email from profile
+      const { data: profile } = await supabase.from('profiles').select('email, full_name').eq('id', profile_id).single();
+      if (profile?.email && RESEND_API_KEY) {
+        const firstName = (profile.full_name || '').split(' ')[0] || 'there';
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: RESEND_FROM,
+            to: [profile.email],
+            subject: `${firstName}, your growth plan is on its way`,
+            html: `<p>Hey ${firstName},</p><p>Your growth plan is taking a little longer than usual to render. We're on it — you'll have it within 24 hours.</p><p>— Jericho</p>`,
+          }),
+        });
+      }
+    }
+  } catch (e) {
+    console.error('[growth-plan] Failed to write error:', e);
+  }
+}
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+function tryParseJSON(content: string): any {
+  try { return JSON.parse(content); } catch { /* continue */ }
+  const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+  if (jsonMatch) { try { return JSON.parse(jsonMatch[1]); } catch { /* continue */ } }
+  const objectMatch = content.match(/\{[\s\S]*\}/);
+  if (objectMatch) { try { return JSON.parse(objectMatch[0]); } catch { /* continue */ } }
+  return null;
 }
