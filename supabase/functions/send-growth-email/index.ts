@@ -37,6 +37,21 @@ serve(async (req) => {
       throw new Error("Profile not found");
     }
 
+    // Check proofing mode — log instead of sending
+    const proofing = await isProofingMode();
+    if (proofing) {
+      await logEmail({
+        to: profile.email,
+        subject: `Growth email for ${profile.full_name}`,
+        bodyPreview: `Weekly/daily growth email for profile ${profileId}. Skipped in proofing mode.`,
+        functionName: "send-growth-email",
+        profileId,
+      });
+      return new Response(JSON.stringify({ success: true, proofing: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Fetch email preferences to determine frequency
     const { data: emailPrefs } = await supabase
       .from("email_preferences")
