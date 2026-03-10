@@ -178,7 +178,7 @@ Return JSON only:
     const levelName = (n: number) => ["", "foundational", "advancing", "independent", "mastery"][n] || "foundational";
     const totalCaps = matrix.length;
 
-    const MASTER_PROMPT = `You are generating a Leadership Acceleration Report for Jericho by The Momentum Company.
+    const MASTER_PROMPT = `You are generating a Growth Map for Jericho by The Momentum Company.
 
 This is a comprehensive, personalized growth document for a leader. It must feel premium, specific, and actionable — never generic.
 
@@ -274,7 +274,7 @@ FORMATTING:
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: MASTER_PROMPT },
-          { role: "user", content: "Generate the Leadership Acceleration Report. Follow every section specification exactly." },
+          { role: "user", content: "Generate the Growth Map. Follow every section specification exactly." },
         ],
         temperature: 0.8,
         max_tokens: 16000,
@@ -395,7 +395,7 @@ FORMATTING:
           body: JSON.stringify({
             from: "Jericho <jericho@sender.askjericho.com>",
             to: [profile.email],
-            subject: `${name}, your Leadership Acceleration Report is ready`,
+            subject: `${name}, your Growth Map is ready`,
             html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background-color:#0F1419;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -415,7 +415,7 @@ FORMATTING:
 <tr><td>
 <table role="presentation" width="100%" style="background:linear-gradient(180deg,#1A2332,#151D2B);border-radius:16px;border:1px solid rgba(229,165,48,0.2);">
 <tr><td style="padding:40px 40px 24px;">
-  <h1 style="margin:0;font-size:26px;font-weight:700;color:#FFF;">Your Leadership Acceleration Report is Ready 🚀</h1>
+  <h1 style="margin:0;font-size:26px;font-weight:700;color:#FFF;">Your Growth Map is Ready 🚀</h1>
 </td></tr>
 
 <tr><td style="padding:0 40px 24px;">

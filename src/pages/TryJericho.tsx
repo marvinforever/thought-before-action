@@ -244,7 +244,7 @@ export default function TryJericho() {
         <title>Try Jericho — Your AI Performance Coach</title>
         <meta
           name="description"
-          content="Meet Jericho, your AI performance coach. Start a conversation and get a free Personalized Growth Plan in minutes."
+          content="Meet Jericho, your performance coach. Start a conversation and get a free Growth Map in minutes."
         />
       </Helmet>
 
@@ -289,13 +289,11 @@ export default function TryJericho() {
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6">
-                  Meet <span className="text-accent">Jericho</span>
-                  <br />
-                  Your AI Performance Coach
+                  Your Performance Coach.
                 </h1>
 
                 <p className="text-lg sm:text-xl text-white/70 max-w-xl mx-auto mb-10 leading-relaxed">
-                  Have a 3-minute conversation and I'll build you a free Personalized Growth Plan — a diagnostic that shows exactly where to focus to accelerate your career.
+                  Let's build your Growth Map.
                 </p>
 
                 <Button
@@ -304,7 +302,7 @@ export default function TryJericho() {
                   className="bg-accent text-accent-foreground hover:bg-accent/90 text-lg px-8 py-6 rounded-xl shadow-lg shadow-accent/25 font-semibold group"
                 >
                   <MessageSquare className="w-5 h-5 mr-2" />
-                  Start Conversation
+                  Start
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
 
@@ -319,7 +317,7 @@ export default function TryJericho() {
                 transition={{ delay: 0.8 }}
                 className="flex flex-wrap justify-center gap-3 mt-16 max-w-lg"
               >
-                {["Growth Plan", "Career Clarity", "AI Coaching", "90-Day Sprint", "Strengths Map"].map(
+                {["Growth Map", "Career Clarity", "Coaching", "90-Day Sprint", "Strengths Map"].map(
                   (f) => (
                     <span
                       key={f}
@@ -350,8 +348,8 @@ export default function TryJericho() {
                   >
                     <div className="max-w-2xl mx-auto bg-accent/15 border border-accent/30 rounded-xl p-4 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-accent font-semibold text-sm">🎉 Your Growth Plan is ready!</p>
-                        <p className="text-white/60 text-xs mt-0.5">Check your email — we've sent your full Personalized Growth Plan.</p>
+                         <p className="text-accent font-semibold text-sm">🎉 Your Growth Map is ready!</p>
+                         <p className="text-white/60 text-xs mt-0.5">Check your email — we've sent your Growth Map.</p>
                       </div>
                       <a
                         href="/auth"

@@ -670,7 +670,7 @@ function buildReportHtml(context: UserContext, capabilityMatrix: any, reportMark
       <p class="subtitle">${context.full_name}</p>
       <p class="role-line">${context.job_title}${context.company_name ? ' · ' + context.company_name : ''}</p>
       <p class="tagline">${(capabilityMatrix.capability_matrix || []).length} capabilities analyzed · ${top3.length} priorities identified · 1 clear path forward</p>
-      <p class="valued">Complimentary Leadership Diagnostic — Valued at $2,500</p>
+      <p class="valued">Your complimentary Growth Map</p>
       <p class="date-line">${date}</p>
     </div>
     <hr class="gold-rule">
