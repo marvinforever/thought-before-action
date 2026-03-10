@@ -191,6 +191,7 @@ async function loadContext(supabase: any, profile_id: string): Promise<UserConte
 
   const profile = profileRes.data;
   const uac = contextRes.data;
+  const diagScores = scoresRes.data;
 
   if (!profile) {
     console.error('[growth-plan] No profile found for', profile_id);
