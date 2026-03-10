@@ -388,7 +388,10 @@ ABSOLUTE RULES:
 6. NO filler phrases like "in today's fast-paced world"
 7. Minimum 4,000 words. Maximum 7,000 words.
 8. Tone: Direct, warm, occasionally challenging. Never corporate. Never condescending.
-9. Return as structured markdown with clear section headers. Include JSON blocks for chart data.`;
+9. Return as structured markdown with clear section headers. Include JSON blocks for chart data.
+10. Every "WHAT JERICHO UNLOCKS" section must create a specific, visceral gap — show the cost of trying to develop this capability alone vs. with ongoing coaching. Don't just say "Jericho helps." Make them feel what they'd lose by stopping at Move 3. Reference their specific situation, not generic coaching benefits.
+11. If personality assessment data is present in the diagnostic data (DISC, Strengthscope, Kolbe, StrengthsFinder, Enneagram), add a dedicated subsection under Pattern Analysis called "What Your [Assessment Type] Reveals About Your Growth Path." Connect their personality profile to their Big 3 priorities. Show how their natural wiring accelerates some priorities and creates friction on others. This should feel like a coach who actually understands HOW they're wired, not just WHAT they need to develop.
+12. Engagement, Career Growth, and Role Clarity scores must each be accompanied by a specific quote or paraphrase from the diagnostic that JUSTIFIES the score. If the score feels disconnected from what the person said, adjust the score to match the evidence. The evidence always wins.`;
 
   const userMessage = `EMPLOYEE: ${context.full_name}
 ROLE: ${context.job_title}
