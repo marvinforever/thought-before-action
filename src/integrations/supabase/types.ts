@@ -3429,6 +3429,65 @@ export type Database = {
           },
         ]
       }
+      growth_plans: {
+        Row: {
+          capability_matrix: Json | null
+          created_at: string | null
+          delivered_at: string | null
+          delivery_method: string | null
+          error_log: Json | null
+          generated_at: string | null
+          generated_text: string | null
+          id: string
+          model_used: string | null
+          profile_id: string | null
+          report_html: string | null
+          report_url: string | null
+          status: string | null
+          word_count: number | null
+        }
+        Insert: {
+          capability_matrix?: Json | null
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_method?: string | null
+          error_log?: Json | null
+          generated_at?: string | null
+          generated_text?: string | null
+          id?: string
+          model_used?: string | null
+          profile_id?: string | null
+          report_html?: string | null
+          report_url?: string | null
+          status?: string | null
+          word_count?: number | null
+        }
+        Update: {
+          capability_matrix?: Json | null
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_method?: string | null
+          error_log?: Json | null
+          generated_at?: string | null
+          generated_text?: string | null
+          id?: string
+          model_used?: string | null
+          profile_id?: string | null
+          report_html?: string | null
+          report_url?: string | null
+          status?: string | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_plans_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       habit_completions: {
         Row: {
           completed_date: string
@@ -6768,6 +6827,8 @@ export type Database = {
           open_loops: Json | null
           pending_actions: Json | null
           profile_id: string | null
+          report_generated_at: string | null
+          report_status: string | null
           report_url: string | null
           updated_at: string | null
           user_commitments: Json | null
@@ -6791,6 +6852,8 @@ export type Database = {
           open_loops?: Json | null
           pending_actions?: Json | null
           profile_id?: string | null
+          report_generated_at?: string | null
+          report_status?: string | null
           report_url?: string | null
           updated_at?: string | null
           user_commitments?: Json | null
@@ -6814,6 +6877,8 @@ export type Database = {
           open_loops?: Json | null
           pending_actions?: Json | null
           profile_id?: string | null
+          report_generated_at?: string | null
+          report_status?: string | null
           report_url?: string | null
           updated_at?: string | null
           user_commitments?: Json | null
