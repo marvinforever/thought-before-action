@@ -113,6 +113,7 @@ const App = () => (
             <Route path="/partner/login" element={<PartnerLogin />} />
             <Route path="/super-admin" element={<SuperAdminLayout />}>
               <Route index element={<SuperAdmin />} />
+              <Route path="analytics" element={<SuperAdminAnalytics />} />
               <Route path="demo" element={<SuperAdminDemo />} />
               <Route path="customer-history" element={<AdminCustomerHistoryImport />} />
               <Route path="diagnostic-import" element={<AdminDiagnosticImport />} />
