@@ -54,6 +54,7 @@ import AdminCustomerHistoryImport from "./pages/AdminCustomerHistoryImport";
 import AdminDiagnosticImport from "./pages/AdminDiagnosticImport";
 import AdminTargetedAccountsImport from "./pages/AdminTargetedAccountsImport";
 import TelegramSetup from "./pages/TelegramSetup";
+import SuperAdminAnalytics from "./pages/SuperAdminAnalytics";
 import ConnectGoogle from "./pages/ConnectGoogle";
 import GoogleOAuthCallback from "./pages/GoogleOAuthCallback";
 import TryJericho from "./pages/TryJericho";
@@ -112,6 +113,7 @@ const App = () => (
             <Route path="/partner/login" element={<PartnerLogin />} />
             <Route path="/super-admin" element={<SuperAdminLayout />}>
               <Route index element={<SuperAdmin />} />
+              <Route path="analytics" element={<SuperAdminAnalytics />} />
               <Route path="demo" element={<SuperAdminDemo />} />
               <Route path="customer-history" element={<AdminCustomerHistoryImport />} />
               <Route path="diagnostic-import" element={<AdminDiagnosticImport />} />
