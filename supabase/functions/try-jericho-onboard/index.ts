@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
     <p style="margin:0 0 16px;font-size:13px;font-weight:600;color:#60A5FA;text-transform:uppercase;letter-spacing:1px;">🔐 Your Login</p>
     <p style="margin:0;padding:10px 0;color:#FFF;font-size:14px;">Email: <strong>${email}</strong></p>
     <p style="margin:0;padding:10px 0;color:#FFF;font-size:14px;">Password: <code style="color:#60A5FA;background:rgba(59,130,246,0.15);padding:6px 12px;border-radius:6px;font-weight:600;">${password}</code></p>
-    <p style="margin:16px 0 0;font-size:13px;color:#6B7280;font-style:italic;">Change your password after first login.</p>
+    <p style="margin:16px 0 0;font-size:13px;color:#F59E0B;font-weight:600;">⚠️ Please change your password on first login.</p>
   </td></tr>
   </table>
 </td></tr>
