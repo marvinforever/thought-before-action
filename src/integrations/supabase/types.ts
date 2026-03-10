@@ -6754,6 +6754,7 @@ export type Database = {
           created_at: string | null
           current_sprint_focus: string | null
           emotional_state: string | null
+          error_log: string | null
           hot_customers: Json | null
           id: string
           is_free_tier: boolean | null
@@ -6776,6 +6777,7 @@ export type Database = {
           created_at?: string | null
           current_sprint_focus?: string | null
           emotional_state?: string | null
+          error_log?: string | null
           hot_customers?: Json | null
           id?: string
           is_free_tier?: boolean | null
@@ -6798,6 +6800,7 @@ export type Database = {
           created_at?: string | null
           current_sprint_focus?: string | null
           emotional_state?: string | null
+          error_log?: string | null
           hot_customers?: Json | null
           id?: string
           is_free_tier?: boolean | null

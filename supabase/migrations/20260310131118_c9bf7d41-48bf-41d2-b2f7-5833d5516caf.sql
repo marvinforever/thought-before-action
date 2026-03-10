@@ -1,0 +1,1 @@
+ALTER TABLE public.user_active_context ADD COLUMN IF NOT EXISTS error_log text;
