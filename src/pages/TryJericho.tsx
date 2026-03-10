@@ -118,7 +118,7 @@ export default function TryJericho() {
     trackEvent('coaching_conversation_started', { variant: getVariant('try_opening_variant') });
     setTimeout(() => inputRef.current?.focus(), 400);
     await addJerichoMsg(
-      "Hey — I'm Jericho. Before I build your growth plan, I want to get to know you a little. This'll take about 10–15 minutes and feel more like a conversation than a survey.\n\nReady to jump in?",
+      "Hey — I'm Jericho. Before I build your growth plan, I want to get to know you a little. This'll feel more like a conversation than a survey — most people find it pretty easy.\n\nReady to jump in?",
       600
     );
   };
@@ -176,7 +176,14 @@ export default function TryJericho() {
 
         // Reflection for score questions (section 2)
         if (currentQ.section === 2) {
-          const score = parseInt(value) || 5;
+          const numberMatch = value.match(/\d+/);
+          if (!numberMatch) {
+            await addJerichoMsg("Just to confirm — what number would you give that, 1–10?", 400);
+            return; // Don't advance — ask again
+          }
+          const score = Math.min(10, Math.max(1, parseInt(numberMatch[0])));
+          const newAnswersWithScore = { ...newAnswers, [currentQ.key]: String(score) };
+          setAnswers(newAnswersWithScore);
           await addJerichoMsg(getScoreReflection(currentQ.key, score), 500);
         } else if (currentQ.section === 3) {
           const reflections = [
