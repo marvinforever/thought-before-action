@@ -182,14 +182,16 @@ interface UserContext {
 }
 
 async function loadContext(supabase: any, profile_id: string): Promise<UserContext | null> {
-  const [profileRes, contextRes, capsRes] = await Promise.all([
+  const [profileRes, contextRes, capsRes, scoresRes] = await Promise.all([
     supabase.from('profiles').select('full_name, job_title, role, email, phone, company_id').eq('id', profile_id).single(),
     supabase.from('user_active_context').select('onboarding_data, error_log').eq('profile_id', profile_id).single(),
     supabase.from('capabilities').select('id, name, category, description').eq('status', 'approved').order('category'),
+    supabase.from('diagnostic_scores').select('engagement_score, career_score, clarity_score').eq('profile_id', profile_id).single(),
   ]);
 
   const profile = profileRes.data;
   const uac = contextRes.data;
+  const diagScores = scoresRes.data;
 
   if (!profile) {
     console.error('[growth-plan] No profile found for', profile_id);
@@ -223,9 +225,9 @@ async function loadContext(supabase: any, profile_id: string): Promise<UserConte
     career_goal_3yr: od.career_goal_3yr || '',
     growth_feeling: od.growth_feeling || od.score?.toString() || '',
     learning_formats: od.learning_formats || od.learning_style || '',
-    engagement_score: od.engagement_score || null,
-    career_growth_score: od.career_growth_score || null,
-    role_clarity_score: od.role_clarity_score || null,
+    engagement_score: od.engagement_score ?? diagScores?.engagement_score ?? null,
+    career_growth_score: od.career_growth_score ?? diagScores?.career_score ?? null,
+    role_clarity_score: od.role_clarity_score ?? diagScores?.clarity_score ?? null,
     raw_onboarding: od,
     capabilities: capsRes.data || [],
   };
@@ -388,7 +390,10 @@ ABSOLUTE RULES:
 6. NO filler phrases like "in today's fast-paced world"
 7. Minimum 4,000 words. Maximum 7,000 words.
 8. Tone: Direct, warm, occasionally challenging. Never corporate. Never condescending.
-9. Return as structured markdown with clear section headers. Include JSON blocks for chart data.`;
+9. Return as structured markdown with clear section headers. Include JSON blocks for chart data.
+10. Every "WHAT JERICHO UNLOCKS" section must create a specific, visceral gap — show the cost of trying to develop this capability alone vs. with ongoing coaching. Don't just say "Jericho helps." Make them feel what they'd lose by stopping at Move 3. Reference their specific situation, not generic coaching benefits.
+11. If personality assessment data is present in the diagnostic data (DISC, Strengthscope, Kolbe, StrengthsFinder, Enneagram), add a dedicated subsection under Pattern Analysis called "What Your [Assessment Type] Reveals About Your Growth Path." Connect their personality profile to their Big 3 priorities. Show how their natural wiring accelerates some priorities and creates friction on others. This should feel like a coach who actually understands HOW they're wired, not just WHAT they need to develop.
+12. Engagement, Career Growth, and Role Clarity scores must each be accompanied by a specific quote or paraphrase from the diagnostic that JUSTIFIES the score. If the score feels disconnected from what the person said, adjust the score to match the evidence. The evidence always wins.`;
 
   const userMessage = `EMPLOYEE: ${context.full_name}
 ROLE: ${context.job_title}
