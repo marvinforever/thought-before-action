@@ -11,11 +11,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, fullName, role, phone, company, companyId, challenge, password, diagnosticData } = await req.json();
+    const { email, fullName, role, phone, company, companyId, challenge, password: providedPassword, diagnosticData } = await req.json();
 
-    if (!email || !password) {
-      throw new Error("Email and password are required");
+    if (!email) {
+      throw new Error("Email is required");
     }
+
+    // Auto-generate a secure 16-character password if none provided
+    const password = providedPassword || Array.from(crypto.getRandomValues(new Uint8Array(12)))
+      .map(b => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%"[b % 67])
+      .join('');
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
