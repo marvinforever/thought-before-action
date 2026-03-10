@@ -274,7 +274,7 @@ FORMATTING:
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: MASTER_PROMPT },
-          { role: "user", content: "Generate the Leadership Acceleration Report. Follow every section specification exactly." },
+          { role: "user", content: "Generate the Growth Map. Follow every section specification exactly." },
         ],
         temperature: 0.8,
         max_tokens: 16000,
