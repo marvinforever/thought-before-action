@@ -556,12 +556,14 @@ export default function ManagerDashboard() {
             }}
             employee={selectedEmployee}
           />
-          <ViewGrowthPlanDialog
-            open={growthPlanDialogOpen}
-            onOpenChange={setGrowthPlanDialogOpen}
-            employee={selectedEmployee}
-          />
-          {selectedEmployee.company_id && (
+          {selectedEmployee && (
+            <ViewGrowthPlanDialog
+              open={growthPlanDialogOpen}
+              onOpenChange={setGrowthPlanDialogOpen}
+              employee={selectedEmployee}
+            />
+          )}
+          {selectedEmployee?.company_id && (
             <>
               <OneOnOneDialog
                 open={oneOnOneDialogOpen}
