@@ -1,74 +1,64 @@
-# Upgrade Telegram Bot to Full Jericho Intelligence
 
-## Status: ✅ IMPLEMENTED
 
-### 1. Database Migration ✅
-- Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
-- Added index on `telegram_update_id` for duplicate detection
-- Added index on `(user_id, created_at DESC)` for fast conversation history
+# Coach Mode — Cross-Company Team Building
 
-### 2. Sales Coach Auth Bypass ✅
-- Added 8-line internal service call detection in `sales-coach/index.ts` (after auth block)
-- When token matches service role key and `viewAsUserId` is provided, trusts the IDs directly
+## Overview
+Add a `coach` role that allows users to build a team from ANY user across all companies. A user can hold both `coach` and `super_admin` roles simultaneously — the `coach` role alone does NOT grant view-as/impersonation abilities; those remain exclusive to `super_admin`.
 
-### 3. AI Router ✅
-- Added `'telegram-chat'` task type routed to `'gemini-pro'`
+## Database Changes (1 migration)
 
-### 4. Telegram Webhook Rewrite ✅
-- **Sales-coach proxy**: All sales/general/unclear messages route through sales-coach via internal fetch
-- **Growth path**: Growth/capabilities/training/sprint queries use Gemini Pro via ai-router
-- **Kudos shortcut**: Direct DB insert into recognitions table
-- **Conversation history**: Last 10 messages within 24hrs by user_id
-- **Edit-message UX**: "Thinking..." replaced via editMessageText
-- **Duplicate prevention**: update_id checked before processing
-- **Manager context**: Loads team data for manager users
-- **Error handling**: 45s timeout, graceful fallbacks, all paths return 200
-- **Response formatting**: Strips unsupported markdown, appends action confirmations, truncates at 4000 chars
+### 1. Add `coach` to `app_role` enum
+```sql
+ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'coach';
+```
 
----
+### 2. RLS policy on `manager_assignments` for coaches
+Coaches can manage their own assignments across any company:
+```sql
+CREATE POLICY "Coaches can manage own cross-company assignments"
+ON public.manager_assignments
+FOR ALL
+USING (has_role(auth.uid(), 'coach') AND manager_id = auth.uid())
+WITH CHECK (has_role(auth.uid(), 'coach') AND manager_id = auth.uid());
+```
 
-# Multi-Channel Daily Brief Delivery (Telegram + SMS)
+## Edge Function Changes
 
-## Status: ✅ IMPLEMENTED
+### `check-user-permissions/index.ts`
+Add `'coach'` to the manager-equivalent role list in the `requireManager` check (alongside `manager`, `admin`, `super_admin`).
 
-### What was done
+## Frontend Changes
 
-#### 1. Database Migration ✅
-- Added `delivery_channels` (jsonb, default `{"email": true, "telegram": false, "sms": false}`) to `email_preferences`
-- Added `channel` (text, default `'email'`) to `email_deliveries`
+### `ManageMyTeamDialog.tsx`
+- Detect if user has `coach` role (add to existing role check)
+- **If coach (and NOT in view-as mode):** query ALL active profiles across all companies (no `company_id` filter), join company name, group/show company badge per employee
+- **If coach AND super_admin in view-as mode:** existing super_admin view-as behavior takes precedence (company-scoped)
+- Remove `assigned_to_other` restriction for coaches (they can share employees with company managers)
+- On save: use the **employee's own `company_id`** for the `manager_assignments` row
 
-#### 2. Shared Content Generator ✅
-- Created `supabase/functions/_shared/daily-brief-content.ts`
-- Exports `gatherUserContext()` — parallel DB queries for habits, goals, capabilities, tasks, streaks, vision
-- Exports `generateBriefContent()` — AI-powered brief in `html`, `markdown`, or `plain` format
-- Returns `{ subject, body, shortSummary }` where shortSummary is ~160 chars for SMS
+### `ManagerDashboard.tsx` — `loadDirectReports`
+- Current logic: if `viewAsCompanyId` → filter by company; else → filter by `manager_id`
+- Add coach path: if user is a coach and NOT in view-as mode, load all assignments where `manager_id = user.id` without company filter
+- If coach+super_admin in view-as mode, the existing view-as logic applies (company-scoped)
+- Add company name display in the direct reports list for coaches
 
-#### 3. Telegram Delivery Function ✅
-- Created `supabase/functions/send-daily-brief-telegram/index.ts`
-- Looks up `telegram_links.telegram_chat_id`
-- Sends Markdown-formatted brief with inline keyboard buttons
-- Automatic plain text fallback on Markdown parse errors
-- Logs delivery with `channel = 'telegram'`
+### `ViewAsContext` — No changes
+View-as remains super_admin only. Coaches without super_admin never see the view-as selector.
 
-#### 4. SMS Delivery Function ✅
-- Created `supabase/functions/send-daily-brief-sms/index.ts`
-- Checks `sms_opted_in` and phone number on profile
-- Sends `shortSummary` via existing `send-sms` function (Twilio)
-- Logs delivery with `channel = 'sms'`
+## Security Model Summary
 
-#### 5. Orchestrator Updated ✅
-- `process-daily-brief-queue` now reads `delivery_channels` from `email_preferences`
-- Dispatches to email, telegram, and/or SMS based on user preferences
-- Each channel handled independently with error isolation
+| Capability | Coach only | Super Admin only | Coach + Super Admin |
+|---|---|---|---|
+| Build team across companies | Yes | Yes | Yes |
+| View-as / impersonate company | No | Yes | Yes |
+| Manage other managers' assignments | No | Yes | Yes |
+| Access manager dashboard | Yes | Yes | Yes |
 
-#### 6. Settings UI Updated ✅
-- Added Delivery Channels section under Daily Brief Email card
-- Three toggles: Email, Telegram, SMS
-- Telegram toggle disabled if no `telegram_links` record
-- SMS toggle disabled if user hasn't opted in with a phone number
-- Both check real DB state on load
+The `coach` role grants cross-company team building via `manager_assignments` RLS. View-as and impersonation remain gated by `super_admin` checks in `ViewAsContext` and `ManageMyTeamDialog`. A dual-role user gets both capabilities independently.
 
-### Future enhancements
-- OpenClaw Jericho agent orchestration via `agent_tasks` table
-- Per-channel delivery time preferences
-- Brief content caching to avoid regenerating for multiple channels
+## Files to Change
+1. **Migration SQL** — enum + RLS policy
+2. **`check-user-permissions/index.ts`** — add `coach` to manager roles
+3. **`ManageMyTeamDialog.tsx`** — cross-company loading for coaches
+4. **`ManagerDashboard.tsx`** — cross-company direct reports for coaches
+
