@@ -17,6 +17,8 @@ type Employee = {
   role: string;
   is_assigned: boolean;
   assigned_to_other?: boolean;
+  company_name?: string;
+  company_id?: string;
 };
 
 interface ManageMyTeamDialogProps {
@@ -35,6 +37,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isCoach, setIsCoach] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -48,7 +51,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Check if user is admin or super_admin
+      // Check user roles
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
@@ -56,13 +59,18 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
       
       const isAdmin = roles?.some(r => r.role === 'admin' || r.role === 'super_admin') || false;
       const hasSuperAdminRole = roles?.some(r => r.role === 'super_admin') || false;
+      const hasCoachRole = roles?.some(r => r.role === 'coach') || false;
       setIsSuperAdmin(hasSuperAdminRole);
+      setIsCoach(hasCoachRole);
 
-      // Determine which company to use
+      // Determine if coach should use cross-company mode
+      // Coach mode: coach role + NOT in view-as mode (view-as takes precedence for super_admin+coach)
+      const useCoachMode = hasCoachRole && !viewAsCompanyId;
+
+      // Determine which company to use (only relevant when NOT in coach mode)
       let companyId = viewAsCompanyId;
       
-      if (!companyId) {
-        // Get manager's company if not viewing as another company
+      if (!companyId && !useCoachMode) {
         const { data: managerProfile } = await supabase
           .from("profiles")
           .select("company_id")
@@ -73,16 +81,36 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
         companyId = managerProfile.company_id;
       }
 
-      // Get all employees in the company (except the manager themselves)
-      const { data: allEmployees, error: employeesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, role")
-        .eq("company_id", companyId)
-        .eq("is_active", true)
-        .neq("id", user.id)
-        .order("full_name");
-
-      if (employeesError) throw employeesError;
+      // Get employees - coaches get ALL active profiles across companies
+      let allEmployees: any[] = [];
+      
+      if (useCoachMode) {
+        // Coach mode: fetch all active users across all companies with company name
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, role, company_id, companies(name)")
+          .eq("is_active", true)
+          .neq("id", user.id)
+          .order("full_name");
+        
+        if (error) throw error;
+        allEmployees = (data || []).map((emp: any) => ({
+          ...emp,
+          company_name: emp.companies?.name || "Unknown Company",
+        }));
+      } else {
+        // Standard mode: company-scoped
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, role, company_id")
+          .eq("company_id", companyId!)
+          .eq("is_active", true)
+          .neq("id", user.id)
+          .order("full_name");
+        
+        if (error) throw error;
+        allEmployees = data || [];
+      }
 
       // Get current assignments for this manager
       const { data: assignments, error: assignError } = await supabase
@@ -92,23 +120,27 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
 
       if (assignError) throw assignError;
 
-      // Get ALL assignments in the company (to mark employees assigned to other managers)
-      const { data: allAssignments, error: allAssignError } = await supabase
-        .from("manager_assignments")
-        .select("employee_id, manager_id")
-        .eq("company_id", companyId);
+      // Get ALL assignments (to mark employees assigned to other managers)
+      // For coaches, we skip the "assigned to other" restriction
+      let otherManagerAssignments = new Set<string>();
+      if (!useCoachMode && companyId) {
+        const { data: allAssignments, error: allAssignError } = await supabase
+          .from("manager_assignments")
+          .select("employee_id, manager_id")
+          .eq("company_id", companyId);
 
-      if (allAssignError) throw allAssignError;
+        if (allAssignError) throw allAssignError;
+
+        otherManagerAssignments = new Set(
+          allAssignments?.filter(a => a.manager_id !== user.id).map(a => a.employee_id) || []
+        );
+      }
 
       const myAssignments = new Set(assignments?.map(a => a.employee_id) || []);
-      const otherManagerAssignments = new Set(
-        allAssignments?.filter(a => a.manager_id !== user.id).map(a => a.employee_id) || []
-      );
-      
       setInitialAssignments(myAssignments);
       setSelectedIds(new Set(myAssignments));
 
-      const employeesWithStatus = (allEmployees || []).map(emp => {
+      const employeesWithStatus = allEmployees.map(emp => {
         const isMyEmployee = myAssignments.has(emp.id);
         const isOtherManagerEmployee = otherManagerAssignments.has(emp.id);
         
@@ -118,7 +150,9 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
           email: emp.email || "",
           role: emp.role || "",
           is_assigned: isMyEmployee,
-          assigned_to_other: isOtherManagerEmployee && !isAdmin, // Only show restriction for non-admins
+          assigned_to_other: isOtherManagerEmployee && !isAdmin && !useCoachMode,
+          company_name: emp.company_name,
+          company_id: emp.company_id,
         };
       });
 
@@ -144,13 +178,10 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
     setSelectedIds(newSelected);
   };
 
-  // In view-as mode, only super admins should be able to make modifications
-  // Regular admins should be view-only when viewing another company
   const isViewAsMode = !!viewAsCompanyId;
   const canEdit = !isViewAsMode || isSuperAdmin;
 
   const handleSave = async () => {
-    // Block saving if not allowed to edit
     if (!canEdit) {
       toast({
         title: "Cannot modify team in View As mode",
@@ -165,20 +196,7 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Use viewAsCompanyId if set (super admin managing another company)
-      // Otherwise use the manager's own company
-      let targetCompanyId = viewAsCompanyId;
-      
-      if (!targetCompanyId) {
-        const { data: managerProfile } = await supabase
-          .from("profiles")
-          .select("company_id")
-          .eq("id", user.id)
-          .single();
-
-        if (!managerProfile?.company_id) throw new Error("Company not found");
-        targetCompanyId = managerProfile.company_id;
-      }
+      const useCoachMode = isCoach && !viewAsCompanyId;
 
       // Determine what changed
       const toAdd = Array.from(selectedIds).filter(id => !initialAssignments.has(id));
@@ -195,14 +213,33 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
         if (deleteError) throw deleteError;
       }
 
-      // Add new assignments for selected employees (allow multiple managers per employee)
+      // Add new assignments
       if (toAdd.length > 0) {
-        const newAssignments = toAdd.map(employeeId => ({
-          manager_id: user.id,
-          employee_id: employeeId,
-          company_id: targetCompanyId,
-          assigned_by: user.id,
-        }));
+        // For coach mode, use each employee's own company_id
+        // For standard mode, use the target company
+        let targetCompanyId = viewAsCompanyId;
+        if (!targetCompanyId && !useCoachMode) {
+          const { data: managerProfile } = await supabase
+            .from("profiles")
+            .select("company_id")
+            .eq("id", user.id)
+            .single();
+          if (!managerProfile?.company_id) throw new Error("Company not found");
+          targetCompanyId = managerProfile.company_id;
+        }
+
+        const newAssignments = toAdd.map(employeeId => {
+          // In coach mode, look up employee's company_id from loaded data
+          const emp = employees.find(e => e.id === employeeId);
+          const empCompanyId = useCoachMode ? (emp?.company_id || targetCompanyId) : targetCompanyId;
+          
+          return {
+            manager_id: user.id,
+            employee_id: employeeId,
+            company_id: empCompanyId,
+            assigned_by: user.id,
+          };
+        });
 
         const { error: upsertError } = await supabase
           .from("manager_assignments")
@@ -232,13 +269,62 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
   const filteredEmployees = employees.filter(emp =>
     emp.full_name.toLowerCase().includes(search.toLowerCase()) ||
     emp.email.toLowerCase().includes(search.toLowerCase()) ||
-    emp.role.toLowerCase().includes(search.toLowerCase())
+    emp.role.toLowerCase().includes(search.toLowerCase()) ||
+    (emp.company_name || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  // Group by company for coach mode display
+  const useCoachDisplay = isCoach && !viewAsCompanyId;
+  
   const selectedCount = selectedIds.size;
   const changesCount = 
     Array.from(selectedIds).filter(id => !initialAssignments.has(id)).length +
     Array.from(initialAssignments).filter(id => !selectedIds.has(id)).length;
+
+  // Group employees by company for coach display
+  const groupedEmployees = useCoachDisplay
+    ? filteredEmployees.reduce<Record<string, Employee[]>>((acc, emp) => {
+        const key = emp.company_name || "Unknown Company";
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(emp);
+        return acc;
+      }, {})
+    : null;
+
+  const renderEmployeeRow = (employee: Employee) => (
+    <div
+      key={employee.id}
+      className={`flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 ${!canEdit ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+      onClick={() => canEdit && handleToggleEmployee(employee.id)}
+    >
+      <Checkbox
+        checked={selectedIds.has(employee.id)}
+        onCheckedChange={() => canEdit && handleToggleEmployee(employee.id)}
+        disabled={!canEdit}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="font-medium truncate">{employee.full_name}</p>
+          {employee.role && (
+            <Badge variant="secondary" className="text-xs">
+              {employee.role}
+            </Badge>
+          )}
+          {employee.is_assigned && (
+            <Badge variant="default" className="text-xs">
+              On Your Team
+            </Badge>
+          )}
+          {useCoachDisplay && employee.company_name && (
+            <Badge variant="outline" className="text-xs">
+              {employee.company_name}
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground truncate">{employee.email}</p>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -251,9 +337,11 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
           <DialogDescription>
             {!canEdit 
               ? "Viewing team for another company (read-only mode)"
-              : isViewAsMode
-                ? "Managing team as Super Admin. Select employees to add/remove as direct reports."
-                : "Select employees to add to your direct reports. Uncheck to remove from your team."
+              : useCoachDisplay
+                ? "As a coach, select employees from any company to add to your team."
+                : isViewAsMode
+                  ? "Managing team as Super Admin. Select employees to add/remove as direct reports."
+                  : "Select employees to add to your direct reports. Uncheck to remove from your team."
             }
           </DialogDescription>
         </DialogHeader>
@@ -270,11 +358,17 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
           </div>
         )}
 
+        {useCoachDisplay && !isViewAsMode && (
+          <div className="bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-emerald-800 dark:text-emerald-200 text-sm">
+            🎯 Coach Mode — You can add employees from any company to your team.
+          </div>
+        )}
+
         <div className="space-y-4 flex-1 overflow-hidden">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search employees..."
+              placeholder={useCoachDisplay ? "Search employees or companies..." : "Search employees..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -298,36 +392,21 @@ export function ManageMyTeamDialog({ open, onOpenChange, onTeamUpdated }: Manage
                   <div className="text-center py-8 text-muted-foreground">
                     No employees found
                   </div>
-                ) : (
-                  filteredEmployees.map((employee) => (
-                    <div
-                      key={employee.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 ${!canEdit ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
-                      onClick={() => canEdit && handleToggleEmployee(employee.id)}
-                    >
-                      <Checkbox
-                        checked={selectedIds.has(employee.id)}
-                        onCheckedChange={() => canEdit && handleToggleEmployee(employee.id)}
-                        disabled={!canEdit}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium truncate">{employee.full_name}</p>
-                          {employee.role && (
-                            <Badge variant="secondary" className="text-xs">
-                              {employee.role}
-                            </Badge>
-                          )}
-                          {employee.is_assigned && (
-                            <Badge variant="default" className="text-xs">
-                              On Your Team
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">{employee.email}</p>
+                ) : groupedEmployees ? (
+                  // Coach mode: grouped by company
+                  Object.entries(groupedEmployees)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([companyName, emps]) => (
+                      <div key={companyName} className="space-y-1">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-2 pb-1 px-1">
+                          {companyName} ({emps.length})
+                        </p>
+                        {emps.map(renderEmployeeRow)}
                       </div>
-                    </div>
-                  ))
+                    ))
+                ) : (
+                  // Standard mode: flat list
+                  filteredEmployees.map(renderEmployeeRow)
                 )}
               </div>
             </ScrollArea>
