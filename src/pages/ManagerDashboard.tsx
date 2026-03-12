@@ -48,6 +48,7 @@ type DirectReport = {
   completed_goals: number;
   total_goals: number;
   company_id: string;
+  company_name?: string;
 };
 
 export default function ManagerDashboard() {
