@@ -140,6 +140,14 @@ export default function TryJericho() {
       let accumulated = "";
       let textBuffer = "";
 
+      // Strip all hidden signal markers from display text
+      const stripMarkers = (text: string) =>
+        text
+          .replace(/<!--ONBOARDING_COMPLETE:[\s\S]*?-->/g, "")
+          .replace(/<!--CONTEXT_UPDATE[\s\S]*?-->/g, "")
+          .replace(/<!--.*?-->/g, "")
+          .trim();
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -168,11 +176,12 @@ export default function TryJericho() {
 
             if (typeof data.content === "string" && data.content.length) {
               accumulated += data.content;
+              const display = stripMarkers(accumulated);
               setMessages((prev) => {
                 const next = [...prev];
                 const lastIdx = next.length - 1;
                 if (next[lastIdx]?.role === "jericho") {
-                  next[lastIdx] = { ...next[lastIdx], text: accumulated };
+                  next[lastIdx] = { ...next[lastIdx], text: display };
                 }
                 return next;
               });
@@ -201,11 +210,12 @@ export default function TryJericho() {
             }
             if (typeof data.content === "string" && data.content.length) {
               accumulated += data.content;
+              const display = stripMarkers(accumulated);
               setMessages((prev) => {
                 const next = [...prev];
                 const lastIdx = next.length - 1;
                 if (next[lastIdx]?.role === "jericho") {
-                  next[lastIdx] = { ...next[lastIdx], text: accumulated };
+                  next[lastIdx] = { ...next[lastIdx], text: display };
                 }
                 return next;
               });
