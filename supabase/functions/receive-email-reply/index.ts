@@ -43,18 +43,18 @@ serve(async (req) => {
     console.log("Raw payload.data keys:", Object.keys(rawPayload?.data || {}));
     console.log("Full payload:", JSON.stringify(rawPayload, null, 2));
     
-    // Handle Resend's nested structure
+    // Handle Resend's nested structure: data.payload.text / data.payload.html
     const emailData = rawPayload.data || rawPayload;
+    const payload = emailData.payload || {};
     
     const from = emailData.from || rawPayload.from;
     const to = Array.isArray(emailData.to) ? emailData.to[0] : (emailData.to || rawPayload.to);
     const subject = emailData.subject || rawPayload.subject;
     const emailId = emailData.email_id || emailData.id || rawPayload.email_id;
     
-    // Try ALL possible field names for body content directly from payload
-    let text = emailData.text || emailData.body || emailData.plain || emailData.plain_body || 
-               emailData.text_body || emailData.content || rawPayload.text || rawPayload.body || "";
-    let html = emailData.html || emailData.html_body || rawPayload.html || "";
+    // Resend nests body under data.payload.text / data.payload.html
+    let text = payload.text || emailData.text || emailData.body || rawPayload.text || rawPayload.body || "";
+    let html = payload.html || emailData.html || rawPayload.html || "";
     
     console.log("Email from:", from);
     console.log("Email to:", to);
