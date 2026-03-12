@@ -140,6 +140,14 @@ export default function TryJericho() {
       let accumulated = "";
       let textBuffer = "";
 
+      // Strip all hidden signal markers from display text
+      const stripMarkers = (text: string) =>
+        text
+          .replace(/<!--ONBOARDING_COMPLETE:[\s\S]*?-->/g, "")
+          .replace(/<!--CONTEXT_UPDATE[\s\S]*?-->/g, "")
+          .replace(/<!--.*?-->/g, "")
+          .trim();
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
