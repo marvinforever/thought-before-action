@@ -73,7 +73,7 @@ serve(async (req) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", ["manager", "admin", "super_admin"]);
+        .in("role", ["manager", "admin", "super_admin", "coach"]);
 
       if (rolesError) {
         console.error("Error fetching roles:", rolesError);

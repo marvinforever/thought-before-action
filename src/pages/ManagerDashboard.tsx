@@ -48,6 +48,7 @@ type DirectReport = {
   completed_goals: number;
   total_goals: number;
   company_id: string;
+  company_name?: string;
 };
 
 export default function ManagerDashboard() {
@@ -101,6 +102,15 @@ export default function ManagerDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Check if user is a coach
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      
+      const hasCoachRole = roles?.some(r => r.role === 'coach') || false;
+      const useCoachMode = hasCoachRole && !viewAsCompanyId;
+
       let assignmentsQuery = supabase
         .from("manager_assignments")
         .select(`
@@ -114,10 +124,10 @@ export default function ManagerDashboard() {
           )
         `);
 
-      // Filter by company if super admin is viewing as a company
       if (viewAsCompanyId) {
         assignmentsQuery = assignmentsQuery.eq("company_id", viewAsCompanyId);
       } else {
+        // Both coach and standard: filter by own manager_id
         assignmentsQuery = assignmentsQuery.eq("manager_id", user.id);
       }
 
@@ -152,6 +162,17 @@ export default function ManagerDashboard() {
           const completedGoals = goals?.filter(g => g.completed).length || 0;
           const totalGoals = goals?.length || 0;
 
+          // Look up company name for coach mode
+          let companyName: string | undefined;
+          if (useCoachMode && assignment.company_id) {
+            const { data: companyData } = await supabase
+              .from("companies")
+              .select("name")
+              .eq("id", assignment.company_id)
+              .single();
+            companyName = companyData?.name;
+          }
+
           return {
             id: profile.id,
             full_name: profile.full_name || "Unknown",
@@ -162,6 +183,7 @@ export default function ManagerDashboard() {
             completed_goals: completedGoals,
             total_goals: totalGoals,
             company_id: assignment.company_id,
+            company_name: companyName,
           };
         })
       );
