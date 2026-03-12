@@ -176,11 +176,12 @@ export default function TryJericho() {
 
             if (typeof data.content === "string" && data.content.length) {
               accumulated += data.content;
+              const display = stripMarkers(accumulated);
               setMessages((prev) => {
                 const next = [...prev];
                 const lastIdx = next.length - 1;
                 if (next[lastIdx]?.role === "jericho") {
-                  next[lastIdx] = { ...next[lastIdx], text: accumulated };
+                  next[lastIdx] = { ...next[lastIdx], text: display };
                 }
                 return next;
               });
