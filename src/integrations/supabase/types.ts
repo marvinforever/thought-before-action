@@ -7482,7 +7482,13 @@ export type Database = {
       reset_periodic_points: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "manager" | "user" | "partner"
+      app_role:
+        | "super_admin"
+        | "admin"
+        | "manager"
+        | "user"
+        | "partner"
+        | "coach"
       burnout_level: "energized" | "normal" | "tired" | "drained" | "burned_out"
       capability_level: "foundational" | "advancing" | "independent" | "mastery"
       content_type:
@@ -7645,7 +7651,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "manager", "user", "partner"],
+      app_role: ["super_admin", "admin", "manager", "user", "partner", "coach"],
       burnout_level: ["energized", "normal", "tired", "drained", "burned_out"],
       capability_level: ["foundational", "advancing", "independent", "mastery"],
       content_type: [
