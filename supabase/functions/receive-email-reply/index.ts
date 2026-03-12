@@ -6,7 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Resend webhook payload structure
 interface ResendWebhookPayload {
   type: string;
   created_at: string;
@@ -14,10 +13,15 @@ interface ResendWebhookPayload {
     from: string;
     to: string | string[];
     subject: string;
+    email_id?: string;
+    payload?: {
+      text?: string;
+      html?: string;
+    };
+    // Legacy/fallback fields
     text?: string;
     html?: string;
     created_at?: string;
-    email_id?: string;
     headers?: Array<{ name: string; value: string }>;
   };
 }
