@@ -1,74 +1,110 @@
-# Upgrade Telegram Bot to Full Jericho Intelligence
 
-## Status: ✅ IMPLEMENTED
 
-### 1. Database Migration ✅
-- Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
-- Added index on `telegram_update_id` for duplicate detection
-- Added index on `(user_id, created_at DESC)` for fast conversation history
+# Playbook Interactive Onboarding — Implementation Plan
 
-### 2. Sales Coach Auth Bypass ✅
-- Added 8-line internal service call detection in `sales-coach/index.ts` (after auth block)
-- When token matches service role key and `viewAsUserId` is provided, trusts the IDs directly
+## Overview
 
-### 3. AI Router ✅
-- Added `'telegram-chat'` task type routed to `'gemini-pro'`
-
-### 4. Telegram Webhook Rewrite ✅
-- **Sales-coach proxy**: All sales/general/unclear messages route through sales-coach via internal fetch
-- **Growth path**: Growth/capabilities/training/sprint queries use Gemini Pro via ai-router
-- **Kudos shortcut**: Direct DB insert into recognitions table
-- **Conversation history**: Last 10 messages within 24hrs by user_id
-- **Edit-message UX**: "Thinking..." replaced via editMessageText
-- **Duplicate prevention**: update_id checked before processing
-- **Manager context**: Loads team data for manager users
-- **Error handling**: 45s timeout, graceful fallbacks, all paths return 200
-- **Response formatting**: Strips unsupported markdown, appends action confirmations, truncates at 4000 chars
+This is a 3-layer update that transforms the `/try` page from a plain text chat into a rich interactive coaching conversation with progress tracking, inline micro-moments (sliders, quick-selects, yes/no), and a playbook generation animation. The AI (OpenClaw primary, Gemini fallback) drives everything via an expanded SSE protocol.
 
 ---
 
-# Multi-Channel Daily Brief Delivery (Telegram + SMS)
+## What Changes
 
-## Status: ✅ IMPLEMENTED
+### 1. Edge Function: `proxy-try-chat/index.ts` — Marker-to-SSE Conversion
 
-### What was done
+The proxy currently strips all HTML comments (line 88). Instead, it needs to **intercept and convert** them into typed SSE events.
 
-#### 1. Database Migration ✅
-- Added `delivery_channels` (jsonb, default `{"email": true, "telegram": false, "sms": false}`) to `email_preferences`
-- Added `channel` (text, default `'email'`) to `email_deliveries`
+**Changes:**
+- Replace the blanket `content.replace(/<!--.*?-->/g, '')` with targeted regex parsing for 4 marker types:
+  - `<!--INTERACTIVE:{json}-->` → emit `{ type: "interactive", ...parsed }`
+  - `<!--PROGRESS:{json}-->` → emit `{ type: "progress", ...parsed }`
+  - `<!--GENERATION:{json}-->` → emit `{ type: "generation", ...parsed }`
+  - `<!--EXTRACTED_DATA:{json}-->` → **do not send to client**; save to `try_sessions.extracted_data` and fire `try-jericho-onboard`
+- Clean text content still emits as `{ type: "text", content: "..." }`
+- Replace the old `<!--ONBOARDING_COMPLETE:...-->` parsing in `saveToTrySession` with the new `EXTRACTED_DATA` marker
+- Apply same marker parsing to the **fallback path** (currently just passes through raw — needs the same intercept logic)
 
-#### 2. Shared Content Generator ✅
-- Created `supabase/functions/_shared/daily-brief-content.ts`
-- Exports `gatherUserContext()` — parallel DB queries for habits, goals, capabilities, tasks, streaks, vision
-- Exports `generateBriefContent()` — AI-powered brief in `html`, `markdown`, or `plain` format
-- Returns `{ subject, body, shortSummary }` where shortSummary is ~160 chars for SMS
+### 2. Edge Function: `chat-with-jericho/index.ts` — New Fallback System Prompt
 
-#### 3. Telegram Delivery Function ✅
-- Created `supabase/functions/send-daily-brief-telegram/index.ts`
-- Looks up `telegram_links.telegram_chat_id`
-- Sends Markdown-formatted brief with inline keyboard buttons
-- Automatic plain text fallback on Markdown parse errors
-- Logs delivery with `channel = 'telegram'`
+Replace the current `trySystemPrompt` (lines 106–138) with the full 8-turn Playbook coaching prompt from Layer 3A. This is a large string replacement — the new prompt includes:
+- 8 structured conversation turns with specific interactive element emissions
+- 10 extraction rules
+- Interactive element format documentation
+- Personality/tone guidelines
 
-#### 4. SMS Delivery Function ✅
-- Created `supabase/functions/send-daily-brief-sms/index.ts`
-- Checks `sms_opted_in` and phone number on profile
-- Sends `shortSummary` via existing `send-sms` function (Twilio)
-- Logs delivery with `channel = 'sms'`
+No structural code changes needed — just swap the prompt string.
 
-#### 5. Orchestrator Updated ✅
-- `process-daily-brief-queue` now reads `delivery_channels` from `email_preferences`
-- Dispatches to email, telegram, and/or SMS based on user preferences
-- Each channel handled independently with error isolation
+### 3. Frontend: `src/pages/TryJericho.tsx` — Full Interactive UI
 
-#### 6. Settings UI Updated ✅
-- Added Delivery Channels section under Daily Brief Email card
-- Three toggles: Email, Telegram, SMS
-- Telegram toggle disabled if no `telegram_links` record
-- SMS toggle disabled if user hasn't opted in with a phone number
-- Both check real DB state on load
+This is the largest change. The page evolves from a text-only chat to support 5 SSE message types and 3 new interactive components.
 
-### Future enhancements
-- OpenClaw Jericho agent orchestration via `agent_tasks` table
-- Per-channel delivery time preferences
-- Brief content caching to avoid regenerating for multiple channels
+**New state variables:**
+- `progressPercent` / `progressLabel` — driven by `progress` SSE events
+- `generating` / `playbookReady` — driven by `generation` SSE events
+
+**Expanded message type:**
+```
+type Message = {
+  id: string;
+  role: "jericho" | "user" | "interactive";
+  text: string;
+  interactiveData?: InteractiveElement;
+  interactiveResponse?: string | number;
+};
+```
+
+**SSE parsing loop update:** Switch on `parsed.type` to handle `text`, `interactive`, `progress`, `generation`, `done`. Unknown/missing type defaults to `text` for backward compat.
+
+**New inline components (built directly in the file or as small sub-components):**
+
+- **`PlaybookProgressBar`** — thin animated bar below header, driven by `progress` events. Uses framer-motion spring animation. Shows phase label with AnimatePresence crossfade.
+
+- **`ScaleInput`** — row of 10 tappable circles for 1-10 ratings. Single-tap selects and sends `[INTERACTIVE:{id}:{value}]`. Locks after selection. 40px min tap targets for mobile.
+
+- **`QuickSelect`** — stacked pill buttons for 2-4 options. Tap selects, others fade. Sends `[INTERACTIVE:{id}:{key}]`.
+
+- **`YesNoInput`** — two side-by-side pills. Sends `[INTERACTIVE:{id}:yes/no]`.
+
+- **`PlaybookGenerating`** — replaces chat input when `generation.started`. Pulsing animation, cycling status text ("Analyzing your strengths…", "Mapping your growth edge…", etc.). On `generation.complete`, resolves to "Your Playbook is ready!" with CTA to `/auth`.
+
+**Interactive response rendering:** When user selects a value, it's shown as a styled user bubble (e.g., "8/10" with a mini gauge for scales, option text for quick-selects).
+
+**Landing page copy updates:**
+- "Takes about 3 minutes." → "Just a conversation."
+- "Growth Map" → "Growth Playbook" throughout
+- Feature pills: `["Growth Playbook", "Career Clarity", "Strengths Map", "Development Edge", "Quick Win"]`
+- Meta description updated accordingly
+
+### 4. Edge Function: `try-jericho-onboard/index.ts` — Accept Full Payload
+
+Update to accept the expanded `diagnosticData` object with all 21 conversational + 8 interactive data points. The current function already accepts `diagnosticData` as a flexible object, so this is mostly ensuring the coaching insights generation uses the new field names (e.g., `challenge_severity`, `energy_score`, `engagement_score` etc.).
+
+---
+
+## Implementation Order
+
+1. **`proxy-try-chat`** — marker parsing (enables the protocol regardless of frontend state)
+2. **`chat-with-jericho`** — new fallback system prompt
+3. **`TryJericho.tsx`** — progress bar, interactive components, generation animation, copy updates
+4. **`try-jericho-onboard`** — expanded payload handling
+
+---
+
+## Technical Notes
+
+- **Backward compatibility:** If SSE event has no `type` field, treat as `text`. This means the existing OpenClaw responses work during migration before OpenClaw's prompt is updated.
+- **Marker parsing happens on accumulated content per-chunk**, not per-line. HTML comments may span token boundaries, so the proxy buffers and checks after each content accumulation.
+- **No database migrations needed.** `try_sessions.extracted_data` is already a JSONB column that accepts arbitrary structure. `user_active_context.onboarding_data` is also JSONB.
+- **framer-motion** is already installed and used extensively in the current `TryJericho.tsx`.
+- **react-markdown** is already installed and used for rendering AI messages.
+
+---
+
+## Open Questions (for you to decide)
+
+1. **Fallback model:** Currently `gemini-2.5-flash`. The 8-turn + interactive timing requires strong instruction following. Should it stay flash or upgrade to `gemini-2.5-pro`? Cost difference is significant but this is the conversion funnel.
+
+2. **Playbook generation trigger:** When `GENERATION:started` fires, what actually builds the Playbook? Should we call `generate-leadership-report` or does OpenClaw handle it? For now I'll trigger `try-jericho-onboard` with the extracted data (which already exists) — the actual Playbook generation can be wired separately.
+
+3. **Phone collection:** The new prompt doesn't include phone. Keep it cut for v1?
+
