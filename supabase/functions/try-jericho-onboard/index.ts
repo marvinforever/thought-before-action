@@ -141,10 +141,12 @@ Deno.serve(async (req) => {
       console.error("Active context preload error:", e);
     }
 
-    // 4c. Write coaching insights if diagnostic data present
+    // 4c. Write coaching insights from diagnostic/playbook data
     if (diagnosticData) {
       try {
         const insights: string[] = [];
+
+        // Legacy fields
         const eng = diagnosticData.engagement_score;
         const growth = diagnosticData.career_growth_score;
         const clarity = diagnosticData.role_clarity_score;
@@ -154,6 +156,29 @@ Deno.serve(async (req) => {
         if (clarity && clarity <= 4) insights.push(`Low role clarity (${clarity}/10) — needs success metrics defined.`);
         if (diagnosticData.obstacles) insights.push(`Self-reported obstacles: ${String(diagnosticData.obstacles).substring(0, 200)}`);
         if (diagnosticData.natural_strengths) insights.push(`Self-reported strengths: ${String(diagnosticData.natural_strengths).substring(0, 200)}`);
+
+        // New Playbook fields
+        const severity = diagnosticData.challenge_severity;
+        const energy = diagnosticData.energy_score;
+        const confidence = diagnosticData.confidence_score;
+        const utilization = diagnosticData.strength_utilization;
+        const satisfaction = diagnosticData.satisfaction;
+        const orgSupport = diagnosticData.org_support;
+        const barrier = diagnosticData.learning_barrier;
+
+        if (severity && severity >= 7) insights.push(`High challenge severity (${severity}/10) — primary challenge: ${diagnosticData.primary_challenge || 'unspecified'}.`);
+        if (energy && energy <= 4) insights.push(`Low energy (${energy}/10) — burnout risk detected.`);
+        if (confidence && confidence <= 4) insights.push(`Low confidence in achieving goals (${confidence}/10) — needs support and quick wins.`);
+        if (utilization && utilization <= 4) insights.push(`Low strength utilization (${utilization}/10) — role may not leverage core strengths.`);
+        if (satisfaction === 'b') insights.push(`Work has gotten stale — may need role evolution or new challenges.`);
+        if (satisfaction === 'd') insights.push(`Seriously considering a change — retention risk.`);
+        if (orgSupport === false) insights.push(`Reports company does NOT invest in growth — may feel unsupported.`);
+        if (barrier === 'a') insights.push(`Biggest development barrier: time — needs micro-learning approach.`);
+        if (barrier === 'c') insights.push(`Biggest development barrier: energy — learning competes with burnout.`);
+        if (diagnosticData.strengths) insights.push(`Self-reported strengths: ${String(diagnosticData.strengths).substring(0, 200)}`);
+        if (diagnosticData.skill_gap) insights.push(`Identified skill gap: ${String(diagnosticData.skill_gap).substring(0, 200)}`);
+        if (diagnosticData.twelve_month_vision) insights.push(`12-month vision: ${String(diagnosticData.twelve_month_vision).substring(0, 200)}`);
+        if (diagnosticData.quick_win) insights.push(`Quick win target: ${String(diagnosticData.quick_win).substring(0, 200)}`);
 
         for (const insight of insights) {
           await supabaseAdmin.from("coaching_insights").insert({
