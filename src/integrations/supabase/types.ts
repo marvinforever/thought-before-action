@@ -3705,6 +3705,7 @@ export type Database = {
           profile_id: string
           quality_checks: Json | null
           report_content: Json | null
+          report_type: string | null
           share_token: string | null
           status: string
           word_count: number | null
@@ -3721,6 +3722,7 @@ export type Database = {
           profile_id: string
           quality_checks?: Json | null
           report_content?: Json | null
+          report_type?: string | null
           share_token?: string | null
           status?: string
           word_count?: number | null
@@ -3737,6 +3739,7 @@ export type Database = {
           profile_id?: string
           quality_checks?: Json | null
           report_content?: Json | null
+          report_type?: string | null
           share_token?: string | null
           status?: string
           word_count?: number | null

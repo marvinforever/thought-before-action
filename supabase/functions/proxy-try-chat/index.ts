@@ -38,7 +38,27 @@ function parseMarkers(content: string, encoder: TextEncoder, controller: Readabl
           role: extractedData.role,
           diagnosticData: extractedData,
         }),
-      }).catch(e => console.error('[proxy-try-chat] Onboard trigger error:', e));
+      })
+        .then(async (resp) => {
+          if (resp.ok) {
+            const result = await resp.json().catch(() => ({}));
+            const profileId = result.userId;
+            if (profileId) {
+              // Trigger Playbook generation (fire-and-forget)
+              console.log(`[proxy-try-chat] Triggering Playbook generation for ${profileId}`);
+              fetch(`${supabaseUrl}/functions/v1/generate-individual-playbook`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  sessionToken,
+                  profileId,
+                  extractedData,
+                }),
+              }).catch(e => console.error('[proxy-try-chat] Playbook generation trigger error:', e));
+            }
+          }
+        })
+        .catch(e => console.error('[proxy-try-chat] Onboard trigger error:', e));
     } catch (e) {
       console.error('[proxy-try-chat] Failed to parse EXTRACTED_DATA:', e);
     }

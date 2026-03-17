@@ -1,0 +1,1 @@
+ALTER TABLE leadership_reports ADD COLUMN IF NOT EXISTS report_type text DEFAULT 'leadership_report';
