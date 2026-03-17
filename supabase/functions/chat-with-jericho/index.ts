@@ -351,14 +351,16 @@ WHAT YOU NEVER DO
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6);
                   if (data === '[DONE]') {
-                    // Check for onboarding complete marker and process it
+                    // Check for all marker types
                     const markerMatch = accumulatedContent.match(/<!--ONBOARDING_COMPLETE:(.*?)-->/);
-                    if (markerMatch) {
+                    const extractedMatch = accumulatedContent.match(/<!--EXTRACTED_DATA:([\s\S]*?)-->/);
+                    const onboardData = extractedMatch ? extractedMatch[1] : markerMatch ? markerMatch[1] : null;
+                    
+                    if (onboardData) {
                       try {
-                        const onboardingData = JSON.parse(markerMatch[1]);
+                        const onboardingData = JSON.parse(onboardData);
                         console.log('Try mode onboarding complete:', onboardingData);
                         
-                        // Fire and forget: create account and trigger growth plan
                         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
                         const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
                         
@@ -370,7 +372,7 @@ WHAT YOU NEVER DO
                           },
                           body: JSON.stringify({
                             email: onboardingData.email,
-                            fullName: `${onboardingData.first_name} ${onboardingData.last_name}`.trim(),
+                            fullName: `${onboardingData.first_name || ''} ${onboardingData.last_name || ''}`.trim(),
                             role: onboardingData.role,
                             phone: onboardingData.phone || null,
                             diagnosticData: onboardingData,
