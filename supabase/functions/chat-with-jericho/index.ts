@@ -391,8 +391,14 @@ WHAT YOU NEVER DO
                     
                     if (content) {
                       accumulatedContent += content;
-                      // Strip the hidden marker from what we send to the client
-                      const cleanContent = content.replace(/<!--ONBOARDING_COMPLETE:.*?-->/g, '');
+                      // Strip all markers from what we send to the client
+                      const cleanContent = content
+                        .replace(/<!--ONBOARDING_COMPLETE:.*?-->/g, '')
+                        .replace(/<!--INTERACTIVE:[\s\S]*?-->/g, '')
+                        .replace(/<!--PROGRESS:[\s\S]*?-->/g, '')
+                        .replace(/<!--GENERATION:[\s\S]*?-->/g, '')
+                        .replace(/<!--EXTRACTED_DATA:[\s\S]*?-->/g, '')
+                        .replace(/<!--[\s\S]*?-->/g, '');
                       if (cleanContent) {
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: cleanContent })}\n\n`));
                       }
