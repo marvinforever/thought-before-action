@@ -5,6 +5,103 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================================
+// Parse HTML comment markers from AI stream and convert to typed SSE events
+// ============================================================================
+function parseMarkers(content: string, encoder: TextEncoder, controller: ReadableStreamDefaultController, sessionToken: string, supabase: any) {
+  let remaining = content;
+  const events: string[] = [];
+
+  // EXTRACTED_DATA — save to DB, don't send to client
+  const extractedMatch = remaining.match(/<!--EXTRACTED_DATA:([\s\S]*?)-->/);
+  if (extractedMatch) {
+    remaining = remaining.replace(extractedMatch[0], '');
+    try {
+      const extractedData = JSON.parse(extractedMatch[1]);
+      // Save to try_sessions
+      supabase
+        .from('try_sessions')
+        .update({ extracted_data: extractedData, status: 'onboarding_complete' })
+        .eq('session_token', sessionToken)
+        .then(() => console.log('[proxy-try-chat] Extracted data saved'))
+        .catch((e: any) => console.error('[proxy-try-chat] Extracted data save error:', e));
+
+      // Trigger account creation
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      fetch(`${supabaseUrl}/functions/v1/try-jericho-onboard`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: extractedData.email,
+          fullName: `${extractedData.first_name || ''} ${extractedData.last_name || ''}`.trim(),
+          role: extractedData.role,
+          diagnosticData: extractedData,
+        }),
+      }).catch(e => console.error('[proxy-try-chat] Onboard trigger error:', e));
+    } catch (e) {
+      console.error('[proxy-try-chat] Failed to parse EXTRACTED_DATA:', e);
+    }
+  }
+
+  // Legacy ONBOARDING_COMPLETE marker (backward compat)
+  const legacyMatch = remaining.match(/<!--ONBOARDING_COMPLETE:([\s\S]*?)-->/);
+  if (legacyMatch) {
+    remaining = remaining.replace(legacyMatch[0], '');
+    try {
+      const extractedData = JSON.parse(legacyMatch[1]);
+      supabase
+        .from('try_sessions')
+        .update({ extracted_data: extractedData, status: 'onboarding_complete' })
+        .eq('session_token', sessionToken)
+        .then(() => {})
+        .catch((e: any) => console.error('[proxy-try-chat] Legacy marker save error:', e));
+    } catch { /* skip */ }
+  }
+
+  // INTERACTIVE
+  const interactiveRegex = /<!--INTERACTIVE:([\s\S]*?)-->/g;
+  let match;
+  while ((match = interactiveRegex.exec(remaining)) !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      events.push(`data: ${JSON.stringify({ type: "interactive", ...data })}\n\n`);
+    } catch { /* skip bad JSON */ }
+  }
+  remaining = remaining.replace(/<!--INTERACTIVE:[\s\S]*?-->/g, '');
+
+  // PROGRESS
+  const progressRegex = /<!--PROGRESS:([\s\S]*?)-->/g;
+  while ((match = progressRegex.exec(remaining)) !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      events.push(`data: ${JSON.stringify({ type: "progress", ...data })}\n\n`);
+    } catch { /* skip */ }
+  }
+  remaining = remaining.replace(/<!--PROGRESS:[\s\S]*?-->/g, '');
+
+  // GENERATION
+  const generationRegex = /<!--GENERATION:([\s\S]*?)-->/g;
+  while ((match = generationRegex.exec(remaining)) !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      events.push(`data: ${JSON.stringify({ type: "generation", ...data })}\n\n`);
+    } catch { /* skip */ }
+  }
+  remaining = remaining.replace(/<!--GENERATION:[\s\S]*?-->/g, '');
+
+  // Strip any other HTML comments
+  remaining = remaining.replace(/<!--[\s\S]*?-->/g, '');
+
+  // Emit structured events first
+  for (const evt of events) {
+    controller.enqueue(encoder.encode(evt));
+  }
+
+  // Return clean text
+  return remaining;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,6 +116,11 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
 
     const useOpenClaw = Deno.env.get('USE_OPENCLAW_TRY') === 'true';
     const openClawUrl = Deno.env.get('OPENCLAW_TRY_URL');
@@ -48,13 +150,7 @@ Deno.serve(async (req) => {
           throw new Error('No response body from OpenClaw');
         }
 
-        // Stream through: intercept to accumulate content for session save
         const encoder = new TextEncoder();
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-        );
-
         let accumulatedAssistant = '';
         const reader = openClawResponse.body.getReader();
         const decoder = new TextDecoder();
@@ -75,45 +171,39 @@ Deno.serve(async (req) => {
                   if (line.startsWith('data: ')) {
                     const data = line.slice(6).trim();
                     if (data === '[DONE]') {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
                       continue;
                     }
                     try {
                       const parsed = JSON.parse(data);
-                      // Handle both OpenAI-style and simple {content} format
                       const content = parsed.choices?.[0]?.delta?.content ?? parsed.content ?? '';
                       if (content) {
                         accumulatedAssistant += content;
-                        // Strip any hidden markers before sending to client
-                        const clean = content.replace(/<!--.*?-->/g, '');
-                        if (clean) {
-                          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: clean })}\n\n`));
+                        // Parse markers and emit structured events
+                        const clean = parseMarkers(content, encoder, controller, sessionId, supabase);
+                        if (clean.trim()) {
+                          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: clean })}\n\n`));
                         }
                       }
                       if (parsed.done) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
                       }
                     } catch { /* skip invalid JSON lines */ }
                   } else {
-                    // Pass through non-data lines
                     controller.enqueue(encoder.encode(line + '\n'));
                   }
                 }
               }
 
-              // Flush remaining buffer
               if (buffer.trim()) {
                 controller.enqueue(encoder.encode(buffer));
               }
 
-              // Final done
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
             } catch (error) {
               console.error('[proxy-try-chat] Stream error:', error);
             } finally {
               controller.close();
-
-              // Save conversation to try_sessions after stream completes
               saveToTrySession(supabase, sessionId, message, accumulatedAssistant, messages).catch(
                 (e) => console.error('[proxy-try-chat] Session save error:', e)
               );
@@ -126,7 +216,6 @@ Deno.serve(async (req) => {
         });
       } catch (openClawError: any) {
         console.error('[proxy-try-chat] OpenClaw failed, falling back to Gemini:', openClawError.message);
-        // Fall through to fallback
       }
     }
 
@@ -159,11 +248,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Stream fallback response through, also saving to session
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    // Stream fallback response through with marker parsing
     let accumulatedFallback = '';
     const encoder = new TextEncoder();
     const fbReader = fallbackResponse.body!.getReader();
@@ -179,19 +264,36 @@ Deno.serve(async (req) => {
             const chunk = fbDecoder.decode(value, { stream: true });
             buffer += chunk;
 
-            // Pass through directly (chat-with-jericho already formats SSE)
-            controller.enqueue(value);
-
-            // Also accumulate for session save
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
+
             for (const line of lines) {
-              if (!line.startsWith('data: ')) continue;
+              if (!line.startsWith('data: ')) {
+                controller.enqueue(encoder.encode(line + '\n'));
+                continue;
+              }
               const d = line.slice(6).trim();
-              if (!d || d === '[DONE]') continue;
+              if (!d || d === '[DONE]') {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
+                continue;
+              }
               try {
                 const p = JSON.parse(d);
-                if (p.content) accumulatedFallback += p.content;
+                const content = p.content ?? '';
+                if (content) {
+                  accumulatedFallback += content;
+                  // Parse markers from fallback too
+                  const clean = parseMarkers(content, encoder, controller, sessionId, supabase);
+                  if (clean.trim()) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: clean })}\n\n`));
+                  }
+                }
+                if (p.done) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
+                }
+                if (p.profile_id) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", profile_id: p.profile_id })}\n\n`));
+                }
               } catch { /* skip */ }
             }
           }
@@ -221,7 +323,6 @@ Deno.serve(async (req) => {
 // ============================================================================
 // Save conversation turn to try_sessions
 // ============================================================================
-
 async function saveToTrySession(
   supabase: any,
   sessionToken: string,
@@ -230,7 +331,6 @@ async function saveToTrySession(
   fullHistory: any[] | undefined,
 ) {
   try {
-    // Check if session exists
     const { data: existing } = await supabase
       .from('try_sessions')
       .select('id, conversation_history, messages_count')
@@ -241,8 +341,17 @@ async function saveToTrySession(
     if (userMessage && userMessage.trim()) {
       newEntries.push({ role: 'user', content: userMessage, ts: new Date().toISOString() });
     }
-    if (assistantMessage.trim()) {
-      newEntries.push({ role: 'assistant', content: assistantMessage, ts: new Date().toISOString() });
+    // Strip markers from saved assistant message
+    const cleanAssistant = assistantMessage
+      .replace(/<!--INTERACTIVE:[\s\S]*?-->/g, '')
+      .replace(/<!--PROGRESS:[\s\S]*?-->/g, '')
+      .replace(/<!--GENERATION:[\s\S]*?-->/g, '')
+      .replace(/<!--EXTRACTED_DATA:[\s\S]*?-->/g, '')
+      .replace(/<!--ONBOARDING_COMPLETE:[\s\S]*?-->/g, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .trim();
+    if (cleanAssistant) {
+      newEntries.push({ role: 'assistant', content: cleanAssistant, ts: new Date().toISOString() });
     }
 
     if (existing) {
@@ -256,26 +365,12 @@ async function saveToTrySession(
         })
         .eq('id', existing.id);
     } else {
-      // Create new session
-      const referrer = ''; // Could be passed from client in future
       await supabase.from('try_sessions').insert({
         session_token: sessionToken,
         conversation_history: newEntries,
         messages_count: newEntries.length,
         status: 'active',
       });
-    }
-
-    // Extract data markers from assistant message
-    const markerMatch = assistantMessage.match(/<!--ONBOARDING_COMPLETE:(.*?)-->/);
-    if (markerMatch) {
-      try {
-        const extractedData = JSON.parse(markerMatch[1]);
-        await supabase
-          .from('try_sessions')
-          .update({ extracted_data: extractedData, status: 'onboarding_complete' })
-          .eq('session_token', sessionToken);
-      } catch { /* skip parse error */ }
     }
   } catch (e) {
     console.error('[proxy-try-chat] saveToTrySession error:', e);
