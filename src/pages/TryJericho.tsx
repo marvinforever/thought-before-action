@@ -717,7 +717,7 @@ export default function TryJericho() {
                             <InteractiveResponseBubble data={msg.interactiveData} response={msg.interactiveResponse} />
                           ) : (
                             <div className="prose prose-sm prose-invert max-w-none [&>p]:m-0 [&>p:not(:last-child)]:mb-2">
-                              <ReactMarkdown>{msg.text}</ReactMarkdown>
+                              <ReactMarkdown>{msg.text.replace(/\[INTERACTIVE:[^\]]*\]/g, '').trim()}</ReactMarkdown>
                             </div>
                           )}
                         </div>
