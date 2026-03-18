@@ -31,9 +31,9 @@ class MarkerParser {
   /** Flush remaining buffer at end of stream */
   flush() {
     // If there's a partial marker that never closed, just emit it as text
-    if (this.buffer.trim()) {
-      const cleaned = this.buffer.replace(/<!--[\s\S]*$/g, '').trim();
-      if (cleaned) {
+    if (this.buffer.length) {
+      const cleaned = this.buffer.replace(/<!--[\s\S]*$/g, '');
+      if (cleaned.length) {
         this.emitText(cleaned);
       }
     }
