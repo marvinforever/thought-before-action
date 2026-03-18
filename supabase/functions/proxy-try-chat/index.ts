@@ -108,6 +108,12 @@ class MarkerParser {
             .then(() => console.log('[proxy-try-chat] Extracted data saved'))
             .catch((e: any) => console.error('[proxy-try-chat] Extracted data save error:', e));
 
+          // Only trigger account creation if we have an email
+          if (!data.email) {
+            console.warn('[proxy-try-chat] No email in extracted data, skipping onboard trigger');
+            break;
+          }
+
           // Trigger account creation + playbook
           const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
