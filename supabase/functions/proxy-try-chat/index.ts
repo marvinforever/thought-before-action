@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { TRY_SYSTEM_PROMPT } from "../_shared/try-system-prompt.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
