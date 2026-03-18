@@ -503,13 +503,19 @@ export default function TryJericho() {
           } catch { /* ignore */ }
         }
       }
-    } catch (err) {
-      console.error("Stream error:", err);
+    } catch (err: any) {
+      const isTimeout = err?.name === "AbortError";
+      console.error("Stream error:", isTimeout ? "Request timed out" : err);
       setMessages((prev) => {
         const next = [...prev];
         const lastIdx = next.length - 1;
         if (next[lastIdx]?.role === "jericho" && !next[lastIdx].text) {
-          next[lastIdx] = { ...next[lastIdx], text: "Something went wrong — try sending your message again." };
+          next[lastIdx] = {
+            ...next[lastIdx],
+            text: isTimeout
+              ? "Still thinking… tap to retry ↻"
+              : "Something went wrong — try sending your message again.",
+          };
         }
         return next;
       });
