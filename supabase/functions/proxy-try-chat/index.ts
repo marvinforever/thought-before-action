@@ -51,8 +51,8 @@ class MarkerParser {
         const markerEnd = markerStart + markerMatch[0].length;
 
         // Emit any text BEFORE this marker
-        const textBefore = this.buffer.slice(0, markerStart).trim();
-        if (textBefore) {
+        const textBefore = this.buffer.slice(0, markerStart);
+        if (textBefore.length) {
           this.emitText(textBefore);
         }
 
