@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { TRY_SYSTEM_PROMPT } from "../_shared/try-system-prompt.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -311,38 +312,67 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── FALLBACK PATH: Forward to chat-with-jericho tryMode ──
-    console.log(`[proxy-try-chat] Using fallback (chat-with-jericho) for session ${sessionId}`);
+    // ── FALLBACK PATH: Direct Gemini call (NOT through chat-with-jericho) ──
+    console.log(`[proxy-try-chat] Using direct Gemini fallback for session ${sessionId}`);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
 
-    const fallbackResponse = await fetch(`${supabaseUrl}/functions/v1/chat-with-jericho`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        tryMode: true,
-        sessionId,
-        messages,
-        message,
-        stream: true,
-      }),
-    });
-
-    if (!fallbackResponse.ok) {
-      const errText = await fallbackResponse.text();
-      console.error('[proxy-try-chat] Fallback error:', fallbackResponse.status, errText);
-      return new Response(JSON.stringify({ error: 'AI service temporarily unavailable' }), {
+    if (!lovableApiKey) {
+      return new Response(JSON.stringify({ error: 'AI gateway not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const aiMessages = [
+      { role: 'system', content: TRY_SYSTEM_PROMPT },
+      ...(messages || []),
+    ];
+
+    const geminiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: aiMessages,
+        stream: true,
+        temperature: 0.9,
+      }),
+    });
+
+    if (!geminiResponse.ok) {
+      if (geminiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limits exceeded. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (geminiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'AI credits exhausted.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const errText = await geminiResponse.text();
+      console.error('[proxy-try-chat] Gemini error:', geminiResponse.status, errText);
+      return new Response(
+        JSON.stringify({ error: 'AI service temporarily unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!geminiResponse.body) {
+      return new Response(
+        JSON.stringify({ error: 'No response body from AI' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     let accumulatedFallback = '';
     const encoder = new TextEncoder();
-    const fbReader = fallbackResponse.body!.getReader();
+    const fbReader = geminiResponse.body.getReader();
     const fbDecoder = new TextDecoder();
 
     const fallbackStream = new ReadableStream({
@@ -353,45 +383,36 @@ Deno.serve(async (req) => {
           while (true) {
             const { done, value } = await fbReader.read();
             if (done) break;
-            const chunk = fbDecoder.decode(value, { stream: true });
-            buffer += chunk;
+            buffer += fbDecoder.decode(value, { stream: true });
 
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
             for (const line of lines) {
-              if (!line.startsWith('data: ')) {
-                controller.enqueue(encoder.encode(line + '\n'));
-                continue;
-              }
+              if (!line.startsWith('data: ')) continue;
               const d = line.slice(6).trim();
               if (!d || d === '[DONE]') {
-                parser.flush();
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
+                if (d === '[DONE]') {
+                  parser.flush();
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
+                }
                 continue;
               }
               try {
-                const p = JSON.parse(d);
-                const content = p.content ?? '';
+                const parsed = JSON.parse(d);
+                const content = parsed.choices?.[0]?.delta?.content ?? '';
                 if (content) {
                   accumulatedFallback += content;
                   parser.feed(content);
                 }
-                if (p.done) {
-                  parser.flush();
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
-                }
-                if (p.profile_id) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", profile_id: p.profile_id })}\n\n`));
-                }
-              } catch { /* skip */ }
+              } catch { /* skip invalid JSON */ }
             }
           }
 
-          // Flush remaining buffered content
           parser.flush();
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
         } catch (e) {
-          console.error('[proxy-try-chat] Fallback stream error:', e);
+          console.error('[proxy-try-chat] Gemini stream error:', e);
         } finally {
           controller.close();
           saveToTrySession(supabase, sessionId, message, accumulatedFallback, messages).catch(
