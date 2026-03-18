@@ -70,8 +70,8 @@ class MarkerParser {
       const partialIdx = this.buffer.indexOf('<!--');
       if (partialIdx !== -1) {
         // Emit text before the partial marker, hold the rest
-        const textBefore = this.buffer.slice(0, partialIdx).trim();
-        if (textBefore) {
+        const textBefore = this.buffer.slice(0, partialIdx);
+        if (textBefore.length) {
           this.emitText(textBefore);
         }
         this.buffer = this.buffer.slice(partialIdx);
