@@ -208,6 +208,9 @@ Deno.serve(async (req) => {
       try {
         console.log(`[proxy-try-chat] Forwarding to OpenClaw for session ${sessionId}`);
         
+        const openClawController = new AbortController();
+        const openClawTimeout = setTimeout(() => openClawController.abort(), 10000);
+
         const openClawResponse = await fetch(openClawUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -217,7 +220,10 @@ Deno.serve(async (req) => {
             message,
             stream: stream ?? true,
           }),
+          signal: openClawController.signal,
         });
+
+        clearTimeout(openClawTimeout);
 
         if (!openClawResponse.ok) {
           console.error(`[proxy-try-chat] OpenClaw returned ${openClawResponse.status}`);

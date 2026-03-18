@@ -357,6 +357,9 @@ export default function TryJericho() {
     }
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-try-chat`,
         {
@@ -373,8 +376,11 @@ export default function TryJericho() {
             message: isInitial ? "" : userText,
             stream: true,
           }),
+          signal: controller.signal,
         }
       );
+
+      clearTimeout(timeout);
 
       if (!response.ok) throw new Error("Failed to get response");
       if (!response.body) throw new Error("No response body");
@@ -497,13 +503,19 @@ export default function TryJericho() {
           } catch { /* ignore */ }
         }
       }
-    } catch (err) {
-      console.error("Stream error:", err);
+    } catch (err: any) {
+      const isTimeout = err?.name === "AbortError";
+      console.error("Stream error:", isTimeout ? "Request timed out" : err);
       setMessages((prev) => {
         const next = [...prev];
         const lastIdx = next.length - 1;
         if (next[lastIdx]?.role === "jericho" && !next[lastIdx].text) {
-          next[lastIdx] = { ...next[lastIdx], text: "Something went wrong — try sending your message again." };
+          next[lastIdx] = {
+            ...next[lastIdx],
+            text: isTimeout
+              ? "Still thinking… tap to retry ↻"
+              : "Something went wrong — try sending your message again.",
+          };
         }
         return next;
       });
