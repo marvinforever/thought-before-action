@@ -357,6 +357,9 @@ export default function TryJericho() {
     }
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-try-chat`,
         {
@@ -373,8 +376,11 @@ export default function TryJericho() {
             message: isInitial ? "" : userText,
             stream: true,
           }),
+          signal: controller.signal,
         }
       );
+
+      clearTimeout(timeout);
 
       if (!response.ok) throw new Error("Failed to get response");
       if (!response.body) throw new Error("No response body");
