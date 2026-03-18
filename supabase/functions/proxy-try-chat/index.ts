@@ -31,9 +31,9 @@ class MarkerParser {
   /** Flush remaining buffer at end of stream */
   flush() {
     // If there's a partial marker that never closed, just emit it as text
-    if (this.buffer.trim()) {
-      const cleaned = this.buffer.replace(/<!--[\s\S]*$/g, '').trim();
-      if (cleaned) {
+    if (this.buffer.length) {
+      const cleaned = this.buffer.replace(/<!--[\s\S]*$/g, '');
+      if (cleaned.length) {
         this.emitText(cleaned);
       }
     }
@@ -51,8 +51,8 @@ class MarkerParser {
         const markerEnd = markerStart + markerMatch[0].length;
 
         // Emit any text BEFORE this marker
-        const textBefore = this.buffer.slice(0, markerStart).trim();
-        if (textBefore) {
+        const textBefore = this.buffer.slice(0, markerStart);
+        if (textBefore.length) {
           this.emitText(textBefore);
         }
 
@@ -70,8 +70,8 @@ class MarkerParser {
       const partialIdx = this.buffer.indexOf('<!--');
       if (partialIdx !== -1) {
         // Emit text before the partial marker, hold the rest
-        const textBefore = this.buffer.slice(0, partialIdx).trim();
-        if (textBefore) {
+        const textBefore = this.buffer.slice(0, partialIdx);
+        if (textBefore.length) {
           this.emitText(textBefore);
         }
         this.buffer = this.buffer.slice(partialIdx);
@@ -80,8 +80,8 @@ class MarkerParser {
       }
 
       // No markers at all — emit everything
-      if (this.buffer.trim()) {
-        this.emitText(this.buffer.trim());
+      if (this.buffer.length) {
+        this.emitText(this.buffer);
       }
       this.buffer = '';
       return;
