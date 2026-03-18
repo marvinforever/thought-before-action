@@ -80,8 +80,8 @@ class MarkerParser {
       }
 
       // No markers at all — emit everything
-      if (this.buffer.trim()) {
-        this.emitText(this.buffer.trim());
+      if (this.buffer.length) {
+        this.emitText(this.buffer);
       }
       this.buffer = '';
       return;
