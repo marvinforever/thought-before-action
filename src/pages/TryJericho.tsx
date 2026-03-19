@@ -755,10 +755,10 @@ export default function TryJericho() {
               {generating ? (
                 <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => window.location.href = "/auth"} />
               ) : (
-                <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm p-4">
+                <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
                   <form
                     onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                    className="max-w-2xl mx-auto flex gap-2"
+                    className="max-w-2xl mx-auto flex gap-2 p-4 pb-2"
                   >
                     <Input
                       ref={inputRef}
@@ -777,6 +777,7 @@ export default function TryJericho() {
                       <Send className="w-4 h-4" />
                     </Button>
                   </form>
+                  <PlaybookProgressBar percent={progressPercent} label={progressLabel} />
                 </div>
               )}
             </motion.div>
