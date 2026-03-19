@@ -706,6 +706,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     </div>
   </div>
 
+  <div class="playbook-intro">
+    <p>
+      This Playbook was built from a single conversation — yours. Every insight, score, and recommendation is personalized to your role, your challenges, and where you want to go. It's not a PDF that sits in a folder. Inside Jericho, <span class="alive">this document breathes</span> — updating as you grow, coaching you daily, and holding you accountable to the vision you just described. <strong>This is day one.</strong>
+    </p>
+  </div>
+
   <div class="north-star">
     <div class="north-star-label">— Your North Star —</div>
     <div class="north-star-text">"${narrative.north_star_text || ''}"</div>
