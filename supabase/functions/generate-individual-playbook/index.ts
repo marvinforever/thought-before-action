@@ -858,6 +858,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
       <div class="diag-item"><span class="label">Capabilities Mapped</span><span class="val high">7 assessed</span></div>
     </div>
     <p class="body-text" style="font-size:.82rem;color:var(--text3);margin-top:.5rem">These scores are estimated from your coaching conversation. Full validated diagnostics — with trend tracking, team benchmarks, and 90-day progress monitoring — unlock inside Jericho.</p>
+    <div class="section-cta">
+      <div class="cta-text"><strong>These are estimates.</strong> Full validated diagnostics with trend tracking, team benchmarks, and 90-day monitoring unlock when you log in.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Unlock full diagnostics →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
