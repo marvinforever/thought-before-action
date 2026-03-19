@@ -433,7 +433,9 @@ Deno.serve(async (req) => {
           console.error('[proxy-try-chat] Gemini stream error:', e);
         } finally {
           controller.close();
-          saveToTrySession(supabase, sessionId, message, accumulatedFallback, messages).catch(
+          // Await side-effects (onboard, playbook) BEFORE worker shuts down
+          await parser.awaitPending();
+          await saveToTrySession(supabase, sessionId, message, accumulatedFallback, messages).catch(
             (e) => console.error('[proxy-try-chat] Session save error:', e)
           );
         }
