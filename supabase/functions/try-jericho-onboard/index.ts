@@ -28,9 +28,12 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    console.log(`[try-jericho-onboard] Creating account for ${email}`);
+    console.log(`[try-jericho-onboard] Processing account for ${email}`);
 
-    // 1. Create auth user
+    // 1. Try to create auth user — if they already exist, look them up instead
+    let userId: string;
+    let isNewUser = false;
+
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.toLowerCase().trim(),
       password,
@@ -40,13 +43,24 @@ Deno.serve(async (req) => {
 
     if (authError) {
       if (authError.code === "email_exists") {
-        throw new Error("An account with this email already exists. Try logging in instead.");
+        console.log(`[try-jericho-onboard] User ${email} already exists, looking up profile`);
+        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = existingUsers?.users?.find(
+          (u: any) => u.email?.toLowerCase() === email.toLowerCase().trim()
+        );
+        if (!existingUser) {
+          throw new Error("User exists in auth but could not be found — please contact support.");
+        }
+        userId = existingUser.id;
+        console.log(`[try-jericho-onboard] Found existing user: ${userId}`);
+      } else {
+        throw authError;
       }
-      throw authError;
+    } else {
+      userId = authUser.user.id;
+      isNewUser = true;
+      console.log(`[try-jericho-onboard] New user created: ${userId}`);
     }
-
-    const userId = authUser.user.id;
-    console.log(`[try-jericho-onboard] Auth user created: ${userId}`);
 
     // 2. Resolve or create company
     let targetCompanyId = companyId || null;
