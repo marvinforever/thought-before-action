@@ -142,11 +142,13 @@ class MarkerParser {
 
   private emitText(text: string) {
     // Strip any complete <think>...</think> blocks
-    text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '');
-    // Strip leaked tags like </final>, <final>, </think>, etc.
-    text = text.replace(/<\/?(?:think|final)[^>]*>/gi, '');
+    text = text.replace(/<think[\s\S]*?<\/think>\s*/gi, '');
+    // Strip leaked tags like </final>, <final>, </think>, <think>, <think ...>
+    text = text.replace(/<\/?(?:think|final)\b[^>]*>/gi, '');
     // Strip standalone "think" remnant at start from partial tag splits
     text = text.replace(/^think\b[^<]*/i, '');
+    // Strip "<think" at very end (partial open tag without closing >)
+    text = text.replace(/<think\s*$/i, '');
     if (!text.trim().length) return;
     this.controller.enqueue(
       this.encoder.encode(`data: ${JSON.stringify({ type: "text", content: text })}\n\n`)
@@ -360,9 +362,17 @@ Deno.serve(async (req) => {
                         parser.flush();
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
                       }
-                    } catch { /* skip invalid JSON lines */ }
-                  } else {
-                    controller.enqueue(encoder.encode(line + '\n'));
+                    } catch {
+                      // Failed JSON parse — treat raw data payload as text through parser
+                      if (data.length) {
+                        accumulatedAssistant += data;
+                        parser.feed(data);
+                      }
+                    }
+                  } else if (line.trim().length > 0 && !line.startsWith(':')) {
+                    // Non-SSE line from OpenClaw — route through parser to strip think/final tags
+                    accumulatedAssistant += line;
+                    parser.feed(line);
                   }
                 }
               }
@@ -371,7 +381,9 @@ Deno.serve(async (req) => {
               parser.flush();
 
               if (buffer.trim()) {
-                controller.enqueue(encoder.encode(buffer));
+                // Route remaining buffer through parser too
+                parser.feed(buffer);
+                parser.flush();
               }
 
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
