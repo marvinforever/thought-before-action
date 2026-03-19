@@ -822,6 +822,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     <p class="body-text">${narrative.quick_win_intro || ''}</p>
     <ol>${qwStepsHtml}</ol>
     <p class="body-text" style="font-weight:600;margin-top:.75rem">${narrative.quick_win_closer || ''}</p>
+    <div class="section-cta">
+      <div class="cta-text"><strong>This is day one.</strong> Jericho generates a new quick win every week based on what you've actually done — not generic advice.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Start your streak →</a>
+    </div>
   </div>
 
   <div class="section">
