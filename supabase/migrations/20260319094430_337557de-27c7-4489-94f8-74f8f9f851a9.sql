@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX leadership_reports_profile_report_type_key ON public.leadership_reports (profile_id, report_type);
