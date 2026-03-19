@@ -182,9 +182,8 @@ If no new capabilities are needed, return: {"potential_capabilities": []}`;
 
     // Auto-create capabilities if requested
     let autoCreatedResults: any[] = [];
-    const { auto_create } = await req.json().catch(() => ({}));
     
-    if (body?.auto_create && enrichedCapabilities.length > 0) {
+    if (body.auto_create && enrichedCapabilities.length > 0) {
       console.log('Auto-creating discovered capabilities...');
       
       const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
