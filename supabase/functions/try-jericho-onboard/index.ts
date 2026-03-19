@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
     const loginUrl = "https://askjericho.com/auth";
     try {
       const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-      if (RESEND_API_KEY) {
+      if (RESEND_API_KEY && isNewUser) {
         const firstName = fullName?.split(" ")[0] || "there";
         await fetch("https://api.resend.com/emails", {
           method: "POST",
