@@ -111,13 +111,14 @@ class MarkerParser {
 
       switch (type) {
         case 'EXTRACTED_DATA': {
-          // Save to DB, don't send to client
-          this.supabase
+          // Save to DB — push as tracked promise
+          const savePromise = this.supabase
             .from('try_sessions')
             .update({ extracted_data: data, status: 'onboarding_complete' })
             .eq('session_token', this.sessionToken)
             .then(() => console.log('[proxy-try-chat] Extracted data saved'))
             .catch((e: any) => console.error('[proxy-try-chat] Extracted data save error:', e));
+          this.pendingPromises.push(savePromise);
 
           // Only trigger account creation if we have an email
           if (!data.email) {
@@ -125,10 +126,10 @@ class MarkerParser {
             break;
           }
 
-          // Trigger account creation + playbook
+          // Trigger account creation + playbook — push as tracked promise
           const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
           const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          fetch(`${supabaseUrl}/functions/v1/try-jericho-onboard`, {
+          const onboardPromise = fetch(`${supabaseUrl}/functions/v1/try-jericho-onboard`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -144,7 +145,7 @@ class MarkerParser {
                 const profileId = result.userId;
                 if (profileId) {
                   console.log(`[proxy-try-chat] Triggering Playbook generation for ${profileId}`);
-                  fetch(`${supabaseUrl}/functions/v1/generate-individual-playbook`, {
+                  await fetch(`${supabaseUrl}/functions/v1/generate-individual-playbook`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -154,19 +155,24 @@ class MarkerParser {
                     }),
                   }).catch(e => console.error('[proxy-try-chat] Playbook trigger error:', e));
                 }
+              } else {
+                const errText = await resp.text().catch(() => '');
+                console.error(`[proxy-try-chat] Onboard returned ${resp.status}: ${errText}`);
               }
             })
             .catch(e => console.error('[proxy-try-chat] Onboard trigger error:', e));
+          this.pendingPromises.push(onboardPromise);
           break;
         }
         case 'ONBOARDING_COMPLETE': {
           // Legacy — just save
-          this.supabase
+          const legacyPromise = this.supabase
             .from('try_sessions')
             .update({ extracted_data: data, status: 'onboarding_complete' })
             .eq('session_token', this.sessionToken)
             .then(() => {})
             .catch((e: any) => console.error('[proxy-try-chat] Legacy marker save error:', e));
+          this.pendingPromises.push(legacyPromise);
           break;
         }
         case 'INTERACTIVE': {
