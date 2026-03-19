@@ -928,7 +928,52 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
 }
 
 // ============================================================================
-// Build Playbook email (teaser, not full HTML)
+// Convert playbook HTML to email-safe (resolve CSS variables to actual values)
+// ============================================================================
+function convertToEmailSafeHtml(html: string): string {
+  // Map of all CSS variables to their resolved values
+  const vars: Record<string, string> = {
+    '--bg': '#0B0F14', '--bg2': '#111820', '--bg3': '#1A2332', '--bg4': '#222F40',
+    '--gold': '#E5A530', '--gold-dim': '#C4882A', '--gold-light': '#F5D78E',
+    '--gold-glow': 'rgba(229,165,48,.12)',
+    '--text': '#F0EDE6', '--text2': '#9CA3AF', '--text3': '#6B7280',
+    '--red': '#EF4444', '--red-bg': 'rgba(239,68,68,.08)',
+    '--green': '#22C55E', '--green-bg': 'rgba(34,197,94,.08)',
+    '--blue': '#3B82F6', '--blue-bg': 'rgba(59,130,246,.08)',
+    '--amber': '#F59E0B', '--amber-bg': 'rgba(245,158,11,.08)',
+    '--purple': '#8B5CF6', '--purple-bg': 'rgba(139,92,246,.08)',
+    '--orange': '#F97316', '--orange-bg': 'rgba(249,115,22,.08)',
+    '--sans': "'DM Sans',system-ui,-apple-system,sans-serif",
+    '--serif': "'DM Serif Display',Georgia,serif",
+    '--l1': '#3B82F6', '--l1-bg': 'rgba(59,130,246,.08)', '--l1-border': 'rgba(59,130,246,.2)',
+    '--l2': '#22C55E', '--l2-bg': 'rgba(34,197,94,.08)', '--l2-border': 'rgba(34,197,94,.2)',
+    '--l3': '#F97316', '--l3-bg': 'rgba(249,115,22,.08)', '--l3-border': 'rgba(249,115,22,.2)',
+    '--l4': '#8B5CF6', '--l4-bg': 'rgba(139,92,246,.08)', '--l4-border': 'rgba(139,92,246,.2)',
+  };
+
+  let result = html;
+
+  // Resolve all var(--xxx) references (handles nested commas in fallbacks)
+  // Iterate multiple times to catch any nested vars
+  for (let pass = 0; pass < 3; pass++) {
+    result = result.replace(/var\(([^)]+)\)/g, (_match, inner) => {
+      const varName = inner.split(',')[0].trim();
+      return vars[varName] || inner;
+    });
+  }
+
+  // Remove :root block (variables are now inlined)
+  result = result.replace(/:root\s*\{[^}]+\}/, '');
+
+  // Add email-specific meta tags after <head>
+  result = result.replace('<meta charset="UTF-8">', 
+    '<meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">');
+
+  return result;
+}
+
+// ============================================================================
+// Build Playbook email (teaser, not full HTML) — kept as legacy fallback
 // ============================================================================
 function buildPlaybookEmail(d: any, eng: any, narrative: any): string {
   const firstName = d.first_name || 'there';
