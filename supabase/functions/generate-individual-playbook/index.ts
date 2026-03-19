@@ -1054,6 +1054,14 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
             </table>
           </td></tr>
 
+          <tr><td style="padding:0 32px 24px;" align="center">
+            <div style="max-width:560px;margin:0 auto;padding:0 8px;">
+              <p style="font-size:15px;color:#9CA3AF;line-height:1.8;margin:0;">
+                This Playbook was built from a single conversation — yours. Every insight, score, and recommendation is personalized to your role, your challenges, and where you want to go. It's not a PDF that sits in a folder. Inside Jericho, <span style="color:#E5A530;font-weight:500;">this document breathes</span> — updating as you grow, coaching you daily, and holding you accountable to the vision you just described. <strong style="color:#F0EDE6;font-weight:600;">This is day one.</strong>
+              </p>
+            </div>
+          </td></tr>
+
           <tr><td style="padding:0 32px 24px;">
             <table role="presentation" width="100%" style="border-collapse:collapse;background:#111820;border:1px solid rgba(229,165,48,0.14);border-radius:16px;">
               <tr><td style="padding:22px;">
