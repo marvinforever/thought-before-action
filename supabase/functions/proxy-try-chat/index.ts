@@ -313,7 +313,9 @@ Deno.serve(async (req) => {
               console.error('[proxy-try-chat] Stream error:', error);
             } finally {
               controller.close();
-              saveToTrySession(supabase, sessionId, message, accumulatedAssistant, messages).catch(
+              // Await side-effects (onboard, playbook) BEFORE worker shuts down
+              await parser.awaitPending();
+              await saveToTrySession(supabase, sessionId, message, accumulatedAssistant, messages).catch(
                 (e) => console.error('[proxy-try-chat] Session save error:', e)
               );
             }
