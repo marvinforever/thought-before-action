@@ -179,12 +179,56 @@ If no new capabilities are needed, return: {"potential_capabilities": []}`;
 
     console.log('Discovered potential capabilities:', enrichedCapabilities.length);
 
+    // Auto-create capabilities if requested
+    let autoCreatedResults: any[] = [];
+    const { auto_create } = await req.json().catch(() => ({}));
+    
+    if (body?.auto_create && enrichedCapabilities.length > 0) {
+      console.log('Auto-creating discovered capabilities...');
+      
+      const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      
+      try {
+        const autoCreateResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/auto-create-capability`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              capabilities: enrichedCapabilities.map((cap: any) => ({
+                name: cap.name,
+                category: cap.category,
+                context: cap.sample_quotes?.join('\n') || '',
+                company_id,
+                source: 'gap_discovery',
+              })),
+            }),
+          }
+        );
+
+        if (autoCreateResponse.ok) {
+          const autoData = await autoCreateResponse.json();
+          autoCreatedResults = autoData.results || [];
+          console.log('Auto-created results:', autoCreatedResults.length);
+        } else {
+          console.error('Auto-create call failed:', autoCreateResponse.status);
+        }
+      } catch (e) {
+        console.error('Auto-create error:', e);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         total_jds_analyzed: jobDescriptions.length,
         existing_capabilities_count: existingCapabilities?.length || 0,
-        potential_capabilities: enrichedCapabilities
+        potential_capabilities: enrichedCapabilities,
+        auto_created: autoCreatedResults,
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
