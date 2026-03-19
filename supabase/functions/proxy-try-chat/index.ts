@@ -381,7 +381,9 @@ Deno.serve(async (req) => {
               parser.flush();
 
               if (buffer.trim()) {
-                controller.enqueue(encoder.encode(buffer));
+                // Route remaining buffer through parser too
+                parser.feed(buffer);
+                parser.flush();
               }
 
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
