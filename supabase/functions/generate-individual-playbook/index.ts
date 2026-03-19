@@ -806,6 +806,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
         <p>Think we got a level wrong? These are AI-estimated levels based on your conversation. Log into Jericho and self-assess under the Capabilities tab — your input overrides our estimate. <a href="https://askjericho.com/auth">Log in →</a></p>
       </div>
     </div>
+    <div class="section-cta">
+      <div class="cta-text"><strong>This is your starting line, not your verdict.</strong> Self-assess inside Jericho and your scores update instantly — the AI adapts your plan to match.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Self-assess now →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
