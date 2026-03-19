@@ -175,6 +175,9 @@ export default function MyGrowthPlan() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Growth Playbook Banner - prominent CTA */}
+      <GrowthPlaybookBanner />
+
       {/* Telegram Connect CTA */}
       <TelegramConnectCTA variant="compact" />
 
