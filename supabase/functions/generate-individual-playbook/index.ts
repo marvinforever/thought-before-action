@@ -646,6 +646,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
 .section-cta .cta-text strong{color:var(--text);font-weight:600}
 .section-cta .cta-link{flex-shrink:0;font-size:.78rem;font-weight:700;color:var(--gold);text-decoration:none;white-space:nowrap}
 .section-cta .cta-link:hover{text-decoration:underline}
+.playbook-intro{text-align:center;max-width:560px;margin:2rem auto 0;padding:0 .5rem}
+.playbook-intro p{font-size:.95rem;color:var(--text2);line-height:1.8}
+.playbook-intro strong{color:var(--text);font-weight:600}
+.playbook-intro .alive{color:var(--gold);font-weight:500}
 @media(max-width:600px){
   .cover h1{font-size:2rem}
   .score-grid{grid-template-columns:1fr}
