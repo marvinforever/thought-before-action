@@ -23,7 +23,7 @@ import { DailyPodcastPlayer } from "@/components/DailyPodcastPlayer";
 import { ConversationalOnboarding } from "@/components/ConversationalOnboarding";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
-import { RequestMeetingDialog } from "@/components/RequestMeetingDialog";
+
 import { AIProductivityTips } from "@/components/AIProductivityTips";
 import { JerichoChat } from "@/components/JerichoChat";
 import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
