@@ -59,7 +59,7 @@ export default function MyGrowthPlan() {
   const [podcastRefreshKey, setPodcastRefreshKey] = useState(0);
   const [onboardingProgressKey, setOnboardingProgressKey] = useState(0);
   const [onboardingWizardForceKey, setOnboardingWizardForceKey] = useState(0);
-  const [requestMeetingOpen, setRequestMeetingOpen] = useState(false);
+  
   const { toast } = useToast();
   const { viewAsCompanyId } = useViewAs();
   const { celebration, celebrate, onComplete } = useCelebration();
