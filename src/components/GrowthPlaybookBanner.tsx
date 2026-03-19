@@ -127,7 +127,7 @@ export function GrowthPlaybookBanner() {
             className="w-full flex-1 border-0"
             style={{ height: "calc(90vh - 52px)" }}
             title="Growth Playbook"
-            sandbox="allow-same-origin"
+            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
           />
         </DialogContent>
       </Dialog>
