@@ -233,3 +233,6 @@ verify_jwt = true
 
 [functions.generate-individual-playbook]
 verify_jwt = false
+
+[functions.auto-create-capability]
+verify_jwt = false
