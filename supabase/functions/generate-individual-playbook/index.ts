@@ -641,6 +641,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
 .disagree-cta .text{flex:1}
 .disagree-cta .text p{font-size:.82rem;color:var(--text2);line-height:1.5;margin:0}
 .disagree-cta .text a{color:var(--gold);text-decoration:none;font-weight:600}
+.section-cta{display:flex;align-items:center;gap:.75rem;background:linear-gradient(135deg,rgba(229,165,48,.04),rgba(229,165,48,.02));border:1px solid rgba(229,165,48,.12);border-radius:12px;padding:.85rem 1.25rem;margin-top:1.25rem}
+.section-cta .cta-text{flex:1;font-size:.82rem;color:var(--text2);line-height:1.5}
+.section-cta .cta-text strong{color:var(--text);font-weight:600}
+.section-cta .cta-link{flex-shrink:0;font-size:.78rem;font-weight:700;color:var(--gold);text-decoration:none;white-space:nowrap}
+.section-cta .cta-link:hover{text-decoration:underline}
 @media(max-width:600px){
   .cover h1{font-size:2rem}
   .score-grid{grid-template-columns:1fr}
@@ -733,6 +738,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
         <div class="metric-value ${cls(connectionPct)}">${d.engagement_score || '?'}/10</div>
       </div>
     </div>
+    <div class="section-cta">
+      <div class="cta-text"><strong>These scores change.</strong> Inside Jericho, they're tracked weekly — so you can see if the work is actually moving the needle.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Track yours →</a>
+    </div>
   </div>
 
   ${narrative.burnout_alert ? `<div class="engagement-alert">
@@ -751,6 +760,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
       <div class="section-title">Your Superpower</div>
     </div>
     ${superpowerHtml}
+    <div class="section-cta">
+      <div class="cta-text"><strong>Your superpower is benched.</strong> Jericho's coaching briefs are designed to get you back to the work only you can do.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Get your first brief →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
@@ -766,6 +779,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     </div>
     <p class="body-text">${narrative.growth_edge_intro || ''}</p>
     <div class="priority-list">${prioritiesHtml}</div>
+    <div class="section-cta">
+      <div class="cta-text"><strong>These aren't suggestions — they're loaded.</strong> Your three priorities are already queued as development targets inside Jericho.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">See your targets →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
@@ -789,6 +806,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
         <p>Think we got a level wrong? These are AI-estimated levels based on your conversation. Log into Jericho and self-assess under the Capabilities tab — your input overrides our estimate. <a href="https://askjericho.com/auth">Log in →</a></p>
       </div>
     </div>
+    <div class="section-cta">
+      <div class="cta-text"><strong>This is your starting line, not your verdict.</strong> Self-assess inside Jericho and your scores update instantly — the AI adapts your plan to match.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Self-assess now →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
@@ -801,6 +822,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     <p class="body-text">${narrative.quick_win_intro || ''}</p>
     <ol>${qwStepsHtml}</ol>
     <p class="body-text" style="font-weight:600;margin-top:.75rem">${narrative.quick_win_closer || ''}</p>
+    <div class="section-cta">
+      <div class="cta-text"><strong>This is day one.</strong> Jericho generates a new quick win every week based on what you've actually done — not generic advice.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Start your streak →</a>
+    </div>
   </div>
 
   <div class="section">
@@ -810,6 +835,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     </div>
     <p class="body-text">${narrative.learning_intro || ''}</p>
     ${resourcesHtml}
+    <div class="section-cta">
+      <div class="cta-text"><strong>New resources drop weekly.</strong> Jericho curates them based on your progress, not a static list — and they fit your time window.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">See what's next →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
@@ -829,6 +858,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
       <div class="diag-item"><span class="label">Capabilities Mapped</span><span class="val high">7 assessed</span></div>
     </div>
     <p class="body-text" style="font-size:.82rem;color:var(--text3);margin-top:.5rem">These scores are estimated from your coaching conversation. Full validated diagnostics — with trend tracking, team benchmarks, and 90-day progress monitoring — unlock inside Jericho.</p>
+    <div class="section-cta">
+      <div class="cta-text"><strong>These are estimates.</strong> Full validated diagnostics with trend tracking, team benchmarks, and 90-day monitoring unlock when you log in.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Unlock full diagnostics →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
