@@ -760,6 +760,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
       <div class="section-title">Your Superpower</div>
     </div>
     ${superpowerHtml}
+    <div class="section-cta">
+      <div class="cta-text"><strong>Your superpower is benched.</strong> Jericho's coaching briefs are designed to get you back to the work only you can do.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Get your first brief →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
