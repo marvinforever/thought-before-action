@@ -835,6 +835,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     </div>
     <p class="body-text">${narrative.learning_intro || ''}</p>
     ${resourcesHtml}
+    <div class="section-cta">
+      <div class="cta-text"><strong>New resources drop weekly.</strong> Jericho curates them based on your progress, not a static list — and they fit your time window.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">See what's next →</a>
+    </div>
   </div>
 
   <div class="divider"></div>
