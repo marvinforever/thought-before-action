@@ -15,12 +15,22 @@ class MarkerParser {
   private controller: ReadableStreamDefaultController;
   private sessionToken: string;
   private supabase: any;
+  private pendingPromises: Promise<void>[] = [];
 
   constructor(encoder: TextEncoder, controller: ReadableStreamDefaultController, sessionToken: string, supabase: any) {
     this.encoder = encoder;
     this.controller = controller;
     this.sessionToken = sessionToken;
     this.supabase = supabase;
+  }
+
+  /** Await all pending side-effect promises (DB saves, onboard triggers) */
+  async awaitPending() {
+    if (this.pendingPromises.length > 0) {
+      console.log(`[proxy-try-chat] Awaiting ${this.pendingPromises.length} pending side-effect(s)…`);
+      await Promise.allSettled(this.pendingPromises);
+      this.pendingPromises = [];
+    }
   }
 
   /** Feed new content into the buffer, emit events + clean text */
