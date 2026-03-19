@@ -360,9 +360,17 @@ Deno.serve(async (req) => {
                         parser.flush();
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
                       }
-                    } catch { /* skip invalid JSON lines */ }
-                  } else {
-                    controller.enqueue(encoder.encode(line + '\n'));
+                    } catch {
+                      // Failed JSON parse — treat raw data payload as text through parser
+                      if (data.length) {
+                        accumulatedAssistant += data;
+                        parser.feed(data);
+                      }
+                    }
+                  } else if (line.trim().length > 0 && !line.startsWith(':')) {
+                    // Non-SSE line from OpenClaw — route through parser to strip think/final tags
+                    accumulatedAssistant += line;
+                    parser.feed(line);
                   }
                 }
               }
