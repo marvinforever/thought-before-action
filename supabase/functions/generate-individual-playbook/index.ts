@@ -779,7 +779,7 @@ Deno.serve(async (req) => {
       },
       delivery_email: extractedData.email,
       completed_at: new Date().toISOString(),
-    }, { onConflict: 'profile_id' });
+    }, { onConflict: 'profile_id,report_type' });
 
     if (reportErr) {
       console.error('[generate-individual-playbook] Report store error:', reportErr.message);
