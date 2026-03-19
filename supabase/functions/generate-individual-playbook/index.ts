@@ -323,251 +323,571 @@ function validateNarrative(n: any, energyScore: number): string[] {
 }
 
 // ============================================================================
-// Build Playbook HTML
+// Build Playbook HTML (Premium Template)
 // ============================================================================
 function buildPlaybookHtml(d: any, eng: any, caps: any[], narrative: any): string {
   const firstName = d.first_name || 'there';
-  const levelColors: Record<string, string> = {
-    foundational: '#3B82F6',
-    advancing: '#22C55E',
-    independent: '#F97316',
-    mastery: '#A855F7',
-  };
-  const levelNumbers: Record<string, number> = {
-    foundational: 1, advancing: 2, independent: 3, mastery: 4,
-  };
-  const levelLabels: Record<string, string> = {
-    foundational: 'Level 1', advancing: 'Level 2', independent: 'Level 3', mastery: 'Level 4',
+  const role = d.role || 'Professional';
+  const teamContext = d.team_size ? `${d.team_size} Direct Reports` : d.leads_people ? 'People Leader' : '';
+  const company = d.company_name || d.industry || '';
+  const coverSub = [role, company, teamContext].filter(Boolean).join(' · ');
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const cls = (score: number, invert = false): string => {
+    const s = invert ? (100 - score) : score;
+    if (s >= 70) return 'high';
+    if (s >= 40) return 'mid';
+    return 'low';
   };
 
-  // Build capability cards HTML
+  const ringOffset = (score: number) => (213.6 * (1 - score / 100)).toFixed(1);
+
+  const engScore = eng.composite;
+  const effScore = eng.selfEfficacy;
+  const utilScore = eng.strengthUtil;
+
+  const levelNum: Record<string, number> = { foundational: 1, advancing: 2, independent: 3, mastery: 4 };
+  const levelLabel: Record<string, string> = { foundational: 'Foundational', advancing: 'Advancing', independent: 'Independent', mastery: 'Mastery' };
+  const levelClass: Record<string, string> = { foundational: 'l1', advancing: 'l2', independent: 'l3', mastery: 'l4' };
+
+  const levelCounts = { l1: 0, l2: 0, l3: 0, l4: 0 };
+  for (const c of caps) {
+    const lc = levelClass[c.current_level] || 'l1';
+    levelCounts[lc as keyof typeof levelCounts]++;
+  }
+
   const capCardsHtml = caps.map((c: any) => {
-    const currentNum = levelNumbers[c.current_level] || 1;
-    const targetNum = levelNumbers[c.target_level] || 2;
-    const color = levelColors[c.current_level] || '#3B82F6';
-    const dots = [1, 2, 3, 4].map(n =>
-      `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:4px;${n <= currentNum ? `background:${color};` : 'background:rgba(255,255,255,0.15);'}${n === targetNum && n > currentNum ? `border:2px solid ${color};background:transparent;` : ''}"></span>`
-    ).join('');
-    const levelDesc = c.level_descriptions?.[c.current_level] || '';
-    return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-weight:600;color:#FFF;font-size:15px;">${c.capability_name}</span>
-        <span style="font-size:12px;color:${color};font-weight:600;">${levelLabels[c.current_level]} → ${levelLabels[c.target_level]}</span>
+    const currentLvl = c.current_level || 'foundational';
+    const targetLvl = c.target_level || 'advancing';
+    const currentN = levelNum[currentLvl] || 1;
+    const targetN = levelNum[targetLvl] || 2;
+    const lc = levelClass[currentLvl] || 'l1';
+
+    const levels = ['mastery', 'independent', 'advancing', 'foundational'];
+    const ladderHtml = levels.map((lvl, i) => {
+      const n = levelNum[lvl];
+      const isCurrent = lvl === currentLvl;
+      const isTarget = lvl === targetLvl && targetN > currentN;
+      const isBelow = n < currentN;
+      const dotClass = isCurrent ? 'current' : isTarget ? 'target' : isBelow ? 'below' : '';
+      const descClass = isCurrent ? 'active' : '';
+      const lvlDesc = c.level_descriptions?.[lvl] || '';
+      const showLine = i < 3;
+
+      let tags = '';
+      if (isCurrent) tags = '<span class="ladder-you">★ You are here</span>';
+      if (isTarget) tags = '<span class="ladder-target-tag">◎ Target</span>';
+
+      return `<div class="ladder-step">
+        <div class="ladder-marker">
+          <div class="ladder-dot ${dotClass}"></div>
+          ${showLine ? '<div class="ladder-line"></div>' : ''}
+        </div>
+        <div class="ladder-content">
+          <div class="ladder-level ${levelClass[lvl]}">Level ${n} — ${levelLabel[lvl]}${tags}</div>
+          <div class="ladder-desc ${descClass}">${lvlDesc}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="cap-card">
+      <div class="cap-card-header">
+        <div class="cap-card-left">
+          <div>
+            <div class="cap-card-name">${c.capability_name}</div>
+            <div class="cap-card-cat">${c.category || 'General'}</div>
+          </div>
+        </div>
+        <span class="cap-level-badge ${lc}">Level ${currentN}</span>
       </div>
-      <div style="margin-bottom:8px;">${dots}</div>
-      <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.5;">${c.reasoning}</p>
-      ${levelDesc ? `<p style="margin:8px 0 0;font-size:12px;color:#6B7280;font-style:italic;">At ${levelLabels[c.current_level]}: ${levelDesc}</p>` : ''}
+      <div class="cap-ladder">
+        <div class="cap-reasoning">${c.reasoning}</div>
+        <div class="ladder">${ladderHtml}</div>
+      </div>
     </div>`;
   }).join('');
 
-  // Priority items
-  const prioritiesHtml = (narrative.priorities || []).map((p: any) =>
-    `<div style="background:rgba(229,165,48,0.08);border-left:3px solid #E5A530;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:12px;">
-      <p style="margin:0 0 4px;font-weight:600;color:#E5A530;font-size:15px;">🎯 ${p.title}</p>
-      <p style="margin:0;color:#D1D5DB;font-size:14px;line-height:1.6;">${p.description}</p>
-    </div>`
-  ).join('');
+  const snapshotHtml = (narrative.snapshot_paragraphs || []).map((p: string) => `<p class="body-text">${p}</p>`).join('');
+  const superpowerHtml = (narrative.superpower_paragraphs || []).map((p: string) => `<p class="body-text">${p}</p>`).join('');
 
-  // Quick win steps
-  const stepsHtml = (narrative.quick_win_steps || []).map((s: string, i: number) =>
-    `<div style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-start;">
-      <span style="flex-shrink:0;width:28px;height:28px;background:#E5A530;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#0F1419;font-size:13px;">${i + 1}</span>
-      <p style="margin:0;color:#D1D5DB;font-size:14px;line-height:1.6;">${s}</p>
-    </div>`
-  ).join('');
-
-  // Learning resources
-  const typeIcons: Record<string, string> = { podcast: '🎧', framework: '🔧', reflection: '💭', article: '📖', video: '🎬' };
-  const resourcesHtml = (narrative.learning_resources || []).map((r: any) =>
-    `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-weight:600;color:#FFF;font-size:14px;">${typeIcons[r.type] || '📚'} ${r.title}</span>
-        <span style="font-size:12px;color:#6B7280;">${r.time_estimate || ''}</span>
+  const prioritiesHtml = (narrative.priorities || []).map((p: any, i: number) =>
+    `<div class="priority-card">
+      <div class="priority-num">${i + 1}</div>
+      <div class="priority-body">
+        <h4>${p.title}</h4>
+        <p>${p.description}</p>
       </div>
-      <p style="margin:0;color:#9CA3AF;font-size:13px;line-height:1.5;">${r.description}</p>
     </div>`
   ).join('');
 
-  // Engagement gauge SVG helper
-  function gaugeArc(score: number, label: string, color: string): string {
-    const pct = Math.max(0, Math.min(100, score));
-    const angle = (pct / 100) * 270;
-    const r = 40;
-    const cx = 50, cy = 50;
-    const startAngle = 135;
-    const endAngle = startAngle + angle;
-    const startRad = (startAngle * Math.PI) / 180;
-    const endRad = (endAngle * Math.PI) / 180;
-    const x1 = cx + r * Math.cos(startRad);
-    const y1 = cy + r * Math.sin(startRad);
-    const x2 = cx + r * Math.cos(endRad);
-    const y2 = cy + r * Math.sin(endRad);
-    const largeArc = angle > 180 ? 1 : 0;
-    return `<div style="text-align:center;flex:1;min-width:100px;">
-      <svg viewBox="0 0 100 100" width="80" height="80">
-        <path d="M ${cx + r * Math.cos(startRad)} ${cy + r * Math.sin(startRad)} A ${r} ${r} 0 1 1 ${cx + r * Math.cos((405 * Math.PI) / 180)} ${cy + r * Math.sin((405 * Math.PI) / 180)}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round"/>
-        ${pct > 0 ? `<path d="M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"/>` : ''}
-        <text x="${cx}" y="${cy + 5}" text-anchor="middle" fill="#FFF" font-size="18" font-weight="700">${pct}</text>
-      </svg>
-      <p style="margin:4px 0 0;font-size:11px;color:#9CA3AF;">${label}</p>
-    </div>`;
-  }
+  const qwStepsHtml = (narrative.quick_win_steps || []).map((s: string) => `<li>${s}</li>`).join('');
 
-  // Unlock items
+  const typeIcons: Record<string, string> = { podcast: '🎧', framework: '📋', reflection: '💭', article: '📖', video: '🎬' };
+  const resourcesHtml = (narrative.learning_resources || []).map((r: any) => {
+    const icon = typeIcons[r.type] || '📚';
+    const typeLabel = (r.type || 'resource').charAt(0).toUpperCase() + (r.type || 'resource').slice(1);
+    return `<div class="resource-card">
+      <div class="resource-type ${r.type || ''}">${icon}</div>
+      <div class="resource-body">
+        <h5>${r.title}</h5>
+        <p>${r.description}</p>
+        <span class="resource-tag">${typeLabel} · ${r.time_estimate || ''}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const burnoutLabel = eng.burnoutRisk > 50 ? 'High' : eng.burnoutRisk > 30 ? 'Moderate' : 'Low';
+  const burnoutClass = eng.burnoutRisk > 50 ? 'low' : eng.burnoutRisk > 30 ? 'mid' : 'high';
+  const strainLabel = eng.roleStrain > 60 ? 'High' : eng.roleStrain > 40 ? 'Moderate' : 'Low';
+  const strainClass = eng.roleStrain > 60 ? 'low' : eng.roleStrain > 40 ? 'mid' : 'high';
+  const orgLabel = eng.orgSupport >= 60 ? 'Supported' : 'Limited';
+  const orgClass = eng.orgSupport >= 60 ? 'high' : 'low';
+
+  const severityPct = (d.challenge_severity || 5) * 10;
+  const energyPct = (d.energy_score || 5) * 10;
+  const utilPct = (d.strength_utilization || 5) * 10;
+  const connectionPct = (d.engagement_score || 5) * 10;
+
   const unlockItems = [
-    { icon: '🎯', label: '90-Day Target', text: narrative.unlock_target },
-    { icon: '📋', label: 'Tomorrow\'s Brief', text: narrative.unlock_brief },
-    { icon: '📊', label: 'Score Tracking', text: narrative.unlock_tracking },
-    { icon: '🧬', label: 'Capabilities', text: narrative.unlock_capabilities },
-    { icon: '📚', label: 'Learning Path', text: narrative.unlock_learning },
-    { icon: '🧠', label: 'Memory', text: narrative.unlock_memory },
+    { icon: '📐', iconClass: 'gold', title: 'Your first 90-Day Target is loaded', text: narrative.unlock_target },
+    { icon: '🎙️', iconClass: 'amber', title: "Tomorrow's coaching brief is about you", text: narrative.unlock_brief },
+    { icon: '📈', iconClass: 'red', title: 'Your scores are being tracked', text: narrative.unlock_tracking },
+    { icon: '🧬', iconClass: 'purple', title: '7 capabilities are loaded on your profile', text: narrative.unlock_capabilities },
+    { icon: '🗺️', iconClass: 'green', title: 'Your learning library is curated', text: narrative.unlock_learning },
+    { icon: '💬', iconClass: 'blue', title: 'Jericho remembers this conversation', text: narrative.unlock_memory },
   ].filter(u => u.text).map(u =>
-    `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
-      <span style="font-size:20px;flex-shrink:0;">${u.icon}</span>
-      <div>
-        <p style="margin:0 0 2px;font-weight:600;color:#E5A530;font-size:13px;">${u.label}</p>
-        <p style="margin:0;color:#D1D5DB;font-size:13px;line-height:1.5;">${u.text}</p>
+    `<div class="unlock-item">
+      <div class="unlock-icon-wrap ${u.iconClass}">${u.icon}</div>
+      <div class="unlock-content">
+        <h5>${u.title}</h5>
+        <p>${u.text}</p>
       </div>
     </div>`
   ).join('');
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Individual Playbook — ${firstName}</title>
+<title>${firstName}'s Growth Playbook — Jericho</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:#0F1419;color:#E5E7EB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;}
-  .container{max-width:680px;margin:0 auto;padding:40px 24px;}
-  .section{margin-bottom:40px;}
-  h1{font-size:32px;font-weight:800;color:#FFF;margin-bottom:8px;}
-  h2{font-size:22px;font-weight:700;color:#FFF;margin-bottom:16px;}
-  h3{font-size:17px;font-weight:600;color:#FFF;margin-bottom:12px;}
-  .subtitle{color:#9CA3AF;font-size:15px;margin-bottom:32px;}
-  .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(229,165,48,0.3),transparent);margin:32px 0;}
-  .card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;margin-bottom:16px;}
-  .highlight{color:#E5A530;}
-  .text-body{color:#D1D5DB;font-size:15px;line-height:1.7;margin-bottom:12px;}
-  .quote{border-left:3px solid #E5A530;padding:12px 20px;background:rgba(229,165,48,0.06);border-radius:0 8px 8px 0;margin:16px 0;}
-  .quote p{color:#E5A530;font-style:italic;font-size:15px;margin:0;}
-  .burnout-alert{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px 20px;margin:16px 0;}
-  .burnout-alert p{color:#FCA5A5;font-size:14px;margin:0;}
-  .cta-button{display:inline-block;padding:16px 48px;background:linear-gradient(135deg,#E5A530,#D4942A);color:#0F1419;font-weight:700;font-size:16px;border-radius:10px;text-decoration:none;box-shadow:0 4px 14px rgba(229,165,48,0.35);}
-  .footer{text-align:center;padding:40px 0;color:#4B5563;font-size:12px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0B0F14;--bg2:#111820;--bg3:#1A2332;--bg4:#222F40;
+  --gold:#E5A530;--gold-dim:#C4882A;--gold-light:#F5D78E;--gold-glow:rgba(229,165,48,.12);
+  --text:#F0EDE6;--text2:#9CA3AF;--text3:#6B7280;
+  --red:#EF4444;--red-bg:rgba(239,68,68,.08);
+  --green:#22C55E;--green-bg:rgba(34,197,94,.08);
+  --blue:#3B82F6;--blue-bg:rgba(59,130,246,.08);
+  --amber:#F59E0B;--amber-bg:rgba(245,158,11,.08);
+  --purple:#8B5CF6;--purple-bg:rgba(139,92,246,.08);
+  --orange:#F97316;--orange-bg:rgba(249,115,22,.08);
+  --sans:'DM Sans',system-ui,-apple-system,sans-serif;
+  --serif:'DM Serif Display',Georgia,serif;
+  --l1:#3B82F6;--l1-bg:rgba(59,130,246,.08);--l1-border:rgba(59,130,246,.2);
+  --l2:#22C55E;--l2-bg:rgba(34,197,94,.08);--l2-border:rgba(34,197,94,.2);
+  --l3:#F97316;--l3-bg:rgba(249,115,22,.08);--l3-border:rgba(249,115,22,.2);
+  --l4:#8B5CF6;--l4-bg:rgba(139,92,246,.08);--l4-border:rgba(139,92,246,.2);
+}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.7;overflow-x:hidden}
+.playbook{max-width:720px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.cover{text-align:center;padding:4rem 1rem 3rem;position:relative}
+.cover::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:240px;height:240px;background:radial-gradient(circle,rgba(229,165,48,.12),transparent 70%);pointer-events:none}
+.cover-badge{display:inline-flex;align-items:center;gap:.5rem;background:var(--gold-glow);border:1px solid rgba(229,165,48,.2);color:var(--gold);font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.35rem 1rem;border-radius:100px;margin-bottom:1.5rem}
+.cover-badge svg{width:14px;height:14px}
+.cover h1{font-family:var(--serif);font-size:2.75rem;font-weight:400;line-height:1.15;color:var(--text);margin-bottom:.5rem}
+.cover h1 span{color:var(--gold)}
+.cover-sub{font-size:1rem;color:var(--text2);margin-bottom:.25rem}
+.cover-meta{font-size:.78rem;color:var(--text3);margin-top:1rem;letter-spacing:.04em}
+.divider{height:1px;background:linear-gradient(90deg,transparent,rgba(229,165,48,.25),transparent);margin:2.5rem 0}
+.score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1.5rem 0}
+.score-card{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:1.25rem;text-align:center;position:relative;overflow:hidden}
+.score-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
+.score-card.high::before{background:var(--green)}.score-card.mid::before{background:var(--amber)}.score-card.low::before{background:var(--red)}
+.ring-wrap{position:relative;width:80px;height:80px;margin:0 auto .75rem}
+.ring-bg,.ring-fill{fill:none;stroke-width:6;stroke-linecap:round}
+.ring-bg{stroke:rgba(255,255,255,.06)}
+.ring-fill.high{stroke:var(--green)}.ring-fill.mid{stroke:var(--amber)}.ring-fill.low{stroke:var(--red)}
+.ring-value{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.5rem;font-weight:700;letter-spacing:-.02em}
+.ring-value.high{color:var(--green)}.ring-value.mid{color:var(--amber)}.ring-value.low{color:var(--red)}
+.score-label{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+.section{margin:2.5rem 0}
+.section-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem}
+.section-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.section-icon.gold{background:var(--gold-glow);color:var(--gold)}
+.section-icon.blue{background:var(--blue-bg);color:var(--blue)}
+.section-icon.red{background:var(--red-bg);color:var(--red)}
+.section-icon.green{background:var(--green-bg);color:var(--green)}
+.section-icon.amber{background:var(--amber-bg);color:var(--amber)}
+.section-icon.purple{background:var(--purple-bg);color:var(--purple)}
+.section-title{font-family:var(--serif);font-size:1.5rem;font-weight:400;color:var(--text)}
+.body-text{color:var(--text2);font-size:.95rem;line-height:1.8;margin-bottom:1rem}
+.body-text strong{color:var(--text);font-weight:600}
+.body-text em{color:var(--gold);font-style:normal;font-weight:500}
+.callout{background:var(--bg2);border-left:3px solid var(--gold);border-radius:0 12px 12px 0;padding:1.25rem 1.5rem;margin:1.5rem 0}
+.callout p{color:var(--text);font-size:1rem;line-height:1.7;margin:0}
+.callout .source{color:var(--text3);font-size:.8rem;margin-top:.5rem}
+.north-star{background:linear-gradient(135deg,var(--bg3),var(--bg2));border:1px solid rgba(229,165,48,.15);border-radius:20px;padding:2rem;text-align:center;position:relative;overflow:hidden;margin:1.5rem 0}
+.north-star::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;background:radial-gradient(circle,rgba(229,165,48,.1),transparent 70%)}
+.north-star-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin-bottom:.75rem}
+.north-star-text{font-family:var(--serif);font-size:1.3rem;color:var(--text);line-height:1.5;max-width:560px;margin:0 auto}
+.north-star-conf{display:inline-flex;align-items:center;gap:.5rem;margin-top:1rem;font-size:.85rem;color:var(--text2)}
+.north-star-conf span{color:var(--amber);font-weight:700}
+.metric-panel{background:var(--bg2);border-radius:14px;padding:1.25rem 1.5rem;margin:1rem 0}
+.metric-row{display:flex;align-items:center;gap:1rem;padding:.65rem 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.metric-row:last-child{border-bottom:none}
+.metric-label{flex:0 0 160px;font-size:.85rem;color:var(--text2)}
+.metric-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:100px;overflow:hidden}
+.metric-bar{height:100%;border-radius:100px}
+.metric-bar.high{background:var(--green)}.metric-bar.mid{background:var(--amber)}.metric-bar.low{background:var(--red)}
+.metric-value{flex:0 0 40px;text-align:right;font-size:.85rem;font-weight:700}
+.metric-value.high{color:var(--green)}.metric-value.mid{color:var(--amber)}.metric-value.low{color:var(--red)}
+.priority-list{display:flex;flex-direction:column;gap:.75rem;margin:1rem 0}
+.priority-card{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:1.25rem 1.5rem;display:flex;gap:1rem;align-items:flex-start}
+.priority-num{width:32px;height:32px;border-radius:10px;background:var(--gold-glow);color:var(--gold);font-weight:700;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem}
+.priority-body h4{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:.25rem}
+.priority-body p{font-size:.85rem;color:var(--text2);line-height:1.6}
+.quick-win{background:linear-gradient(135deg,rgba(34,197,94,.06),rgba(34,197,94,.02));border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:2rem;margin:1.5rem 0}
+.quick-win-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem}
+.quick-win-badge{background:var(--green-bg);color:var(--green);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;padding:.3rem .75rem;border-radius:100px}
+.quick-win h4{font-size:1.1rem;font-weight:600;color:var(--text)}
+.quick-win ol{list-style:none;counter-reset:qw;padding:0;margin:.5rem 0}
+.quick-win ol li{counter-increment:qw;display:flex;gap:.75rem;padding:.5rem 0;font-size:.9rem;color:var(--text2);line-height:1.6}
+.quick-win ol li::before{content:counter(qw);flex-shrink:0;width:24px;height:24px;border-radius:8px;background:rgba(34,197,94,.1);color:var(--green);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;margin-top:.15rem}
+.resource-card{display:flex;gap:1rem;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:1rem 1.25rem;margin:.5rem 0;align-items:center}
+.resource-type{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.resource-type.podcast{background:rgba(139,92,246,.1);color:#8B5CF6}
+.resource-type.framework{background:var(--gold-glow);color:var(--gold)}
+.resource-type.reflection{background:var(--blue-bg);color:var(--blue)}
+.resource-type.article{background:var(--orange-bg);color:var(--orange)}
+.resource-type.video{background:var(--red-bg);color:var(--red)}
+.resource-body h5{font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:.15rem}
+.resource-body p{font-size:.8rem;color:var(--text2);line-height:1.5}
+.resource-tag{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:.2rem .5rem;border-radius:6px;margin-top:.35rem;display:inline-block}
+.engagement-alert{background:var(--red-bg);border:1px solid rgba(239,68,68,.2);border-radius:16px;padding:1.5rem;margin:1.5rem 0;display:flex;gap:1rem;align-items:flex-start}
+.engagement-alert .ea-icon{width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,.12);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.engagement-alert h4{font-size:.95rem;font-weight:600;color:var(--red);margin-bottom:.25rem}
+.engagement-alert p{font-size:.85rem;color:var(--text2);line-height:1.6}
+.cap-card{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:16px;margin:.75rem 0;overflow:hidden}
+.cap-card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem}
+.cap-card-left{display:flex;align-items:center;gap:.75rem}
+.cap-card-name{font-size:.95rem;font-weight:600;color:var(--text)}
+.cap-card-cat{font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:.1rem}
+.cap-level-badge{font-size:.7rem;font-weight:700;padding:.25rem .6rem;border-radius:6px;white-space:nowrap}
+.cap-level-badge.l1{background:var(--l1-bg);color:var(--l1);border:1px solid var(--l1-border)}
+.cap-level-badge.l2{background:var(--l2-bg);color:var(--l2);border:1px solid var(--l2-border)}
+.cap-level-badge.l3{background:var(--l3-bg);color:var(--l3);border:1px solid var(--l3-border)}
+.cap-level-badge.l4{background:var(--l4-bg);color:var(--l4);border:1px solid var(--l4-border)}
+.cap-ladder{padding:0 1.25rem 1.25rem}
+.cap-reasoning{font-size:.82rem;color:var(--text2);line-height:1.6;margin-bottom:1rem;padding:.75rem 1rem;background:rgba(229,165,48,.04);border-radius:10px;border-left:2px solid rgba(229,165,48,.3)}
+.ladder{display:flex;flex-direction:column;gap:0}
+.ladder-step{display:flex;gap:.75rem;position:relative;padding:.6rem 0}
+.ladder-marker{display:flex;flex-direction:column;align-items:center;width:40px;flex-shrink:0;position:relative}
+.ladder-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.12);background:var(--bg2);position:relative;z-index:1}
+.ladder-dot.current{border-color:var(--gold);background:var(--gold);box-shadow:0 0 12px rgba(229,165,48,.4)}
+.ladder-dot.below{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.08)}
+.ladder-dot.target{border-color:var(--green);background:transparent;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+.ladder-line{width:2px;flex:1;background:rgba(255,255,255,.06);margin:2px 0}
+.ladder-step:last-child .ladder-line{display:none}
+.ladder-content{flex:1;padding-bottom:.25rem}
+.ladder-level{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.15rem}
+.ladder-level.l1{color:var(--l1)}.ladder-level.l2{color:var(--l2)}.ladder-level.l3{color:var(--l3)}.ladder-level.l4{color:var(--l4)}
+.ladder-desc{font-size:.8rem;color:var(--text3);line-height:1.5}
+.ladder-desc.active{color:var(--text2)}
+.ladder-you{display:inline-flex;align-items:center;gap:.35rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);background:var(--gold-glow);padding:.15rem .5rem;border-radius:4px;margin-left:.5rem}
+.ladder-target-tag{display:inline-flex;align-items:center;gap:.35rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--green);background:var(--green-bg);padding:.15rem .5rem;border-radius:4px;margin-left:.5rem}
+.cap-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:1rem 0;padding:1rem;background:var(--bg2);border-radius:14px}
+.cap-summary-item{text-align:center;padding:.5rem}
+.cap-summary-count{font-size:1.5rem;font-weight:700}
+.cap-summary-count.l1{color:var(--l1)}.cap-summary-count.l2{color:var(--l2)}.cap-summary-count.l3{color:var(--l3)}.cap-summary-count.l4{color:var(--l4)}
+.cap-summary-label{font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem}
+.diag-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:1rem 0}
+.diag-item{background:var(--bg2);border-radius:12px;padding:1rem;display:flex;align-items:center;justify-content:space-between}
+.diag-item .label{font-size:.8rem;color:var(--text2)}
+.diag-item .val{font-size:1.1rem;font-weight:700}
+.diag-item .val.high{color:var(--green)}.diag-item .val.mid{color:var(--amber)}.diag-item .val.low{color:var(--red)}
+.unlock-list{display:flex;flex-direction:column;gap:.5rem;margin:1rem 0}
+.unlock-item{display:flex;gap:1rem;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:1.1rem 1.25rem;align-items:flex-start}
+.unlock-icon-wrap{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.unlock-icon-wrap.gold{background:var(--gold-glow)}.unlock-icon-wrap.amber{background:var(--amber-bg)}
+.unlock-icon-wrap.red{background:var(--red-bg)}.unlock-icon-wrap.purple{background:var(--purple-bg)}
+.unlock-icon-wrap.green{background:var(--green-bg)}.unlock-icon-wrap.blue{background:var(--blue-bg)}
+.unlock-content h5{font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:.2rem}
+.unlock-content p{font-size:.82rem;color:var(--text2);line-height:1.55}
+.the-math{background:linear-gradient(135deg,var(--bg3),var(--bg2));border:1px solid rgba(229,165,48,.12);border-radius:20px;padding:2rem;text-align:center;margin:1.5rem 0}
+.math-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin-bottom:1.25rem}
+.math-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.math-item{padding:.75rem}
+.math-number{font-family:var(--serif);font-size:2.5rem;font-weight:400;color:var(--text);line-height:1}
+.math-desc{font-size:.78rem;color:var(--text2);margin-top:.4rem;line-height:1.4}
+.cta-section{text-align:center;padding:3rem 1.5rem;margin-top:1rem}
+.cta-eyebrow{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:.5rem}
+.cta-section h2{font-family:var(--serif);font-size:1.75rem;color:var(--text);margin-bottom:.5rem}
+.cta-section p{color:var(--text2);font-size:.95rem;margin-bottom:1.5rem;max-width:480px;margin-left:auto;margin-right:auto}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:var(--bg);font-weight:700;font-size:1rem;padding:1rem 2.5rem;border-radius:14px;text-decoration:none;box-shadow:0 4px 20px rgba(229,165,48,.3)}
+.cta-sub{font-size:.8rem;color:var(--text3);margin-top:1rem}
+.cta-proof{display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem 1.25rem;margin-top:1.5rem}
+.cta-proof-item{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text2)}
+.cta-check{color:var(--green);font-weight:700;font-size:.85rem}
+.closing{text-align:center;padding:1.5rem 2rem;margin:1rem 0}
+.closing p{font-family:var(--serif);font-size:1.15rem;color:var(--gold-light);line-height:1.6;max-width:500px;margin:0 auto}
+.footer{text-align:center;padding:2rem 0;border-top:1px solid rgba(255,255,255,.04);margin-top:2rem}
+.footer-logo{display:inline-flex;align-items:center;gap:.5rem;margin-bottom:.5rem}
+.footer-logo .mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:var(--bg)}
+.footer-logo span{font-weight:700;font-size:1rem;color:var(--text)}
+.footer p{font-size:.75rem;color:var(--text3)}
+.disagree-cta{display:flex;align-items:center;gap:.75rem;background:var(--bg3);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:1rem 1.25rem;margin-top:1rem}
+.disagree-cta .dc-icon{font-size:1.1rem}
+.disagree-cta .text{flex:1}
+.disagree-cta .text p{font-size:.82rem;color:var(--text2);line-height:1.5;margin:0}
+.disagree-cta .text a{color:var(--gold);text-decoration:none;font-weight:600}
+@media(max-width:600px){
+  .cover h1{font-size:2rem}
+  .score-grid{grid-template-columns:1fr}
+  .diag-grid{grid-template-columns:1fr}
+  .math-grid{grid-template-columns:1fr;gap:.5rem}
+  .metric-label{flex:0 0 100px;font-size:.8rem}
+  .cap-summary{grid-template-columns:repeat(2,1fr)}
+  .cta-proof{flex-direction:column;align-items:center}
+}
 </style>
 </head><body>
-<div class="container">
+<div class="playbook">
 
-  <!-- Header -->
-  <div class="section" style="text-align:center;">
-    <div style="display:inline-flex;align-items:center;gap:12px;margin-bottom:24px;">
-      <div style="background:linear-gradient(135deg,#E5A530,#F5C563);width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-        <span style="font-size:24px;font-weight:bold;color:#0F1419;">J</span>
-      </div>
-      <span style="font-size:28px;font-weight:700;color:#FFF;">Jericho</span>
+  <div class="cover">
+    <div class="cover-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Individual Playbook
     </div>
-    <h1>Your Individual Playbook</h1>
-    <p class="subtitle">Built for <span class="highlight">${firstName}</span> · ${d.role || 'Professional'} · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+    <h1>${firstName}'s Growth<br><span>Playbook</span></h1>
+    <p class="cover-sub">${coverSub}</p>
+    <p class="cover-meta">Generated ${dateStr} · Powered by Jericho</p>
+  </div>
+
+  <div class="score-grid">
+    <div class="score-card ${cls(engScore)}">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 80 80" width="80" height="80">
+          <circle class="ring-bg" cx="40" cy="40" r="34" />
+          <circle class="ring-fill ${cls(engScore)}" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="${ringOffset(engScore)}" transform="rotate(-90 40 40)" />
+        </svg>
+        <div class="ring-value ${cls(engScore)}">${engScore}</div>
+      </div>
+      <div class="score-label">Engagement</div>
+    </div>
+    <div class="score-card ${cls(effScore)}">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 80 80" width="80" height="80">
+          <circle class="ring-bg" cx="40" cy="40" r="34" />
+          <circle class="ring-fill ${cls(effScore)}" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="${ringOffset(effScore)}" transform="rotate(-90 40 40)" />
+        </svg>
+        <div class="ring-value ${cls(effScore)}">${effScore}</div>
+      </div>
+      <div class="score-label">Self-Efficacy</div>
+    </div>
+    <div class="score-card ${cls(utilScore)}">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 80 80" width="80" height="80">
+          <circle class="ring-bg" cx="40" cy="40" r="34" />
+          <circle class="ring-fill ${cls(utilScore)}" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="${ringOffset(utilScore)}" transform="rotate(-90 40 40)" />
+        </svg>
+        <div class="ring-value ${cls(utilScore)}">${utilScore}</div>
+      </div>
+      <div class="score-label">Strength Utilization</div>
+    </div>
+  </div>
+
+  <div class="north-star">
+    <div class="north-star-label">— Your North Star —</div>
+    <div class="north-star-text">"${narrative.north_star_text || ''}"</div>
+    <div class="north-star-conf">Confidence: <span>${d.confidence_score || '?'}/10</span> — ${narrative.north_star_followup || ''}</div>
   </div>
 
   <div class="divider"></div>
 
-  <!-- Snapshot -->
   <div class="section">
-    <h2>📍 Your Snapshot</h2>
-    ${(narrative.snapshot_paragraphs || []).map((p: string) => `<p class="text-body">${p}</p>`).join('')}
-  </div>
-
-  <!-- Engagement Gauges -->
-  <div class="section">
-    <div class="card" style="padding:24px;">
-      <h3 style="text-align:center;margin-bottom:16px;">Your Engagement Profile</h3>
-      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;">
-        ${gaugeArc(eng.composite, 'Composite', '#E5A530')}
-        ${gaugeArc(100 - eng.burnoutRisk, 'Energy', eng.burnoutRisk > 50 ? '#EF4444' : '#22C55E')}
-        ${gaugeArc(eng.selfEfficacy, 'Confidence', '#3B82F6')}
-        ${gaugeArc(eng.strengthUtil, 'Utilization', '#A855F7')}
-        ${gaugeArc(eng.overallEngagement, 'Engagement', '#06B6D4')}
+    <div class="section-header">
+      <div class="section-icon gold">📍</div>
+      <div class="section-title">Your Snapshot</div>
+    </div>
+    ${snapshotHtml}
+    <div class="metric-panel">
+      <div class="metric-row">
+        <div class="metric-label">Challenge Severity</div>
+        <div class="metric-bar-wrap"><div class="metric-bar ${cls(severityPct, true)}" style="width:${severityPct}%"></div></div>
+        <div class="metric-value ${cls(severityPct, true)}">${d.challenge_severity || '?'}/10</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">Energy Level</div>
+        <div class="metric-bar-wrap"><div class="metric-bar ${cls(energyPct)}" style="width:${energyPct}%"></div></div>
+        <div class="metric-value ${cls(energyPct)}">${d.energy_score || '?'}/10</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">Strength Utilization</div>
+        <div class="metric-bar-wrap"><div class="metric-bar ${cls(utilPct)}" style="width:${utilPct}%"></div></div>
+        <div class="metric-value ${cls(utilPct)}">${d.strength_utilization || '?'}/10</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">Work Connection</div>
+        <div class="metric-bar-wrap"><div class="metric-bar ${cls(connectionPct)}" style="width:${connectionPct}%"></div></div>
+        <div class="metric-value ${cls(connectionPct)}">${d.engagement_score || '?'}/10</div>
       </div>
     </div>
-    <p class="text-body">${narrative.diagnostic_commentary || ''}</p>
-    ${narrative.burnout_alert ? `<div class="burnout-alert"><p>⚠️ ${narrative.burnout_alert}</p></div>` : ''}
+  </div>
+
+  ${narrative.burnout_alert ? `<div class="engagement-alert">
+    <div class="ea-icon">⚠</div>
+    <div>
+      <h4>Burnout Risk: Elevated</h4>
+      <p>${narrative.burnout_alert}</p>
+    </div>
+  </div>` : ''}
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon purple">💎</div>
+      <div class="section-title">Your Superpower</div>
+    </div>
+    ${superpowerHtml}
   </div>
 
   <div class="divider"></div>
 
-  <!-- North Star -->
   <div class="section">
-    <h2>⭐ Your North Star</h2>
-    <div class="quote"><p>"${narrative.north_star_text || ''}"</p></div>
-    <p class="text-body">${narrative.north_star_followup || ''}</p>
-  </div>
-
-  <!-- Superpower -->
-  <div class="section">
-    <h2>💎 Your Superpower</h2>
-    ${(narrative.superpower_paragraphs || []).map((p: string) => `<p class="text-body">${p}</p>`).join('')}
+    <div class="section-header">
+      <div class="section-icon amber">🎯</div>
+      <div class="section-title">Your Growth Edge</div>
+    </div>
+    <div class="callout">
+      <p>"${narrative.growth_edge_quote || ''}"</p>
+      <div class="source">— Your own words</div>
+    </div>
+    <p class="body-text">${narrative.growth_edge_intro || ''}</p>
+    <div class="priority-list">${prioritiesHtml}</div>
   </div>
 
   <div class="divider"></div>
 
-  <!-- Capabilities -->
   <div class="section">
-    <h2>🧬 Your 7 Capabilities</h2>
+    <div class="section-header">
+      <div class="section-icon blue">🧬</div>
+      <div class="section-title">Your Capability Map</div>
+    </div>
+    <p class="body-text">Based on your role as <strong>${role}</strong>, your challenges, and your strengths, Jericho has identified 7 core capabilities for your development. Each one is assessed at 4 levels — and we've estimated where you are today.</p>
+    <div class="cap-summary">
+      <div class="cap-summary-item"><div class="cap-summary-count l1">${levelCounts.l1}</div><div class="cap-summary-label">Level 1</div></div>
+      <div class="cap-summary-item"><div class="cap-summary-count l2">${levelCounts.l2}</div><div class="cap-summary-label">Level 2</div></div>
+      <div class="cap-summary-item"><div class="cap-summary-count l3">${levelCounts.l3}</div><div class="cap-summary-label">Level 3</div></div>
+      <div class="cap-summary-item"><div class="cap-summary-count l4">${levelCounts.l4}</div><div class="cap-summary-label">Level 4</div></div>
+    </div>
     ${capCardsHtml}
-  </div>
-
-  <!-- Growth Edge -->
-  <div class="section">
-    <h2>🔥 Your Growth Edge</h2>
-    <div class="quote"><p>"${narrative.growth_edge_quote || ''}"</p></div>
-    <p class="text-body">${narrative.growth_edge_intro || ''}</p>
-    <h3 style="margin-top:20px;">Your 3 Priorities</h3>
-    ${prioritiesHtml}
+    <div class="disagree-cta">
+      <div class="dc-icon">🎚️</div>
+      <div class="text">
+        <p>Think we got a level wrong? These are AI-estimated levels based on your conversation. Log into Jericho and self-assess under the Capabilities tab — your input overrides our estimate. <a href="https://askjericho.com/auth">Log in →</a></p>
+      </div>
+    </div>
   </div>
 
   <div class="divider"></div>
 
-  <!-- Quick Win -->
-  <div class="section">
-    <h2>✅ Your 7-Day Quick Win: ${narrative.quick_win_title || ''}</h2>
-    <p class="text-body">${narrative.quick_win_intro || ''}</p>
-    <div class="card">
-      ${stepsHtml}
+  <div class="quick-win">
+    <div class="quick-win-header">
+      <span class="quick-win-badge">This Week</span>
+      <h4>${narrative.quick_win_title || 'Your 7-Day Quick Win'}</h4>
     </div>
-    <p class="text-body" style="font-weight:600;">${narrative.quick_win_closer || ''}</p>
-    ${narrative.quick_win_hours ? `<p style="color:#6B7280;font-size:13px;margin-top:8px;">Estimated impact: recover ~${narrative.quick_win_hours} hours/week</p>` : ''}
+    <p class="body-text">${narrative.quick_win_intro || ''}</p>
+    <ol>${qwStepsHtml}</ol>
+    <p class="body-text" style="font-weight:600;margin-top:.75rem">${narrative.quick_win_closer || ''}</p>
   </div>
 
-  <!-- Learning Path -->
   <div class="section">
-    <h2>📚 Your Learning Path</h2>
-    <p class="text-body">${narrative.learning_intro || ''}</p>
+    <div class="section-header">
+      <div class="section-icon green">📚</div>
+      <div class="section-title">Your Learning Path</div>
+    </div>
+    <p class="body-text">${narrative.learning_intro || ''}</p>
     ${resourcesHtml}
   </div>
 
   <div class="divider"></div>
 
-  <!-- What's Unlocked Inside Jericho -->
   <div class="section">
-    <h2 class="highlight">What's Already Loaded Inside Jericho</h2>
-    <div class="card">
-      ${unlockItems}
+    <div class="section-header">
+      <div class="section-icon red">📊</div>
+      <div class="section-title">Diagnostic Snapshot</div>
+    </div>
+    <p class="body-text">${narrative.diagnostic_commentary || ''}</p>
+    <div class="diag-grid">
+      <div class="diag-item"><span class="label">Burnout Risk</span><span class="val ${burnoutClass}">${burnoutLabel}</span></div>
+      <div class="diag-item"><span class="label">Engagement</span><span class="val ${cls(eng.composite)}">${eng.composite}/100</span></div>
+      <div class="diag-item"><span class="label">Role Strain</span><span class="val ${strainClass}">${strainLabel}</span></div>
+      <div class="diag-item"><span class="label">Org Support</span><span class="val ${orgClass}">${orgLabel}</span></div>
+      <div class="diag-item"><span class="label">Career Direction</span><span class="val high">Clear</span></div>
+      <div class="diag-item"><span class="label">Capabilities Mapped</span><span class="val high">7 assessed</span></div>
+    </div>
+    <p class="body-text" style="font-size:.82rem;color:var(--text3);margin-top:.5rem">These scores are estimated from your coaching conversation. Full validated diagnostics — with trend tracking, team benchmarks, and 90-day progress monitoring — unlock inside Jericho.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon gold">🔓</div>
+      <div class="section-title">What's Already Waiting for You</div>
+    </div>
+    <p class="body-text">This Playbook scratched the surface. When you log in, Jericho already knows everything you told me — and it's built your next 90 days around it.</p>
+    <div class="unlock-list">${unlockItems}</div>
+  </div>
+
+  <div class="the-math">
+    <div class="math-label">The Math</div>
+    <div class="math-grid">
+      <div class="math-item">
+        <div class="math-number">${narrative.quick_win_hours || '?'}</div>
+        <div class="math-desc">hours back this week if your Quick Win lands</div>
+      </div>
+      <div class="math-item">
+        <div class="math-number">7</div>
+        <div class="math-desc">capabilities mapped with clear development paths</div>
+      </div>
+      <div class="math-item">
+        <div class="math-number">90</div>
+        <div class="math-desc">days to go from ${d.confidence_score || '?'}/10 confidence to making your North Star inevitable</div>
+      </div>
     </div>
   </div>
 
-  <!-- CTA -->
-  <div class="section" style="text-align:center;padding:32px 0;">
-    <a href="https://askjericho.com/auth" class="cta-button">Log In to Jericho →</a>
-    <p style="color:#6B7280;font-size:13px;margin-top:16px;">Your login details are in your welcome email</p>
+  <div class="cta-section">
+    <div class="cta-eyebrow">This is Stage 1. You've seen the snapshot.</div>
+    <h2>Ready to see the full picture?</h2>
+    <p>Your account is live. Your capabilities are loaded. Your first coaching brief drops tomorrow morning. The only thing missing is you.</p>
+    <a href="https://askjericho.com/auth" class="cta-btn">
+      Log In to Jericho
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+    <p class="cta-sub">Your login credentials are in your inbox · askjericho.com</p>
+    <div class="cta-proof">
+      <span class="cta-proof-item"><span class="cta-check">✓</span> Account created</span>
+      <span class="cta-proof-item"><span class="cta-check">✓</span> 7 capabilities assigned</span>
+      <span class="cta-proof-item"><span class="cta-check">✓</span> Quick Win queued</span>
+      <span class="cta-proof-item"><span class="cta-check">✓</span> First coaching brief scheduled</span>
+    </div>
   </div>
 
-  <!-- Closing -->
-  <div class="section" style="text-align:center;">
-    <p class="text-body" style="font-style:italic;color:#E5A530;">${narrative.closing_statement || ''}</p>
+  <div class="closing">
+    <p>${narrative.closing_statement || ''}</p>
   </div>
 
   <div class="footer">
-    <p>Built by Jericho · Powered by The Momentum Company</p>
+    <div class="footer-logo">
+      <div class="mark">J</div>
+      <span>Jericho</span>
+    </div>
+    <p>Powered by The Momentum Company · Confidential</p>
+    <p>Individual data is never shared with employers at the individual level.</p>
   </div>
 
 </div>
@@ -583,15 +903,15 @@ function buildPlaybookEmail(d: any, eng: any, narrative: any): string {
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">
 </head>
-<body style="margin:0;padding:0;background-color:#0F1419;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table role="presentation" width="100%" style="background-color:#0F1419;">
+<body style="margin:0;padding:0;background-color:#0B0F14;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" width="100%" style="background-color:#0B0F14;">
 <tr><td align="center" style="padding:40px 20px;">
 <table role="presentation" width="600" style="max-width:600px;width:100%;">
 
 <tr><td align="center" style="padding-bottom:32px;">
   <table role="presentation"><tr>
     <td style="background:linear-gradient(135deg,#E5A530,#F5C563);width:48px;height:48px;border-radius:12px;text-align:center;vertical-align:middle;">
-      <span style="font-size:24px;font-weight:bold;color:#0F1419;">J</span>
+      <span style="font-size:24px;font-weight:bold;color:#0B0F14;">J</span>
     </td>
     <td style="padding-left:12px;"><span style="font-size:28px;font-weight:700;color:#FFF !important;">Jericho</span></td>
   </tr></table>
@@ -640,16 +960,16 @@ function buildPlaybookEmail(d: any, eng: any, narrative: any): string {
   <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#FFF !important;">What's in your Playbook</p>
   <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">📍 Your Snapshot — ${d.primary_challenge || ''} (severity ${d.challenge_severity || '?'}/10, energy ${d.energy_score || '?'}/10)</p>
   <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">💎 Your Superpower — ${d.strengths || ''}</p>
-  <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">🧬 7 Capabilities Assessed — each with 4-level descriptions</p>
+  <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">🧬 7 Capabilities with 4-level assessments and development ladders</p>
   <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">🎯 Growth Edge + 3 Priorities — from: "${d.feedback_received || ''}"</p>
   <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">✅ Quick Win: ${narrative.quick_win_title || ''} — executable this week</p>
-  <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">📚 Learning Path — ${d.learning_format || ''}, ${d.available_time || ''}</p>
+  <p style="margin:0 0 8px;font-size:14px;color:#D1D5DB !important;">📚 Learning Path — curated for your format and time</p>
 </td></tr>
 
 <tr><td style="padding:0 40px 40px;" align="center">
   <table role="presentation"><tr>
     <td style="border-radius:10px;background:linear-gradient(135deg,#E5A530,#D4942A);box-shadow:0 4px 14px rgba(229,165,48,0.35);">
-      <a href="https://askjericho.com/auth" style="display:inline-block;padding:16px 48px;font-size:16px;font-weight:600;color:#0F1419 !important;text-decoration:none;border-radius:10px;">View Your Full Playbook →</a>
+      <a href="https://askjericho.com/auth" style="display:inline-block;padding:16px 48px;font-size:16px;font-weight:600;color:#0B0F14 !important;text-decoration:none;border-radius:10px;">View Your Full Playbook →</a>
     </td>
   </tr></table>
 </td></tr>
