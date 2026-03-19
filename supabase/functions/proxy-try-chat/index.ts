@@ -142,11 +142,13 @@ class MarkerParser {
 
   private emitText(text: string) {
     // Strip any complete <think>...</think> blocks
-    text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '');
-    // Strip leaked tags like </final>, <final>, </think>, etc.
-    text = text.replace(/<\/?(?:think|final)[^>]*>/gi, '');
+    text = text.replace(/<think[\s\S]*?<\/think>\s*/gi, '');
+    // Strip leaked tags like </final>, <final>, </think>, <think>, <think ...>
+    text = text.replace(/<\/?(?:think|final)\b[^>]*>/gi, '');
     // Strip standalone "think" remnant at start from partial tag splits
     text = text.replace(/^think\b[^<]*/i, '');
+    // Strip "<think" at very end (partial open tag without closing >)
+    text = text.replace(/<think\s*$/i, '');
     if (!text.trim().length) return;
     this.controller.enqueue(
       this.encoder.encode(`data: ${JSON.stringify({ type: "text", content: text })}\n\n`)
