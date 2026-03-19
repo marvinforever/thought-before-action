@@ -928,48 +928,269 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
 }
 
 // ============================================================================
-// Convert playbook HTML to email-safe (resolve CSS variables to actual values)
+// Build full Playbook email (inline HTML for inbox clients)
 // ============================================================================
-function convertToEmailSafeHtml(html: string): string {
-  // Map of all CSS variables to their resolved values
-  const vars: Record<string, string> = {
-    '--bg': '#0B0F14', '--bg2': '#111820', '--bg3': '#1A2332', '--bg4': '#222F40',
-    '--gold': '#E5A530', '--gold-dim': '#C4882A', '--gold-light': '#F5D78E',
-    '--gold-glow': 'rgba(229,165,48,.12)',
-    '--text': '#F0EDE6', '--text2': '#9CA3AF', '--text3': '#6B7280',
-    '--red': '#EF4444', '--red-bg': 'rgba(239,68,68,.08)',
-    '--green': '#22C55E', '--green-bg': 'rgba(34,197,94,.08)',
-    '--blue': '#3B82F6', '--blue-bg': 'rgba(59,130,246,.08)',
-    '--amber': '#F59E0B', '--amber-bg': 'rgba(245,158,11,.08)',
-    '--purple': '#8B5CF6', '--purple-bg': 'rgba(139,92,246,.08)',
-    '--orange': '#F97316', '--orange-bg': 'rgba(249,115,22,.08)',
-    '--sans': "'DM Sans',system-ui,-apple-system,sans-serif",
-    '--serif': "'DM Serif Display',Georgia,serif",
-    '--l1': '#3B82F6', '--l1-bg': 'rgba(59,130,246,.08)', '--l1-border': 'rgba(59,130,246,.2)',
-    '--l2': '#22C55E', '--l2-bg': 'rgba(34,197,94,.08)', '--l2-border': 'rgba(34,197,94,.2)',
-    '--l3': '#F97316', '--l3-bg': 'rgba(249,115,22,.08)', '--l3-border': 'rgba(249,115,22,.2)',
-    '--l4': '#8B5CF6', '--l4-bg': 'rgba(139,92,246,.08)', '--l4-border': 'rgba(139,92,246,.2)',
+function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): string {
+  const firstName = d.first_name || 'there';
+  const role = d.role || 'Professional';
+  const levelLabel: Record<string, string> = {
+    foundational: 'Foundational',
+    advancing: 'Advancing',
+    independent: 'Independent',
+    mastery: 'Mastery',
   };
 
-  let result = html;
+  const sectionCta = (text: string, label: string) => `
+    <tr><td style="padding:0 32px 24px;">
+      <table role="presentation" width="100%" style="border-collapse:collapse;background:#171d25;border:1px solid rgba(229,165,48,0.18);border-radius:12px;">
+        <tr>
+          <td style="padding:14px 16px;font-size:13px;line-height:1.6;color:#9CA3AF;">
+            ${text}
+          </td>
+          <td align="right" style="padding:14px 16px;white-space:nowrap;">
+            <a href="https://askjericho.com/auth" style="font-size:13px;font-weight:700;color:#E5A530;text-decoration:none;">${label}</a>
+          </td>
+        </tr>
+      </table>
+    </td></tr>`;
 
-  // Resolve all var(--xxx) references (handles nested commas in fallbacks)
-  // Iterate multiple times to catch any nested vars
-  for (let pass = 0; pass < 3; pass++) {
-    result = result.replace(/var\(([^)]+)\)/g, (_match, inner) => {
-      const varName = inner.split(',')[0].trim();
-      return vars[varName] || inner;
-    });
-  }
+  const priorities = (narrative.priorities || []).map((p: any, i: number) => `
+    <tr><td style="padding:0 32px 12px;">
+      <table role="presentation" width="100%" style="border-collapse:collapse;background:#111820;border:1px solid rgba(255,255,255,0.06);border-radius:14px;">
+        <tr>
+          <td valign="top" style="padding:16px 0 16px 16px;width:44px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:rgba(229,165,48,0.12);color:#E5A530;font-size:14px;font-weight:700;line-height:28px;text-align:center;">${i + 1}</div>
+          </td>
+          <td style="padding:16px 16px 16px 0;">
+            <div style="font-size:16px;font-weight:700;color:#F0EDE6;margin-bottom:4px;">${p.title}</div>
+            <div style="font-size:14px;line-height:1.7;color:#9CA3AF;">${p.description}</div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>`).join('');
 
-  // Remove :root block (variables are now inlined)
-  result = result.replace(/:root\s*\{[^}]+\}/, '');
+  const capabilities = caps.map((c: any) => `
+    <tr><td style="padding:0 32px 12px;">
+      <table role="presentation" width="100%" style="border-collapse:collapse;background:#111820;border:1px solid rgba(255,255,255,0.06);border-radius:14px;">
+        <tr>
+          <td style="padding:16px;">
+            <div style="font-size:16px;font-weight:700;color:#F0EDE6;">${c.capability_name}</div>
+            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;margin-top:3px;">${c.category || 'General'}</div>
+            <div style="margin-top:10px;font-size:13px;line-height:1.7;color:#9CA3AF;">${c.reasoning}</div>
+            <div style="margin-top:10px;font-size:12px;line-height:1.6;color:#F0EDE6;">
+              <strong>Current:</strong> ${levelLabel[c.current_level] || c.current_level} &nbsp;•&nbsp; <strong>Target:</strong> ${levelLabel[c.target_level] || c.target_level}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>`).join('');
 
-  // Add email-specific meta tags after <head>
-  result = result.replace('<meta charset="UTF-8">', 
-    '<meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">');
+  const quickWinSteps = (narrative.quick_win_steps || []).map((step: string, index: number) => `
+    <tr>
+      <td valign="top" style="padding:0 12px 12px 0;width:28px;font-size:13px;font-weight:700;color:#22C55E;">${index + 1}.</td>
+      <td style="padding:0 0 12px;font-size:14px;line-height:1.7;color:#9CA3AF;">${step}</td>
+    </tr>`).join('');
 
-  return result;
+  const resources = (narrative.learning_resources || []).map((r: any) => `
+    <tr><td style="padding:0 32px 12px;">
+      <table role="presentation" width="100%" style="border-collapse:collapse;background:#111820;border:1px solid rgba(255,255,255,0.06);border-radius:14px;">
+        <tr>
+          <td style="padding:16px;">
+            <div style="font-size:15px;font-weight:700;color:#F0EDE6;">${r.title}</div>
+            <div style="font-size:12px;color:#E5A530;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-top:4px;">${r.type || 'Resource'}${r.time_estimate ? ` · ${r.time_estimate}` : ''}</div>
+            <div style="margin-top:8px;font-size:14px;line-height:1.7;color:#9CA3AF;">${r.description}</div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title>${firstName}'s Growth Playbook</title>
+</head>
+<body style="margin:0;padding:0;background:#0B0F14;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#F0EDE6;">
+  <table role="presentation" width="100%" style="border-collapse:collapse;background:#0B0F14;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="680" style="border-collapse:collapse;max-width:680px;width:100%;background:#0B0F14;">
+          <tr><td align="center" style="padding:10px 0 28px;">
+            <div style="display:inline-block;background:rgba(229,165,48,0.10);border:1px solid rgba(229,165,48,0.2);border-radius:999px;padding:8px 16px;color:#E5A530;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">Individual Playbook</div>
+            <div style="font-family:Georgia,serif;font-size:38px;line-height:1.15;color:#F0EDE6;margin-top:18px;">${firstName}'s Growth Playbook</div>
+            <div style="font-size:15px;line-height:1.6;color:#9CA3AF;margin-top:10px;">${role}${d.industry ? ` · ${d.industry}` : ''}${d.team_size ? ` · ${d.team_size} Direct Reports` : ''}</div>
+          </td></tr>
+
+          <tr><td style="padding:0 32px 20px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;background:linear-gradient(180deg,#1A2332,#151D2B);border:1px solid rgba(229,165,48,0.16);border-radius:18px;">
+              <tr>
+                <td width="33.33%" align="center" style="padding:22px 10px;border-right:1px solid rgba(255,255,255,0.05);">
+                  <div style="font-size:34px;font-weight:800;color:#E5A530;">${eng.composite}</div>
+                  <div style="font-size:12px;color:#9CA3AF;">Engagement</div>
+                </td>
+                <td width="33.33%" align="center" style="padding:22px 10px;border-right:1px solid rgba(255,255,255,0.05);">
+                  <div style="font-size:34px;font-weight:800;color:#F0EDE6;">${eng.selfEfficacy}</div>
+                  <div style="font-size:12px;color:#9CA3AF;">Self-Efficacy</div>
+                </td>
+                <td width="33.33%" align="center" style="padding:22px 10px;">
+                  <div style="font-size:34px;font-weight:800;color:#F0EDE6;">${eng.strengthUtil}</div>
+                  <div style="font-size:12px;color:#9CA3AF;">Strength Utilization</div>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+
+          <tr><td style="padding:0 32px 24px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;background:#111820;border:1px solid rgba(229,165,48,0.14);border-radius:16px;">
+              <tr><td style="padding:22px;">
+                <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#E5A530;margin-bottom:10px;">Your North Star</div>
+                <div style="font-family:Georgia,serif;font-size:25px;line-height:1.45;color:#F0EDE6;">“${narrative.north_star_text || ''}”</div>
+                <div style="margin-top:12px;font-size:14px;line-height:1.6;color:#9CA3AF;">Confidence: <span style="color:#F59E0B;font-weight:700;">${d.confidence_score || '?'}/10</span> — ${narrative.north_star_followup || ''}</div>
+              </td></tr>
+            </table>
+          </td></tr>
+
+          <tr><td style="padding:0 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📍 Your Snapshot</td></tr>
+          <tr><td style="padding:0 32px 6px;font-size:15px;line-height:1.8;color:#9CA3AF;">${(narrative.snapshot_paragraphs || []).join('</td></tr><tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">')}</td></tr>
+          <tr><td style="padding:0 32px 24px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;background:#111820;border-radius:14px;">
+              <tr><td style="padding:14px 16px;font-size:14px;color:#9CA3AF;">Challenge Severity</td><td align="right" style="padding:14px 16px;font-size:14px;font-weight:700;color:#F0EDE6;">${d.challenge_severity || '?'}/10</td></tr>
+              <tr><td style="padding:0 16px 14px;font-size:14px;color:#9CA3AF;">Energy Level</td><td align="right" style="padding:0 16px 14px;font-size:14px;font-weight:700;color:#F0EDE6;">${d.energy_score || '?'}/10</td></tr>
+              <tr><td style="padding:0 16px 14px;font-size:14px;color:#9CA3AF;">Strength Utilization</td><td align="right" style="padding:0 16px 14px;font-size:14px;font-weight:700;color:#F0EDE6;">${d.strength_utilization || '?'}/10</td></tr>
+              <tr><td style="padding:0 16px 16px;font-size:14px;color:#9CA3AF;">Work Connection</td><td align="right" style="padding:0 16px 16px;font-size:14px;font-weight:700;color:#F0EDE6;">${d.engagement_score || '?'}/10</td></tr>
+            </table>
+          </td></tr>
+          ${sectionCta('<strong style="color:#F0EDE6;">These scores change.</strong> Inside Jericho, they\'re tracked weekly — so you can see if the work is actually moving the needle.', 'Track yours →')}
+
+          <tr><td style="padding:0 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">💎 Your Superpower</td></tr>
+          <tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">${(narrative.superpower_paragraphs || []).join('</td></tr><tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">')}</td></tr>
+          ${sectionCta('<strong style="color:#F0EDE6;">Your superpower is benched.</strong> Jericho\'s coaching briefs are designed to get you back to the work only you can do.', 'Get your first brief →')}
+
+          <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🎯 Your Growth Edge</td></tr>
+          <tr><td style="padding:0 32px 16px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;background:#111820;border-left:3px solid #E5A530;border-radius:0 12px 12px 0;">
+              <tr><td style="padding:18px 18px 12px;font-size:17px;line-height:1.7;color:#F0EDE6;">“${narrative.growth_edge_quote || ''}”</td></tr>
+              <tr><td style="padding:0 18px 18px;font-size:12px;color:#6B7280;">— Your own words</td></tr>
+            </table>
+          </td></tr>
+          <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.growth_edge_intro || ''}</td></tr>
+          ${priorities}
+          ${sectionCta('<strong style="color:#F0EDE6;">These aren\'t suggestions — they\'re loaded.</strong> Your three priorities are already queued as development targets inside Jericho.', 'See your targets →')}
+
+          <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🧬 Your Capability Map</td></tr>
+          <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">Based on your role as <strong style="color:#F0EDE6;">${role}</strong>, your challenges, and your strengths, Jericho has identified 7 core capabilities for your development.</td></tr>
+          ${capabilities}
+          <tr><td style="padding:0 32px 24px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;background:#1A2332;border:1px solid rgba(255,255,255,0.06);border-radius:12px;">
+              <tr>
+                <td style="padding:14px 16px;font-size:13px;line-height:1.6;color:#9CA3AF;">Think we got a level wrong? These are AI-estimated levels based on your conversation. Log into Jericho and self-assess under the Capabilities tab — your input overrides our estimate.</td>
+                <td align="right" style="padding:14px 16px;white-space:nowrap;"><a href="https://askjericho.com/auth" style="font-size:13px;font-weight:700;color:#E5A530;text-decoration:none;">Log in →</a></td>
+              </tr>
+            </table>
+          </td></tr>
+          ${sectionCta('<strong style="color:#F0EDE6;">This is your starting line, not your verdict.</strong> Self-assess inside Jericho and your scores update instantly — the AI adapts your plan to match.', 'Self-assess now →')}
+
+          <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">✅ Your Quick Win</td></tr>
+          <tr><td style="padding:0 32px 24px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:18px;">
+              <tr><td style="padding:20px 20px 8px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#22C55E;">This Week</td></tr>
+              <tr><td style="padding:0 20px 10px;font-size:20px;font-weight:700;color:#F0EDE6;">${narrative.quick_win_title || 'Your 7-Day Quick Win'}</td></tr>
+              <tr><td style="padding:0 20px 14px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.quick_win_intro || ''}</td></tr>
+              <tr><td style="padding:0 20px 4px;">
+                <table role="presentation" width="100%" style="border-collapse:collapse;">${quickWinSteps}</table>
+              </td></tr>
+              <tr><td style="padding:4px 20px 20px;font-size:15px;line-height:1.8;color:#F0EDE6;font-weight:700;">${narrative.quick_win_closer || ''}</td></tr>
+            </table>
+          </td></tr>
+          ${sectionCta('<strong style="color:#F0EDE6;">This is day one.</strong> Jericho generates a new quick win every week based on what you\'ve actually done — not generic advice.', 'Start your streak →')}
+
+          <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📚 Your Learning Path</td></tr>
+          <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.learning_intro || ''}</td></tr>
+          ${resources}
+          ${sectionCta('<strong style="color:#F0EDE6;">New resources drop weekly.</strong> Jericho curates them based on your progress, not a static list — and they fit your time window.', 'See what\'s next →')}
+
+          <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📊 Diagnostic Snapshot</td></tr>
+          <tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.diagnostic_commentary || ''}</td></tr>
+          <tr><td style="padding:0 32px 12px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;">
+              <tr>
+                <td style="padding:10px 12px;background:#111820;border-radius:10px;font-size:13px;color:#9CA3AF;">Burnout Risk<br><span style="display:inline-block;margin-top:4px;font-size:18px;font-weight:700;color:#F0EDE6;">${eng.burnoutRisk > 50 ? 'High' : eng.burnoutRisk > 30 ? 'Moderate' : 'Low'}</span></td>
+                <td width="8"></td>
+                <td style="padding:10px 12px;background:#111820;border-radius:10px;font-size:13px;color:#9CA3AF;">Engagement<br><span style="display:inline-block;margin-top:4px;font-size:18px;font-weight:700;color:#F0EDE6;">${eng.composite}/100</span></td>
+              </tr>
+              <tr><td height="8"></td><td></td><td></td></tr>
+              <tr>
+                <td style="padding:10px 12px;background:#111820;border-radius:10px;font-size:13px;color:#9CA3AF;">Role Strain<br><span style="display:inline-block;margin-top:4px;font-size:18px;font-weight:700;color:#F0EDE6;">${eng.roleStrain > 60 ? 'High' : eng.roleStrain > 40 ? 'Moderate' : 'Low'}</span></td>
+                <td width="8"></td>
+                <td style="padding:10px 12px;background:#111820;border-radius:10px;font-size:13px;color:#9CA3AF;">Org Support<br><span style="display:inline-block;margin-top:4px;font-size:18px;font-weight:700;color:#F0EDE6;">${eng.orgSupport >= 60 ? 'Supported' : 'Limited'}</span></td>
+              </tr>
+            </table>
+          </td></tr>
+          <tr><td style="padding:0 32px 16px;font-size:13px;line-height:1.7;color:#6B7280;">These scores are estimated from your coaching conversation. Full validated diagnostics — with trend tracking, team benchmarks, and 90-day progress monitoring — unlock inside Jericho.</td></tr>
+          ${sectionCta('<strong style="color:#F0EDE6;">These are estimates.</strong> Full validated diagnostics with trend tracking, team benchmarks, and 90-day monitoring unlock when you log in.', 'Unlock full diagnostics →')}
+
+          <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🔓 What\'s Already Waiting for You</td></tr>
+          <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">This Playbook scratched the surface. When you log in, Jericho already knows everything you told me — and it\'s built your next 90 days around it.</td></tr>
+          <tr><td style="padding:0 32px 12px;font-size:14px;line-height:1.8;color:#9CA3AF;">📐 <strong style="color:#F0EDE6;">Your first 90-Day Target is loaded:</strong> ${narrative.unlock_target || ''}</td></tr>
+          <tr><td style="padding:0 32px 12px;font-size:14px;line-height:1.8;color:#9CA3AF;">🎙️ <strong style="color:#F0EDE6;">Tomorrow's coaching brief:</strong> ${narrative.unlock_brief || ''}</td></tr>
+          <tr><td style="padding:0 32px 12px;font-size:14px;line-height:1.8;color:#9CA3AF;">📈 <strong style="color:#F0EDE6;">Tracked score:</strong> ${narrative.unlock_tracking || ''}</td></tr>
+          <tr><td style="padding:0 32px 12px;font-size:14px;line-height:1.8;color:#9CA3AF;">🧬 <strong style="color:#F0EDE6;">Capability gaps:</strong> ${narrative.unlock_capabilities || ''}</td></tr>
+          <tr><td style="padding:0 32px 12px;font-size:14px;line-height:1.8;color:#9CA3AF;">🗺️ <strong style="color:#F0EDE6;">Learning library:</strong> ${narrative.unlock_learning || ''}</td></tr>
+          <tr><td style="padding:0 32px 22px;font-size:14px;line-height:1.8;color:#9CA3AF;">💬 <strong style="color:#F0EDE6;">Full memory:</strong> ${narrative.unlock_memory || ''}</td></tr>
+
+          <tr><td style="padding:0 32px 24px;">
+            <table role="presentation" width="100%" style="border-collapse:collapse;background:linear-gradient(135deg,#1A2332,#111820);border:1px solid rgba(229,165,48,0.12);border-radius:18px;">
+              <tr><td align="center" style="padding:24px 16px 10px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#E5A530;">The Math</td></tr>
+              <tr>
+                <td align="center" style="padding:0 16px 24px;">
+                  <table role="presentation" width="100%" style="border-collapse:collapse;">
+                    <tr>
+                      <td width="33.33%" align="center" style="padding:10px 8px;">
+                        <div style="font-family:Georgia,serif;font-size:34px;color:#F0EDE6;">${narrative.quick_win_hours || '?'}</div>
+                        <div style="font-size:13px;line-height:1.5;color:#9CA3AF;">hours back this week if your Quick Win lands</div>
+                      </td>
+                      <td width="33.33%" align="center" style="padding:10px 8px;">
+                        <div style="font-family:Georgia,serif;font-size:34px;color:#F0EDE6;">7</div>
+                        <div style="font-size:13px;line-height:1.5;color:#9CA3AF;">capabilities mapped with clear development paths</div>
+                      </td>
+                      <td width="33.33%" align="center" style="padding:10px 8px;">
+                        <div style="font-family:Georgia,serif;font-size:34px;color:#F0EDE6;">90</div>
+                        <div style="font-size:13px;line-height:1.5;color:#9CA3AF;">days to go from ${d.confidence_score || '?'}/10 confidence to making your North Star inevitable</div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+
+          <tr><td style="padding:8px 32px 0;" align="center">
+            <div style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#E5A530;margin-bottom:10px;">This is Stage 1. You've seen the snapshot.</div>
+            <div style="font-family:Georgia,serif;font-size:32px;line-height:1.2;color:#F0EDE6;margin-bottom:10px;">Ready to see the full picture?</div>
+            <div style="font-size:15px;line-height:1.8;color:#9CA3AF;max-width:560px;margin:0 auto 20px;">Your account is live. Your capabilities are loaded. Your first coaching brief drops tomorrow morning. The only thing missing is you.</div>
+            <a href="https://askjericho.com/auth" style="display:inline-block;background:linear-gradient(135deg,#E5A530,#C4882A);color:#0B0F14;text-decoration:none;font-size:16px;font-weight:800;padding:16px 32px;border-radius:14px;">Log In to Jericho</a>
+            <div style="font-size:12px;color:#6B7280;margin-top:14px;">Your login credentials are in your inbox · askjericho.com</div>
+          </td></tr>
+
+          <tr><td style="padding:28px 32px 12px;" align="center">
+            <div style="font-family:Georgia,serif;font-size:22px;line-height:1.6;color:#F5D78E;max-width:560px;">${narrative.closing_statement || ''}</div>
+          </td></tr>
+
+          <tr><td style="padding:24px 32px 8px;border-top:1px solid rgba(255,255,255,0.05);" align="center">
+            <div style="font-size:16px;font-weight:700;color:#F0EDE6;">Jericho</div>
+            <div style="font-size:12px;line-height:1.7;color:#6B7280;margin-top:8px;">Powered by The Momentum Company · Confidential</div>
+            <div style="font-size:12px;line-height:1.7;color:#6B7280;">Individual data is never shared with employers at the individual level.</div>
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 // ============================================================================
