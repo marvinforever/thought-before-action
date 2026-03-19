@@ -234,9 +234,15 @@ Deno.serve(async (req) => {
         const openClawController = new AbortController();
         const openClawTimeout = setTimeout(() => openClawController.abort(), 10000);
 
+        const gatewayToken = Deno.env.get('OPENCLAW_GATEWAY_TOKEN') || '';
+        const openClawHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (gatewayToken) {
+          openClawHeaders['Authorization'] = `Bearer ${gatewayToken}`;
+        }
+
         const openClawResponse = await fetch(openClawUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: openClawHeaders,
           body: JSON.stringify({
             session_id: sessionId,
             messages,
