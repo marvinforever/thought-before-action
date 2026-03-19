@@ -1416,12 +1416,12 @@ Deno.serve(async (req) => {
         .eq('session_token', sessionToken);
     }
 
-    // STEP 4d: Email the full Playbook (email-safe version)
+    // STEP 4d: Email the full Playbook (true inbox-safe HTML)
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (RESEND_API_KEY && extractedData.email) {
       try {
         const firstName = extractedData.first_name || 'there';
-        const emailSafeHtml = convertToEmailSafeHtml(playbookHtml);
+        const emailHtml = buildFullPlaybookEmail(extractedData, engagementScores, selectedCapabilities, narrative);
 
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
@@ -1433,7 +1433,7 @@ Deno.serve(async (req) => {
             from: 'Jericho <jericho@sender.askjericho.com>',
             to: [extractedData.email],
             subject: `${firstName}, your Playbook is ready 🎯`,
-            html: emailSafeHtml,
+            html: emailHtml,
           }),
         });
         console.log(`[generate-individual-playbook] Full playbook email sent to ${extractedData.email}`);
