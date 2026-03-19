@@ -100,6 +100,9 @@ class MarkerParser {
   }
 
   private emitText(text: string) {
+    // Strip OpenClaw <think>...</think> reasoning blocks
+    text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '');
+    if (!text.length) return;
     this.controller.enqueue(
       this.encoder.encode(`data: ${JSON.stringify({ type: "text", content: text })}\n\n`)
     );
