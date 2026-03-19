@@ -16,6 +16,7 @@ class MarkerParser {
   private sessionToken: string;
   private supabase: any;
   private pendingPromises: Promise<void>[] = [];
+  private insideThink = false;
 
   constructor(encoder: TextEncoder, controller: ReadableStreamDefaultController, sessionToken: string, supabase: any) {
     this.encoder = encoder;
@@ -41,7 +42,11 @@ class MarkerParser {
 
   /** Flush remaining buffer at end of stream */
   flush() {
-    // If there's a partial marker that never closed, just emit it as text
+    if (this.insideThink) {
+      this.buffer = '';
+      this.insideThink = false;
+      return;
+    }
     if (this.buffer.length) {
       const cleaned = this.buffer.replace(/<!--[\s\S]*$/g, '');
       if (cleaned.length) {
@@ -52,8 +57,49 @@ class MarkerParser {
   }
 
   private processBuffer() {
-    // Keep processing as long as we find complete markers
     while (true) {
+      // ── Handle <think> blocks (may span multiple chunks) ──
+      if (this.insideThink) {
+        const closeIdx = this.buffer.indexOf('</think>');
+        if (closeIdx !== -1) {
+          this.buffer = this.buffer.slice(closeIdx + 8).replace(/^\s+/, '');
+          this.insideThink = false;
+          continue;
+        }
+        this.buffer = '';
+        return;
+      }
+
+      // Check for <think> opening tag anywhere in buffer
+      const thinkOpenIdx = this.buffer.indexOf('<think');
+      if (thinkOpenIdx !== -1) {
+        const textBefore = this.buffer.slice(0, thinkOpenIdx);
+        if (textBefore.length) {
+          this.emitText(textBefore);
+        }
+        const closeIdx = this.buffer.indexOf('</think>', thinkOpenIdx);
+        if (closeIdx !== -1) {
+          this.buffer = this.buffer.slice(closeIdx + 8).replace(/^\s+/, '');
+          continue;
+        }
+        this.insideThink = true;
+        this.buffer = '';
+        return;
+      }
+
+      // Check for partial "<think" at end of buffer
+      for (let i = 1; i < 7 && i <= this.buffer.length; i++) {
+        const tail = this.buffer.slice(-i);
+        if ('<think>'.startsWith(tail) && tail.length === i) {
+          const textBefore = this.buffer.slice(0, this.buffer.length - i);
+          if (textBefore.length) {
+            this.emitText(textBefore);
+          }
+          this.buffer = tail;
+          return;
+        }
+      }
+
       // Check for any complete marker <!--TYPE:...-->
       const markerMatch = this.buffer.match(/<!--(EXTRACTED_DATA|INTERACTIVE|PROGRESS|GENERATION|ONBOARDING_COMPLETE):([\s\S]*?)-->/);
 
@@ -61,18 +107,15 @@ class MarkerParser {
         const markerStart = markerMatch.index!;
         const markerEnd = markerStart + markerMatch[0].length;
 
-        // Emit any text BEFORE this marker
         const textBefore = this.buffer.slice(0, markerStart);
         if (textBefore.length) {
           this.emitText(textBefore);
         }
 
-        // Process the marker itself
         const markerType = markerMatch[1];
         const markerPayload = markerMatch[2];
         this.handleMarker(markerType, markerPayload);
 
-        // Remove everything up to and including the marker
         this.buffer = this.buffer.slice(markerEnd);
         continue;
       }
@@ -80,13 +123,11 @@ class MarkerParser {
       // No complete marker found. Check if there's a partial marker starting
       const partialIdx = this.buffer.indexOf('<!--');
       if (partialIdx !== -1) {
-        // Emit text before the partial marker, hold the rest
         const textBefore = this.buffer.slice(0, partialIdx);
         if (textBefore.length) {
           this.emitText(textBefore);
         }
         this.buffer = this.buffer.slice(partialIdx);
-        // Wait for more data to complete the marker
         return;
       }
 
@@ -100,9 +141,13 @@ class MarkerParser {
   }
 
   private emitText(text: string) {
-    // Strip OpenClaw <think>...</think> reasoning blocks
+    // Strip any complete <think>...</think> blocks
     text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '');
-    if (!text.length) return;
+    // Strip leaked tags like </final>, <final>, </think>, etc.
+    text = text.replace(/<\/?(?:think|final)[^>]*>/gi, '');
+    // Strip standalone "think" remnant at start from partial tag splits
+    text = text.replace(/^think\b[^<]*/i, '');
+    if (!text.trim().length) return;
     this.controller.enqueue(
       this.encoder.encode(`data: ${JSON.stringify({ type: "text", content: text })}\n\n`)
     );
