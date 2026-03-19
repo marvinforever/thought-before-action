@@ -641,6 +641,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
 .disagree-cta .text{flex:1}
 .disagree-cta .text p{font-size:.82rem;color:var(--text2);line-height:1.5;margin:0}
 .disagree-cta .text a{color:var(--gold);text-decoration:none;font-weight:600}
+.section-cta{display:flex;align-items:center;gap:.75rem;background:linear-gradient(135deg,rgba(229,165,48,.04),rgba(229,165,48,.02));border:1px solid rgba(229,165,48,.12);border-radius:12px;padding:.85rem 1.25rem;margin-top:1.25rem}
+.section-cta .cta-text{flex:1;font-size:.82rem;color:var(--text2);line-height:1.5}
+.section-cta .cta-text strong{color:var(--text);font-weight:600}
+.section-cta .cta-link{flex-shrink:0;font-size:.78rem;font-weight:700;color:var(--gold);text-decoration:none;white-space:nowrap}
+.section-cta .cta-link:hover{text-decoration:underline}
 @media(max-width:600px){
   .cover h1{font-size:2rem}
   .score-grid{grid-template-columns:1fr}
