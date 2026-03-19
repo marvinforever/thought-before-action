@@ -44,15 +44,18 @@ Deno.serve(async (req) => {
     if (authError) {
       if (authError.code === "email_exists") {
         console.log(`[try-jericho-onboard] User ${email} already exists, looking up profile`);
-        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-        const existingUser = existingUsers?.users?.find(
-          (u: any) => u.email?.toLowerCase() === email.toLowerCase().trim()
-        );
-        if (!existingUser) {
-          throw new Error("User exists in auth but could not be found — please contact support.");
+        // Look up via profiles table — listUsers() only returns first page and misses users in large projects
+        const { data: existingProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("id")
+          .eq("email", email.toLowerCase().trim())
+          .limit(1)
+          .maybeSingle();
+        if (!existingProfile) {
+          throw new Error("User exists in auth but profile not found — please contact support.");
         }
-        userId = existingUser.id;
-        console.log(`[try-jericho-onboard] Found existing user: ${userId}`);
+        userId = existingProfile.id;
+        console.log(`[try-jericho-onboard] Found existing user via profile: ${userId}`);
       } else {
         throw authError;
       }
