@@ -738,6 +738,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
         <div class="metric-value ${cls(connectionPct)}">${d.engagement_score || '?'}/10</div>
       </div>
     </div>
+    <div class="section-cta">
+      <div class="cta-text"><strong>These scores change.</strong> Inside Jericho, they're tracked weekly — so you can see if the work is actually moving the needle.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Track yours →</a>
+    </div>
   </div>
 
   ${narrative.burnout_alert ? `<div class="engagement-alert">
