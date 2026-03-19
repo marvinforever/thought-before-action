@@ -48,26 +48,27 @@ function getOrCreateSessionToken(): string {
 function PlaybookProgressBar({ percent, label }: { percent: number; label: string }) {
   if (percent <= 0) return null;
   return (
-    <div className="w-full px-4 py-2">
-      <div className="max-w-2xl mx-auto">
-        <div className="h-[3px] bg-white/10 rounded-full overflow-hidden">
+    <div className="w-full px-4 py-1.5">
+      <div className="max-w-2xl mx-auto flex items-center gap-3">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={label}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-xs text-white/40 whitespace-nowrap shrink-0"
+          >
+            {label}
+          </motion.p>
+        </AnimatePresence>
+        <div className="flex-1 h-[3px] bg-white/10 rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-accent/80 to-accent rounded-full"
             animate={{ width: `${percent}%` }}
             transition={{ type: "spring", stiffness: 50, damping: 20 }}
           />
         </div>
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={label}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            className="text-xs text-white/40 mt-1.5 text-center"
-          >
-            {label}
-          </motion.p>
-        </AnimatePresence>
+        <span className="text-xs text-white/30 shrink-0">{percent}%</span>
       </div>
     </div>
   );
@@ -623,8 +624,7 @@ export default function TryJericho() {
               transition={{ duration: 0.4 }}
               className="flex flex-col min-h-screen pt-16"
             >
-              {/* Progress Bar */}
-              <PlaybookProgressBar percent={progressPercent} label={progressLabel} />
+              {/* Progress bar moved below input */}
 
               {/* Report Ready Banner */}
               <AnimatePresence>
@@ -755,10 +755,10 @@ export default function TryJericho() {
               {generating ? (
                 <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => window.location.href = "/auth"} />
               ) : (
-                <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm p-4">
+                <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
                   <form
                     onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                    className="max-w-2xl mx-auto flex gap-2"
+                    className="max-w-2xl mx-auto flex gap-2 p-4 pb-2"
                   >
                     <Input
                       ref={inputRef}
@@ -777,6 +777,7 @@ export default function TryJericho() {
                       <Send className="w-4 h-4" />
                     </Button>
                   </form>
+                  <PlaybookProgressBar percent={progressPercent} label={progressLabel} />
                 </div>
               )}
             </motion.div>
