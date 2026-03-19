@@ -394,12 +394,6 @@ export default function MyGrowthPlan() {
         contextType={jerichoContextType}
         taskDetails={jerichoTaskDetails}
       />
-
-      {/* Request Meeting Dialog */}
-      <RequestMeetingDialog
-        open={requestMeetingOpen}
-        onOpenChange={setRequestMeetingOpen}
-      />
     </div>
   );
 }
