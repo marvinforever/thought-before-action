@@ -28,6 +28,7 @@ import { AIProductivityTips } from "@/components/AIProductivityTips";
 import { JerichoChat } from "@/components/JerichoChat";
 import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
 import { DownloadGrowthPlan } from "@/components/DownloadGrowthPlan";
+import { GrowthPlaybookBanner } from "@/components/GrowthPlaybookBanner";
 
 interface AITask {
   task: string;
@@ -174,6 +175,9 @@ export default function MyGrowthPlan() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Growth Playbook Banner - prominent CTA */}
+      <GrowthPlaybookBanner />
+
       {/* Telegram Connect CTA */}
       <TelegramConnectCTA variant="compact" />
 
