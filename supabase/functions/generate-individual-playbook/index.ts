@@ -1150,11 +1150,10 @@ Deno.serve(async (req) => {
         .eq('session_token', sessionToken);
     }
 
-    // STEP 4d: Email the Playbook teaser
+    // STEP 4d: Email the full Playbook
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (RESEND_API_KEY && extractedData.email) {
       try {
-        const emailHtml = buildPlaybookEmail(extractedData, engagementScores, narrative);
         const firstName = extractedData.first_name || 'there';
 
         await fetch('https://api.resend.com/emails', {
@@ -1167,10 +1166,10 @@ Deno.serve(async (req) => {
             from: 'Jericho <jericho@sender.askjericho.com>',
             to: [extractedData.email],
             subject: `${firstName}, your Playbook is ready 🎯`,
-            html: emailHtml,
+            html: playbookHtml,
           }),
         });
-        console.log(`[generate-individual-playbook] Playbook email sent to ${extractedData.email}`);
+        console.log(`[generate-individual-playbook] Full playbook email sent to ${extractedData.email}`);
 
         // Mark delivery
         await supabase.from('leadership_reports')
