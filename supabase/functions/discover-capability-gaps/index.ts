@@ -17,7 +17,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { company_id } = await req.json();
+    const body = await req.json();
+    const { company_id } = body;
 
     if (!company_id) {
       return new Response(
