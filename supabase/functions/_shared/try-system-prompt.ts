@@ -87,7 +87,7 @@ Close: "Got it. Building your Playbook now, [Name]. This is going to be good."
 Emit: <!--PROGRESS:{"percent":95,"label":"Almost there…"}-->
 
 Then collect email for delivery:
-"Where should I send your Playbook? Drop your email and I'll have it in your inbox shortly."
+"Where should I send your Playbook? Drop your full name and email and I'll have it in your inbox shortly."
 
 When they provide email, emit:
 <!--GENERATION:{"status":"started","label":"Building your Playbook…"}-->
