@@ -281,6 +281,38 @@ export default function TryJericho() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const turnCountRef = useRef(0);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionStartRef = useRef<number>(0);
+  const lastPhaseRef = useRef(0);
+
+  // ── Track page view on mount ──
+  useEffect(() => {
+    trackEvent("try_page_viewed", {
+      referrer: document.referrer || "direct",
+      variant: getVariant("try_opening_variant"),
+    });
+  }, []);
+
+  // ── Idle detection: fire event if user goes 2 min without action ──
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      if (started && !generating && !playbookReady) {
+        trackEvent("try_session_idle", {
+          turn_count: turnCountRef.current,
+          last_phase_percent: lastPhaseRef.current,
+          session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+        });
+      }
+    }, 120_000); // 2 minutes
+  }, [started, generating, playbookReady]);
+
+  // Reset idle timer on every message or interaction
+  useEffect(() => {
+    if (started) resetIdleTimer();
+    return () => { if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
+  }, [messages, started, resetIdleTimer]);
 
   const scrollToBottom = useCallback(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
