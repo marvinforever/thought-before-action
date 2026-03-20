@@ -39,7 +39,7 @@ function getDaysRemaining(quarter: string, year: number): number {
   return Math.max(0, Math.ceil((quarterEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-export async function gatherUserContext(supabase: any, profileId: string): Promise<UserContext> {
+export async function gatherUserContext(supabase: any, profileId: string, userTimezone: string = 'America/New_York'): Promise<UserContext> {
   const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const appUrl = 'https://askjericho.com';
