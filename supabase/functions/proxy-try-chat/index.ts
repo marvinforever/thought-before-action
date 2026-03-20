@@ -398,8 +398,20 @@ Deno.serve(async (req) => {
               parser.flush();
 
               if (buffer.trim()) {
-                // Route remaining buffer through parser too
-                parser.feed(buffer);
+                // Check if remaining buffer is a complete JSON chat.completion
+                try {
+                  const maybeJson = JSON.parse(buffer);
+                  const content = maybeJson.choices?.[0]?.message?.content
+                    ?? maybeJson.choices?.[0]?.delta?.content
+                    ?? maybeJson.content
+                    ?? '';
+                  if (content) {
+                    accumulatedAssistant += content;
+                    parser.feed(content);
+                  }
+                } catch {
+                  parser.feed(buffer);
+                }
                 parser.flush();
               }
 
