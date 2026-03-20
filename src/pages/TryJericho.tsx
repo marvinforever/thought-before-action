@@ -815,7 +815,7 @@ export default function TryJericho() {
                             </div>
                           ) : (
                             <div className="prose prose-sm prose-invert max-w-none [&>p]:m-0 [&>p:not(:last-child)]:mb-2">
-                              <ReactMarkdown>{msg.text.replace(/\[INTERACTIVE:[^\]]*\]/g, '').trim()}</ReactMarkdown>
+                              <ReactMarkdown>{msg.text.replace(/<!--[\s\S]*?-->/g, '').replace(/\[INTERACTIVE:[^\]]*\]/g, '').replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '').replace(/<\d+[^>]*-->/g, '').trim()}</ReactMarkdown>
                             </div>
                           )}
                         </div>
