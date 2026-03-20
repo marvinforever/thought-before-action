@@ -353,6 +353,12 @@ export default function TryJericho() {
   };
 
   const handleInteractiveSelect = async (id: string, value: string | number) => {
+    trackEvent("try_interactive_answered", {
+      element_id: id,
+      value,
+      turn: turnCountRef.current,
+      session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+    });
     // Mark answered
     setMessages((prev) =>
       prev.map((m) =>
