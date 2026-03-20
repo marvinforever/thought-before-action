@@ -11,7 +11,93 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, fullName, role, phone, company, companyId, challenge, password: providedPassword, diagnosticData } = await req.json();
+    const { email, fullName, role, phone, company, companyId, challenge, password: providedPassword, diagnosticData, channelPreference, profileId: existingProfileId } = await req.json();
+
+    // If this is a channel-preference-only update (post-playbook), handle it separately
+    if (existingProfileId && channelPreference) {
+      console.log(`[try-jericho-onboard] Updating channel preference for ${existingProfileId}: ${channelPreference}`);
+      
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      );
+
+      // Save channel preference
+      await supabaseAdmin.from("profiles").update({ preferred_channel: channelPreference, phone: phone || undefined }).eq("id", existingProfileId);
+
+      // Get profile info for emails
+      const { data: profile } = await supabaseAdmin.from("profiles").select("email, full_name").eq("id", existingProfileId).single();
+      if (!profile) throw new Error("Profile not found");
+
+      const firstName = profile.full_name?.split(" ")[0] || "there";
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+      if (channelPreference === "web") {
+        // Send magic link
+        await supabaseAdmin.auth.admin.generateLink({
+          type: "magiclink",
+          email: profile.email,
+          options: { redirectTo: "https://askjericho.com/dashboard" },
+        });
+        // Also send a branded email with magic link instructions
+        if (RESEND_API_KEY) {
+          const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+            type: "magiclink",
+            email: profile.email,
+            options: { redirectTo: "https://askjericho.com/dashboard" },
+          });
+          const magicLink = linkData?.properties?.action_link || "https://askjericho.com/auth";
+          await sendChannelEmail(RESEND_API_KEY, profile.email, firstName, "web", magicLink);
+        }
+      } else if (channelPreference === "email") {
+        // Send reply-to-coach email
+        if (RESEND_API_KEY) {
+          const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+            type: "magiclink",
+            email: profile.email,
+            options: { redirectTo: "https://askjericho.com/dashboard" },
+          });
+          const magicLink = linkData?.properties?.action_link || "https://askjericho.com/auth";
+          await sendChannelEmail(RESEND_API_KEY, profile.email, firstName, "email", magicLink);
+        }
+      } else if (channelPreference === "sms") {
+        // Send SMS
+        try {
+          const smsPhone = phone || undefined;
+          if (smsPhone) {
+            await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                to: smsPhone,
+                body: `Hey ${firstName}, it's Jericho! 🚀 Your Growth Playbook is in your inbox. Text me anytime for coaching — I'm here whenever you need me.`,
+              }),
+            });
+          }
+        } catch (smsErr) {
+          console.error("SMS send error:", smsErr);
+        }
+        // Also send email with playbook link
+        if (RESEND_API_KEY) {
+          const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+            type: "magiclink",
+            email: profile.email,
+            options: { redirectTo: "https://askjericho.com/dashboard" },
+          });
+          const magicLink = linkData?.properties?.action_link || "https://askjericho.com/auth";
+          await sendChannelEmail(RESEND_API_KEY, profile.email, firstName, "sms", magicLink);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, channelUpdated: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!email) {
       throw new Error("Email is required");
