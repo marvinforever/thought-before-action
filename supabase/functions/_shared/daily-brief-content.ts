@@ -135,23 +135,21 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
 
       if (calResponse.ok) {
         const calData = await calResponse.json();
-        // Get today's date in Eastern time for proper filtering
-        const easternNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-        const todayEastern = easternNow.toISOString().split('T')[0];
+        // Get today's date in user's timezone for proper filtering
+        const userNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
+        const todayUser = userNow.toISOString().split('T')[0];
         
         calendarEvents = (calData.events || [])
           .filter((e: any) => {
             const isAllDay = !e.start?.dateTime && !!e.start?.date;
             if (isAllDay) {
-              // All-day events: start.date is YYYY-MM-DD, check if today falls in range
               const startDate = e.start.date;
               const endDate = e.end?.date || startDate;
-              return startDate <= todayEastern && todayEastern < endDate;
+              return startDate <= todayUser && todayUser < endDate;
             } else {
-              // Timed events: convert to Eastern and check date
-              const eventEastern = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: 'America/New_York' }));
-              const eventDateStr = eventEastern.toISOString().split('T')[0];
-              return eventDateStr === todayEastern;
+              const eventLocal = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: userTimezone }));
+              const eventDateStr = eventLocal.toISOString().split('T')[0];
+              return eventDateStr === todayUser;
             }
           })
           .map((e: any) => {
