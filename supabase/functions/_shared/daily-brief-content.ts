@@ -230,6 +230,15 @@ ${context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]`).jo
 
 Capabilities: ${context.topCapabilities.map(c => `${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join(', ') || 'None'}
 
+TODAY'S CALENDAR (${context.calendarEvents.length} events):
+${context.calendarEvents.length > 0
+  ? context.calendarEvents.map(e => {
+      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'All day';
+      const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
+      return `- ${start}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
+    }).join('\n')
+  : 'No calendar connected or no events today'}
+
 ${context.dailyChallenge ? `Challenge: ${context.dailyChallenge}` : ''}
 ${context.recentAchievements.length > 0 ? `Recent wins: ${context.recentAchievements.join(', ')}` : ''}`;
 

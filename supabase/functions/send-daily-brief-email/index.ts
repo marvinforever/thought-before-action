@@ -610,6 +610,48 @@ serve(async (req) => {
       dueDate: t.due_date
     }));
 
+    // Fetch today's calendar events if Google is connected
+    let calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[] = [];
+    try {
+      const { data: googleIntegration } = await supabase
+        .from('user_integrations')
+        .select('id, sync_status')
+        .eq('profile_id', profileId)
+        .eq('provider', 'google')
+        .eq('sync_status', 'connected')
+        .maybeSingle();
+
+      if (googleIntegration) {
+        const calResponse = await fetch(`${supabaseUrl}/functions/v1/google-calendar-read`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: profileId }),
+        });
+
+        if (calResponse.ok) {
+          const calData = await calResponse.json();
+          calendarEvents = (calData.events || [])
+            .filter((e: any) => {
+              const eventDate = (e.start?.dateTime || e.start?.date || '').split('T')[0];
+              return eventDate === today;
+            })
+            .map((e: any) => ({
+              title: e.summary || 'Untitled',
+              startTime: e.start?.dateTime || e.start?.date || '',
+              endTime: e.end?.dateTime || e.end?.date || '',
+              attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
+              location: e.location || null,
+            }))
+            .slice(0, 10);
+        }
+      }
+    } catch (calErr) {
+      console.error('[send-daily-brief-email] Calendar fetch error (non-fatal):', calErr);
+    }
+
     // Build context for AI
     const userContext: UserContext = {
       firstName,
@@ -641,7 +683,8 @@ serve(async (req) => {
       totalCapabilities,
       focusCapability,
       appUrl,
-      priorityTasks
+      priorityTasks,
+      calendarEvents,
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {
