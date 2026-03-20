@@ -32,6 +32,17 @@ function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function sanitizeTryMessage(text: string): string {
+  return text
+    .replace(/<!--(?:[\s\S]*?)-->/g, "")
+    .replace(/\[INTERACTIVE:[^\]]*\]/g, "")
+    .replace(/<[^\n>]{0,300}(?:"label"|PROGRESS|INTERACTIVE)[^\n>]*-->/g, "")
+    .replace(/<\d+[^\n>]*-->/g, "")
+    .replace(/<,\s*"label"[^\n>]*-->/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // ── Session token management via cookie ──
 function getOrCreateSessionToken(): string {
   const COOKIE_NAME = "jericho_try_session";
@@ -568,11 +579,7 @@ export default function TryJericho() {
                 }
                 if (typeof data.content === "string" && data.content.length) {
                   accumulated += data.content;
-                  const display = accumulated
-                    .replace(/<!--[\s\S]*?-->/g, '')
-                    .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
-                    .replace(/<\d+[^>]*-->/g, '')
-                    .trim();
+                  const display = sanitizeTryMessage(accumulated);
                   setMessages((prev) => {
                     const next = [...prev];
                     const lastIdx = next.length - 1;
@@ -666,11 +673,7 @@ export default function TryJericho() {
                 const next = [...prev];
                 const lastIdx = next.length - 1;
                 if (next[lastIdx]?.role === "jericho") {
-                  next[lastIdx] = { ...next[lastIdx], text: accumulated
-                    .replace(/<!--[\s\S]*?-->/g, '')
-                    .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
-                    .replace(/<\d+[^>]*-->/g, '')
-                    .trim() };
+                    next[lastIdx] = { ...next[lastIdx], text: sanitizeTryMessage(accumulated) };
                 }
                 return next;
               });
@@ -914,7 +917,7 @@ export default function TryJericho() {
                             </div>
                           ) : (
                             <div className="prose prose-sm prose-invert max-w-none [&>p]:m-0 [&>p:not(:last-child)]:mb-2">
-                              <ReactMarkdown>{msg.text.replace(/<!--[\s\S]*?-->/g, '').replace(/\[INTERACTIVE:[^\]]*\]/g, '').replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '').replace(/<\d+[^>]*-->/g, '').trim()}</ReactMarkdown>
+                              <ReactMarkdown>{sanitizeTryMessage(msg.text)}</ReactMarkdown>
                             </div>
                           )}
                         </div>
