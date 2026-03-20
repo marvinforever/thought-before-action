@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailIntent {
-  type: 'habit_checkin' | 'goal_update' | 'benchmark_update' | 'challenge_help' | 'sales_prep' | 'general_question' | 'update_report' | 'recognition';
+  type: 'habit_checkin' | 'goal_update' | 'benchmark_update' | 'challenge_help' | 'sales_prep' | 'general_question' | 'update_report' | 'recognition' | 'daily_reflection';
   confidence: number;
   details: Record<string, any>;
 }

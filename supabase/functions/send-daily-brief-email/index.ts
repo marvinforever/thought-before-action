@@ -840,6 +840,13 @@ serve(async (req) => {
       </table>
     </div>
 
+    <!-- Quick Reflect CTA -->
+    <div style="margin: 16px 16px 0 16px; background: linear-gradient(180deg, #1a2f47 0%, #132238 100%); border-radius: 16px; border: 1px solid #2a4a6f; padding: 24px 32px; text-align: center;">
+      <p style="color: #d4a855; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Quick Reflect</p>
+      <p style="color: #ffffff; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">Hit reply and answer the reflection question above — one sentence is plenty.</p>
+      <p style="color: #8892a8; font-size: 13px; margin: 0;">Just hit reply and tell me. I read every response.</p>
+    </div>
+
     <!-- Footer -->
     <div style="padding: 32px; text-align: center;">
       <p style="color: #8892a8; font-size: 13px; margin: 0 0 16px 0;">
