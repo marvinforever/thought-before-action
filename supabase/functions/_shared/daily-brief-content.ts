@@ -199,12 +199,13 @@ Voice: Warm, encouraging, practical, conversational, data-informed.
 
 Structure:
 1. Warm greeting
-2. Top 3-5 priorities for today (from their task list)
-3. Quick 90-day goal status
-4. Habit tracker summary
-5. Today's learning focus (specific capability name)
-6. Daily challenge
-7. Motivating sign-off
+2. Today's schedule snapshot (from calendar, if available — mention key meetings and who they're with)
+3. Top 3-5 priorities for today (from their task list)
+4. Quick 90-day goal status
+5. Habit tracker summary
+6. Today's learning focus (specific capability name)
+7. Daily challenge
+8. Motivating sign-off
 
 ${formatInstruction}
 ${linkInstruction}
