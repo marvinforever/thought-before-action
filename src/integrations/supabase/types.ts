@@ -4733,6 +4733,7 @@ export type Database = {
           phone: string | null
           phone_verified: boolean | null
           podcast_duration_minutes: number | null
+          preferred_channel: string | null
           registration_complete: boolean | null
           role: string | null
           sms_opted_in: boolean | null
@@ -4760,6 +4761,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean | null
           podcast_duration_minutes?: number | null
+          preferred_channel?: string | null
           registration_complete?: boolean | null
           role?: string | null
           sms_opted_in?: boolean | null
@@ -4787,6 +4789,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean | null
           podcast_duration_minutes?: number | null
+          preferred_channel?: string | null
           registration_complete?: boolean | null
           role?: string | null
           sms_opted_in?: boolean | null

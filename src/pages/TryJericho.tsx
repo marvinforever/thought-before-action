@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, ArrowRight, Loader2, Download, Sparkles } from "lucide-react";
+import { MessageSquare, Send, ArrowRight, Loader2, Download, Sparkles, Smartphone, Mail, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
@@ -178,8 +178,98 @@ function YesNoInput({
   );
 }
 
+// ── Channel Selection ──
+type ChannelOption = "sms" | "email" | "web";
+
+function ChannelPicker({ onSelect }: { onSelect: (channel: ChannelOption, phone?: string) => void }) {
+  const [selected, setSelected] = useState<ChannelOption | null>(null);
+  const [phone, setPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const channels: { key: ChannelOption; icon: typeof Smartphone; label: string; desc: string }[] = [
+    { key: "sms", icon: Smartphone, label: "Text me", desc: "Get daily coaching via text message" },
+    { key: "email", icon: Mail, label: "Email reply", desc: "Reply to Jericho's emails to keep coaching" },
+    { key: "web", icon: Monitor, label: "Web app", desc: "Access the full dashboard with a magic link" },
+  ];
+
+  const handleConfirm = async () => {
+    if (!selected) return;
+    if (selected === "sms" && !phone.trim()) return;
+    setSubmitting(true);
+    await onSelect(selected, selected === "sms" ? phone.trim() : undefined);
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-base font-semibold text-primary-foreground">How do you want to keep coaching with Jericho?</h3>
+      <div className="space-y-2">
+        {channels.map((ch) => {
+          const Icon = ch.icon;
+          const isActive = selected === ch.key;
+          return (
+            <button
+              key={ch.key}
+              onClick={() => setSelected(ch.key)}
+              className={`w-full text-left px-4 py-3.5 rounded-xl flex items-center gap-3 transition-all ${
+                isActive
+                  ? "bg-accent/20 border border-accent/40 ring-1 ring-accent/30"
+                  : "bg-white/5 border border-white/10 hover:bg-white/10"
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isActive ? "bg-accent text-accent-foreground" : "bg-white/10 text-white/50"}`}>
+                <Icon className="w-4.5 h-4.5" />
+              </div>
+              <div>
+                <p className={`text-sm font-medium ${isActive ? "text-accent" : "text-white/80"}`}>{ch.label}</p>
+                <p className="text-xs text-white/40">{ch.desc}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <AnimatePresence>
+        {selected === "sms" && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Your phone number"
+              type="tel"
+              className="bg-white/10 border-white/20 text-primary-foreground placeholder:text-white/40 focus-visible:ring-accent"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {selected && (
+        <Button
+          onClick={handleConfirm}
+          disabled={submitting || (selected === "sms" && !phone.trim())}
+          className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+        >
+          {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          {selected === "sms" ? "Send me a text" : selected === "email" ? "Send me an email" : "Send me a magic link"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 // ── Playbook Generating Animation ──
-function PlaybookGenerating({ ready, onViewPlaybook }: { ready: boolean; onViewPlaybook: () => void }) {
+function PlaybookGenerating({
+  ready,
+  onChannelSelect,
+  channelChosen,
+}: {
+  ready: boolean;
+  onChannelSelect: (channel: ChannelOption, phone?: string) => void;
+  channelChosen: boolean;
+}) {
   const [statusIdx, setStatusIdx] = useState(0);
   const statuses = [
     "Analyzing your strengths…",
@@ -220,6 +310,18 @@ function PlaybookGenerating({ ready, onViewPlaybook }: { ready: boolean; onViewP
               </motion.p>
             </AnimatePresence>
           </>
+        ) : channelChosen ? (
+          <>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center mx-auto"
+            >
+              <span className="text-2xl">✅</span>
+            </motion.div>
+            <h3 className="text-lg font-semibold text-primary-foreground">You're all set!</h3>
+            <p className="text-sm text-white/50">Check your inbox — your Playbook and next steps are on the way.</p>
+          </>
         ) : (
           <>
             <motion.div
@@ -230,14 +332,10 @@ function PlaybookGenerating({ ready, onViewPlaybook }: { ready: boolean; onViewP
               <span className="text-2xl">🎉</span>
             </motion.div>
             <h3 className="text-lg font-semibold text-primary-foreground">Your Playbook is ready!</h3>
-            <p className="text-sm text-white/50">Check your email — we've sent your login details.</p>
-            <Button
-              onClick={onViewPlaybook}
-              className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Log In to View Your Playbook
-            </Button>
+            <p className="text-sm text-white/50 mb-2">One more thing — how do you want to keep going?</p>
+            <div className="text-left">
+              <ChannelPicker onSelect={onChannelSelect} />
+            </div>
           </>
         )}
       </div>
@@ -278,6 +376,7 @@ export default function TryJericho() {
   const [progressLabel, setProgressLabel] = useState("");
   const [generating, setGenerating] = useState(false);
   const [playbookReady, setPlaybookReady] = useState(false);
+  const [channelChosen, setChannelChosen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -831,13 +930,36 @@ export default function TryJericho() {
 
               {/* Input or Generation Animation */}
               {generating ? (
-                <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => {
-                  trackEvent("try_playbook_cta_clicked", {
-                    turn: turnCountRef.current,
-                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
-                  });
-                  window.location.href = "/auth";
-                }} />
+                <PlaybookGenerating
+                  ready={playbookReady}
+                  channelChosen={channelChosen}
+                  onChannelSelect={async (channel, phone) => {
+                    trackEvent("try_channel_selected", {
+                      channel,
+                      turn: turnCountRef.current,
+                      session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                    });
+                    try {
+                      // Call onboard with channel preference
+                      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+                      await fetch(`https://${projectId}.supabase.co/functions/v1/try-jericho-onboard`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                        },
+                        body: JSON.stringify({
+                          profileId: reportProfileId,
+                          channelPreference: channel,
+                          phone: phone || undefined,
+                        }),
+                      });
+                    } catch (e) {
+                      console.error("Channel preference update error:", e);
+                    }
+                    setChannelChosen(true);
+                  }}
+                />
               ) : (
                 <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
                   <form
