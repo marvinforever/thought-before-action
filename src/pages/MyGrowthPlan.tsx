@@ -27,7 +27,7 @@ import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { AIProductivityTips } from "@/components/AIProductivityTips";
 import { JerichoChat } from "@/components/JerichoChat";
 import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
-import { DownloadGrowthPlan } from "@/components/DownloadGrowthPlan";
+
 import { GrowthPlaybookBanner } from "@/components/GrowthPlaybookBanner";
 
 interface AITask {
@@ -193,7 +193,6 @@ export default function MyGrowthPlan() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <DownloadGrowthPlan />
             <StreakBadge className="bg-white/10 border-white/20" />
           </div>
         </div>
