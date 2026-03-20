@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
         console.log(`[proxy-try-chat] Forwarding to OpenClaw for session ${sessionId}`);
         
         const openClawController = new AbortController();
-        const openClawTimeout = setTimeout(() => openClawController.abort(), 10000);
+        const openClawTimeout = setTimeout(() => openClawController.abort(), 20000);
 
         const gatewayToken = Deno.env.get('OPENCLAW_GATEWAY_TOKEN') || '';
         const openClawHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -421,6 +421,14 @@ Deno.serve(async (req) => {
 
     const aiMessages = [
       { role: 'system', content: TRY_SYSTEM_PROMPT },
+      {
+        role: 'system',
+        content: `CRITICAL RULES FOR THIS WEBCHAT SESSION:
+- Keep every response under 60 words. The user is on a small screen.
+- Ask exactly ONE question per message. Never ask compound or follow-up questions in the same turn.
+- Do not repeat or summarize what the user just said back to them. Move forward.
+- Be warm but brief. Think text message, not email.`
+      },
       ...(messages || []),
     ];
 
