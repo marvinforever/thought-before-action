@@ -637,18 +637,31 @@ serve(async (req) => {
 
         if (calResponse.ok) {
           const calData = await calResponse.json();
+          const userNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
+          const todayUser = userNow.toISOString().split('T')[0];
           calendarEvents = (calData.events || [])
             .filter((e: any) => {
-              const eventDate = (e.start?.dateTime || e.start?.date || '').split('T')[0];
-              return eventDate === today;
+              const isAllDay = !e.start?.dateTime && !!e.start?.date;
+              if (isAllDay) {
+                const startDate = e.start.date;
+                const endDate = e.end?.date || startDate;
+                return startDate <= todayUser && todayUser < endDate;
+              } else {
+                const eventLocal = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: userTimezone }));
+                const eventDateStr = eventLocal.toISOString().split('T')[0];
+                return eventDateStr === todayUser;
+              }
             })
-            .map((e: any) => ({
-              title: e.summary || 'Untitled',
-              startTime: e.start?.dateTime || e.start?.date || '',
-              endTime: e.end?.dateTime || e.end?.date || '',
-              attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
-              location: e.location || null,
-            }))
+            .map((e: any) => {
+              const isAllDay = !e.start?.dateTime && !!e.start?.date;
+              return {
+                title: e.summary || 'Untitled',
+                startTime: isAllDay ? '' : (e.start?.dateTime || ''),
+                endTime: isAllDay ? '' : (e.end?.dateTime || ''),
+                attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
+                location: e.location || null,
+              };
+            })
             .slice(0, 10);
         }
       }
