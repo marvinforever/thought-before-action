@@ -149,6 +149,10 @@ class MarkerParser {
     text = text.replace(/^think\b[^<]*/i, '');
     // Strip "<think" at very end (partial open tag without closing >)
     text = text.replace(/<think\s*$/i, '');
+    // Strip leaked marker fragments (belt-and-suspenders)
+    text = text.replace(/<[,{].*?-->/g, '');
+    text = text.replace(/[{"][\w":,.\s]*}-->/g, '');
+    text = text.replace(/<!--[\s\S]*$/g, '');
     if (!text.trim().length) return;
     this.controller.enqueue(
       this.encoder.encode(`data: ${JSON.stringify({ type: "text", content: text })}\n\n`)
