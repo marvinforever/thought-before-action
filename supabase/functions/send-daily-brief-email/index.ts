@@ -122,6 +122,8 @@ IMPORTANT RULES:
 - Reference the SPECIFIC capability name provided, never say "general" capability
 - You CAN include <a> tags linking to resources, but ONLY use the exact routes listed above
 - NEVER link to /dashboard/challenges or any route not in the list above - those pages do not exist
+- The Quick Reflect question MUST be specific to this person — reference a goal, habit, challenge, or something from their recent history. Never ask a generic question like "How are you feeling today?"
+- End the email with the Quick Reflect question so it's the last thing they read and the easiest thing to reply to
 - Example: <a href="${context.appUrl}/dashboard/my-growth-plan">your growth plan</a>
 
 Format your response as JSON with two fields:
