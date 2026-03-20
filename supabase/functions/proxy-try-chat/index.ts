@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
         console.log(`[proxy-try-chat] Forwarding to OpenClaw for session ${sessionId}`);
         
         const openClawController = new AbortController();
-        const openClawTimeout = setTimeout(() => openClawController.abort(), 10000);
+        const openClawTimeout = setTimeout(() => openClawController.abort(), 20000);
 
         const gatewayToken = Deno.env.get('OPENCLAW_GATEWAY_TOKEN') || '';
         const openClawHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
