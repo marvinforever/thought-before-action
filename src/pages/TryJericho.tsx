@@ -823,7 +823,13 @@ export default function TryJericho() {
 
               {/* Input or Generation Animation */}
               {generating ? (
-                <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => window.location.href = "/auth"} />
+                <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => {
+                  trackEvent("try_playbook_cta_clicked", {
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
+                  window.location.href = "/auth";
+                }} />
               ) : (
                 <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
                   <form
