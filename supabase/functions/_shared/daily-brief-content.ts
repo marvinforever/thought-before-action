@@ -256,9 +256,9 @@ ${context.calendarEvents.length > 0
       if (e.isAllDay) {
         timeLabel = 'All day';
       } else if (e.startTime) {
-        // Convert to Eastern time for display
+        // Convert to user's timezone for display
         const eventDate = new Date(e.startTime);
-        timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+        timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: userTimezone });
       } else {
         timeLabel = 'All day';
       }
