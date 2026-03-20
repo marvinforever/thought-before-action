@@ -20,7 +20,7 @@ export interface UserContext {
   focusCapability: string | null;
   appUrl: string;
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
-  calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[];
+  calendarEvents: { title: string; startTime: string; endTime: string; isAllDay: boolean; attendees: string[]; location: string | null }[];
 }
 
 export interface BriefContent {
