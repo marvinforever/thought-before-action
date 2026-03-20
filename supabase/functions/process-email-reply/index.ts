@@ -769,6 +769,11 @@ function buildEnhancedContext(userContext: any, intent: EmailIntent, actions: Ac
     }
   }
 
+  // For daily reflections, include recent reflection history
+  if (intent.type === 'daily_reflection' && userContext.recentReflections?.length > 0) {
+    parts.push(`THEIR RECENT REFLECTIONS:\n${userContext.recentReflections.map((r: any) => `- ${r.entry_date}: ${r.entry_text.substring(0, 100)}`).join('\n')}`);
+  }
+
   return parts.join('\n\n');
 }
 
