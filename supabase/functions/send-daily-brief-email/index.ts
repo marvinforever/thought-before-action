@@ -876,6 +876,7 @@ serve(async (req) => {
       to: [profile.email],
       subject: subject,
       html: emailHtml,
+      reply_to: 'jericho@sender.askjericho.com',
       headers: {
         'List-Unsubscribe': `<${appUrl}>`,
         'X-Entity-Ref-ID': `jericho-daily-${profileId}-${today}`,
