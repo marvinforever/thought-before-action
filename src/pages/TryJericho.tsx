@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, ArrowRight, Loader2, Download, Sparkles } from "lucide-react";
+import { MessageSquare, Send, ArrowRight, Loader2, Download, Sparkles, Smartphone, Mail, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
