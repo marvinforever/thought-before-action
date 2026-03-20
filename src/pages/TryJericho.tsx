@@ -32,6 +32,17 @@ function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function sanitizeTryMessage(text: string): string {
+  return text
+    .replace(/<!--(?:[\s\S]*?)-->/g, "")
+    .replace(/\[INTERACTIVE:[^\]]*\]/g, "")
+    .replace(/<[^\n>]{0,300}(?:"label"|PROGRESS|INTERACTIVE)[^\n>]*-->/g, "")
+    .replace(/<\d+[^\n>]*-->/g, "")
+    .replace(/<,\s*"label"[^\n>]*-->/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // ── Session token management via cookie ──
 function getOrCreateSessionToken(): string {
   const COOKIE_NAME = "jericho_try_session";
