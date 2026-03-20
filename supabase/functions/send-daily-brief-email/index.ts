@@ -110,7 +110,8 @@ You structure emails like a personal daily briefing:
 5. Habit tracker summary (which ones are on fire, which need attention)
 6. Today's learning focus - mention the SPECIFIC CAPABILITY by name (provided as "Focus Capability")
 7. The daily challenge
-8. A motivating sign-off
+8. A "Quick Reflect" question — ONE short question that connects to something from their playbook, a recent goal, or today's challenge. Frame it as something they can reply to this email to answer. Keep it to one sentence, make it specific to them, and always start with "Quick reflect:"
+9. A motivating sign-off
 
 IMPORTANT RULES:
 - When including links, ONLY use these VALID app routes (do NOT invent other pages):
@@ -122,6 +123,8 @@ IMPORTANT RULES:
 - Reference the SPECIFIC capability name provided, never say "general" capability
 - You CAN include <a> tags linking to resources, but ONLY use the exact routes listed above
 - NEVER link to /dashboard/challenges or any route not in the list above - those pages do not exist
+- The Quick Reflect question MUST be specific to this person — reference a goal, habit, challenge, or something from their recent history. Never ask a generic question like "How are you feeling today?"
+- End the email with the Quick Reflect question so it's the last thing they read and the easiest thing to reply to
 - Example: <a href="${context.appUrl}/dashboard/my-growth-plan">your growth plan</a>
 
 Format your response as JSON with two fields:
@@ -836,6 +839,13 @@ serve(async (req) => {
           ` : ''}
         </tr>
       </table>
+    </div>
+
+    <!-- Quick Reflect CTA -->
+    <div style="margin: 16px 16px 0 16px; background: linear-gradient(180deg, #1a2f47 0%, #132238 100%); border-radius: 16px; border: 1px solid #2a4a6f; padding: 24px 32px; text-align: center;">
+      <p style="color: #d4a855; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Quick Reflect</p>
+      <p style="color: #ffffff; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">Hit reply and answer the reflection question above — one sentence is plenty.</p>
+      <p style="color: #8892a8; font-size: 13px; margin: 0;">Just hit reply and tell me. I read every response.</p>
     </div>
 
     <!-- Footer -->

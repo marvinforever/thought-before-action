@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailIntent {
-  type: 'habit_checkin' | 'goal_update' | 'benchmark_update' | 'challenge_help' | 'sales_prep' | 'general_question' | 'update_report' | 'recognition';
+  type: 'habit_checkin' | 'goal_update' | 'benchmark_update' | 'challenge_help' | 'sales_prep' | 'general_question' | 'update_report' | 'recognition' | 'daily_reflection';
   confidence: number;
   details: Record<string, any>;
 }
@@ -185,6 +185,33 @@ serve(async (req) => {
     if ((emailIntent.type === 'recognition' || emailIntent.details.recognitions) && emailIntent.details.recognitions?.length > 0) {
       const recognitionResults = await processRecognitions(supabase, profile.id, profile.company_id, emailIntent.details.recognitions, userContext);
       actionsPerformed.push(...recognitionResults);
+    }
+
+    // Process daily reflections
+    if (emailIntent.type === 'daily_reflection') {
+      const reflectionText = emailIntent.details.reflectionText || logEntry.email_body;
+      const reflectionTopic = emailIntent.details.reflectionTopic || 'general';
+      
+      const { error: journalError } = await supabase.from('growth_journal').insert({
+        profile_id: profile.id,
+        company_id: profile.company_id,
+        entry_date: new Date().toISOString().split('T')[0],
+        entry_text: reflectionText,
+        entry_source: 'daily_reflection',
+      });
+
+      if (!journalError) {
+        actionsPerformed.push({ 
+          success: true, 
+          message: `Saved daily reflection about ${reflectionTopic}` 
+        });
+      } else {
+        console.error('Failed to save reflection:', journalError);
+        actionsPerformed.push({ 
+          success: false, 
+          message: 'Could not save reflection' 
+        });
+      }
     }
 
     // Log updates to growth journal
@@ -374,6 +401,15 @@ async function fetchUserContext(supabase: any, profileId: string, companyId: str
     .neq("id", profileId)
     .limit(100);
 
+  // Fetch recent daily reflections
+  const { data: recentReflections } = await supabase
+    .from("growth_journal")
+    .select("entry_text, entry_date")
+    .eq("profile_id", profileId)
+    .eq("entry_source", "daily_reflection")
+    .order("entry_date", { ascending: false })
+    .limit(5);
+
   return {
     habits: habits || [],
     todayCompletions: todayCompletions?.map((c: any) => c.habit_id) || [],
@@ -382,6 +418,7 @@ async function fetchUserContext(supabase: any, profileId: string, companyId: str
     achievements: achievements || [],
     diagnosticScores: diagnosticScores || null,
     teamMembers: teamMembers || [],
+    recentReflections: recentReflections || [],
   };
 }
 
@@ -403,7 +440,7 @@ Email content:
 
 Respond with a JSON object (no markdown, just pure JSON):
 {
-  "type": "habit_checkin" | "goal_update" | "benchmark_update" | "challenge_help" | "sales_prep" | "general_question" | "update_report" | "recognition",
+  "type": "habit_checkin" | "goal_update" | "benchmark_update" | "challenge_help" | "sales_prep" | "general_question" | "update_report" | "recognition" | "daily_reflection",
   "confidence": 0.0-1.0,
   "details": {
     // For habit_checkin:
@@ -429,6 +466,7 @@ Rules:
 - If they mention a sales call, meeting prep, or pre-call plan → sales_prep
 - If they mention struggling with something, need help, or facing a challenge → challenge_help
 - If they provide multiple types of updates → update_report (combine all details in the details object)
+- If the email is a short reply to a "Quick Reflect" question from the daily brief (usually 1-3 sentences about how something went, what they learned, or a personal insight) → daily_reflection. Set details.reflectionText to their answer and details.reflectionTopic to what it was about (e.g. "delegation", "team meeting", "energy management").
 - Otherwise → general_question`;
 
   try {
@@ -728,6 +766,11 @@ function buildEnhancedContext(userContext: any, intent: EmailIntent, actions: Ac
     }
   }
 
+  // For daily reflections, include recent reflection history
+  if (intent.type === 'daily_reflection' && userContext.recentReflections?.length > 0) {
+    parts.push(`THEIR RECENT REFLECTIONS:\n${userContext.recentReflections.map((r: any) => `- ${r.entry_date}: ${r.entry_text.substring(0, 100)}`).join('\n')}`);
+  }
+
   return parts.join('\n\n');
 }
 
@@ -762,6 +805,9 @@ async function callJerichoWithContext(
       break;
     case 'update_report':
       intentGuidance = `The user is providing multiple updates. Acknowledge each update systematically, celebrate wins, and provide a brief summary of their overall progress.`;
+      break;
+    case 'daily_reflection':
+      intentGuidance = `The user replied to their Quick Reflect question from today's daily brief. Acknowledge their reflection warmly and briefly. Connect it to their goals or growth journey if relevant. Keep it to 2-3 sentences max — this is a micro-coaching moment, not a full session. End with something encouraging.`;
       break;
     default:
       intentGuidance = `Respond helpfully to the user's message. Be warm, supportive, and action-oriented.`;

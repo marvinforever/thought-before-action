@@ -205,7 +205,10 @@ Structure:
 5. Habit tracker summary
 6. Today's learning focus (specific capability name)
 7. Daily challenge
-8. Motivating sign-off
+8. A "Quick Reflect" question — ONE short question that connects to something from their playbook, a recent goal, or today's challenge. Frame it as something they can reply to answer. Keep it to one sentence, make it specific to them, and always start with "Quick reflect:"
+9. Motivating sign-off
+
+IMPORTANT: The Quick Reflect question MUST be specific to this person — reference a goal, habit, challenge, or something from their recent history. Never ask a generic question.
 
 ${formatInstruction}
 ${linkInstruction}
