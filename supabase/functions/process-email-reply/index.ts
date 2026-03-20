@@ -468,9 +468,6 @@ Rules:
 - If they provide multiple types of updates → update_report (combine all details in the details object)
 - If the email is a short reply to a "Quick Reflect" question from the daily brief (usually 1-3 sentences about how something went, what they learned, or a personal insight) → daily_reflection. Set details.reflectionText to their answer and details.reflectionTopic to what it was about (e.g. "delegation", "team meeting", "energy management").
 - Otherwise → general_question`;
-- If they mention struggling with something, need help, or facing a challenge → challenge_help
-- If they provide multiple types of updates → update_report (combine all details in the details object)
-- Otherwise → general_question`;
 
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
