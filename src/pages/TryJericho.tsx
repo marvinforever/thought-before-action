@@ -502,8 +502,18 @@ export default function TryJericho() {
                 break;
               }
               case "progress": {
-                setProgressPercent(data.percent || 0);
+                const pct = data.percent || 0;
+                setProgressPercent(pct);
                 setProgressLabel(data.label || "");
+                if (pct !== lastPhaseRef.current) {
+                  lastPhaseRef.current = pct;
+                  trackEvent("try_phase_reached", {
+                    percent: pct,
+                    label: data.label || "",
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
+                }
                 break;
               }
               case "generation": {
@@ -511,9 +521,17 @@ export default function TryJericho() {
                   setGenerating(true);
                   setProgressPercent(100);
                   setProgressLabel("Building your Playbook…");
+                  trackEvent("try_email_submitted", {
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
                 } else if (data.status === "complete") {
                   setPlaybookReady(true);
                   if (data.profile_id) setReportProfileId(data.profile_id);
+                  trackEvent("try_playbook_ready", {
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
                 }
                 break;
               }
