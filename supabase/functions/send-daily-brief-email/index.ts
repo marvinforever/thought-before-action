@@ -703,6 +703,7 @@ serve(async (req) => {
       appUrl,
       priorityTasks,
       calendarEvents,
+      userTimezone,
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {
