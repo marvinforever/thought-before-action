@@ -727,6 +727,12 @@ export default function TryJericho() {
                         >
                           {msg.role === "user" && msg.interactiveData && msg.interactiveResponse !== undefined ? (
                             <InteractiveResponseBubble data={msg.interactiveData} response={msg.interactiveResponse} />
+                          ) : msg.role === "jericho" && !msg.text && isLoading ? (
+                            <div className="typing-indicator text-white/50">
+                              <span></span>
+                              <span></span>
+                              <span></span>
+                            </div>
                           ) : (
                             <div className="prose prose-sm prose-invert max-w-none [&>p]:m-0 [&>p:not(:last-child)]:mb-2">
                               <ReactMarkdown>{msg.text.replace(/\[INTERACTIVE:[^\]]*\]/g, '').trim()}</ReactMarkdown>
