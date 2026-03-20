@@ -281,6 +281,38 @@ export default function TryJericho() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const turnCountRef = useRef(0);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionStartRef = useRef<number>(0);
+  const lastPhaseRef = useRef(0);
+
+  // ── Track page view on mount ──
+  useEffect(() => {
+    trackEvent("try_page_viewed", {
+      referrer: document.referrer || "direct",
+      variant: getVariant("try_opening_variant"),
+    });
+  }, []);
+
+  // ── Idle detection: fire event if user goes 2 min without action ──
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      if (started && !generating && !playbookReady) {
+        trackEvent("try_session_idle", {
+          turn_count: turnCountRef.current,
+          last_phase_percent: lastPhaseRef.current,
+          session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+        });
+      }
+    }, 120_000); // 2 minutes
+  }, [started, generating, playbookReady]);
+
+  // Reset idle timer on every message or interaction
+  useEffect(() => {
+    if (started) resetIdleTimer();
+    return () => { if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
+  }, [messages, started, resetIdleTimer]);
 
   const scrollToBottom = useCallback(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -314,12 +346,19 @@ export default function TryJericho() {
 
   const handleStart = async () => {
     setStarted(true);
-    trackEvent("coaching_conversation_started", { variant: getVariant("try_opening_variant") });
+    sessionStartRef.current = Date.now();
+    trackEvent("try_conversation_started", { variant: getVariant("try_opening_variant") });
     setTimeout(() => inputRef.current?.focus(), 400);
     await sendToJericho("hi");
   };
 
   const handleInteractiveSelect = async (id: string, value: string | number) => {
+    trackEvent("try_interactive_answered", {
+      element_id: id,
+      value,
+      turn: turnCountRef.current,
+      session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+    });
     // Mark answered
     setMessages((prev) =>
       prev.map((m) =>
@@ -332,6 +371,16 @@ export default function TryJericho() {
   const sendToJericho = async (userText: string) => {
     const isInteractive = userText.startsWith("[INTERACTIVE:");
     const isInitial = messages.length === 0 && userText === "hi";
+
+    // Track user message (not interactive responses — those are tracked in handleInteractiveSelect)
+    if (!isInteractive && !isInitial) {
+      turnCountRef.current += 1;
+      trackEvent("try_message_sent", {
+        turn: turnCountRef.current,
+        message_length: userText.length,
+        session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+      });
+    }
 
     const userMsg: Message = { id: generateId(), role: "user", text: userText };
     const assistantMsg: Message = { id: generateId(), role: "jericho", text: "" };
@@ -453,8 +502,18 @@ export default function TryJericho() {
                 break;
               }
               case "progress": {
-                setProgressPercent(data.percent || 0);
+                const pct = data.percent || 0;
+                setProgressPercent(pct);
                 setProgressLabel(data.label || "");
+                if (pct !== lastPhaseRef.current) {
+                  lastPhaseRef.current = pct;
+                  trackEvent("try_phase_reached", {
+                    percent: pct,
+                    label: data.label || "",
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
+                }
                 break;
               }
               case "generation": {
@@ -462,9 +521,17 @@ export default function TryJericho() {
                   setGenerating(true);
                   setProgressPercent(100);
                   setProgressLabel("Building your Playbook…");
+                  trackEvent("try_email_submitted", {
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
                 } else if (data.status === "complete") {
                   setPlaybookReady(true);
                   if (data.profile_id) setReportProfileId(data.profile_id);
+                  trackEvent("try_playbook_ready", {
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
                 }
                 break;
               }
@@ -507,6 +574,11 @@ export default function TryJericho() {
     } catch (err: any) {
       const isTimeout = err?.name === "AbortError";
       console.error("Stream error:", isTimeout ? "Request timed out" : err);
+      trackEvent("try_error", {
+        error_type: isTimeout ? "timeout" : "stream_error",
+        turn: turnCountRef.current,
+        session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+      });
       setMessages((prev) => {
         const next = [...prev];
         const lastIdx = next.length - 1;
@@ -751,7 +823,13 @@ export default function TryJericho() {
 
               {/* Input or Generation Animation */}
               {generating ? (
-                <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => window.location.href = "/auth"} />
+                <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => {
+                  trackEvent("try_playbook_cta_clicked", {
+                    turn: turnCountRef.current,
+                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                  });
+                  window.location.href = "/auth";
+                }} />
               ) : (
                 <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
                   <form
