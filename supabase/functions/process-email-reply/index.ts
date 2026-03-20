@@ -401,6 +401,15 @@ async function fetchUserContext(supabase: any, profileId: string, companyId: str
     .neq("id", profileId)
     .limit(100);
 
+  // Fetch recent daily reflections
+  const { data: recentReflections } = await supabase
+    .from("growth_journal")
+    .select("entry_text, entry_date")
+    .eq("profile_id", profileId)
+    .eq("entry_source", "daily_reflection")
+    .order("entry_date", { ascending: false })
+    .limit(5);
+
   return {
     habits: habits || [],
     todayCompletions: todayCompletions?.map((c: any) => c.habit_id) || [],
@@ -409,6 +418,7 @@ async function fetchUserContext(supabase: any, profileId: string, companyId: str
     achievements: achievements || [],
     diagnosticScores: diagnosticScores || null,
     teamMembers: teamMembers || [],
+    recentReflections: recentReflections || [],
   };
 }
 
