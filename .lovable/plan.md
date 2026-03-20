@@ -1,74 +1,55 @@
-# Upgrade Telegram Bot to Full Jericho Intelligence
 
-## Status: ✅ IMPLEMENTED
 
-### 1. Database Migration ✅
-- Added `telegram_update_id` (bigint, nullable) to `telegram_conversations`
-- Added index on `telegram_update_id` for duplicate detection
-- Added index on `(user_id, created_at DESC)` for fast conversation history
+## Fix: Strip HTML comment markers from /try chat display
 
-### 2. Sales Coach Auth Bypass ✅
-- Added 8-line internal service call detection in `sales-coach/index.ts` (after auth block)
-- When token matches service role key and `viewAsUserId` is provided, trusts the IDs directly
+### Problem
 
-### 3. AI Router ✅
-- Added `'telegram-chat'` task type routed to `'gemini-pro'`
+The OpenClaw model emits `<!--PROGRESS:...-->`, `<!--INTERACTIVE:...-->`, and other HTML comment markers inline in its text. The `proxy-try-chat` edge function is supposed to parse these and convert them into typed SSE events — but sometimes the markers leak through (partial streaming, malformed output, or the proxy's regex missing edge cases). When that happens, raw marker text like `<5,"label":"Getting to know you..."}-->` appears in the chat bubble.
 
-### 4. Telegram Webhook Rewrite ✅
-- **Sales-coach proxy**: All sales/general/unclear messages route through sales-coach via internal fetch
-- **Growth path**: Growth/capabilities/training/sprint queries use Gemini Pro via ai-router
-- **Kudos shortcut**: Direct DB insert into recognitions table
-- **Conversation history**: Last 10 messages within 24hrs by user_id
-- **Edit-message UX**: "Thinking..." replaced via editMessageText
-- **Duplicate prevention**: update_id checked before processing
-- **Manager context**: Loads team data for manager users
-- **Error handling**: 45s timeout, graceful fallbacks, all paths return 200
-- **Response formatting**: Strips unsupported markdown, appends action confirmations, truncates at 4000 chars
+### Root cause
 
----
+Two layers need fixing:
 
-# Multi-Channel Daily Brief Delivery (Telegram + SMS)
+1. **Frontend display (line 472 + line 810)**: The accumulated text is displayed with no marker stripping. Line 810 only strips `[INTERACTIVE:...]` brackets but not HTML comments.
 
-## Status: ✅ IMPLEMENTED
+2. **Streaming accumulation (line 472)**: Markers accumulate into the display text as they stream in, so even if the proxy later emits a proper typed event, the raw marker text is already visible.
 
-### What was done
+### Fix (2 changes in TryJericho.tsx)
 
-#### 1. Database Migration ✅
-- Added `delivery_channels` (jsonb, default `{"email": true, "telegram": false, "sms": false}`) to `email_preferences`
-- Added `channel` (text, default `'email'`) to `email_deliveries`
+**Change 1 — Strip markers during streaming accumulation (line 472)**
 
-#### 2. Shared Content Generator ✅
-- Created `supabase/functions/_shared/daily-brief-content.ts`
-- Exports `gatherUserContext()` — parallel DB queries for habits, goals, capabilities, tasks, streaks, vision
-- Exports `generateBriefContent()` — AI-powered brief in `html`, `markdown`, or `plain` format
-- Returns `{ subject, body, shortSummary }` where shortSummary is ~160 chars for SMS
+Replace:
+```typescript
+const display = accumulated.trim();
+```
+With:
+```typescript
+const display = accumulated
+  .replace(/<!--[\s\S]*?-->/g, '')
+  .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
+  .replace(/<\d+[^>]*-->/g, '')
+  .trim();
+```
 
-#### 3. Telegram Delivery Function ✅
-- Created `supabase/functions/send-daily-brief-telegram/index.ts`
-- Looks up `telegram_links.telegram_chat_id`
-- Sends Markdown-formatted brief with inline keyboard buttons
-- Automatic plain text fallback on Markdown parse errors
-- Logs delivery with `channel = 'telegram'`
+This strips:
+- Complete HTML comments (`<!--...-->`)
+- Dangling/malformed marker fragments where the `<!--` prefix got cut by streaming
 
-#### 4. SMS Delivery Function ✅
-- Created `supabase/functions/send-daily-brief-sms/index.ts`
-- Checks `sms_opted_in` and phone number on profile
-- Sends `shortSummary` via existing `send-sms` function (Twilio)
-- Logs delivery with `channel = 'sms'`
+**Change 2 — Strip markers at render time (line 810)**
 
-#### 5. Orchestrator Updated ✅
-- `process-daily-brief-queue` now reads `delivery_channels` from `email_preferences`
-- Dispatches to email, telegram, and/or SMS based on user preferences
-- Each channel handled independently with error isolation
+Replace:
+```typescript
+<ReactMarkdown>{msg.text.replace(/\[INTERACTIVE:[^\]]*\]/g, '').trim()}</ReactMarkdown>
+```
+With:
+```typescript
+<ReactMarkdown>{msg.text.replace(/<!--[\s\S]*?-->/g, '').replace(/\[INTERACTIVE:[^\]]*\]/g, '').replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '').replace(/<\d+[^>]*-->/g, '').trim()}</ReactMarkdown>
+```
 
-#### 6. Settings UI Updated ✅
-- Added Delivery Channels section under Daily Brief Email card
-- Three toggles: Email, Telegram, SMS
-- Telegram toggle disabled if no `telegram_links` record
-- SMS toggle disabled if user hasn't opted in with a phone number
-- Both check real DB state on load
+**Change 3 — Same fix for the final flush path (line 566)**
 
-### Future enhancements
-- OpenClaw Jericho agent orchestration via `agent_tasks` table
-- Per-channel delivery time preferences
-- Brief content caching to avoid regenerating for multiple channels
+Apply the same marker-stripping regex to the final flush `accumulated.trim()` on line 566.
+
+### Files changed
+- `src/pages/TryJericho.tsx` — Add marker-stripping regex at 3 locations
+
