@@ -574,6 +574,11 @@ export default function TryJericho() {
     } catch (err: any) {
       const isTimeout = err?.name === "AbortError";
       console.error("Stream error:", isTimeout ? "Request timed out" : err);
+      trackEvent("try_error", {
+        error_type: isTimeout ? "timeout" : "stream_error",
+        turn: turnCountRef.current,
+        session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+      });
       setMessages((prev) => {
         const next = [...prev];
         const lastIdx = next.length - 1;
