@@ -469,7 +469,11 @@ export default function TryJericho() {
                 }
                 if (typeof data.content === "string" && data.content.length) {
                   accumulated += data.content;
-                  const display = accumulated.trim();
+                  const display = accumulated
+                    .replace(/<!--[\s\S]*?-->/g, '')
+                    .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
+                    .replace(/<\d+[^>]*-->/g, '')
+                    .trim();
                   setMessages((prev) => {
                     const next = [...prev];
                     const lastIdx = next.length - 1;
@@ -563,7 +567,11 @@ export default function TryJericho() {
                 const next = [...prev];
                 const lastIdx = next.length - 1;
                 if (next[lastIdx]?.role === "jericho") {
-                  next[lastIdx] = { ...next[lastIdx], text: accumulated.trim() };
+                  next[lastIdx] = { ...next[lastIdx], text: accumulated
+                    .replace(/<!--[\s\S]*?-->/g, '')
+                    .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
+                    .replace(/<\d+[^>]*-->/g, '')
+                    .trim() };
                 }
                 return next;
               });
@@ -807,7 +815,7 @@ export default function TryJericho() {
                             </div>
                           ) : (
                             <div className="prose prose-sm prose-invert max-w-none [&>p]:m-0 [&>p:not(:last-child)]:mb-2">
-                              <ReactMarkdown>{msg.text.replace(/\[INTERACTIVE:[^\]]*\]/g, '').trim()}</ReactMarkdown>
+                              <ReactMarkdown>{msg.text.replace(/<!--[\s\S]*?-->/g, '').replace(/\[INTERACTIVE:[^\]]*\]/g, '').replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '').replace(/<\d+[^>]*-->/g, '').trim()}</ReactMarkdown>
                             </div>
                           )}
                         </div>
