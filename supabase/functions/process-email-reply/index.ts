@@ -187,6 +187,33 @@ serve(async (req) => {
       actionsPerformed.push(...recognitionResults);
     }
 
+    // Process daily reflections
+    if (emailIntent.type === 'daily_reflection') {
+      const reflectionText = emailIntent.details.reflectionText || logEntry.email_body;
+      const reflectionTopic = emailIntent.details.reflectionTopic || 'general';
+      
+      const { error: journalError } = await supabase.from('growth_journal').insert({
+        profile_id: profile.id,
+        company_id: profile.company_id,
+        entry_date: new Date().toISOString().split('T')[0],
+        entry_text: reflectionText,
+        entry_source: 'daily_reflection',
+      });
+
+      if (!journalError) {
+        actionsPerformed.push({ 
+          success: true, 
+          message: `Saved daily reflection about ${reflectionTopic}` 
+        });
+      } else {
+        console.error('Failed to save reflection:', journalError);
+        actionsPerformed.push({ 
+          success: false, 
+          message: 'Could not save reflection' 
+        });
+      }
+    }
+
     // Log updates to growth journal
     if (actionsPerformed.length > 0) {
       const successfulActions = actionsPerformed.filter(a => a.success);
