@@ -39,7 +39,7 @@ function getDaysRemaining(quarter: string, year: number): number {
   return Math.max(0, Math.ceil((quarterEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-export async function gatherUserContext(supabase: any, profileId: string): Promise<UserContext> {
+export async function gatherUserContext(supabase: any, profileId: string, userTimezone: string = 'America/New_York'): Promise<UserContext> {
   const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const appUrl = 'https://askjericho.com';
@@ -135,23 +135,21 @@ export async function gatherUserContext(supabase: any, profileId: string): Promi
 
       if (calResponse.ok) {
         const calData = await calResponse.json();
-        // Get today's date in Eastern time for proper filtering
-        const easternNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-        const todayEastern = easternNow.toISOString().split('T')[0];
+        // Get today's date in user's timezone for proper filtering
+        const userNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
+        const todayUser = userNow.toISOString().split('T')[0];
         
         calendarEvents = (calData.events || [])
           .filter((e: any) => {
             const isAllDay = !e.start?.dateTime && !!e.start?.date;
             if (isAllDay) {
-              // All-day events: start.date is YYYY-MM-DD, check if today falls in range
               const startDate = e.start.date;
               const endDate = e.end?.date || startDate;
-              return startDate <= todayEastern && todayEastern < endDate;
+              return startDate <= todayUser && todayUser < endDate;
             } else {
-              // Timed events: convert to Eastern and check date
-              const eventEastern = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: 'America/New_York' }));
-              const eventDateStr = eventEastern.toISOString().split('T')[0];
-              return eventDateStr === todayEastern;
+              const eventLocal = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: userTimezone }));
+              const eventDateStr = eventLocal.toISOString().split('T')[0];
+              return eventDateStr === todayUser;
             }
           })
           .map((e: any) => {
@@ -258,9 +256,9 @@ ${context.calendarEvents.length > 0
       if (e.isAllDay) {
         timeLabel = 'All day';
       } else if (e.startTime) {
-        // Convert to Eastern time for display
+        // Convert to user's timezone for display
         const eventDate = new Date(e.startTime);
-        timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+        timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: userTimezone });
       } else {
         timeLabel = 'All day';
       }

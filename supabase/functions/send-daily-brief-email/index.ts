@@ -49,6 +49,7 @@ interface UserContext {
   appUrl: string;
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
   calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[];
+  userTimezone: string;
 }
 
 async function fetchProfileWithRetry(
@@ -175,7 +176,7 @@ ${context.priorityTasks.length > 0
 TODAY'S CALENDAR (${context.calendarEvents.length} events):
 ${context.calendarEvents.length > 0
   ? context.calendarEvents.map(e => {
-      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'All day';
+      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: context.userTimezone }) : 'All day';
       const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
       return `- ${start}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
     }).join('\n')
@@ -330,7 +331,7 @@ serve(async (req) => {
       // Preferences
       supabase
         .from("email_preferences")
-        .select("brief_format")
+        .select("brief_format, timezone")
         .eq("profile_id", profileId)
         .single(),
       // Active habits
@@ -524,6 +525,7 @@ serve(async (req) => {
     }
 
     const briefFormat = prefsResult.data?.brief_format || 'both';
+    const userTimezone = prefsResult.data?.timezone || 'America/New_York';
 
     // Process habits with completion counts
     const habits = (habitsResult.data || []).map((h: any) => {
@@ -636,18 +638,31 @@ serve(async (req) => {
 
         if (calResponse.ok) {
           const calData = await calResponse.json();
+          const userNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
+          const todayUser = userNow.toISOString().split('T')[0];
           calendarEvents = (calData.events || [])
             .filter((e: any) => {
-              const eventDate = (e.start?.dateTime || e.start?.date || '').split('T')[0];
-              return eventDate === today;
+              const isAllDay = !e.start?.dateTime && !!e.start?.date;
+              if (isAllDay) {
+                const startDate = e.start.date;
+                const endDate = e.end?.date || startDate;
+                return startDate <= todayUser && todayUser < endDate;
+              } else {
+                const eventLocal = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: userTimezone }));
+                const eventDateStr = eventLocal.toISOString().split('T')[0];
+                return eventDateStr === todayUser;
+              }
             })
-            .map((e: any) => ({
-              title: e.summary || 'Untitled',
-              startTime: e.start?.dateTime || e.start?.date || '',
-              endTime: e.end?.dateTime || e.end?.date || '',
-              attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
-              location: e.location || null,
-            }))
+            .map((e: any) => {
+              const isAllDay = !e.start?.dateTime && !!e.start?.date;
+              return {
+                title: e.summary || 'Untitled',
+                startTime: isAllDay ? '' : (e.start?.dateTime || ''),
+                endTime: isAllDay ? '' : (e.end?.dateTime || ''),
+                attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
+                location: e.location || null,
+              };
+            })
             .slice(0, 10);
         }
       }
@@ -688,6 +703,7 @@ serve(async (req) => {
       appUrl,
       priorityTasks,
       calendarEvents,
+      userTimezone,
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {
