@@ -27,7 +27,7 @@ import { FloatingJerichoButton } from "@/components/FloatingJerichoButton";
 import { AIProductivityTips } from "@/components/AIProductivityTips";
 import { JerichoChat } from "@/components/JerichoChat";
 import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
-import { DownloadGrowthPlan } from "@/components/DownloadGrowthPlan";
+
 import { GrowthPlaybookBanner } from "@/components/GrowthPlaybookBanner";
 
 interface AITask {
