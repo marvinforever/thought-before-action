@@ -1,55 +1,81 @@
 
 
-## Fix: Strip HTML comment markers from /try chat display
+# Channel-First Post-Playbook Onboarding
 
-### Problem
+## What We're Building
 
-The OpenClaw model emits `<!--PROGRESS:...-->`, `<!--INTERACTIVE:...-->`, and other HTML comment markers inline in its text. The `proxy-try-chat` edge function is supposed to parse these and convert them into typed SSE events — but sometimes the markers leak through (partial streaming, malformed output, or the proxy's regex missing edge cases). When that happens, raw marker text like `<5,"label":"Getting to know you..."}-->` appears in the chat bubble.
+After the `/try` playbook is generated, instead of sending a password-based welcome email that leads to dead login links, we ask the user how they want to continue with Jericho — via **email reply**, **SMS/text**, or **web app (magic link)**. Then the welcome email matches their choice: no passwords, no dead links.
 
-### Root cause
+## Current State
 
-Two layers need fixing:
+- `try-jericho-onboard` creates a user with an auto-generated password, then sends a welcome email with that password and a "Log In →" button pointing to `/auth`
+- Users don't know this password — the login link is effectively dead
+- `signInWithOtp` (magic link) already exists in the codebase (used in PartnerRegister)
+- `receive-email-reply` and `receive-sms` edge functions already exist for channel-based interaction
+- No `channel_preference` field exists anywhere yet
 
-1. **Frontend display (line 472 + line 810)**: The accumulated text is displayed with no marker stripping. Line 810 only strips `[INTERACTIVE:...]` brackets but not HTML comments.
+## Plan
 
-2. **Streaming accumulation (line 472)**: Markers accumulate into the display text as they stream in, so even if the proxy later emits a proper typed event, the raw marker text is already visible.
+### Step 1: Add channel preference to the `/try` frontend flow
 
-### Fix (2 changes in TryJericho.tsx)
+**File: `src/pages/TryJericho.tsx`**
 
-**Change 1 — Strip markers during streaming accumulation (line 472)**
+After the playbook generation completes (the `GENERATION` status event), show a channel selection step instead of just "Your playbook has been emailed." Display three options:
 
-Replace:
-```typescript
-const display = accumulated.trim();
+- **📱 Text me** — "Get daily coaching via text message"
+- **📧 Email reply** — "Reply to Jericho's emails to keep coaching"
+- **💻 Web app** — "Access the full dashboard with a magic link"
+
+When the user picks one, send it to `try-jericho-onboard` as `channelPreference`.
+
+### Step 2: Store channel preference
+
+**File: `supabase/functions/try-jericho-onboard/index.ts`**
+
+- Accept `channelPreference` from the request body (values: `sms`, `email`, `web`)
+- Save it to `user_active_context.onboarding_data` alongside existing diagnostic data
+- If `sms`, also save phone number (already accepted in the request as `phone`)
+
+### Step 3: Replace password welcome email with channel-appropriate email
+
+**File: `supabase/functions/try-jericho-onboard/index.ts`**
+
+Replace the current password-based welcome email (lines 242-313) with three variants:
+
+**If `web`**: Send a magic link email using Supabase `signInWithOtp` — the email contains a one-click login button, no password needed.
+
+**If `email`**: Send a "reply to get started" email — the email says "Just reply to this email anytime you want to chat with Jericho" with a `Reply-To: jericho@sender.askjericho.com` header. Include a secondary "View your dashboard" magic link.
+
+**If `sms`**: Send a confirmation text via `send-sms` saying "Hey [Name], it's Jericho. Text me anytime for coaching. Your playbook is in your inbox." Also send a shorter email with the playbook link + magic link (no password).
+
+**Default** (no preference selected): Send magic link email (same as `web`).
+
+### Step 4: Database migration — add channel preference column
+
+Add `preferred_channel` column to `profiles` table:
+
+```sql
+ALTER TABLE public.profiles 
+ADD COLUMN IF NOT EXISTS preferred_channel text 
+DEFAULT 'web' 
+CHECK (preferred_channel IN ('sms', 'email', 'web'));
 ```
-With:
-```typescript
-const display = accumulated
-  .replace(/<!--[\s\S]*?-->/g, '')
-  .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
-  .replace(/<\d+[^>]*-->/g, '')
-  .trim();
-```
 
-This strips:
-- Complete HTML comments (`<!--...-->`)
-- Dangling/malformed marker fragments where the `<!--` prefix got cut by streaming
+This lets the daily brief system and Jericho chat route messages through the right channel.
 
-**Change 2 — Strip markers at render time (line 810)**
+### Files Changed
 
-Replace:
-```typescript
-<ReactMarkdown>{msg.text.replace(/\[INTERACTIVE:[^\]]*\]/g, '').trim()}</ReactMarkdown>
-```
-With:
-```typescript
-<ReactMarkdown>{msg.text.replace(/<!--[\s\S]*?-->/g, '').replace(/\[INTERACTIVE:[^\]]*\]/g, '').replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '').replace(/<\d+[^>]*-->/g, '').trim()}</ReactMarkdown>
-```
+| File | Change |
+|------|--------|
+| `src/pages/TryJericho.tsx` | Add channel selection UI after playbook generation |
+| `supabase/functions/try-jericho-onboard/index.ts` | Accept `channelPreference`, replace password email with channel-specific emails using magic links |
+| New migration | Add `preferred_channel` column to `profiles` |
 
-**Change 3 — Same fix for the final flush path (line 566)**
+### What This Unlocks
 
-Apply the same marker-stripping regex to the final flush `accumulated.trim()` on line 566.
-
-### Files changed
-- `src/pages/TryJericho.tsx` — Add marker-stripping regex at 3 locations
+- Zero-password onboarding — no more dead login links
+- Users who prefer SMS never need to visit the web app
+- Email repliers get a conversational flow immediately
+- Web users get a magic link that logs them in with one click
+- Daily brief system can route to the right channel based on `preferred_channel`
 
