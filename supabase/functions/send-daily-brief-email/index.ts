@@ -110,7 +110,8 @@ You structure emails like a personal daily briefing:
 5. Habit tracker summary (which ones are on fire, which need attention)
 6. Today's learning focus - mention the SPECIFIC CAPABILITY by name (provided as "Focus Capability")
 7. The daily challenge
-8. A motivating sign-off
+8. A "Quick Reflect" question — ONE short question that connects to something from their playbook, a recent goal, or today's challenge. Frame it as something they can reply to this email to answer. Keep it to one sentence, make it specific to them, and always start with "Quick reflect:"
+9. A motivating sign-off
 
 IMPORTANT RULES:
 - When including links, ONLY use these VALID app routes (do NOT invent other pages):
