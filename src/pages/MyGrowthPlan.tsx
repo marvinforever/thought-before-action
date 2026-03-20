@@ -193,7 +193,6 @@ export default function MyGrowthPlan() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <DownloadGrowthPlan />
             <StreakBadge className="bg-white/10 border-white/20" />
           </div>
         </div>
