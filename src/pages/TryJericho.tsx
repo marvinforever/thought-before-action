@@ -376,6 +376,7 @@ export default function TryJericho() {
   const [progressLabel, setProgressLabel] = useState("");
   const [generating, setGenerating] = useState(false);
   const [playbookReady, setPlaybookReady] = useState(false);
+  const [channelChosen, setChannelChosen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
