@@ -65,32 +65,58 @@ Deno.serve(async (req) => {
       console.log(`[try-jericho-onboard] New user created: ${userId}`);
     }
 
-    // 2. Resolve or create company
+    // 2. Resolve or create company — email-domain matching
     let targetCompanyId = companyId || null;
+    const emailDomain = email.toLowerCase().trim().split("@")[1] || "";
+    const isGenericDomain = ["gmail.com","yahoo.com","hotmail.com","outlook.com","aol.com","icloud.com","mail.com","protonmail.com","live.com","me.com","msn.com","ymail.com"].includes(emailDomain);
 
-    if (!targetCompanyId && company) {
-      // Check if company exists
-      const { data: existing } = await supabaseAdmin
-        .from("companies")
-        .select("id")
-        .ilike("name", company.trim())
-        .limit(1);
+    if (!targetCompanyId) {
+      // Step A: Match by email domain — if another user with @same.com already has a company, join it
+      if (!isGenericDomain && emailDomain) {
+        const { data: domainMatch } = await supabaseAdmin
+          .from("profiles")
+          .select("company_id")
+          .ilike("email", `%@${emailDomain}`)
+          .not("company_id", "is", null)
+          .neq("id", userId)
+          .limit(1)
+          .maybeSingle();
 
-      if (existing && existing.length > 0) {
-        targetCompanyId = existing[0].id;
-      } else {
-        // Create a new company
-        const { data: newCompany, error: companyError } = await supabaseAdmin
+        if (domainMatch?.company_id) {
+          targetCompanyId = domainMatch.company_id;
+          console.log(`[try-jericho-onboard] Matched to existing company via domain @${emailDomain}: ${targetCompanyId}`);
+        }
+      }
+
+      // Step B: No domain match — try matching by company name from the form
+      if (!targetCompanyId && company) {
+        const { data: existing } = await supabaseAdmin
           .from("companies")
-          .insert({ name: company.trim() })
           .select("id")
-          .single();
+          .ilike("name", company.trim())
+          .limit(1);
 
-        if (companyError) {
-          console.error("Company creation error:", companyError);
-        } else {
-          targetCompanyId = newCompany.id;
-          console.log(`[try-jericho-onboard] Created company: ${targetCompanyId}`);
+        if (existing && existing.length > 0) {
+          targetCompanyId = existing[0].id;
+        }
+      }
+
+      // Step C: Still no company — create one using company name or email domain
+      if (!targetCompanyId) {
+        const companyName = company?.trim() || (isGenericDomain ? null : emailDomain);
+        if (companyName) {
+          const { data: newCompany, error: companyError } = await supabaseAdmin
+            .from("companies")
+            .insert({ name: companyName })
+            .select("id")
+            .single();
+
+          if (companyError) {
+            console.error("Company creation error:", companyError);
+          } else {
+            targetCompanyId = newCompany.id;
+            console.log(`[try-jericho-onboard] Created company "${companyName}": ${targetCompanyId}`);
+          }
         }
       }
     }
