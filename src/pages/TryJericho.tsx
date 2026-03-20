@@ -34,7 +34,16 @@ function generateId() {
 
 function sanitizeTryMessage(text: string): string {
   return text
-    .replace(/<!--(?:[\s\S]*?)-->/g, "")
+    // Complete HTML comment markers
+    .replace(/<!--(?:PROGRESS|INTERACTIVE|GENERATION|EXTRACTED_DATA|ONBOARDING_COMPLETE):[\s\S]*?-->/g, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    // Partial/malformed opening markers (no closing -->)
+    .replace(/<!--(?:PROGRESS|INTERACTIVE|GENERATION|EXTRACTED_DATA|ONBOARDING_COMPLETE)[^>]*$/g, "")
+    .replace(/<!--[\s\S]*$/g, "")
+    // Orphaned marker fragments (closing or mid-JSON like <,"label":"..."}-->)
+    .replace(/<[,{].*?-->/g, "")
+    .replace(/[{"][\w":,.\s]*}-->/g, "")
+    // Named patterns
     .replace(/\[INTERACTIVE:[^\]]*\]/g, "")
     .replace(/<[^\n>]{0,300}(?:"label"|PROGRESS|INTERACTIVE)[^\n>]*-->/g, "")
     .replace(/<\d+[^\n>]*-->/g, "")
