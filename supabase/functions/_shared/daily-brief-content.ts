@@ -111,7 +111,7 @@ export async function gatherUserContext(supabase: any, profileId: string): Promi
   const focusCapability = episode?.capability_name || topCapabilities[0]?.name || null;
 
   // Fetch today's calendar events if Google is connected
-  let calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[] = [];
+  let calendarEvents: { title: string; startTime: string; endTime: string; isAllDay: boolean; attendees: string[]; location: string | null }[] = [];
   try {
     const { data: googleIntegration } = await supabase
       .from('user_integrations')
@@ -135,18 +135,36 @@ export async function gatherUserContext(supabase: any, profileId: string): Promi
 
       if (calResponse.ok) {
         const calData = await calResponse.json();
+        // Get today's date in Eastern time for proper filtering
+        const easternNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const todayEastern = easternNow.toISOString().split('T')[0];
+        
         calendarEvents = (calData.events || [])
           .filter((e: any) => {
-            const eventDate = (e.start?.dateTime || e.start?.date || '').split('T')[0];
-            return eventDate === today;
+            const isAllDay = !e.start?.dateTime && !!e.start?.date;
+            if (isAllDay) {
+              // All-day events: start.date is YYYY-MM-DD, check if today falls in range
+              const startDate = e.start.date;
+              const endDate = e.end?.date || startDate;
+              return startDate <= todayEastern && todayEastern < endDate;
+            } else {
+              // Timed events: convert to Eastern and check date
+              const eventEastern = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: 'America/New_York' }));
+              const eventDateStr = eventEastern.toISOString().split('T')[0];
+              return eventDateStr === todayEastern;
+            }
           })
-          .map((e: any) => ({
-            title: e.summary || 'Untitled',
-            startTime: e.start?.dateTime || e.start?.date || '',
-            endTime: e.end?.dateTime || e.end?.date || '',
-            attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
-            location: e.location || null,
-          }))
+          .map((e: any) => {
+            const isAllDay = !e.start?.dateTime && !!e.start?.date;
+            return {
+              title: e.summary || 'Untitled',
+              startTime: isAllDay ? '' : e.start.dateTime,
+              endTime: isAllDay ? '' : (e.end?.dateTime || ''),
+              isAllDay,
+              attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
+              location: e.location || null,
+            };
+          })
           .slice(0, 10);
       }
     }
