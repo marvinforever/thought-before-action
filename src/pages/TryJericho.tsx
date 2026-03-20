@@ -930,13 +930,36 @@ export default function TryJericho() {
 
               {/* Input or Generation Animation */}
               {generating ? (
-                <PlaybookGenerating ready={playbookReady} onViewPlaybook={() => {
-                  trackEvent("try_playbook_cta_clicked", {
-                    turn: turnCountRef.current,
-                    session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
-                  });
-                  window.location.href = "/auth";
-                }} />
+                <PlaybookGenerating
+                  ready={playbookReady}
+                  channelChosen={channelChosen}
+                  onChannelSelect={async (channel, phone) => {
+                    trackEvent("try_channel_selected", {
+                      channel,
+                      turn: turnCountRef.current,
+                      session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                    });
+                    try {
+                      // Call onboard with channel preference
+                      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+                      await fetch(`https://${projectId}.supabase.co/functions/v1/try-jericho-onboard`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                        },
+                        body: JSON.stringify({
+                          profileId: reportProfileId,
+                          channelPreference: channel,
+                          phone: phone || undefined,
+                        }),
+                      });
+                    } catch (e) {
+                      console.error("Channel preference update error:", e);
+                    }
+                    setChannelChosen(true);
+                  }}
+                />
               ) : (
                 <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
                   <form
