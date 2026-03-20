@@ -567,7 +567,11 @@ export default function TryJericho() {
                 const next = [...prev];
                 const lastIdx = next.length - 1;
                 if (next[lastIdx]?.role === "jericho") {
-                  next[lastIdx] = { ...next[lastIdx], text: accumulated.trim() };
+                  next[lastIdx] = { ...next[lastIdx], text: accumulated
+                    .replace(/<!--[\s\S]*?-->/g, '')
+                    .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
+                    .replace(/<\d+[^>]*-->/g, '')
+                    .trim() };
                 }
                 return next;
               });
