@@ -176,7 +176,7 @@ ${context.priorityTasks.length > 0
 TODAY'S CALENDAR (${context.calendarEvents.length} events):
 ${context.calendarEvents.length > 0
   ? context.calendarEvents.map(e => {
-      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'All day';
+      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: context.userTimezone }) : 'All day';
       const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
       return `- ${start}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
     }).join('\n')
