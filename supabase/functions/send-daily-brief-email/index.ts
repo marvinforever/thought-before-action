@@ -330,7 +330,7 @@ serve(async (req) => {
       // Preferences
       supabase
         .from("email_preferences")
-        .select("brief_format")
+        .select("brief_format, timezone")
         .eq("profile_id", profileId)
         .single(),
       // Active habits
