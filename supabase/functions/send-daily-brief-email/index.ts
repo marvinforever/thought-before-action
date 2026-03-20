@@ -49,6 +49,7 @@ interface UserContext {
   appUrl: string;
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
   calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[];
+  userTimezone: string;
 }
 
 async function fetchProfileWithRetry(
