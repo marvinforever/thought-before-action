@@ -346,7 +346,8 @@ export default function TryJericho() {
 
   const handleStart = async () => {
     setStarted(true);
-    trackEvent("coaching_conversation_started", { variant: getVariant("try_opening_variant") });
+    sessionStartRef.current = Date.now();
+    trackEvent("try_conversation_started", { variant: getVariant("try_opening_variant") });
     setTimeout(() => inputRef.current?.focus(), 400);
     await sendToJericho("hi");
   };
