@@ -809,6 +809,9 @@ async function callJerichoWithContext(
     case 'update_report':
       intentGuidance = `The user is providing multiple updates. Acknowledge each update systematically, celebrate wins, and provide a brief summary of their overall progress.`;
       break;
+    case 'daily_reflection':
+      intentGuidance = `The user replied to their Quick Reflect question from today's daily brief. Acknowledge their reflection warmly and briefly. Connect it to their goals or growth journey if relevant. Keep it to 2-3 sentences max — this is a micro-coaching moment, not a full session. End with something encouraging.`;
+      break;
     default:
       intentGuidance = `Respond helpfully to the user's message. Be warm, supportive, and action-oriented.`;
   }
