@@ -524,6 +524,7 @@ serve(async (req) => {
     }
 
     const briefFormat = prefsResult.data?.brief_format || 'both';
+    const userTimezone = prefsResult.data?.timezone || 'America/New_York';
 
     // Process habits with completion counts
     const habits = (habitsResult.data || []).map((h: any) => {
