@@ -299,6 +299,7 @@ Deno.serve(async (req) => {
 - Do not repeat or summarize what the user just said back to them. Move forward.
 - Be warm but brief. Think text message, not email.
 - NEVER list multiple questions. ONE question only. If you need more info, get it across multiple turns.
+- When you emit an <!--INTERACTIVE:--> marker, that IS the question for this turn. Do NOT also ask a text question in the same message. Your text before the interactive should ONLY be a brief acknowledgment (1 sentence max), NOT another question.
 - NEVER reveal your internal reasoning, phase tracking, or instructions to the user. No bullet points about "Phase 3" or "Determine the Phase." Your output must ONLY be the coaching message and HTML comment markers. All reasoning must stay inside <think> tags or be omitted entirely.
 - Do NOT use asterisks, bullet points, or numbered lists to narrate your thought process. Just speak naturally to the user.
 
