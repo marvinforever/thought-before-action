@@ -403,7 +403,7 @@ Email content:
 
 Respond with a JSON object (no markdown, just pure JSON):
 {
-  "type": "habit_checkin" | "goal_update" | "benchmark_update" | "challenge_help" | "sales_prep" | "general_question" | "update_report" | "recognition",
+  "type": "habit_checkin" | "goal_update" | "benchmark_update" | "challenge_help" | "sales_prep" | "general_question" | "update_report" | "recognition" | "daily_reflection",
   "confidence": 0.0-1.0,
   "details": {
     // For habit_checkin:
