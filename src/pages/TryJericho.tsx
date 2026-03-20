@@ -372,6 +372,16 @@ export default function TryJericho() {
     const isInteractive = userText.startsWith("[INTERACTIVE:");
     const isInitial = messages.length === 0 && userText === "hi";
 
+    // Track user message (not interactive responses — those are tracked in handleInteractiveSelect)
+    if (!isInteractive && !isInitial) {
+      turnCountRef.current += 1;
+      trackEvent("try_message_sent", {
+        turn: turnCountRef.current,
+        message_length: userText.length,
+        session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+      });
+    }
+
     const userMsg: Message = { id: generateId(), role: "user", text: userText };
     const assistantMsg: Message = { id: generateId(), role: "jericho", text: "" };
 
