@@ -396,73 +396,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Send welcome email
-    const loginUrl = "https://askjericho.com/auth";
+    // 5. Send welcome email (magic link by default — no more passwords)
     try {
       const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
       if (RESEND_API_KEY && isNewUser) {
         const firstName = fullName?.split(" ")[0] || "there";
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: "Jericho <jericho@sender.askjericho.com>",
-            to: [email],
-            subject: `Welcome to Jericho, ${firstName}! 🚀`,
-            html: `
-<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#0F1419;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table role="presentation" width="100%" style="background-color:#0F1419;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" style="max-width:600px;width:100%;">
-<tr><td align="center" style="padding-bottom:32px;">
-  <table role="presentation"><tr>
-    <td style="background:linear-gradient(135deg,#E5A530,#F5C563);width:48px;height:48px;border-radius:12px;text-align:center;vertical-align:middle;">
-      <span style="font-size:24px;font-weight:bold;color:#0F1419;">J</span>
-    </td>
-    <td style="padding-left:12px;"><span style="font-size:28px;font-weight:700;color:#FFF;">Jericho</span></td>
-  </tr></table>
-</td></tr>
-<tr><td>
-<table role="presentation" width="100%" style="background:linear-gradient(180deg,#1A2332,#151D2B);border-radius:16px;border:1px solid rgba(229,165,48,0.2);">
-<tr><td style="padding:40px 40px 24px;">
-  <h1 style="margin:0;font-size:28px;font-weight:700;color:#FFF;">Welcome aboard, ${firstName}! 🎉</h1>
-</td></tr>
-<tr><td style="padding:0 40px 24px;">
-  <p style="margin:0;font-size:16px;line-height:1.7;color:#9CA3AF;">Your Jericho account is ready. I already know a bit about your goals — let's pick up where we left off.</p>
-</td></tr>
-<tr><td style="padding:0 40px 32px;">
-  <table role="presentation" width="100%" style="background:rgba(59,130,246,0.08);border-radius:12px;border:1px solid rgba(59,130,246,0.25);">
-  <tr><td style="padding:24px;">
-    <p style="margin:0 0 16px;font-size:13px;font-weight:600;color:#60A5FA;text-transform:uppercase;letter-spacing:1px;">🔐 Your Login</p>
-    <p style="margin:0;padding:10px 0;color:#FFF;font-size:14px;">Email: <strong>${email}</strong></p>
-    <p style="margin:0;padding:10px 0;color:#FFF;font-size:14px;">Password: <code style="color:#60A5FA;background:rgba(59,130,246,0.15);padding:6px 12px;border-radius:6px;font-weight:600;">${password}</code></p>
-    <p style="margin:16px 0 0;font-size:13px;color:#F59E0B;font-weight:600;">⚠️ Please change your password on first login.</p>
-  </td></tr>
-  </table>
-</td></tr>
-<tr><td style="padding:0 40px 40px;" align="center">
-  <table role="presentation"><tr>
-    <td style="border-radius:10px;background:linear-gradient(135deg,#E5A530,#D4942A);box-shadow:0 4px 14px rgba(229,165,48,0.35);">
-      <a href="${loginUrl}" style="display:inline-block;padding:16px 48px;font-size:16px;font-weight:600;color:#0F1419;text-decoration:none;border-radius:10px;">Log In to Jericho →</a>
-    </td>
-  </tr></table>
-</td></tr>
-</table>
-</td></tr>
-<tr><td style="padding:32px 20px;text-align:center;">
-  <p style="margin:0;font-size:12px;color:#4B5563;">Powered by The Momentum Company</p>
-</td></tr>
-</table>
-</td></tr></table>
-</body></html>`,
-          }),
+        const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+          type: "magiclink",
+          email: email.toLowerCase().trim(),
+          options: { redirectTo: "https://askjericho.com/dashboard" },
         });
-        console.log(`[try-jericho-onboard] Welcome email sent to ${email}`);
+        const magicLink = linkData?.properties?.action_link || "https://askjericho.com/auth";
+        await sendChannelEmail(RESEND_API_KEY, email, firstName, "web", magicLink);
+        console.log(`[try-jericho-onboard] Magic link welcome email sent to ${email}`);
       }
     } catch (emailErr) {
       console.error("Email send error:", emailErr);
