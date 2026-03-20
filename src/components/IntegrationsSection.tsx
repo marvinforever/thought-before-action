@@ -48,7 +48,7 @@ const INTEGRATION_CONFIGS: IntegrationConfig[] = [
     icon: Calendar,
     color: "text-red-500",
     features: ["Calendar sync", "Email context", "Meeting prep"],
-    comingSoon: true, // Will be enabled once OAuth is set up
+    comingSoon: false,
   },
   {
     type: "microsoft",
