@@ -48,6 +48,7 @@ interface UserContext {
   focusCapability: string | null;
   appUrl: string;
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
+  calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[];
 }
 
 async function fetchProfileWithRetry(
@@ -103,12 +104,13 @@ Your voice is:
 
 You structure emails like a personal daily briefing:
 1. A warm, personalized greeting
-2. TODAY'S TOP PRIORITIES - List their 3-5 most important tasks/priorities for the day (from their task list)
-3. A quick status update on their 90-day goals (celebrate progress or gently nudge)
-4. Habit tracker summary (which ones are on fire, which need attention)
-5. Today's learning focus - mention the SPECIFIC CAPABILITY by name (provided as "Focus Capability")
-6. The daily challenge
-7. A motivating sign-off
+2. TODAY'S SCHEDULE - If calendar events are available, give a quick snapshot of their day (key meetings, who they're with)
+3. TODAY'S TOP PRIORITIES - List their 3-5 most important tasks/priorities for the day (from their task list)
+4. A quick status update on their 90-day goals (celebrate progress or gently nudge)
+5. Habit tracker summary (which ones are on fire, which need attention)
+6. Today's learning focus - mention the SPECIFIC CAPABILITY by name (provided as "Focus Capability")
+7. The daily challenge
+8. A motivating sign-off
 
 IMPORTANT RULES:
 - When including links, ONLY use these VALID app routes (do NOT invent other pages):
@@ -166,6 +168,15 @@ TODAY'S PRIORITY TASKS (from their personal assistant):
 ${context.priorityTasks.length > 0
   ? context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]${t.dueDate ? ` - Due: ${t.dueDate}` : ''}`).join('\n')
   : 'No tasks in their to-do list yet'}
+
+TODAY'S CALENDAR (${context.calendarEvents.length} events):
+${context.calendarEvents.length > 0
+  ? context.calendarEvents.map(e => {
+      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'All day';
+      const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
+      return `- ${start}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
+    }).join('\n')
+  : 'No calendar connected or no events today'}
 
 === TODAY'S EPISODE ===
 Title: "${context.episodeTitle}"
@@ -599,6 +610,48 @@ serve(async (req) => {
       dueDate: t.due_date
     }));
 
+    // Fetch today's calendar events if Google is connected
+    let calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[] = [];
+    try {
+      const { data: googleIntegration } = await supabase
+        .from('user_integrations')
+        .select('id, sync_status')
+        .eq('profile_id', profileId)
+        .eq('provider', 'google')
+        .eq('sync_status', 'connected')
+        .maybeSingle();
+
+      if (googleIntegration) {
+        const calResponse = await fetch(`${supabaseUrl}/functions/v1/google-calendar-read`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: profileId }),
+        });
+
+        if (calResponse.ok) {
+          const calData = await calResponse.json();
+          calendarEvents = (calData.events || [])
+            .filter((e: any) => {
+              const eventDate = (e.start?.dateTime || e.start?.date || '').split('T')[0];
+              return eventDate === today;
+            })
+            .map((e: any) => ({
+              title: e.summary || 'Untitled',
+              startTime: e.start?.dateTime || e.start?.date || '',
+              endTime: e.end?.dateTime || e.end?.date || '',
+              attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
+              location: e.location || null,
+            }))
+            .slice(0, 10);
+        }
+      }
+    } catch (calErr) {
+      console.error('[send-daily-brief-email] Calendar fetch error (non-fatal):', calErr);
+    }
+
     // Build context for AI
     const userContext: UserContext = {
       firstName,
@@ -630,7 +683,8 @@ serve(async (req) => {
       totalCapabilities,
       focusCapability,
       appUrl,
-      priorityTasks
+      priorityTasks,
+      calendarEvents,
     };
 
     console.log("Generating personalized email for", firstName, "with context:", {

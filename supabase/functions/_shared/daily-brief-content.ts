@@ -20,6 +20,7 @@ export interface UserContext {
   focusCapability: string | null;
   appUrl: string;
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
+  calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[];
 }
 
 export interface BriefContent {
@@ -109,6 +110,50 @@ export async function gatherUserContext(supabase: any, profileId: string): Promi
 
   const focusCapability = episode?.capability_name || topCapabilities[0]?.name || null;
 
+  // Fetch today's calendar events if Google is connected
+  let calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[] = [];
+  try {
+    const { data: googleIntegration } = await supabase
+      .from('user_integrations')
+      .select('id, sync_status')
+      .eq('profile_id', profileId)
+      .eq('provider', 'google')
+      .eq('sync_status', 'connected')
+      .maybeSingle();
+
+    if (googleIntegration) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const calResponse = await fetch(`${supabaseUrl}/functions/v1/google-calendar-read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: profileId }),
+      });
+
+      if (calResponse.ok) {
+        const calData = await calResponse.json();
+        calendarEvents = (calData.events || [])
+          .filter((e: any) => {
+            const eventDate = (e.start?.dateTime || e.start?.date || '').split('T')[0];
+            return eventDate === today;
+          })
+          .map((e: any) => ({
+            title: e.summary || 'Untitled',
+            startTime: e.start?.dateTime || e.start?.date || '',
+            endTime: e.end?.dateTime || e.end?.date || '',
+            attendees: (e.attendees || []).map((a: any) => a.displayName || a.email || '').filter(Boolean),
+            location: e.location || null,
+          }))
+          .slice(0, 10);
+      }
+    }
+  } catch (calErr) {
+    console.error('[daily-brief-content] Calendar fetch error (non-fatal):', calErr);
+  }
+
   return {
     firstName,
     episodeTitle: episode?.title || "Your Daily Growth Brief",
@@ -128,7 +173,8 @@ export async function gatherUserContext(supabase: any, profileId: string): Promi
     totalCapabilities: allCapabilities.length,
     focusCapability,
     appUrl,
-    priorityTasks: (tasksResult.data || []).map((t: any) => ({ title: t.title, priority: t.priority, dueDate: t.due_date }))
+    priorityTasks: (tasksResult.data || []).map((t: any) => ({ title: t.title, priority: t.priority, dueDate: t.due_date })),
+    calendarEvents,
   };
 }
 
@@ -153,12 +199,13 @@ Voice: Warm, encouraging, practical, conversational, data-informed.
 
 Structure:
 1. Warm greeting
-2. Top 3-5 priorities for today (from their task list)
-3. Quick 90-day goal status
-4. Habit tracker summary
-5. Today's learning focus (specific capability name)
-6. Daily challenge
-7. Motivating sign-off
+2. Today's schedule snapshot (from calendar, if available — mention key meetings and who they're with)
+3. Top 3-5 priorities for today (from their task list)
+4. Quick 90-day goal status
+5. Habit tracker summary
+6. Today's learning focus (specific capability name)
+7. Daily challenge
+8. Motivating sign-off
 
 ${formatInstruction}
 ${linkInstruction}
@@ -182,6 +229,15 @@ Tasks:
 ${context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]`).join('\n') || 'No tasks'}
 
 Capabilities: ${context.topCapabilities.map(c => `${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join(', ') || 'None'}
+
+TODAY'S CALENDAR (${context.calendarEvents.length} events):
+${context.calendarEvents.length > 0
+  ? context.calendarEvents.map(e => {
+      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'All day';
+      const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
+      return `- ${start}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
+    }).join('\n')
+  : 'No calendar connected or no events today'}
 
 ${context.dailyChallenge ? `Challenge: ${context.dailyChallenge}` : ''}
 ${context.recentAchievements.length > 0 ? `Recent wins: ${context.recentAchievements.join(', ')}` : ''}`;
