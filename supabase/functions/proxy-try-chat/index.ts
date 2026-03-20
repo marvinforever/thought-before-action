@@ -370,9 +370,26 @@ Deno.serve(async (req) => {
                       }
                     }
                   } else if (line.trim().length > 0 && !line.startsWith(':')) {
-                    // Non-SSE line from OpenClaw — route through parser to strip think/final tags
-                    accumulatedAssistant += line;
-                    parser.feed(line);
+                    // Non-SSE line — check if it's a complete JSON chat.completion object
+                    try {
+                      const maybeJson = JSON.parse(line);
+                      const content = maybeJson.choices?.[0]?.message?.content
+                        ?? maybeJson.choices?.[0]?.delta?.content
+                        ?? maybeJson.content
+                        ?? '';
+                      if (content) {
+                        accumulatedAssistant += content;
+                        parser.feed(content);
+                      }
+                      if (maybeJson.choices?.[0]?.finish_reason === 'stop' || maybeJson.done) {
+                        parser.flush();
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", done: true })}\n\n`));
+                      }
+                    } catch {
+                      // Not JSON — route through parser to strip think/final tags
+                      accumulatedAssistant += line;
+                      parser.feed(line);
+                    }
                   }
                 }
               }
