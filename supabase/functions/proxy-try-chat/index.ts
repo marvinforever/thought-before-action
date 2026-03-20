@@ -421,6 +421,14 @@ Deno.serve(async (req) => {
 
     const aiMessages = [
       { role: 'system', content: TRY_SYSTEM_PROMPT },
+      {
+        role: 'system',
+        content: `CRITICAL RULES FOR THIS WEBCHAT SESSION:
+- Keep every response under 60 words. The user is on a small screen.
+- Ask exactly ONE question per message. Never ask compound or follow-up questions in the same turn.
+- Do not repeat or summarize what the user just said back to them. Move forward.
+- Be warm but brief. Think text message, not email.`
+      },
       ...(messages || []),
     ];
 
