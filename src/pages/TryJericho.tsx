@@ -469,7 +469,11 @@ export default function TryJericho() {
                 }
                 if (typeof data.content === "string" && data.content.length) {
                   accumulated += data.content;
-                  const display = accumulated.trim();
+                  const display = accumulated
+                    .replace(/<!--[\s\S]*?-->/g, '')
+                    .replace(/<[^>]*"label"\s*:\s*"[^"]*"[^>]*-->/g, '')
+                    .replace(/<\d+[^>]*-->/g, '')
+                    .trim();
                   setMessages((prev) => {
                     const next = [...prev];
                     const lastIdx = next.length - 1;
