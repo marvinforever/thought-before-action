@@ -254,9 +254,18 @@ Capabilities: ${context.topCapabilities.map(c => `${c.name}: ${c.currentLevel} â
 TODAY'S CALENDAR (${context.calendarEvents.length} events):
 ${context.calendarEvents.length > 0
   ? context.calendarEvents.map(e => {
-      const start = e.startTime ? new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'All day';
+      let timeLabel: string;
+      if (e.isAllDay) {
+        timeLabel = 'All day';
+      } else if (e.startTime) {
+        // Convert to Eastern time for display
+        const eventDate = new Date(e.startTime);
+        timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+      } else {
+        timeLabel = 'All day';
+      }
       const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
-      return `- ${start}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
+      return `- ${timeLabel}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
     }).join('\n')
   : 'No calendar connected or no events today'}
 

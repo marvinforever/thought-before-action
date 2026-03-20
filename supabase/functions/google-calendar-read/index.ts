@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       timeMax: sevenDaysLater.toISOString(),
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "15",
+      maxResults: "50",
     });
 
     const calRes = await fetch(
