@@ -149,10 +149,16 @@ class MarkerParser {
     text = text.replace(/^think\b[^<]*/i, '');
     // Strip "<think" at very end (partial open tag without closing >)
     text = text.replace(/<think\s*$/i, '');
+    // Strip chain-of-thought / scratchpad leakage from reasoning models
+    text = text.replace(/^(Draft Response|Refine Response|Final Polish|Include progress marker|Keep under \d+ words|STOP HERE|CRITICAL:|ONE question only|Acknowledge choice)[:\.].*$/gmi, '');
+    text = text.replace(/^(Length is|Matches all|[\d]+ sentence|\d+ question|No markdown|Ask about).*$/gmi, '');
     // Strip leaked marker fragments (belt-and-suspenders)
     text = text.replace(/<[,{].*?-->/g, '');
     text = text.replace(/[{"][\w":,.\s]*}-->/g, '');
     text = text.replace(/<!--[\s\S]*$/g, '');
+    // Strip malformed/partial markers with JSON payloads
+    text = text.replace(/<?,?\{[^}]*\}-->/g, '');
+    text = text.replace(/\{[^{}]*"label"[^{}]*\}-->/g, '');
     if (!text.trim().length) return;
     this.controller.enqueue(
       this.encoder.encode(`data: ${JSON.stringify({ type: "text", content: text })}\n\n`)
