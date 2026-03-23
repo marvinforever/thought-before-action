@@ -1,81 +1,39 @@
 
 
-# Channel-First Post-Playbook Onboarding
+## Remove OpenClaw from /try — Gemini-Only
 
-## What We're Building
+### Scope
 
-After the `/try` playbook is generated, instead of sending a password-based welcome email that leads to dead login links, we ask the user how they want to continue with Jericho — via **email reply**, **SMS/text**, or **web app (magic link)**. Then the welcome email matches their choice: no passwords, no dead links.
+OpenClaw is **only** referenced in `supabase/functions/proxy-try-chat/index.ts` (lines 286–521). The sales module (`sales-coach/index.ts`) has its own separate model routing — completely untouched by this change.
 
-## Current State
+### Changes — Single File
 
-- `try-jericho-onboard` creates a user with an auto-generated password, then sends a welcome email with that password and a "Log In →" button pointing to `/auth`
-- Users don't know this password — the login link is effectively dead
-- `signInWithOtp` (magic link) already exists in the codebase (used in PartnerRegister)
-- `receive-email-reply` and `receive-sms` edge functions already exist for channel-based interaction
-- No `channel_preference` field exists anywhere yet
+**`supabase/functions/proxy-try-chat/index.ts`**
 
-## Plan
+1. **Delete the entire OpenClaw primary path** (lines 286–521): the `USE_OPENCLAW_TRY` check, the 25-second timeout, the OpenClaw-specific system prompt construction, the fetch + stream handler, and the catch/fallback block.
 
-### Step 1: Add channel preference to the `/try` frontend flow
+2. **Promote the Gemini path** (currently the "FALLBACK" path starting around line 524) to be the only path. Remove the "FALLBACK" comment — it's now primary. No conditional wrapping needed.
 
-**File: `src/pages/TryJericho.tsx`**
+3. **Remove OpenClaw-specific scratchpad filters** from `emitText` (lines 152–154) — the `Draft Response:`, `Refine Response:`, `Final Polish:`, `STOP HERE` regex lines. These only exist because of OpenClaw's reasoning leakage. Gemini doesn't emit them. Keep the malformed-marker strippers (lines 156–161) as safety net.
 
-After the playbook generation completes (the `GENERATION` status event), show a channel selection step instead of just "Your playbook has been emailed." Display three options:
+4. **Remove the `<think>` block stripper** if present — another OpenClaw-only artifact.
 
-- **📱 Text me** — "Get daily coaching via text message"
-- **📧 Email reply** — "Reply to Jericho's emails to keep coaching"
-- **💻 Web app** — "Access the full dashboard with a magic link"
+### What stays
 
-When the user picks one, send it to `try-jericho-onboard` as `channelPreference`.
+- `TRY_SYSTEM_PROMPT` from `_shared/try-system-prompt.ts` — already the Gemini prompt, unchanged
+- `MarkerParser` class — stays, just without OpenClaw-specific filters
+- All session persistence logic — unchanged
+- The `OPENCLAW_*` secrets stay dormant in the vault (no need to delete)
 
-### Step 2: Store channel preference
+### Net result
 
-**File: `supabase/functions/try-jericho-onboard/index.ts`**
+~230 lines deleted. Function drops from ~711 to ~480 lines. Single model path, no timeouts, no fallback branching.
 
-- Accept `channelPreference` from the request body (values: `sms`, `email`, `web`)
-- Save it to `user_active_context.onboarding_data` alongside existing diagnostic data
-- If `sms`, also save phone number (already accepted in the request as `phone`)
+### Deployment
 
-### Step 3: Replace password welcome email with channel-appropriate email
+Redeploy `proxy-try-chat` edge function.
 
-**File: `supabase/functions/try-jericho-onboard/index.ts`**
+### Sales module
 
-Replace the current password-based welcome email (lines 242-313) with three variants:
-
-**If `web`**: Send a magic link email using Supabase `signInWithOtp` — the email contains a one-click login button, no password needed.
-
-**If `email`**: Send a "reply to get started" email — the email says "Just reply to this email anytime you want to chat with Jericho" with a `Reply-To: jericho@sender.askjericho.com` header. Include a secondary "View your dashboard" magic link.
-
-**If `sms`**: Send a confirmation text via `send-sms` saying "Hey [Name], it's Jericho. Text me anytime for coaching. Your playbook is in your inbox." Also send a shorter email with the playbook link + magic link (no password).
-
-**Default** (no preference selected): Send magic link email (same as `web`).
-
-### Step 4: Database migration — add channel preference column
-
-Add `preferred_channel` column to `profiles` table:
-
-```sql
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS preferred_channel text 
-DEFAULT 'web' 
-CHECK (preferred_channel IN ('sms', 'email', 'web'));
-```
-
-This lets the daily brief system and Jericho chat route messages through the right channel.
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| `src/pages/TryJericho.tsx` | Add channel selection UI after playbook generation |
-| `supabase/functions/try-jericho-onboard/index.ts` | Accept `channelPreference`, replace password email with channel-specific emails using magic links |
-| New migration | Add `preferred_channel` column to `profiles` |
-
-### What This Unlocks
-
-- Zero-password onboarding — no more dead login links
-- Users who prefer SMS never need to visit the web app
-- Email repliers get a conversational flow immediately
-- Web users get a magic link that logs them in with one click
-- Daily brief system can route to the right channel based on `preferred_channel`
+**Not affected.** `sales-coach/index.ts` has its own model routing and will continue using whatever model it's configured for (including OpenClaw/Opus via direct API). Zero changes needed there.
 
