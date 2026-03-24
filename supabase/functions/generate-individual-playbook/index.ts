@@ -790,8 +790,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     <p class="body-text">${narrative.growth_edge_intro || ''}</p>
     <div class="priority-list">${prioritiesHtml}</div>
     <div class="section-cta">
-      <div class="cta-text"><strong>These aren't suggestions — they're loaded.</strong> Your three priorities are already queued as development targets inside Jericho.</div>
-      <a href="https://askjericho.com/auth" class="cta-link">See your targets →</a>
+      <div class="cta-text"><strong>These are live.</strong> Log in and they're already waiting — with resources, timelines, and your first move mapped out.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Let's go →</a>
     </div>
   </div>
 
