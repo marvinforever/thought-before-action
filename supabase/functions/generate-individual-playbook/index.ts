@@ -1124,7 +1124,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
               <tr><td style="padding:4px 20px 20px;font-size:15px;line-height:1.8;color:#F0EDE6;font-weight:700;">${narrative.quick_win_closer || ''}</td></tr>
             </table>
           </td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">This is day one.</strong> Jericho generates a new quick win every week based on what you\'ve actually done — not generic advice.', 'Start your streak →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Knock this out and a new one drops next week.</strong> Each one builds on the last — momentum is the whole point.', 'Knock it out →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📚 Your Learning Path</td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.learning_intro || ''}</td></tr>
