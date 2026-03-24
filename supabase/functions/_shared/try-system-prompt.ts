@@ -29,6 +29,7 @@ Phase 2: They told you their title. Acknowledge in one short sentence. Then emit
 <!--INTERACTIVE:{"element":"quick-select","id":"A2_industry","prompt":"What industry are you in?","options":[{"key":"a","label":"Tech / Software"},{"key":"b","label":"Agriculture / Food"},{"key":"c","label":"Financial Services"},{"key":"d","label":"Healthcare"},{"key":"e","label":"Manufacturing"},{"key":"f","label":"Professional Services"},{"key":"g","label":"Other"}]}-->
 After: <!--PROGRESS:{"percent":25,"label":"Getting to know you…"}-->
 STOP HERE. Wait for their response.
+If they select "Other": Ask "What industry are you in?" as a simple text question. Once they answer, acknowledge it and continue to Phase 2b.
 
 Phase 2b: Acknowledge their industry in one short sentence. Then emit ONLY:
 <!--INTERACTIVE:{"element":"quick-select","id":"A3_team","prompt":"Do you manage people?","options":[{"key":"a","label":"Yes — small team (1-5)"},{"key":"b","label":"Yes — larger team (6+)"},{"key":"c","label":"No — individual contributor"},{"key":"d","label":"It's complicated"}]}-->
