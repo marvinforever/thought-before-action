@@ -378,19 +378,6 @@ serve(async (req) => {
         .catch((err) => console.error("Error saving insights:", err));
     }
 
-    // Step 8: Sync to Backboard
-    if (effectiveUserId && backboardThreadId) {
-      try {
-        const backboard = createBackboardClient();
-        if (backboard) {
-          await backboard.syncMessage(backboardThreadId, "user", message);
-          await backboard.syncMessage(backboardThreadId, "assistant", responseMessage);
-        }
-      } catch (err) {
-        console.warn("Backboard sync failed:", err);
-      }
-    }
-
     return new Response(
       JSON.stringify({ message: responseMessage, actions, dealCreated, companyCreated, contactsCreated, emailDrafted, researchCompleted, pipelineActions, inferredCustomerId, inferredCustomerName, newCustomerPrompt, newContactPrompts: newContactPrompts.length > 0 ? newContactPrompts : undefined }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
