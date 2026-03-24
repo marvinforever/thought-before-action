@@ -25,16 +25,27 @@ export class BackboardClient {
   private apiKey: string;
   private maxRetries: number;
 
-  constructor(apiKey: string, maxRetries: number = 3) {
+  private consecutiveFailures = 0;
+  private circuitOpenUntil = 0;
+
+  constructor(apiKey: string, maxRetries: number = 1) {
     this.apiKey = apiKey;
     this.maxRetries = maxRetries;
   }
 
   private async request(endpoint: string, options: RequestInit = {}, retries = 0): Promise<any> {
+    // Circuit breaker: if we've failed 3+ times recently, skip for 60s
+    if (this.consecutiveFailures >= 3 && Date.now() < this.circuitOpenUntil) {
+      throw new Error('Backboard circuit open — skipping to avoid latency');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s hard timeout
+
     try {
-      console.log(`Calling Jericho webhook: ${JERICHO_WEBHOOK_URL}${endpoint}`);
       const response = await fetch(`${JERICHO_WEBHOOK_URL}${endpoint}`, {
         ...options,
+        signal: controller.signal,
         headers: {
           'Authorization': JERICHO_WEBHOOK_AUTH,
           'Content-Type': 'application/json',
@@ -42,18 +53,36 @@ export class BackboardClient {
         },
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
         const error = await response.text();
         throw new Error(`Jericho webhook error: ${response.status} - ${error}`);
       }
 
+      this.consecutiveFailures = 0; // Reset on success
       return response.json();
     } catch (error) {
+      clearTimeout(timeoutId);
+      const msg = (error as Error).message || '';
+      const isDnsOrNetwork = msg.includes('dns error') || msg.includes('abort') || msg.includes('network');
+
+      if (isDnsOrNetwork) {
+        // DNS/network failures won't resolve with retries — fail fast
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= 3) {
+          this.circuitOpenUntil = Date.now() + 60_000; // Open circuit for 60s
+          console.warn('Backboard circuit opened for 60s after repeated failures');
+        }
+        throw error;
+      }
+
       if (retries < this.maxRetries) {
-        console.warn(`Jericho webhook request failed (attempt ${retries + 1}/${this.maxRetries}), retrying...`, (error as Error).message);
-        await new Promise(r => setTimeout(r, 1000 * (retries + 1)));
+        console.warn(`Jericho webhook request failed (attempt ${retries + 1}/${this.maxRetries}), retrying...`, msg);
+        await new Promise(r => setTimeout(r, 500));
         return this.request(endpoint, options, retries + 1);
       }
+      this.consecutiveFailures++;
       throw error;
     }
   }
