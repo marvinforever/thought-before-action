@@ -1086,7 +1086,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
 
           <tr><td style="padding:0 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">💎 Your Superpower</td></tr>
           <tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">${(narrative.superpower_paragraphs || []).join('</td></tr><tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">')}</td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">Your superpower is benched.</strong> Jericho\'s coaching briefs are designed to get you back to the work only you can do.', 'Get your first brief →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">You already know what you\'re great at.</strong> Tomorrow\'s coaching brief will show you how to use it more.', 'Get tomorrow\'s brief →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🎯 Your Growth Edge</td></tr>
           <tr><td style="padding:0 32px 16px;">
