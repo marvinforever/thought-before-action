@@ -3053,25 +3053,6 @@ function streamResponse(response: Response, conversationId: string, supabase: an
                     body: JSON.stringify({ conversationId }),
                   }).catch(err => console.log('Aspiration detection skipped:', err.message));
 
-                  // Sync assistant response to Backboard for persistent memory (fire and forget)
-                  const backboard = createBackboardClient();
-                  if (backboard) {
-                    supabase
-                      .from('conversations')
-                      .select('profile_id')
-                      .eq('id', conversationId)
-                      .single()
-                      .then(async ({ data: conv }: any) => {
-                        if (conv?.profile_id) {
-                          const thread = await getOrCreateBackboardThread(supabase, conv.profile_id, 'general');
-                          if (thread) {
-                            backboard.syncMessage(thread.threadId, 'assistant', accumulatedContent)
-                              .catch((err: any) => console.log('Backboard assistant sync skipped:', err.message));
-                          }
-                        }
-                      })
-                      .catch((err: any) => console.log('Backboard thread lookup failed:', err.message));
-                  }
                 }
                 
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
