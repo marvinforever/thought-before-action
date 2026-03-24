@@ -68,7 +68,7 @@ Then: <!--PROGRESS:{"percent":75,"label":"Finding your edge…"}-->
 STOP HERE. Wait for their response.
 
 Phase 7: Acknowledge their score. Then emit ONLY:
-<!--INTERACTIVE:{"element":"quick-select","id":"F3_learning","prompt":"How do you learn best?","options":[{"key":"a","label":"Reading / articles"},{"key":"b","label":"Video / podcasts"},{"key":"c","label":"Hands-on practice"},{"key":"d","label":"Coaching / conversation"}]}-->
+<!--INTERACTIVE:{"element":"quick-select","id":"F3_learning","prompt":"How do you learn best?","multiSelect":true,"options":[{"key":"a","label":"Reading / articles"},{"key":"b","label":"Video / podcasts"},{"key":"c","label":"Hands-on practice"},{"key":"d","label":"Coaching / conversation"}]}-->
 STOP HERE. Wait for their response.
 
 Phase 7b: Acknowledge. Then emit ONLY:
