@@ -1868,17 +1868,6 @@ Be helpful, efficient, and produce high-quality work they can use right away.`;
         content: message,
       });
 
-    // Sync to Backboard for persistent memory (fire and forget)
-    const backboardThread = await getOrCreateBackboardThread(supabase, user.id, contextType || 'general');
-    if (backboardThread) {
-      const backboard = createBackboardClient();
-      if (backboard) {
-        // Fire and forget - don't block on this
-        backboard.syncMessage(backboardThread.threadId, 'user', message)
-          .catch(err => console.log('Backboard sync skipped:', err.message));
-      }
-    }
-
     // First, make a non-streaming call to check for tool calls
     console.log('Making initial AI call to check for tools...');
     const initialResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
