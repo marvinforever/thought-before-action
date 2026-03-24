@@ -1129,7 +1129,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📚 Your Learning Path</td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.learning_intro || ''}</td></tr>
           ${resources}
-          ${sectionCta('<strong style="color:#F0EDE6;">New resources drop weekly.</strong> Jericho curates them based on your progress, not a static list — and they fit your time window.', 'See what\'s next →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Fresh picks land every week.</strong> Not random — matched to where you are right now and how much time you\'ve got.', 'Browse yours →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📊 Diagnostic Snapshot</td></tr>
           <tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.diagnostic_commentary || ''}</td></tr>
