@@ -1110,7 +1110,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
               </tr>
             </table>
           </td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">This is your starting line, not your verdict.</strong> Self-assess inside Jericho and your scores update instantly — the AI adapts your plan to match.', 'Self-assess now →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Think we got one wrong? Good.</strong> Log in, correct it, and your entire plan reshapes around the real you.', 'Set the record straight →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">✅ Your Quick Win</td></tr>
           <tr><td style="padding:0 32px 24px;">
