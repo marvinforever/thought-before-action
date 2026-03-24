@@ -286,7 +286,6 @@ class MarkerParser {
           this.pendingPromises.push(onboardPromise);
           break;
         }
-        }
         case 'ONBOARDING_COMPLETE': {
           // Legacy — just save
           const legacyPromise = this.supabase
