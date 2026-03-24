@@ -1082,7 +1082,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
               <tr><td style="padding:0 16px 16px;font-size:14px;color:#9CA3AF;">Work Connection</td><td align="right" style="padding:0 16px 16px;font-size:14px;font-weight:700;color:#F0EDE6;">${d.engagement_score || '?'}/10</td></tr>
             </table>
           </td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">These scores change.</strong> Inside Jericho, they\'re tracked weekly — so you can see if the work is actually moving the needle.', 'Track yours →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Numbers move when you do.</strong> Log in and watch these update in real time as you grow.', 'Watch them move →')}
 
           <tr><td style="padding:0 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">💎 Your Superpower</td></tr>
           <tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">${(narrative.superpower_paragraphs || []).join('</td></tr><tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">')}</td></tr>
