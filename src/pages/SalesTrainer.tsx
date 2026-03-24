@@ -72,7 +72,7 @@ const SalesTrainer = () => {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [enableFieldMaps, setEnableFieldMaps] = useState(false);
-  // Active customer context for Backboard memory threading
+  // Active customer context for memory threading
   const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null);
   const [activeCustomerName, setActiveCustomerName] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
