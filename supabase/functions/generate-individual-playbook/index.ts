@@ -1097,7 +1097,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
           </td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.growth_edge_intro || ''}</td></tr>
           ${priorities}
-          ${sectionCta('<strong style="color:#F0EDE6;">These aren\'t suggestions — they\'re loaded.</strong> Your three priorities are already queued as development targets inside Jericho.', 'See your targets →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">These are live.</strong> Log in and they\'re already waiting — with resources, timelines, and your first move mapped out.', 'Let\'s go →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🧬 Your Capability Map</td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">Based on your role as <strong style="color:#F0EDE6;">${role}</strong>, your challenges, and your strengths, Jericho has identified 7 core capabilities for your development.</td></tr>
