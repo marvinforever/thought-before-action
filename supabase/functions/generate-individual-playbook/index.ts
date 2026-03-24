@@ -790,8 +790,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:
     <p class="body-text">${narrative.growth_edge_intro || ''}</p>
     <div class="priority-list">${prioritiesHtml}</div>
     <div class="section-cta">
-      <div class="cta-text"><strong>These aren't suggestions — they're loaded.</strong> Your three priorities are already queued as development targets inside Jericho.</div>
-      <a href="https://askjericho.com/auth" class="cta-link">See your targets →</a>
+      <div class="cta-text"><strong>These are live.</strong> Log in and they're already waiting — with resources, timelines, and your first move mapped out.</div>
+      <a href="https://askjericho.com/auth" class="cta-link">Let's go →</a>
     </div>
   </div>
 
@@ -1082,11 +1082,11 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
               <tr><td style="padding:0 16px 16px;font-size:14px;color:#9CA3AF;">Work Connection</td><td align="right" style="padding:0 16px 16px;font-size:14px;font-weight:700;color:#F0EDE6;">${d.engagement_score || '?'}/10</td></tr>
             </table>
           </td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">These scores change.</strong> Inside Jericho, they\'re tracked weekly — so you can see if the work is actually moving the needle.', 'Track yours →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Numbers move when you do.</strong> Log in and watch these update in real time as you grow.', 'Watch them move →')}
 
           <tr><td style="padding:0 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">💎 Your Superpower</td></tr>
           <tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">${(narrative.superpower_paragraphs || []).join('</td></tr><tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">')}</td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">Your superpower is benched.</strong> Jericho\'s coaching briefs are designed to get you back to the work only you can do.', 'Get your first brief →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">You already know what you\'re great at.</strong> Tomorrow\'s coaching brief will show you how to use it more.', 'Get tomorrow\'s brief →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🎯 Your Growth Edge</td></tr>
           <tr><td style="padding:0 32px 16px;">
@@ -1097,7 +1097,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
           </td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.growth_edge_intro || ''}</td></tr>
           ${priorities}
-          ${sectionCta('<strong style="color:#F0EDE6;">These aren\'t suggestions — they\'re loaded.</strong> Your three priorities are already queued as development targets inside Jericho.', 'See your targets →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">These are live.</strong> Log in and they\'re already waiting — with resources, timelines, and your first move mapped out.', 'Let\'s go →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🧬 Your Capability Map</td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">Based on your role as <strong style="color:#F0EDE6;">${role}</strong>, your challenges, and your strengths, Jericho has identified 7 core capabilities for your development.</td></tr>
@@ -1110,7 +1110,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
               </tr>
             </table>
           </td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">This is your starting line, not your verdict.</strong> Self-assess inside Jericho and your scores update instantly — the AI adapts your plan to match.', 'Self-assess now →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Think we got one wrong? Good.</strong> Log in, correct it, and your entire plan reshapes around the real you.', 'Set the record straight →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">✅ Your Quick Win</td></tr>
           <tr><td style="padding:0 32px 24px;">
@@ -1124,12 +1124,12 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
               <tr><td style="padding:4px 20px 20px;font-size:15px;line-height:1.8;color:#F0EDE6;font-weight:700;">${narrative.quick_win_closer || ''}</td></tr>
             </table>
           </td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">This is day one.</strong> Jericho generates a new quick win every week based on what you\'ve actually done — not generic advice.', 'Start your streak →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Knock this out and a new one drops next week.</strong> Each one builds on the last — momentum is the whole point.', 'Knock it out →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📚 Your Learning Path</td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.learning_intro || ''}</td></tr>
           ${resources}
-          ${sectionCta('<strong style="color:#F0EDE6;">New resources drop weekly.</strong> Jericho curates them based on your progress, not a static list — and they fit your time window.', 'See what\'s next →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Fresh picks land every week.</strong> Not random — matched to where you are right now and how much time you\'ve got.', 'Browse yours →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">📊 Diagnostic Snapshot</td></tr>
           <tr><td style="padding:0 32px 16px;font-size:15px;line-height:1.8;color:#9CA3AF;">${narrative.diagnostic_commentary || ''}</td></tr>
@@ -1149,7 +1149,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
             </table>
           </td></tr>
           <tr><td style="padding:0 32px 16px;font-size:13px;line-height:1.7;color:#6B7280;">These scores are estimated from your coaching conversation. Full validated diagnostics — with trend tracking, team benchmarks, and 90-day progress monitoring — unlock inside Jericho.</td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">These are estimates.</strong> Full validated diagnostics with trend tracking, team benchmarks, and 90-day monitoring unlock when you log in.', 'Unlock full diagnostics →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Curious how accurate these are?</strong> Log in for the full picture — validated scores, trend lines, and the stuff we can\'t fit in an email.', 'See the full picture →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🔓 What\'s Already Waiting for You</td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">This Playbook scratched the surface. When you log in, Jericho already knows everything you told me — and it\'s built your next 90 days around it.</td></tr>
