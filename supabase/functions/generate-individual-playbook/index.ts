@@ -1149,7 +1149,7 @@ function buildFullPlaybookEmail(d: any, eng: any, caps: any[], narrative: any): 
             </table>
           </td></tr>
           <tr><td style="padding:0 32px 16px;font-size:13px;line-height:1.7;color:#6B7280;">These scores are estimated from your coaching conversation. Full validated diagnostics — with trend tracking, team benchmarks, and 90-day progress monitoring — unlock inside Jericho.</td></tr>
-          ${sectionCta('<strong style="color:#F0EDE6;">These are estimates.</strong> Full validated diagnostics with trend tracking, team benchmarks, and 90-day monitoring unlock when you log in.', 'Unlock full diagnostics →')}
+          ${sectionCta('<strong style="color:#F0EDE6;">Curious how accurate these are?</strong> Log in for the full picture — validated scores, trend lines, and the stuff we can\'t fit in an email.', 'See the full picture →')}
 
           <tr><td style="padding:12px 32px 8px;font-family:Georgia,serif;font-size:28px;color:#F0EDE6;">🔓 What\'s Already Waiting for You</td></tr>
           <tr><td style="padding:0 32px 18px;font-size:15px;line-height:1.8;color:#9CA3AF;">This Playbook scratched the surface. When you log in, Jericho already knows everything you told me — and it\'s built your next 90 days around it.</td></tr>
