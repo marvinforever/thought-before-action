@@ -177,6 +177,71 @@ class MarkerParser {
             .catch((e: any) => console.error('[proxy-try-chat] Extracted data save error:', e));
           this.pendingPromises.push(savePromise);
 
+          // Handle book_call request — send email to team
+          if (data.book_call) {
+            const bookCallPromise = (async () => {
+              try {
+                // Get the session's full extracted data for user context
+                const { data: session } = await this.supabase
+                  .from('try_sessions')
+                  .select('extracted_data')
+                  .eq('session_token', this.sessionToken)
+                  .single();
+
+                const userData = session?.extracted_data || data;
+                const userName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Unknown';
+                const userEmail = userData.email || 'Not provided';
+                const userRole = userData.role || 'Not provided';
+                const userIndustry = userData.industry || 'Not provided';
+                const meetingTimes = data.meeting_times || [];
+
+                const resendKey = Deno.env.get('RESEND_API_KEY');
+                if (!resendKey) {
+                  console.error('[proxy-try-chat] RESEND_API_KEY not set, cannot send booking email');
+                  return;
+                }
+
+                const timesHtml = meetingTimes.length > 0
+                  ? `<ul>${meetingTimes.map((t: string) => `<li>${t}</li>`).join('')}</ul>`
+                  : '<p><em>No specific times provided</em></p>';
+
+                const emailBody = `
+                  <h2>🔥 New Call Request from Jericho Try Flow</h2>
+                  <p><strong>Name:</strong> ${userName}</p>
+                  <p><strong>Email:</strong> ${userEmail}</p>
+                  <p><strong>Role:</strong> ${userRole}</p>
+                  <p><strong>Industry:</strong> ${userIndustry}</p>
+                  <h3>Preferred Meeting Times:</h3>
+                  ${timesHtml}
+                  <p style="margin-top:20px;color:#666;">This person completed the Jericho onboarding flow and wants to book a call. Please send them a calendar invite at one of their preferred times.</p>
+                `;
+
+                const resp = await fetch('https://api.resend.com/emails', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    from: Deno.env.get('RESEND_FROM') || 'Jericho <jericho@sender.askjericho.com>',
+                    to: ['marvin@themomentumcompany.com'],
+                    cc: ['mark@themomentumcompany.com'],
+                    subject: `📞 Call Request: ${userName} wants to book a demo`,
+                    html: emailBody,
+                    reply_to: userEmail !== 'Not provided' ? userEmail : undefined,
+                  }),
+                });
+
+                if (resp.ok) {
+                  console.log(`[proxy-try-chat] Booking email sent for ${userName}`);
+                } else {
+                  const errText = await resp.text().catch(() => '');
+                  console.error(`[proxy-try-chat] Booking email failed ${resp.status}: ${errText}`);
+                }
+              } catch (e) {
+                console.error('[proxy-try-chat] Booking email error:', e);
+              }
+            })();
+            this.pendingPromises.push(bookCallPromise);
+          }
+
           // Only trigger account creation if we have an email
           if (!data.email) {
             console.warn('[proxy-try-chat] No email in extracted data, skipping onboard trigger');
@@ -220,6 +285,7 @@ class MarkerParser {
             .catch(e => console.error('[proxy-try-chat] Onboard trigger error:', e));
           this.pendingPromises.push(onboardPromise);
           break;
+        }
         }
         case 'ONBOARDING_COMPLETE': {
           // Legacy — just save
