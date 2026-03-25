@@ -463,6 +463,77 @@ export default function TryJericho() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [reportProfileId, reportReady]);
 
+  // ── Poll try_sessions for playbook_generated status once generating starts ──
+  useEffect(() => {
+    if (!generating || playbookReady) return;
+    
+    // Safety timeout — never leave user stuck
+    const safetyTimeout = setTimeout(() => {
+      setPlaybookReady(true);
+    }, 90000);
+    
+    const poll = async () => {
+      try {
+        const { data } = await supabase
+          .from("try_sessions")
+          .select("status")
+          .eq("session_token", sessionToken)
+          .single();
+        if (data?.status === "playbook_generated") {
+          setPlaybookReady(true);
+        }
+      } catch { /* retry next interval */ }
+    };
+    
+    const interval = setInterval(poll, 8000);
+    poll(); // immediate first check
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(safetyTimeout);
+    };
+  }, [generating, playbookReady, sessionToken]);
+
+  // ── Rehydrate conversation from try_sessions on mount ──
+  useEffect(() => {
+    const rehydrate = async () => {
+      try {
+        const { data } = await supabase
+          .from("try_sessions")
+          .select("conversation_history, status, extracted_data")
+          .eq("session_token", sessionToken)
+          .single();
+        
+        const history = data?.conversation_history as any[] | null;
+        if (!history?.length) return;
+        
+        // Restore messages
+        const restored: Message[] = history.map((entry: any) => ({
+          id: generateId(),
+          role: entry.role === "assistant" ? "jericho" as const : "user" as const,
+          text: entry.content || "",
+        }));
+        
+        setMessages(restored);
+        setStarted(true);
+        
+        // Restore generating/ready state if applicable
+        if (data.status === "playbook_generated") {
+          setGenerating(true);
+          setPlaybookReady(true);
+          setProgressPercent(100);
+        } else if (data.status === "onboarding_complete" && data.extracted_data) {
+          setGenerating(true);
+          setProgressPercent(100);
+          setProgressLabel("Building your Playbook…");
+        }
+      } catch {
+        // No existing session — fresh start
+      }
+    };
+    rehydrate();
+  }, [sessionToken]);
+
   const handleStart = async () => {
     setStarted(true);
     sessionStartRef.current = Date.now();
