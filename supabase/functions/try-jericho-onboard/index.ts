@@ -353,6 +353,7 @@ Deno.serve(async (req) => {
         throw new Error(`Context creation failed: ${contextError.message}`);
       }
       console.log(`[try-jericho-onboard] Context saved, complete=${!!hasFullDiagnostic}`);
+    }
 
     // 4c. Write coaching insights from diagnostic/playbook data
     if (diagnosticData) {
