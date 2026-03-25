@@ -303,8 +303,10 @@ Deno.serve(async (req) => {
     );
 
     if (profileError) {
-      console.error("Profile error:", profileError);
+      console.error("Profile creation FAILED:", JSON.stringify(profileError));
+      throw new Error(`Profile creation failed: ${profileError.message}`);
     }
+    console.log(`[try-jericho-onboard] Profile created/updated for ${userId}`);
 
     // 4. Store challenge context for Jericho to reference later + preload into user_active_context
     if (challenge) {
@@ -320,7 +322,7 @@ Deno.serve(async (req) => {
     }
 
     // 4b. Preload diagnostic data into user_active_context for /try → coaching continuity
-    try {
+    {
       const onboardingData = diagnosticData
         ? {
             ...diagnosticData,
@@ -336,7 +338,7 @@ Deno.serve(async (req) => {
 
       const hasFullDiagnostic = diagnosticData && diagnosticData.engagement_score;
 
-      await supabaseAdmin.from("user_active_context").upsert({
+      const { error: contextError } = await supabaseAdmin.from("user_active_context").upsert({
         profile_id: userId,
         company_id: targetCompanyId,
         onboarding_path: "try-page",
@@ -346,9 +348,11 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: "profile_id" });
 
+      if (contextError) {
+        console.error("Context creation FAILED:", JSON.stringify(contextError));
+        throw new Error(`Context creation failed: ${contextError.message}`);
+      }
       console.log(`[try-jericho-onboard] Context saved, complete=${!!hasFullDiagnostic}`);
-    } catch (e) {
-      console.error("Active context preload error:", e);
     }
 
     // 4c. Write coaching insights from diagnostic/playbook data
