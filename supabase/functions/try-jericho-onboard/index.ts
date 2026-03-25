@@ -199,20 +199,30 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
-      if (authError.code === "email_exists") {
-        console.log(`[try-jericho-onboard] User ${email} already exists, looking up profile`);
-        // Look up via profiles table — listUsers() only returns first page and misses users in large projects
+      if (authError.code === "email_exists" || authError.message?.includes("already been registered")) {
+        console.log(`[try-jericho-onboard] User ${email} already exists, looking up…`);
         const { data: existingProfile } = await supabaseAdmin
           .from("profiles")
           .select("id")
           .eq("email", email.toLowerCase().trim())
           .limit(1)
           .maybeSingle();
-        if (!existingProfile) {
-          throw new Error("User exists in auth but profile not found — please contact support.");
+        if (existingProfile) {
+          userId = existingProfile.id;
+          console.log(`[try-jericho-onboard] Found existing profile: ${userId}`);
+        } else {
+          // User in auth but no profile — look up via admin API and create profile
+          const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
+          const foundUser = userList?.users?.find(
+            (u: any) => u.email?.toLowerCase() === email.toLowerCase().trim()
+          );
+          if (!foundUser) {
+            throw new Error("User exists in auth but could not be found via admin API.");
+          }
+          userId = foundUser.id;
+          isNewUser = true;
+          console.log(`[try-jericho-onboard] Found auth user without profile: ${userId}, will create profile`);
         }
-        userId = existingProfile.id;
-        console.log(`[try-jericho-onboard] Found existing user via profile: ${userId}`);
       } else {
         throw authError;
       }

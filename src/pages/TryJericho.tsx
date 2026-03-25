@@ -504,10 +504,11 @@ export default function TryJericho() {
           .eq("session_token", sessionToken)
           .single();
         
-        if (!data?.conversation_history?.length) return;
+        const history = data?.conversation_history as any[] | null;
+        if (!history?.length) return;
         
         // Restore messages
-        const restored: Message[] = (data.conversation_history as any[]).map((entry: any) => ({
+        const restored: Message[] = history.map((entry: any) => ({
           id: generateId(),
           role: entry.role === "assistant" ? "jericho" as const : "user" as const,
           text: entry.content || "",
