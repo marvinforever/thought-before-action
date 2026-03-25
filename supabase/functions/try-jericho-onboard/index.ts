@@ -303,8 +303,10 @@ Deno.serve(async (req) => {
     );
 
     if (profileError) {
-      console.error("Profile error:", profileError);
+      console.error("Profile creation FAILED:", JSON.stringify(profileError));
+      throw new Error(`Profile creation failed: ${profileError.message}`);
     }
+    console.log(`[try-jericho-onboard] Profile created/updated for ${userId}`);
 
     // 4. Store challenge context for Jericho to reference later + preload into user_active_context
     if (challenge) {
