@@ -322,7 +322,7 @@ Deno.serve(async (req) => {
     }
 
     // 4b. Preload diagnostic data into user_active_context for /try → coaching continuity
-    try {
+    {
       const onboardingData = diagnosticData
         ? {
             ...diagnosticData,
