@@ -232,6 +232,8 @@ Deno.serve(async (req) => {
       console.log(`[try-jericho-onboard] New user created: ${userId}`);
     }
 
+    const FALLBACK_COMPANY_NAME = "Try Jericho";
+
     // 2. Resolve or create company — email-domain matching
     let targetCompanyId = companyId || null;
     const emailDomain = email.toLowerCase().trim().split("@")[1] || "";
@@ -285,6 +287,40 @@ Deno.serve(async (req) => {
             console.log(`[try-jericho-onboard] Created company "${companyName}": ${targetCompanyId}`);
           }
         }
+      }
+    }
+
+    // Step D: Final fallback for consumer/generic emails so active profiles always satisfy DB constraints
+    if (!targetCompanyId) {
+      const { data: fallbackCompany, error: fallbackCompanyError } = await supabaseAdmin
+        .from("companies")
+        .select("id")
+        .eq("name", FALLBACK_COMPANY_NAME)
+        .limit(1)
+        .maybeSingle();
+
+      if (fallbackCompanyError) {
+        console.error("Fallback company lookup FAILED:", JSON.stringify(fallbackCompanyError));
+        throw new Error(`Fallback company lookup failed: ${fallbackCompanyError.message}`);
+      }
+
+      if (fallbackCompany?.id) {
+        targetCompanyId = fallbackCompany.id;
+        console.log(`[try-jericho-onboard] Using fallback company \"${FALLBACK_COMPANY_NAME}\": ${targetCompanyId}`);
+      } else {
+        const { data: newFallbackCompany, error: createFallbackCompanyError } = await supabaseAdmin
+          .from("companies")
+          .insert({ name: FALLBACK_COMPANY_NAME })
+          .select("id")
+          .single();
+
+        if (createFallbackCompanyError) {
+          console.error("Fallback company creation FAILED:", JSON.stringify(createFallbackCompanyError));
+          throw new Error(`Fallback company creation failed: ${createFallbackCompanyError.message}`);
+        }
+
+        targetCompanyId = newFallbackCompany.id;
+        console.log(`[try-jericho-onboard] Created fallback company \"${FALLBACK_COMPANY_NAME}\": ${targetCompanyId}`);
       }
     }
 
