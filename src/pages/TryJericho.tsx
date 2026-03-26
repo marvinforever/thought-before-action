@@ -494,6 +494,11 @@ export default function TryJericho() {
     };
   }, [generating, playbookReady, sessionToken]);
 
+  // ── Clear session cookie to start fresh ──
+  const clearSessionCookie = useCallback(() => {
+    document.cookie = "jericho_try_session=; path=/; max-age=0; SameSite=Lax";
+  }, []);
+
   // ── Rehydrate conversation from try_sessions on mount ──
   useEffect(() => {
     const rehydrate = async () => {
@@ -504,6 +509,12 @@ export default function TryJericho() {
           .eq("session_token", sessionToken)
           .single();
         
+        // If session is already completed, clear cookie so next visit starts fresh
+        if (data?.status === "playbook_generated" || data?.status === "onboarding_complete") {
+          clearSessionCookie();
+          return; // Don't restore — let user start a new conversation
+        }
+
         const history = data?.conversation_history as any[] | null;
         if (!history?.length) return;
         
@@ -516,23 +527,12 @@ export default function TryJericho() {
         
         setMessages(restored);
         setStarted(true);
-        
-        // Restore generating/ready state if applicable
-        if (data.status === "playbook_generated") {
-          setGenerating(true);
-          setPlaybookReady(true);
-          setProgressPercent(100);
-        } else if (data.status === "onboarding_complete" && data.extracted_data) {
-          setGenerating(true);
-          setProgressPercent(100);
-          setProgressLabel("Building your Playbook…");
-        }
       } catch {
         // No existing session — fresh start
       }
     };
     rehydrate();
-  }, [sessionToken]);
+  }, [sessionToken, clearSessionCookie]);
 
   const handleStart = async () => {
     setStarted(true);
@@ -1012,7 +1012,7 @@ export default function TryJericho() {
               </div>
 
               {/* Input or Generation Animation */}
-              {generating ? (
+              {generating && !channelChosen ? (
                 <PlaybookGenerating
                   ready={playbookReady}
                   channelChosen={channelChosen}
