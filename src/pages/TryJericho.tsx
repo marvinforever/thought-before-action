@@ -1012,7 +1012,7 @@ export default function TryJericho() {
               </div>
 
               {/* Input or Generation Animation */}
-              {generating ? (
+              {generating && !channelChosen ? (
                 <PlaybookGenerating
                   ready={playbookReady}
                   channelChosen={channelChosen}
