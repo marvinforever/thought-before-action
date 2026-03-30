@@ -818,7 +818,7 @@ async function gatherContext(
             Authorization: `Bearer ${serviceRoleKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, daysBack: 30, daysForward: 30 }),
         }),
         5_000,
         "gatherContext:calendar"
@@ -1415,22 +1415,35 @@ async function generateResponse(
   let calendarContext = "";
   const calEvents = context.calendarEvents || [];
   if (calEvents.length > 0) {
-    calendarContext = "\n## YOUR UPCOMING CALENDAR (next 7 days):\n";
-    for (const evt of calEvents.slice(0, 20)) {
+    // Split events into past and upcoming
+    const now = new Date();
+    const pastEvents = calEvents.filter((e: any) => new Date(e.start?.dateTime || e.start?.date || 0) < now);
+    const futureEvents = calEvents.filter((e: any) => new Date(e.start?.dateTime || e.start?.date || 0) >= now);
+
+    const formatEvent = (evt: any) => {
       const start = evt.start?.dateTime || evt.start?.date || "TBD";
-      const end = evt.end?.dateTime || evt.end?.date || "";
       const summary = evt.summary || "(No title)";
       const attendees = (evt.attendees || []).map((a: any) => a.displayName || a.email).join(", ");
       const location = evt.location || "";
       const startDate = new Date(start);
       const dateStr = startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
       const timeStr = evt.start?.dateTime ? startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "All day";
-      calendarContext += `- **${summary}** — ${dateStr} ${timeStr}`;
-      if (attendees) calendarContext += ` | With: ${attendees}`;
-      if (location) calendarContext += ` | ${location}`;
-      calendarContext += "\n";
+      let line = `- **${summary}** — ${dateStr} ${timeStr}`;
+      if (attendees) line += ` | With: ${attendees}`;
+      if (location) line += ` | ${location}`;
+      return line;
+    };
+
+    calendarContext = "\n## YOUR CALENDAR (past 30 days + next 30 days):\n";
+    if (pastEvents.length > 0) {
+      calendarContext += "### Recent meetings:\n";
+      for (const evt of pastEvents.slice(-15)) calendarContext += formatEvent(evt) + "\n";
     }
-    calendarContext += "Use this calendar data to suggest optimal timing for follow-ups, flag upcoming customer meetings, and help with call prep.\n";
+    if (futureEvents.length > 0) {
+      calendarContext += "### Upcoming:\n";
+      for (const evt of futureEvents.slice(0, 20)) calendarContext += formatEvent(evt) + "\n";
+    }
+    calendarContext += "Use this calendar data to reference past meetings, suggest follow-up timing, flag upcoming customer meetings, and help with call prep.\n";
   }
 
   const systemPrompt =
