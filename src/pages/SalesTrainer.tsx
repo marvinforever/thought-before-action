@@ -591,10 +591,12 @@ const SalesTrainer = () => {
       await loadConversation(userId, effectiveCompId);
     }
     
-    // Fetch deals for the selected user
+    // Fetch user context for the viewed user so AI gets their goals/habits
     if (userId) {
+      await fetchUserContext(userId);
       await fetchDealsForUser(userId);
     } else if (user?.id) {
+      await fetchUserContext(user.id);
       await fetchDeals(user.id);
     }
   };

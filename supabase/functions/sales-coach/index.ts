@@ -774,9 +774,10 @@ async function gatherContext(
   const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [], industry: null };
   if (!userId) return context;
 
-  // Fetch industry from profile for conditional intelligence injection
-  const { data: userProfile } = await client.from("profiles").select("industry").eq("id", userId).maybeSingle();
+  // Fetch industry and name from profile for conditional intelligence injection and rep identity
+  const { data: userProfile } = await client.from("profiles").select("industry, full_name").eq("id", userId).maybeSingle();
   context.industry = userProfile?.industry || null;
+  context.repName = userProfile?.full_name || null;
 
   const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult, contactsResult] = await withTimeout(
     Promise.all([
@@ -1297,11 +1298,15 @@ async function generateResponse(
   // Industry-conditional intelligence
   const industryIntelligence = context.industry === 'agriculture' ? `\n${AGRICULTURE_INTELLIGENCE}` : '';
 
+  // Identify the rep by name so the AI addresses them correctly (critical for View As mode)
+  const repIdentity = context.repName ? `\n## YOU ARE COACHING: ${context.repName}\nAddress this person by their first name. This is the rep whose data, pipeline, and customers you see below.\n` : "";
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
 
 REC MODE OVERRIDE: Be direct, data-first, 2-3 sentences max. No teaching moments. Peer-to-peer energy. Skip coaching frameworks — just answer fast.
+${repIdentity}
 
 ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
@@ -1316,6 +1321,7 @@ ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
       : `${JERICHO_PERSONALITY}
 
+${repIdentity}
 ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
