@@ -499,14 +499,13 @@ function InteractiveResourceCard({
     // Search for matching resource in the database
     const { data: matches } = await supabase
       .from("resources")
-      .select("id, title, url, resource_type")
+      .select("id, title, url, content_type")
       .ilike("title", `%${resource.title.split(":")[0].trim().substring(0, 30)}%`)
       .limit(1);
 
-    if (matches && matches.length > 0 && matches[0].url) {
-      // Log as started, open the resource
+    if (matches && matches.length > 0 && (matches[0] as any).url) {
       if (!isCompleted) onInteract("started");
-      window.open(matches[0].url, "_blank");
+      window.open((matches[0] as any).url, "_blank");
     } else {
       // No direct match — navigate to resources page with search context
       onNavigate();
