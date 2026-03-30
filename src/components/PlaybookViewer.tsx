@@ -431,7 +431,9 @@ export function PlaybookViewer({ narrative, scores, capabilities, htmlFallback, 
               narrative={narrative}
               interaction={getInteraction("quick_win", narrative.quick_win_title || "")}
               onInteract={(type, feedback) => logInteraction("quick_win", narrative.quick_win_title || "", type, feedback)}
-              onDiscussWithJericho={() => navigate("/dashboard/personal-assistant")}
+              onDiscussWithJericho={() => navigate("/dashboard/personal-assistant", {
+                state: { chatMessage: `I'm looking at my Growth Playbook quick win: "${narrative.quick_win_title}". ${narrative.quick_win_intro || ''} I'd like to discuss whether this is the right fit for me and explore alternatives if needed.` }
+              })}
             />
           </motion.div>
         )}
