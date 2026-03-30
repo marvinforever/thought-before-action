@@ -818,7 +818,7 @@ async function gatherContext(
             Authorization: `Bearer ${serviceRoleKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, daysBack: 30, daysForward: 30 }),
         }),
         5_000,
         "gatherContext:calendar"
