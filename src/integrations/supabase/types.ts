@@ -4363,6 +4363,39 @@ export type Database = {
           },
         ]
       }
+      playbook_interactions: {
+        Row: {
+          created_at: string
+          feedback_text: string | null
+          id: string
+          interaction_type: string
+          metadata: Json | null
+          profile_id: string
+          section_key: string
+          section_type: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_text?: string | null
+          id?: string
+          interaction_type: string
+          metadata?: Json | null
+          profile_id: string
+          section_key: string
+          section_type: string
+        }
+        Update: {
+          created_at?: string
+          feedback_text?: string | null
+          id?: string
+          interaction_type?: string
+          metadata?: Json | null
+          profile_id?: string
+          section_key?: string
+          section_type?: string
+        }
+        Relationships: []
+      }
       podcast_content_usage: {
         Row: {
           content_hash: string | null
