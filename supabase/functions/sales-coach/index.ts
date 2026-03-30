@@ -593,14 +593,21 @@ If conversationDealDetected is true, also extract:
 
 RESEARCH IS EXPLICIT-ONLY - only set researchRequest if user says "research [company]", "look up [company] online", "find out about [company]".
 
+GENERAL RESEARCH: Set generalResearchRequest (string) when the user asks to research a TOPIC, PRODUCT, TACTIC, MARKET TREND, or any non-company subject. Examples:
+- "research cover crops", "look up no-till farming benefits", "what's the latest on fungicide timing"
+- "research cold calling strategies", "find me info on SPIN selling"
+- "what are the benefits of biological seed treatments"
+Set intentType to "general_research" in these cases.
+
 Return JSON:
 {
   "companies": [{"name": "...", "isNew": false, "confidence": 0.8}],
   "contacts": [{"name": "...", "title": "...", "companyName": "..."}],
   "dealSignals": {"value": null, "stage": "prospecting", "notes": "..."},
   "researchRequest": null,
+  "generalResearchRequest": null,
   "emailRequest": null,
-  "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action",
+  "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action",
   "conversationDealDetected": false,
   "detectedProduct": null,
   "detectedTopic": null
