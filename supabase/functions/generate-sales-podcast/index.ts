@@ -300,26 +300,29 @@ Write it now - thoughtful and inviting:`;
     const scriptData = await scriptResponse.json();
     const script = scriptData.choices?.[0]?.message?.content || '';
 
-    console.log('Synthesizing audio with OpenAI TTS...');
+    console.log('Synthesizing audio with ElevenLabs...');
 
-    const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+    const ttsResponse = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XrExE9yKIg1WjnnlVkGX?output_format=mp3_44100_128', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'xi-api-key': elevenLabsApiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tts-1-hd',
-        voice: 'shimmer',
-        input: script,
-        response_format: 'mp3',
-        speed: 1.0,
+        text: script,
+        model_id: 'eleven_turbo_v2_5',
+        voice_settings: {
+          stability: 0.45,
+          similarity_boost: 0.8,
+          style: 0.35,
+          use_speaker_boost: true,
+        },
       }),
     });
 
     if (!ttsResponse.ok) {
       const errorText = await ttsResponse.text();
-      console.error('OpenAI TTS failed:', errorText);
+      console.error('ElevenLabs TTS failed:', errorText);
       throw new Error('Failed to generate audio');
     }
 
