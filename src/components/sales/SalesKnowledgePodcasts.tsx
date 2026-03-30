@@ -109,6 +109,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [expandedTranscripts, setExpandedTranscripts] = useState<Set<string>>(new Set());
   const [showSuggested, setShowSuggested] = useState(true);
+  const [purchaseProducts, setPurchaseProducts] = useState<string[]>([]);
 
   const toggleTranscript = (key: string) => {
     setExpandedTranscripts(prev => {
@@ -126,6 +127,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     fetchKnowledge();
     fetchDeals();
     fetchCustomers();
+    fetchPurchaseProducts();
   }, [userId, companyId]);
 
   // Generate training suggestions based on deals and their stages
@@ -308,6 +310,24 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     
     if (data) {
       setCustomers(data);
+    }
+  };
+  const fetchPurchaseProducts = async () => {
+    if (!companyId) return;
+    const { data } = await supabase
+      .from("customer_purchase_history")
+      .select("product_description")
+      .eq("company_id", companyId)
+      .not("product_description", "is", null)
+      .limit(500);
+    
+    if (data) {
+      const unique = [...new Set(
+        data
+          .map(d => d.product_description?.trim())
+          .filter((p): p is string => !!p && p.length > 2 && p.length < 80)
+      )].sort();
+      setPurchaseProducts(unique);
     }
   };
 
@@ -503,34 +523,34 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
         </div>
         
         <div className="flex items-center gap-4 flex-wrap">
-          {/* Product Selection */}
-          {extractedProducts.length > 0 && (
+          {/* Product Focus */}
+          {(extractedProducts.length > 0 || purchaseProducts.length > 0) && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Package className="h-3 w-3" /> Product
+                <Package className="h-3 w-3" /> Product Focus
               </label>
               <Select 
-                value={selectedProductName ? `${selectedKnowledgeId}::${selectedProductName}` : "all"} 
+                value={selectedProductName ? `${selectedKnowledgeId || 'purchase'}::${selectedProductName}` : "all"} 
                 onValueChange={(v) => {
                   if (v === "all") {
                     setSelectedProductName(null);
                     setSelectedKnowledgeId(null);
                   } else {
                     const [knowledgeId, ...nameParts] = v.split("::");
-                    setSelectedKnowledgeId(knowledgeId);
+                    setSelectedKnowledgeId(knowledgeId === 'purchase' ? null : knowledgeId);
                     setSelectedProductName(nameParts.join("::"));
                   }
                 }}
               >
-                <SelectTrigger className="w-[200px] h-9">
+                <SelectTrigger className="w-[220px] h-9">
                   <SelectValue placeholder="All products" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover">
+                <SelectContent className="bg-popover max-h-[300px]">
                   <SelectItem value="all">All Products</SelectItem>
                   {Object.entries(productsBySource).map(([source, products]) => (
                     <div key={source}>
                       <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t first:border-t-0">
-                        {source}
+                        📚 {source}
                       </div>
                       {products.map((product, idx) => (
                         <SelectItem key={`${product.knowledgeId}-${idx}`} value={`${product.knowledgeId}::${product.name}`}>
@@ -539,6 +559,18 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                       ))}
                     </div>
                   ))}
+                  {purchaseProducts.length > 0 && (
+                    <div>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t">
+                        🛒 From Purchase History
+                      </div>
+                      {purchaseProducts.map((product, idx) => (
+                        <SelectItem key={`purchase-${idx}`} value={`purchase::${product}`}>
+                          {product}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -565,24 +597,31 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           </div>
           
           {/* Deal Selection */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Target className="h-3 w-3" /> Deal Context
-            </label>
-            <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="No deal" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="none">No Deal Filter</SelectItem>
-                {deals.map((deal) => (
-                  <SelectItem key={deal.id} value={deal.id}>
-                    {deal.deal_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {deals.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Target className="h-3 w-3" /> Apply to Deal
+              </label>
+              <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
+                <SelectTrigger className="w-[220px] h-9">
+                  <SelectValue placeholder="No deal" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="none">No Deal Filter</SelectItem>
+                  {deals.map((deal) => (
+                    <SelectItem key={deal.id} value={deal.id}>
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate max-w-[120px]">{deal.deal_name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ({deal.stage}{deal.sales_companies?.name ? ` · ${deal.sales_companies.name}` : ''})
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 
