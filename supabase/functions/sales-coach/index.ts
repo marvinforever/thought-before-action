@@ -1248,9 +1248,16 @@ async function generateResponse(
   if (customerFocused && relevantDeals.length === 0) {
     pipelineContext = `No deals found for ${mentionedCompany || mentionedContact || "this customer"} in your pipeline.`;
   } else if (customerFocused) {
-    pipelineContext = relevantDeals.map((d: any) => `- ${d.deal_name} (${d.stage}): $${d.value || 0}`).join("\n");
+    pipelineContext = relevantDeals.map((d: any) => {
+      const grower = d.sales_companies?.name || d.sales_contacts?.name || "Unknown";
+      const contact = d.sales_contacts?.name ? ` (Contact: ${d.sales_contacts.name}${d.sales_contacts.title ? `, ${d.sales_contacts.title}` : ""})` : "";
+      return `- **${grower}**${contact} — ${d.deal_name} (${d.stage}): $${d.value || 0}`;
+    }).join("\n");
   } else if (context.deals.length > 0) {
-    pipelineContext = context.deals.slice(0, 10).map((d: any) => `- ${d.deal_name} (${d.stage}): $${d.value || 0} at ${d.sales_companies?.name || "Unknown"}`).join("\n");
+    pipelineContext = context.deals.slice(0, 10).map((d: any) => {
+      const grower = d.sales_companies?.name || "Unknown";
+      return `- **${grower}** — ${d.deal_name} (${d.stage}): $${d.value || 0}`;
+    }).join("\n");
   } else {
     pipelineContext = "No deals in pipeline yet.";
   }
