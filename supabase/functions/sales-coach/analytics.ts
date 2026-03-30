@@ -64,7 +64,7 @@ export async function handleMyCustomerListQuery(
 
     const repFirstName = repName.split(" ")[0];
 
-    const repData = await queryCache.getOrFetch(
+    let repData = await queryCache.getOrFetch(
       repSummaryKey(companyId, repFirstName),
       async () => {
         const { data, error } = await client.rpc("get_rep_customer_summary", {
@@ -76,8 +76,30 @@ export async function handleMyCustomerListQuery(
       }
     );
 
+    // Fallback: if no rep-specific data found, show ALL company customers
+    let showingAllCompany = false;
     if (!repData || repData.length === 0) {
-      return `I don't see any purchase history data linked to your name (${repName}). Make sure your name in your profile matches the rep name in the imported sales data.`;
+      console.log("[My Customer List] No rep match for", repFirstName, "— falling back to all company data");
+      const { data: allData, error: allErr } = await client
+        .from("customer_purchase_history")
+        .select("customer_name, amount, rep_name")
+        .eq("company_id", companyId);
+      if (allErr || !allData || allData.length === 0) {
+        return `I don't see any purchase history data for your company yet. Make sure your sales data has been imported.`;
+      }
+      // Aggregate by customer
+      const byCustomer = new Map<string, { total: number; count: number; rep: string }>();
+      for (const row of allData) {
+        const name = row.customer_name || "Unknown";
+        const cur = byCustomer.get(name) || { total: 0, count: 0, rep: row.rep_name || "" };
+        cur.total += Number(row.amount) || 0;
+        cur.count += 1;
+        byCustomer.set(name, cur);
+      }
+      repData = Array.from(byCustomer.entries())
+        .map(([name, d]) => ({ customer_name: name, total_revenue: d.total, transaction_count: d.count, rep_name: d.rep }))
+        .sort((a, b) => b.total_revenue - a.total_revenue);
+      showingAllCompany = true;
     }
 
     const fmt = (n: number) =>
@@ -85,7 +107,7 @@ export async function handleMyCustomerListQuery(
 
     const totalRevenue = repData.reduce((sum: number, row: any) => sum + (Number(row.total_revenue) || 0), 0);
     const totalCustomers = repData.length;
-    const actualRepName = repData[0].rep_name;
+    const actualRepName = showingAllCompany ? repName : repData[0].rep_name;
 
     // Check if they want a specific year filtered
     const yearMatch = lowerMsg.match(/\b(202[0-9]|201[0-9]|last\s+year|this\s+year)\b/);
