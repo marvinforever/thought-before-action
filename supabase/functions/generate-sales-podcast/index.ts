@@ -302,8 +302,6 @@ Write it now - thoughtful and inviting:`;
 
     console.log('Synthesizing audio with OpenAI TTS...');
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
-
     const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
