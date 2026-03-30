@@ -331,7 +331,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
     }
   };
 
-  const FormContent = () => (
+  const formContent = (
     <div className="space-y-4">
       {/* File Upload */}
       <div className="space-y-2">
