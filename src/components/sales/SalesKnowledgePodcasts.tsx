@@ -22,7 +22,8 @@ import {
   Package,
   FileText,
   Eye,
-  EyeOff
+  EyeOff,
+  Users
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
