@@ -760,6 +760,89 @@ function extractCompanyFallback(message: string): { name: string; isConversation
 }
 
 // ============================================
+// CALENDAR COMPANY EXTRACTION
+// ============================================
+
+function extractCompaniesFromCalendar(events: any[]): { name: string; meetingTime: string; attendees: string[] }[] {
+  const companies: { name: string; meetingTime: string; attendees: string[] }[] = [];
+  const seen = new Set<string>();
+
+  // Common words to filter out of company name extraction
+  const stopWords = new Set([
+    "meeting", "call", "sync", "standup", "stand-up", "lunch", "dinner", "breakfast",
+    "blocked", "block", "busy", "pto", "vacation", "holiday", "birthday", "reminder",
+    "interview", "review", "1:1", "one-on-one", "coffee", "happy hour", "team",
+    "introduction", "intro", "jericho", "demo", "onboarding", "check-in", "check in",
+    "training", "workshop", "webinar", "conference", "all hands", "retro", "sprint",
+    "planning", "grooming", "backlog", "kickoff", "kick-off", "debrief",
+    "connection call", "biz dev", "biz dev block"
+  ]);
+
+  for (const evt of events) {
+    const title = evt.summary || "";
+    if (!title || title.length < 3) continue;
+    
+    // Skip obvious non-company events
+    const lowerTitle = title.toLowerCase().trim();
+    if (stopWords.has(lowerTitle)) continue;
+    if (/^(blocked|busy|pto|vacation|lunch|dinner|breakfast|birthday)/i.test(lowerTitle)) continue;
+
+    const attendees = (evt.attendees || []).map((a: any) => a.displayName || a.email).filter(Boolean);
+    const meetingTime = evt.start?.dateTime || evt.start?.date || "";
+
+    // Pattern 1: "Company Name - Topic" or "Topic (Company Name)"
+    let companyMatch = title.match(/\(([A-Za-z][A-Za-z\s&.,'-]{1,50})\)/);
+    if (companyMatch) {
+      const name = companyMatch[1].trim();
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+      continue;
+    }
+
+    // Pattern 2: "Something - Company Name" or "Company Name - Something"
+    companyMatch = title.match(/(?:^|\s*[-–—]\s*)([A-Z][A-Za-z\s&.,'-]{2,40})(?:\s*[-–—]|$)/);
+    if (companyMatch) {
+      const name = companyMatch[1].trim();
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+      continue;
+    }
+
+    // Pattern 3: "Meeting with Company" or "Call with Company"
+    companyMatch = title.match(/(?:meeting|call|demo|intro|introduction|presentation)\s+(?:with|@|at)\s+([A-Z][A-Za-z\s&.,'-]{2,40})/i);
+    if (companyMatch) {
+      const name = companyMatch[1].trim().replace(/\s*[-–—].*$/, "");
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+      continue;
+    }
+
+    // Pattern 4: Title contains a known company-like structure (capitalized multi-word)
+    // Only for titles that look like they contain a proper noun company name
+    companyMatch = title.match(/([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}(?:\s+(?:Inc|LLC|Corp|Ltd|USA|Co|Group|Labs|Bio|Tech|Ag|Sciences)\.?))/);
+    if (companyMatch) {
+      const name = companyMatch[1].trim();
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+    }
+  }
+
+  return companies;
+}
+
+// ============================================
 // CONTEXT GATHERING
 // ============================================
 
@@ -839,6 +922,83 @@ async function gatherContext(
     } catch (err) {
       // Calendar not connected or timed out — no problem
       console.log(`[gatherContext] Calendar fetch skipped: ${err instanceof Error ? err.message : "unavailable"}`);
+    }
+  }
+
+  // AUTO-DOSSIER: Research companies from upcoming calendar events (next 48 hours)
+  if (userId && context.calendarEvents.length > 0) {
+    try {
+      const now = new Date();
+      const horizon = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      const upcomingEvents = context.calendarEvents.filter((evt: any) => {
+        const start = new Date(evt.start?.dateTime || evt.start?.date || 0);
+        return start >= now && start <= horizon;
+      });
+
+      // Extract company-like names from event titles
+      const calendarCompanies = extractCompaniesFromCalendar(upcomingEvents);
+      
+      // Filter out companies we already know about
+      const knownNames = new Set(
+        (context.existingCompanies || []).map((c: any) => c.name?.toLowerCase().trim())
+      );
+      const unknownCompanies = calendarCompanies.filter(
+        (c) => !knownNames.has(c.name.toLowerCase().trim()) &&
+               !Array.from(knownNames).some((k) => k.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(k))
+      );
+
+      if (unknownCompanies.length > 0) {
+        console.log(`[AutoDossier] Found ${unknownCompanies.length} unknown companies from calendar: ${unknownCompanies.map(c => c.name).join(", ")}`);
+        
+        // Research up to 3 companies in parallel (to limit latency)
+        const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+        if (perplexityKey) {
+          const researchPromises = unknownCompanies.slice(0, 3).map(async (company) => {
+            try {
+              const response = await withTimeout(
+                fetch("https://api.perplexity.ai/chat/completions", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${perplexityKey}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    model: "sonar",
+                    messages: [{
+                      role: "user",
+                      content: `Research "${company.name}" for a B2B sales meeting. Provide:
+1. Company overview (what they do, size, headquarters)
+2. Key products/services they sell
+3. Recent news or developments
+4. Key leadership/decision makers
+5. Their target market and customers
+6. Potential pain points or opportunities for a sales technology/coaching platform
+Keep it concise and actionable for someone preparing for a sales call in the next 48 hours.`
+                    }],
+                  }),
+                }),
+                8_000,
+                `autoDossier:${company.name}`
+              );
+              if (response.ok) {
+                const data = await response.json();
+                const summary = data.choices?.[0]?.message?.content || "";
+                const citations = data.citations || [];
+                console.log(`[AutoDossier] Researched ${company.name}: ${summary.length} chars`);
+                return { name: company.name, summary, citations, meetingTime: company.meetingTime, attendees: company.attendees };
+              }
+            } catch (err) {
+              console.warn(`[AutoDossier] Research failed for ${company.name}: ${err instanceof Error ? err.message : "unknown"}`);
+            }
+            return null;
+          });
+
+          const results = (await Promise.all(researchPromises)).filter(Boolean);
+          context.calendarDossiers = results;
+          if (results.length > 0) {
+            console.log(`[AutoDossier] Completed ${results.length} dossiers`);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[AutoDossier] Error: ${err instanceof Error ? err.message : "unknown"}`);
     }
   }
 
@@ -1454,6 +1614,24 @@ async function generateResponse(
     calendarContext += "Use this calendar data to reference past meetings, suggest follow-up timing, flag upcoming customer meetings, and help with call prep.\n";
   }
 
+  // Build auto-dossier context for upcoming meetings
+  let dossierContext = "";
+  const dossiers = context.calendarDossiers || [];
+  if (dossiers.length > 0) {
+    dossierContext = "\n## 🔍 AUTO-RESEARCHED MEETING INTEL (companies from your upcoming calendar):\n";
+    dossierContext += "These dossiers were automatically researched because these companies appear in your upcoming meetings but aren't in your pipeline yet.\n\n";
+    for (const d of dossiers) {
+      const tz = context.userTimezone || "America/New_York";
+      const timeStr = d.meetingTime ? new Date(d.meetingTime).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz }) : "TBD";
+      dossierContext += `### ${d.name} (Meeting: ${timeStr})\n`;
+      if (d.attendees?.length > 0) dossierContext += `**In the room:** ${d.attendees.join(", ")}\n`;
+      dossierContext += `${d.summary}\n`;
+      if (d.citations?.length > 0) dossierContext += `Sources: ${d.citations.slice(0, 3).join(", ")}\n`;
+      dossierContext += "\n";
+    }
+    dossierContext += "IMPORTANT: When the user asks about their calendar, meetings, or any of these companies, proactively surface this intel. Offer to build a pre-call plan, load their product catalog, or draft talking points.\n";
+  }
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
@@ -1465,7 +1643,7 @@ ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}${documentContext}
-${repDataBlock}${calendarContext}
+${repDataBlock}${calendarContext}${dossierContext}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}${companyDetailBlock}
@@ -1479,13 +1657,20 @@ ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 
-AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actions using → format. These must be specific to what the data shows, not generic. Examples:
-→ Draft a pre-call plan for their upcoming meeting
-→ Pull last year's purchase comparison
-→ Create a deal to track this opportunity
+AGENTIC BEHAVIOR: You are a proactive executive sales assistant. Don't wait to be asked — lead with intelligence.
+- When you see upcoming calendar meetings with companies, automatically surface your research dossiers and offer meeting prep
+- After surfacing data or insights, suggest 2-3 contextual actions using → format
+- If you have auto-researched intel on a company the user mentions, lead with it
+- Identify gaps (missing product catalogs, unknown contacts) and tell the user exactly what you need to fill them
+- Think ahead: if there's a meeting tomorrow, prep for it today
+Examples:
+→ Build a pre-call plan for your 2:00 PM meeting with UPL
+→ Research their product line and load it into your knowledge base
+→ Draft an intro email to the decision maker
+→ Pull competitive intel on their market position
 ${focusInstruction}
 ${knowledgeContext}${documentContext}
-${repDataBlock}${calendarContext}
+${repDataBlock}${calendarContext}${dossierContext}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}${companyDetailBlock}
