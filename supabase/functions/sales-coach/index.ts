@@ -779,7 +779,7 @@ async function gatherContext(
   context.industry = userProfile?.industry || null;
   context.repName = userProfile?.full_name || null;
 
-  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult, contactsResult] = await withTimeout(
+  const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult, contactsResult, customerDocsResult] = await withTimeout(
     Promise.all([
       client.from("sales_deals").select(`id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at, sales_companies(id, name), sales_contacts(id, name, title)`).eq("profile_id", userId).order("priority").limit(50),
       client.from("sales_companies").select("id, name, notes, location, operation_details, customer_since, industry").eq("profile_id", userId).order("name").limit(500),
@@ -788,6 +788,10 @@ async function gatherContext(
         ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
         : Promise.resolve({ data: [] }),
       client.from("sales_contacts").select("id, name, title, pipeline_stage, last_purchase_date, notes, email, phone, is_decision_maker, sales_companies(name)").eq("profile_id", userId).order("name").limit(200),
+      // Fetch uploaded customer documents with extracted text
+      companyId
+        ? client.from("customer_documents").select("id, title, file_name, customer_id, document_type, summary, extracted_text").eq("company_id", companyId).eq("extraction_status", "completed").order("created_at", { ascending: false }).limit(20)
+        : Promise.resolve({ data: [] }),
     ]),
     10_000,
     "gatherContext:base-queries"
@@ -797,6 +801,10 @@ async function gatherContext(
   context.existingCompanies = companiesResult.data || [];
   context.salesKnowledge = [...(globalKnowledgeResult.data || []), ...(companyKnowledgeResult.data || [])];
   context.contacts = contactsResult.data || [];
+  context.customerDocuments = customerDocsResult.data || [];
+  if (context.customerDocuments.length > 0) {
+    console.log(`[gatherContext] Loaded ${context.customerDocuments.length} customer documents`);
+  }
 
   if (extracted.companies.length > 0) {
     const companyName = extracted.companies[0].name;
