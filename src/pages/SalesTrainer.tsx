@@ -23,6 +23,7 @@ interface Message {
   id?: string;
   contactPrompts?: { name: string; companyName?: string }[];
   researchData?: { query: string; summary: string; citations: string[] };
+  catalogData?: { companyName: string; catalog: string; citations?: string[]; savedToCompany?: string };
 }
 
 interface Company {
