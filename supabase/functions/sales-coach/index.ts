@@ -380,7 +380,8 @@ serve(async (req) => {
     const responseMessage = await generateResponse(
       message, conversationHistory, resolvedContext, actions, extracted, chatMode, deal,
       generateCallPlan, dealsCount, researchCompleted, emailDrafted, lovableApiKey,
-      effectiveUserId || "", effectiveCompanyId || ""
+      effectiveUserId || "", effectiveCompanyId || "",
+      generalResearchCompleted
     );
 
     // Step 7: Post-response learning (fire and forget)
@@ -391,7 +392,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ message: responseMessage, actions, dealCreated, companyCreated, contactsCreated, emailDrafted, researchCompleted, pipelineActions, inferredCustomerId, inferredCustomerName, newCustomerPrompt, newContactPrompts: newContactPrompts.length > 0 ? newContactPrompts : undefined }),
+      JSON.stringify({ message: responseMessage, actions, dealCreated, companyCreated, contactsCreated, emailDrafted, researchCompleted, generalResearchCompleted, pipelineActions, inferredCustomerId, inferredCustomerName, newCustomerPrompt, newContactPrompts: newContactPrompts.length > 0 ? newContactPrompts : undefined }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
