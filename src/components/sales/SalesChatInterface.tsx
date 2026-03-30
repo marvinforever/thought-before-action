@@ -261,6 +261,14 @@ export function SalesChatInterface({
                       ))}
                     </AnimatePresence>
                   )}
+                  {/* Research result card */}
+                  {msg.role === "assistant" && msg.researchData && (
+                    <ResearchResultCard
+                      query={msg.researchData.query}
+                      summary={msg.researchData.summary}
+                      citations={msg.researchData.citations}
+                    />
+                  )}
                 </div>
               </motion.div>
             ))}
