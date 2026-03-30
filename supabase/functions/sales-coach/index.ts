@@ -39,8 +39,9 @@ interface ExtractedEntities {
   contacts: { name: string; title?: string; companyName?: string }[];
   dealSignals: { value?: number; stage?: string; notes?: string };
   researchRequest?: string;
+  generalResearchRequest?: string;
   emailRequest?: { recipient?: string; type?: string; company?: string };
-  intentType: "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action";
+  intentType: "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action";
   // Auto-deal detection
   conversationDealDetected?: boolean;
   detectedProduct?: string;
@@ -251,7 +252,8 @@ serve(async (req) => {
     let companyCreated: { id: string; name: string } | null = null;
     let contactsCreated: { id: string; name: string }[] = [];
     let emailDrafted: { id: string; subject: string; preview: string } | null = null;
-    let researchCompleted: { company: string; summary: string } | null = null;
+    let researchCompleted: { company: string; summary: string; citations?: string[] } | null = null;
+    let generalResearchCompleted: { query: string; summary: string; citations: string[] } | null = null;
     let newCustomerPrompt: { name: string } | null = null;
     let newContactPrompts: { name: string; companyName?: string }[] = [];
 
@@ -339,7 +341,17 @@ serve(async (req) => {
         if (!existsInPipeline) {
           researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey);
         }
+    }
+
+    // General Research (topics, products, tactics)
+    if (extracted.generalResearchRequest) {
+      const requestedTopic = extracted.generalResearchRequest.toLowerCase().trim();
+      const researchBlocklist = ["jericho", "momentum", "the momentum company"];
+      const isBlocked = researchBlocklist.some((b) => requestedTopic.includes(b));
+      if (!isBlocked) {
+        generalResearchCompleted = await handleGeneralResearch(extracted.generalResearchRequest, lovableApiKey);
       }
+    }
     }
 
     // Email
@@ -368,7 +380,8 @@ serve(async (req) => {
     const responseMessage = await generateResponse(
       message, conversationHistory, resolvedContext, actions, extracted, chatMode, deal,
       generateCallPlan, dealsCount, researchCompleted, emailDrafted, lovableApiKey,
-      effectiveUserId || "", effectiveCompanyId || ""
+      effectiveUserId || "", effectiveCompanyId || "",
+      generalResearchCompleted
     );
 
     // Step 7: Post-response learning (fire and forget)
@@ -379,7 +392,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ message: responseMessage, actions, dealCreated, companyCreated, contactsCreated, emailDrafted, researchCompleted, pipelineActions, inferredCustomerId, inferredCustomerName, newCustomerPrompt, newContactPrompts: newContactPrompts.length > 0 ? newContactPrompts : undefined }),
+      JSON.stringify({ message: responseMessage, actions, dealCreated, companyCreated, contactsCreated, emailDrafted, researchCompleted, generalResearchCompleted, pipelineActions, inferredCustomerId, inferredCustomerName, newCustomerPrompt, newContactPrompts: newContactPrompts.length > 0 ? newContactPrompts : undefined }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
@@ -592,14 +605,21 @@ If conversationDealDetected is true, also extract:
 
 RESEARCH IS EXPLICIT-ONLY - only set researchRequest if user says "research [company]", "look up [company] online", "find out about [company]".
 
+GENERAL RESEARCH: Set generalResearchRequest (string) when the user asks to research a TOPIC, PRODUCT, TACTIC, MARKET TREND, or any non-company subject. Examples:
+- "research cover crops", "look up no-till farming benefits", "what's the latest on fungicide timing"
+- "research cold calling strategies", "find me info on SPIN selling"
+- "what are the benefits of biological seed treatments"
+Set intentType to "general_research" in these cases.
+
 Return JSON:
 {
   "companies": [{"name": "...", "isNew": false, "confidence": 0.8}],
   "contacts": [{"name": "...", "title": "...", "companyName": "..."}],
   "dealSignals": {"value": null, "stage": "prospecting", "notes": "..."},
   "researchRequest": null,
+  "generalResearchRequest": null,
   "emailRequest": null,
-  "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action",
+  "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action",
   "conversationDealDetected": false,
   "detectedProduct": null,
   "detectedTopic": null
@@ -657,6 +677,7 @@ Rules: isNew=true only if NEW MESSAGE implies just met or had a call. "show me",
         contacts: parsed.contacts || [],
         dealSignals: parsed.dealSignals || {},
         researchRequest: parsed.researchRequest || null,
+        generalResearchRequest: parsed.generalResearchRequest || null,
         emailRequest: parsed.emailRequest || null,
         intentType: parsed.intentType || "coaching",
         conversationDealDetected: finalConversationDetected,
@@ -968,10 +989,11 @@ async function handleResearch(
   companyId: string | null,
   companyName: string,
   apiKey: string
-): Promise<{ company: string; summary: string } | null> {
+): Promise<{ company: string; summary: string; citations?: string[] } | null> {
   try {
     const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
     let researchResult = "";
+    let citations: string[] = [];
 
     if (perplexityKey) {
       const response = await fetch("https://api.perplexity.ai/chat/completions", {
@@ -985,6 +1007,7 @@ async function handleResearch(
       if (response.ok) {
         const data = await response.json();
         researchResult = data.choices?.[0]?.message?.content || "";
+        citations = data.citations || [];
       }
     }
 
@@ -997,9 +1020,62 @@ async function handleResearch(
       }
     }
 
-    return { company: companyName, summary: researchResult };
+    return { company: companyName, summary: researchResult, citations };
   } catch (err) {
     console.error("Research error:", err);
+    return null;
+  }
+}
+
+// ============================================
+// GENERAL RESEARCH (topics, products, tactics)
+// ============================================
+
+async function handleGeneralResearch(
+  query: string,
+  apiKey: string
+): Promise<{ query: string; summary: string; citations: string[] } | null> {
+  try {
+    const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+    if (!perplexityKey) {
+      console.warn("[GeneralResearch] No PERPLEXITY_API_KEY configured");
+      return null;
+    }
+
+    console.log(`[GeneralResearch] Researching: "${query}"`);
+
+    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${perplexityKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          {
+            role: "system",
+            content: "You are a research assistant for sales professionals. Provide practical, actionable information. Use bullet points and clear structure. Focus on what's useful for someone who sells for a living."
+          },
+          {
+            role: "user",
+            content: `Research the following topic thoroughly: "${query}". Provide key findings, latest developments, and practical applications. Be specific with data and examples where possible.`
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[GeneralResearch] Perplexity API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const summary = data.choices?.[0]?.message?.content || "";
+    const citations = data.citations || [];
+
+    console.log(`[GeneralResearch] Got ${summary.length} chars, ${citations.length} citations`);
+
+    return { query, summary, citations };
+  } catch (err) {
+    console.error("[GeneralResearch] Error:", err);
     return null;
   }
 }
@@ -1083,11 +1159,12 @@ async function generateResponse(
   deal: any,
   generateCallPlan: boolean | undefined,
   dealsCount: number,
-  researchCompleted: { company: string; summary: string } | null,
+  researchCompleted: { company: string; summary: string; citations?: string[] } | null,
   emailDrafted: { id: string; subject: string; preview: string } | null,
   apiKey: string,
   userId: string,
-  companyId: string
+  companyId: string,
+  generalResearchCompleted?: { query: string; summary: string; citations: string[] } | null
 ): Promise<string> {
   const sanitizePricingIfNeeded = (text: string) => {
     if (!text) return text;
@@ -1111,6 +1188,7 @@ async function generateResponse(
     actionSummary += "\n\n";
   }
   if (researchCompleted) actionSummary += `**Research on ${researchCompleted.company}:**\n${researchCompleted.summary}\n\n`;
+  if (generalResearchCompleted) actionSummary += `**🔍 Research: "${generalResearchCompleted.query}"**\n${generalResearchCompleted.summary}\n\n`;
   if (emailDrafted) actionSummary += `**📧 Email Draft - "${emailDrafted.subject}":**\n\n${emailDrafted.preview}\n\n*[Full email saved]*\n\n`;
 
   const mentionedCompany = extracted.companies.length > 0 ? extracted.companies[0].name.toLowerCase() : null;

@@ -7,6 +7,7 @@ import { FormattedMessage } from "@/components/ui/formatted-message";
 import { MessageFeedback } from "./MessageFeedback";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { AddContactPromptCard } from "./AddContactPromptCard";
+import { ResearchResultCard } from "./ResearchResultCard";
 import {
   Sparkles,
   Send,
@@ -20,6 +21,7 @@ import {
   X,
   UserPlus,
   Bell,
+  Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -28,6 +30,7 @@ interface Message {
   content: string;
   id?: string;
   contactPrompts?: { name: string; companyName?: string }[];
+  researchData?: { query: string; summary: string; citations: string[] };
 }
 
 interface SalesChatInterfaceProps {
@@ -259,6 +262,14 @@ export function SalesChatInterface({
                       ))}
                     </AnimatePresence>
                   )}
+                  {/* Research result card */}
+                  {msg.role === "assistant" && msg.researchData && (
+                    <ResearchResultCard
+                      query={msg.researchData.query}
+                      summary={msg.researchData.summary}
+                      citations={msg.researchData.citations}
+                    />
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -409,6 +420,15 @@ export function SalesChatInterface({
           onClick={() => onSendMessage("What should I focus on today?")}
         >
           Today's priorities
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => onInputChange("Research ")}
+          className="gap-1"
+        >
+          <Search className="h-3 w-3" />
+          Research a topic
         </Button>
       </div>
 
