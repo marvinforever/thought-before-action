@@ -493,7 +493,17 @@ const SalesTrainer = () => {
       }
       
       const researchData = response.data?.generalResearchCompleted || undefined;
-      setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId, contactPrompts: contactPrompts.length > 0 ? contactPrompts : undefined, researchData }]);
+      
+      // Extract product catalog data from research
+      const researchResult = response.data?.researchCompleted;
+      const catalogData = researchResult?.productCatalog ? {
+        companyName: researchResult.company,
+        catalog: researchResult.productCatalog,
+        citations: researchResult.citations,
+        savedToCompany: researchResult.savedToCompany,
+      } : undefined;
+      
+      setMessages(prev => [...prev, { role: "assistant", content: assistantMessage, id: msgId, contactPrompts: contactPrompts.length > 0 ? contactPrompts : undefined, researchData, catalogData }]);
       
       // Show action notifications with undo buttons
       const actions = response.data?.actions || [];
