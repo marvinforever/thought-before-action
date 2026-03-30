@@ -1426,14 +1426,16 @@ async function generateResponse(
     const pastEvents = calEvents.filter((e: any) => new Date(e.start?.dateTime || e.start?.date || 0) < now);
     const futureEvents = calEvents.filter((e: any) => new Date(e.start?.dateTime || e.start?.date || 0) >= now);
 
+    const tz = context.userTimezone || "America/New_York";
+
     const formatEvent = (evt: any) => {
       const start = evt.start?.dateTime || evt.start?.date || "TBD";
       const summary = evt.summary || "(No title)";
       const attendees = (evt.attendees || []).map((a: any) => a.displayName || a.email).join(", ");
       const location = evt.location || "";
       const startDate = new Date(start);
-      const dateStr = startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-      const timeStr = evt.start?.dateTime ? startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "All day";
+      const dateStr = startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz });
+      const timeStr = evt.start?.dateTime ? startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz }) : "All day";
       let line = `- **${summary}** — ${dateStr} ${timeStr}`;
       if (attendees) line += ` | With: ${attendees}`;
       if (location) line += ` | ${location}`;
