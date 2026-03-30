@@ -806,6 +806,36 @@ async function gatherContext(
     console.log(`[gatherContext] Loaded ${context.customerDocuments.length} customer documents`);
   }
 
+  // Fetch Google Calendar events (fire-and-forget safe — won't break if not connected)
+  if (userId) {
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const calRes = await withTimeout(
+        fetch(`${supabaseUrl}/functions/v1/google-calendar-read`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId }),
+        }),
+        5_000,
+        "gatherContext:calendar"
+      );
+      if (calRes.ok) {
+        const calData = await calRes.json();
+        context.calendarEvents = calData.events || [];
+        if (context.calendarEvents.length > 0) {
+          console.log(`[gatherContext] Loaded ${context.calendarEvents.length} calendar events`);
+        }
+      }
+    } catch (err) {
+      // Calendar not connected or timed out — no problem
+      console.log(`[gatherContext] Calendar fetch skipped: ${err instanceof Error ? err.message : "unavailable"}`);
+    }
+  }
+
   if (extracted.companies.length > 0) {
     const companyName = extracted.companies[0].name;
     const normalizedSearch = companyName.toLowerCase().trim();
