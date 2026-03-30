@@ -1320,8 +1320,8 @@ ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
       : `${JERICHO_PERSONALITY}
 
+${repIdentity}
 ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
-${formattingRules}
 ${productValidationRules}
 
 AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actions using → format. These must be specific to what the data shows, not generic. Examples:
