@@ -13,7 +13,7 @@ import {
 
 // ── Types ──
 
-interface EngagementScores {
+export interface EngagementScores {
   composite: number;
   burnoutRisk: number;
   roleStrain: number;
@@ -37,7 +37,7 @@ interface LearningResource {
   time_estimate?: string;
 }
 
-interface Narrative {
+export interface Narrative {
   snapshot_paragraphs?: string[];
   north_star_text?: string;
   north_star_followup?: string;
@@ -63,7 +63,7 @@ interface Narrative {
   unlock_memory?: string;
 }
 
-interface CapabilityEntry {
+export interface CapabilityEntry {
   capability_name: string;
   category: string;
   current_level: string;
