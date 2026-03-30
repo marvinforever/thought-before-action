@@ -515,7 +515,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
                 Upload documents or paste content that Jericho will use for recommendations
               </DialogDescription>
             </DialogHeader>
-            <FormContent />
+            {formContent}
           </DialogContent>
         </Dialog>
       </div>
