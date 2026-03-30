@@ -161,9 +161,9 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
     }
   };
 
-  const extractDocumentText = async (filePath: string, fileType: string): Promise<string> => {
+  const extractDocumentText = async (filePath: string, fileType: string, bucket: string = "job-descriptions"): Promise<string> => {
     const { data, error } = await supabase.functions.invoke("extract-document-text", {
-      body: { filePath, fileType },
+      body: { filePath, fileType, bucket },
     });
     
     if (error) throw error;
@@ -214,7 +214,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
         // Extract text from document
         if (selectedFile.type !== "text/plain") {
           try {
-            const extractedText = await extractDocumentText(filePath, selectedFile.type);
+            const extractedText = await extractDocumentText(filePath, selectedFile.type, "company-documents");
             if (extractedText) {
               content = extractedText;
             }

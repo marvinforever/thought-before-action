@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { filePath, fileType } = await req.json();
+    const { filePath, fileType, bucket } = await req.json();
 
     if (!filePath) {
       return new Response(
@@ -21,14 +21,18 @@ serve(async (req) => {
       );
     }
 
+    const storageBucket = bucket || 'job-descriptions';
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log(`Extracting text from bucket: ${storageBucket}, path: ${filePath}`);
+
     // Download the file from storage
     const { data: fileData, error: downloadError } = await supabase
       .storage
-      .from('job-descriptions')
+      .from(storageBucket)
       .download(filePath);
 
     if (downloadError) {
