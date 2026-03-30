@@ -1015,91 +1015,98 @@ export default function TryJericho() {
                   })}
 
 
+                  {/* Inline Playbook Generating Animation */}
+                  {generating && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-start"
+                    >
+                      <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-bl-md px-4 py-3 bg-white/10">
+                        <PlaybookGenerating
+                          ready={playbookReady}
+                          channelChosen={channelChosen}
+                          onChannelSelect={async (channel, phone) => {
+                            trackEvent("try_channel_selected", {
+                              channel,
+                              turn: turnCountRef.current,
+                              session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
+                            });
+                            try {
+                              const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+                              await fetch(`https://${projectId}.supabase.co/functions/v1/try-jericho-onboard`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                                },
+                                body: JSON.stringify({
+                                  profileId: reportProfileId,
+                                  channelPreference: channel,
+                                  phone: phone || undefined,
+                                }),
+                              });
+                            } catch (e) {
+                              console.error("Channel preference update error:", e);
+                            }
+                            setChannelChosen(true);
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
 
                   <div ref={chatEndRef} />
                 </div>
               </div>
 
-              {/* Input or Generation Animation */}
-              {generating && !channelChosen ? (
-                <PlaybookGenerating
-                  ready={playbookReady}
-                  channelChosen={channelChosen}
-                  onChannelSelect={async (channel, phone) => {
-                    trackEvent("try_channel_selected", {
-                      channel,
-                      turn: turnCountRef.current,
-                      session_duration_s: Math.round((Date.now() - sessionStartRef.current) / 1000),
-                    });
-                    try {
-                      // Call onboard with channel preference
-                      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-                      await fetch(`https://${projectId}.supabase.co/functions/v1/try-jericho-onboard`, {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                        },
-                        body: JSON.stringify({
-                          profileId: reportProfileId,
-                          channelPreference: channel,
-                          phone: phone || undefined,
-                        }),
-                      });
-                    } catch (e) {
-                      console.error("Channel preference update error:", e);
-                    }
-                    setChannelChosen(true);
-                  }}
-                />
-              ) : (
-                <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
-                  <form
-                    onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                    className="max-w-2xl mx-auto flex gap-2 p-4 pb-1"
+              {/* Input — always visible */}
+              <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+                  className="max-w-2xl mx-auto flex gap-2 p-4 pb-1"
+                >
+                  <Input
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Type your answer..."
+                    disabled={isLoading}
+                    className="flex-1 bg-white/10 border-white/20 text-primary-foreground placeholder:text-white/40 focus-visible:ring-accent"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!input.trim() || isLoading}
+                    className="bg-accent text-accent-foreground hover:bg-accent/90 shrink-0"
                   >
-                    <Input
-                      ref={inputRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="Type your answer..."
-                      disabled={isLoading}
-                      className="flex-1 bg-white/10 border-white/20 text-primary-foreground placeholder:text-white/40 focus-visible:ring-accent"
-                    />
-                    <Button
-                      type="submit"
-                      size="icon"
-                      disabled={!input.trim() || isLoading}
-                      className="bg-accent text-accent-foreground hover:bg-accent/90 shrink-0"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </form>
-                  <div className="max-w-2xl mx-auto flex items-center justify-between px-4 pb-1">
-                    <PlaybookProgressBar percent={progressPercent} label={progressLabel} />
-                    <AnimatePresence>
-                      {stuckCount >= 2 && !isLoading && !generating && (
-                        <motion.button
-                          initial={{ opacity: 0, x: 10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 10 }}
-                          onClick={() => {
-                            setStuckCount(0);
-                            trackEvent("try_question_skipped", {
-                              phase_percent: progressPercent,
-                              turn: turnCountRef.current,
-                            });
-                            sendToJericho("[user skipped this question — move to the next phase]");
-                          }}
-                          className="text-xs text-white/40 hover:text-white/70 transition-colors whitespace-nowrap py-1"
-                        >
-                          Skip this question →
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </form>
+                <div className="max-w-2xl mx-auto flex items-center justify-between px-4 pb-1">
+                  <PlaybookProgressBar percent={progressPercent} label={progressLabel} />
+                  <AnimatePresence>
+                    {stuckCount >= 2 && !isLoading && !generating && (
+                      <motion.button
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        onClick={() => {
+                          setStuckCount(0);
+                          trackEvent("try_question_skipped", {
+                            phase_percent: progressPercent,
+                            turn: turnCountRef.current,
+                          });
+                          sendToJericho("[user skipped this question — move to the next phase]");
+                        }}
+                        className="text-xs text-white/40 hover:text-white/70 transition-colors whitespace-nowrap py-1"
+                      >
+                        Skip this question →
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
                 </div>
-              )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
