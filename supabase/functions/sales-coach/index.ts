@@ -40,6 +40,7 @@ interface ExtractedEntities {
   dealSignals: { value?: number; stage?: string; notes?: string };
   researchRequest?: string;
   generalResearchRequest?: string;
+  saveResearchTo?: string; // Company name to save research results to in knowledge base
   emailRequest?: { recipient?: string; type?: string; company?: string };
   intentType: "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action";
   // Auto-deal detection
@@ -252,7 +253,7 @@ serve(async (req) => {
     let companyCreated: { id: string; name: string } | null = null;
     let contactsCreated: { id: string; name: string }[] = [];
     let emailDrafted: { id: string; subject: string; preview: string } | null = null;
-    let researchCompleted: { company: string; summary: string; citations?: string[] } | null = null;
+    let researchCompleted: { company: string; summary: string; citations?: string[]; productCatalog?: string; savedToKnowledge?: boolean; savedToCompany?: string } | null = null;
     let generalResearchCompleted: { query: string; summary: string; citations: string[] } | null = null;
     let newCustomerPrompt: { name: string } | null = null;
     let newContactPrompts: { name: string; companyName?: string }[] = [];
@@ -339,7 +340,10 @@ serve(async (req) => {
           });
 
         if (!existsInPipeline) {
-          researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey);
+          researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey, extracted.saveResearchTo || null);
+        } else {
+          // Even if in pipeline, still do research if user explicitly asked + wants to save
+          researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey, extracted.saveResearchTo || null);
         }
     }
 
@@ -605,6 +609,13 @@ If conversationDealDetected is true, also extract:
 
 RESEARCH IS EXPLICIT-ONLY - only set researchRequest if user says "research [company]", "look up [company] online", "find out about [company]".
 
+SAVE RESEARCH TO KNOWLEDGE BASE: Set "saveResearchTo" (string) when the user wants to save research about one company INTO another company's knowledge base. Examples:
+- "research UPL and save it for Streamline Ag" → researchRequest="UPL", saveResearchTo="Streamline Ag"
+- "look up DPH Biologicals and add to Streamline knowledge" → researchRequest="DPH Biologicals", saveResearchTo="Streamline"
+- "research AgroTech and save that info for Streamline Ag" → researchRequest="AgroTech", saveResearchTo="Streamline Ag"
+- "research this company and save it" (no target specified) → researchRequest="company", saveResearchTo=null (use user's own company)
+If no specific target company is mentioned for saving, leave saveResearchTo as null.
+
 GENERAL RESEARCH: Set generalResearchRequest (string) when the user asks to research a TOPIC, PRODUCT, TACTIC, MARKET TREND, or any non-company subject. Examples:
 - "research cover crops", "look up no-till farming benefits", "what's the latest on fungicide timing"
 - "research cold calling strategies", "find me info on SPIN selling"
@@ -618,6 +629,7 @@ Return JSON:
   "dealSignals": {"value": null, "stage": "prospecting", "notes": "..."},
   "researchRequest": null,
   "generalResearchRequest": null,
+  "saveResearchTo": null,
   "emailRequest": null,
   "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action",
   "conversationDealDetected": false,
@@ -678,6 +690,8 @@ Rules: isNew=true only if NEW MESSAGE implies just met or had a call. "show me",
         dealSignals: parsed.dealSignals || {},
         researchRequest: parsed.researchRequest || null,
         generalResearchRequest: parsed.generalResearchRequest || null,
+        generalResearchRequest: parsed.generalResearchRequest || null,
+        saveResearchTo: parsed.saveResearchTo || null,
         emailRequest: parsed.emailRequest || null,
         intentType: parsed.intentType || "coaching",
         conversationDealDetected: finalConversationDetected,
@@ -1315,12 +1329,17 @@ async function handleResearch(
   userId: string,
   companyId: string | null,
   companyName: string,
-  apiKey: string
-): Promise<{ company: string; summary: string; citations?: string[] } | null> {
+  apiKey: string,
+  saveResearchTo: string | null = null
+): Promise<{ company: string; summary: string; citations?: string[]; productCatalog?: string; savedToKnowledge?: boolean; savedToCompany?: string } | null> {
   try {
     const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
     let researchResult = "";
     let citations: string[] = [];
+    let productCatalog = "";
+    let savedToKnowledge = false;
+    let savedToCompanyName = "";
 
     if (perplexityKey) {
       const response = await fetch("https://api.perplexity.ai/chat/completions", {
@@ -1328,7 +1347,14 @@ async function handleResearch(
         headers: { Authorization: `Bearer ${perplexityKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "sonar",
-          messages: [{ role: "user", content: `Research this company for a sales call: "${companyName}". Provide: 1. Business overview 2. Recent news 3. Key decision makers 4. Sales approach tips. Keep concise.` }],
+          messages: [{ role: "user", content: `Research this company for a B2B sales meeting: "${companyName}". Provide:
+1. Company overview (what they do, size, headquarters)
+2. Key products/services with details (product names, active ingredients, target markets)
+3. Recent news or developments
+4. Key leadership/decision makers
+5. Their target market and customers
+6. Their main website URL and product catalog/product page URL if available
+Keep concise and actionable.` }],
         }),
       });
       if (response.ok) {
@@ -1340,14 +1366,139 @@ async function handleResearch(
 
     if (!researchResult) researchResult = `Research on "${companyName}" is limited. Try searching manually or asking specific questions.`;
 
-    if (companyId) {
-      const { data: salesCompany } = await client.from("sales_companies").select("id").eq("company_id", companyId).ilike("name", companyName).maybeSingle();
-      if (salesCompany) {
-        await client.from("sales_company_intelligence").upsert({ company_id: salesCompany.id, profile_id: userId, research_data: { summary: researchResult, researched_at: new Date().toISOString() }, last_research_at: new Date().toISOString() }, { onConflict: "company_id,profile_id" });
+    // Step 2: Firecrawl product page scraping
+    if (firecrawlKey && citations.length > 0) {
+      try {
+        const productUrls = citations.filter((url: string) =>
+          /product|catalog|portfolio|solution|offering|crop-protection|seed|biologicals|brands/i.test(url)
+        );
+        const mainDomain = citations[0] ? new URL(citations[0]).origin : null;
+        const urlsToTry = [
+          ...productUrls.slice(0, 2),
+          ...(mainDomain ? [`${mainDomain}/products`, `${mainDomain}/our-products`] : [])
+        ].slice(0, 3);
+
+        if (urlsToTry.length > 0) {
+          console.log(`[Research] Scraping product pages for ${companyName}: ${urlsToTry.join(", ")}`);
+          const scrapeResults = await Promise.all(
+            urlsToTry.map(async (scrapeUrl: string) => {
+              try {
+                const scrapeResp = await withTimeout(
+                  fetch("https://api.firecrawl.dev/v1/scrape", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${firecrawlKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: scrapeUrl, formats: ["markdown"], onlyMainContent: true }),
+                  }),
+                  10_000,
+                  `firecrawl:${scrapeUrl}`
+                );
+                if (scrapeResp.ok) {
+                  const scrapeData = await scrapeResp.json();
+                  const md = scrapeData.data?.markdown || scrapeData.markdown || "";
+                  if (md.length > 100) return md.substring(0, 8000);
+                }
+              } catch (e) {
+                console.warn(`[Research] Scrape failed for ${scrapeUrl}: ${e instanceof Error ? e.message : "unknown"}`);
+              }
+              return "";
+            })
+          );
+          const rawCatalog = scrapeResults.filter(Boolean).join("\n\n---\n\n");
+
+          // Use AI to extract clean product catalog
+          if (rawCatalog.length > 200) {
+            const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+            if (lovableKey) {
+              try {
+                const extractResp = await withTimeout(
+                  fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      model: "google/gemini-2.5-flash",
+                      messages: [
+                        { role: "system", content: "Extract a structured product catalog from this webpage content. For each product, list: Product Name, Active Ingredients/Key Components, Target Crops/Use Cases, and any notable features. Be thorough but concise. Format as markdown." },
+                        { role: "user", content: `Company: ${companyName}\n\nWebpage content:\n${rawCatalog.substring(0, 15000)}` },
+                      ],
+                    }),
+                  }),
+                  12_000,
+                  `catalogExtract:${companyName}`
+                );
+                if (extractResp.ok) {
+                  const extractData = await extractResp.json();
+                  const cleanCatalog = extractData.choices?.[0]?.message?.content || "";
+                  if (cleanCatalog.length > 100) {
+                    productCatalog = cleanCatalog;
+                    console.log(`[Research] Extracted clean catalog for ${companyName}: ${cleanCatalog.length} chars`);
+                  }
+                }
+              } catch (extractErr) {
+                console.warn(`[Research] Catalog extraction failed: ${extractErr instanceof Error ? extractErr.message : "unknown"}`);
+              }
+            }
+          }
+        }
+      } catch (scrapeErr) {
+        console.warn(`[Research] Product scrape failed: ${scrapeErr instanceof Error ? scrapeErr.message : "unknown"}`);
       }
     }
 
-    return { company: companyName, summary: researchResult, citations };
+    // Step 3: Save to knowledge base
+    // Determine which company to save to
+    let targetCompanyId = companyId; // Default: user's own company
+    if (saveResearchTo && companyId) {
+      // Look up the target company by name (fuzzy match)
+      const { data: targetCompanies } = await client
+        .from("companies")
+        .select("id, name")
+        .ilike("name", `%${saveResearchTo}%`)
+        .limit(1);
+      if (targetCompanies && targetCompanies.length > 0) {
+        targetCompanyId = targetCompanies[0].id;
+        savedToCompanyName = targetCompanies[0].name;
+        console.log(`[Research] Will save to company: ${savedToCompanyName} (${targetCompanyId})`);
+      }
+    }
+
+    if (targetCompanyId) {
+      // Build full knowledge document
+      const knowledgeContent = [
+        `# ${companyName} — Research Dossier`,
+        `*Auto-researched on ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}*\n`,
+        `## Company Overview`,
+        researchResult,
+        productCatalog ? `\n## Product Catalog\n${productCatalog}` : "",
+        citations.length > 0 ? `\n## Sources\n${citations.map((c: string) => `- ${c}`).join("\n")}` : "",
+      ].filter(Boolean).join("\n\n");
+
+      try {
+        await client.from("company_knowledge").insert({
+          company_id: targetCompanyId,
+          title: `${companyName} — Research Dossier (Auto-Generated)`,
+          content: knowledgeContent,
+          document_type: "product_catalog",
+          category: "product_catalog",
+          is_active: true,
+        });
+        savedToKnowledge = true;
+        if (!savedToCompanyName) {
+          const { data: ownCompany } = await client.from("companies").select("name").eq("id", targetCompanyId).single();
+          savedToCompanyName = ownCompany?.name || "your company";
+        }
+        console.log(`[Research] Saved full dossier for ${companyName} to ${savedToCompanyName}'s knowledge base`);
+      } catch (saveErr) {
+        console.warn(`[Research] Failed to save to knowledge: ${saveErr instanceof Error ? saveErr.message : "unknown"}`);
+      }
+
+      // Also save to sales_company_intelligence as before
+      const { data: salesCompany } = await client.from("sales_companies").select("id").eq("company_id", targetCompanyId).ilike("name", companyName).maybeSingle();
+      if (salesCompany) {
+        await client.from("sales_company_intelligence").upsert({ company_id: salesCompany.id, profile_id: userId, research_data: { summary: researchResult, product_catalog: productCatalog || null, researched_at: new Date().toISOString() }, last_research_at: new Date().toISOString() }, { onConflict: "company_id,profile_id" });
+      }
+    }
+
+    return { company: companyName, summary: researchResult, citations, productCatalog: productCatalog || undefined, savedToKnowledge, savedToCompany: savedToCompanyName || undefined };
   } catch (err) {
     console.error("Research error:", err);
     return null;
@@ -1486,7 +1637,7 @@ async function generateResponse(
   deal: any,
   generateCallPlan: boolean | undefined,
   dealsCount: number,
-  researchCompleted: { company: string; summary: string; citations?: string[] } | null,
+  researchCompleted: { company: string; summary: string; citations?: string[]; productCatalog?: string; savedToKnowledge?: boolean; savedToCompany?: string } | null,
   emailDrafted: { id: string; subject: string; preview: string } | null,
   apiKey: string,
   userId: string,
@@ -1514,7 +1665,16 @@ async function generateResponse(
     if (dealActions.length > 0) actionSummary += `Created a prospecting deal. `;
     actionSummary += "\n\n";
   }
-  if (researchCompleted) actionSummary += `**Research on ${researchCompleted.company}:**\n${researchCompleted.summary}\n\n`;
+  if (researchCompleted) {
+    actionSummary += `**Research on ${researchCompleted.company}:**\n${researchCompleted.summary}\n`;
+    if (researchCompleted.productCatalog) {
+      actionSummary += `\n**📦 Product Catalog (auto-scraped):**\n${researchCompleted.productCatalog.substring(0, 3000)}\n`;
+    }
+    if (researchCompleted.savedToKnowledge) {
+      actionSummary += `\n✅ **Saved to ${researchCompleted.savedToCompany || "your"} knowledge base** — this intel will be available in all future coaching sessions.\n`;
+    }
+    actionSummary += "\n";
+  }
   if (generalResearchCompleted) actionSummary += `**🔍 Research: "${generalResearchCompleted.query}"**\n${generalResearchCompleted.summary}\n\n`;
   if (emailDrafted) actionSummary += `**📧 Email Draft - "${emailDrafted.subject}":**\n\n${emailDrafted.preview}\n\n*[Full email saved]*\n\n`;
 
