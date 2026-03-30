@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Sparkles, ExternalLink, X } from "lucide-react";
 import { PlaybookViewer } from "./PlaybookViewer";
+import { PlaybookActivation } from "./PlaybookActivation";
 import { generatePlaybookHtml } from "./playbook-html-export";
 
 interface PlaybookData {
@@ -20,6 +21,8 @@ export function GrowthPlaybookBanner() {
   const [playbook, setPlaybook] = useState<PlaybookData | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [activationComplete, setActivationComplete] = useState(false);
 
   useEffect(() => {
     loadPlaybook();
@@ -30,17 +33,29 @@ export function GrowthPlaybookBanner() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
-        .from("leadership_reports")
-        .select("id, report_content, capability_matrix, status, completed_at, share_token")
-        .eq("profile_id", user.id)
-        .eq("report_type", "individual_playbook")
-        .in("status", ["generated", "delivered"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Load playbook and user context in parallel
+      const [playbookResult, contextResult] = await Promise.all([
+        supabase
+          .from("leadership_reports")
+          .select("id, report_content, capability_matrix, status, completed_at, share_token")
+          .eq("profile_id", user.id)
+          .eq("report_type", "individual_playbook")
+          .in("status", ["generated", "delivered"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("user_active_context")
+          .select("onboarding_complete")
+          .eq("profile_id", user.id)
+          .maybeSingle(),
+      ]);
 
-      if (data) setPlaybook(data);
+      if (playbookResult.data) setPlaybook(playbookResult.data);
+      
+      // Determine if this is a new user who hasn't activated yet
+      const onboardingComplete = contextResult.data?.onboarding_complete ?? false;
+      setIsNewUser(!onboardingComplete);
     } catch (err) {
       console.error("Error loading playbook:", err);
     } finally {
@@ -56,19 +71,6 @@ export function GrowthPlaybookBanner() {
     return "";
   };
 
-  const handleOpenNewTab = () => {
-    const structured = getStructuredData();
-    // Prefer native-styled HTML from structured data; fall back to email HTML
-    const html = structured
-      ? generatePlaybookHtml(structured.narrative, structured.scores, structured.capabilities)
-      : getHtmlContent();
-    if (!html) return;
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  };
-
-  // Extract structured data
   const getStructuredData = () => {
     const content = playbook?.report_content as any;
     if (!content) return null;
@@ -81,12 +83,37 @@ export function GrowthPlaybookBanner() {
     return null;
   };
 
+  const handleOpenNewTab = () => {
+    const structured = getStructuredData();
+    const html = structured
+      ? generatePlaybookHtml(structured.narrative, structured.scores, structured.capabilities)
+      : getHtmlContent();
+    if (!html) return;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  };
+
   if (loading || !playbook) return null;
 
   const html = getHtmlContent();
   const structured = getStructuredData();
   if (!html && !structured) return null;
 
+  // ── New User: Show Activation Flow ──
+  if (isNewUser && !activationComplete && structured) {
+    return (
+      <PlaybookActivation
+        narrative={structured.narrative}
+        scores={structured.scores}
+        capabilities={structured.capabilities}
+        onComplete={() => setActivationComplete(true)}
+        onViewFullPlaybook={() => setDialogOpen(true)}
+      />
+    );
+  }
+
+  // ── Existing User / Post-Activation: Banner + Dialog ──
   return (
     <>
       <Card className="border-accent/30 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent shadow-md overflow-hidden">
