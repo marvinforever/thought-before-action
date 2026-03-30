@@ -187,7 +187,15 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
       // Handle file upload
       if (selectedFile) {
         setUploading(true);
-        const filePath = `${companyId}/${Date.now()}-${selectedFile.name}`;
+        // Use auth user's company from profile for storage path (RLS validates against auth.uid()'s company)
+        const { data: authUser } = await supabase.auth.getUser();
+        const { data: authProfile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", authUser?.user?.id)
+          .single();
+        const storageFolderCompanyId = authProfile?.company_id || companyId;
+        const filePath = `${storageFolderCompanyId}/${Date.now()}-${selectedFile.name}`;
         
         const { error: uploadError } = await supabase.storage
           .from("company-documents")
