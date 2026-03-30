@@ -397,6 +397,7 @@ export default function TryJericho() {
   const [generating, setGenerating] = useState(false);
   const [playbookReady, setPlaybookReady] = useState(false);
   const [channelChosen, setChannelChosen] = useState(false);
+  const [stuckCount, setStuckCount] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -404,6 +405,7 @@ export default function TryJericho() {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionStartRef = useRef<number>(0);
   const lastPhaseRef = useRef(0);
+  const prevPhaseRef = useRef(0);
 
   // ── Track page view on mount ──
   useEffect(() => {
