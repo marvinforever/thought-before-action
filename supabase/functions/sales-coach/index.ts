@@ -40,6 +40,7 @@ interface ExtractedEntities {
   dealSignals: { value?: number; stage?: string; notes?: string };
   researchRequest?: string;
   generalResearchRequest?: string;
+  saveResearchTo?: string; // Company name to save research results to in knowledge base
   emailRequest?: { recipient?: string; type?: string; company?: string };
   intentType: "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action";
   // Auto-deal detection
