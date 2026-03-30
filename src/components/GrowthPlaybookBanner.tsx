@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Sparkles, ExternalLink, X } from "lucide-react";
 import { PlaybookViewer } from "./PlaybookViewer";
+import { generatePlaybookHtml } from "./playbook-html-export";
 
 interface PlaybookData {
   id: string;
