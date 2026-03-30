@@ -7,6 +7,7 @@ import { FormattedMessage } from "@/components/ui/formatted-message";
 import { MessageFeedback } from "./MessageFeedback";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { AddContactPromptCard } from "./AddContactPromptCard";
+import { ResearchResultCard } from "./ResearchResultCard";
 import {
   Sparkles,
   Send,
