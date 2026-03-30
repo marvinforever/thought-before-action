@@ -842,6 +842,83 @@ async function gatherContext(
     }
   }
 
+  // AUTO-DOSSIER: Research companies from upcoming calendar events (next 48 hours)
+  if (userId && context.calendarEvents.length > 0) {
+    try {
+      const now = new Date();
+      const horizon = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      const upcomingEvents = context.calendarEvents.filter((evt: any) => {
+        const start = new Date(evt.start?.dateTime || evt.start?.date || 0);
+        return start >= now && start <= horizon;
+      });
+
+      // Extract company-like names from event titles
+      const calendarCompanies = extractCompaniesFromCalendar(upcomingEvents);
+      
+      // Filter out companies we already know about
+      const knownNames = new Set(
+        (context.existingCompanies || []).map((c: any) => c.name?.toLowerCase().trim())
+      );
+      const unknownCompanies = calendarCompanies.filter(
+        (c) => !knownNames.has(c.name.toLowerCase().trim()) &&
+               !Array.from(knownNames).some((k) => k.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(k))
+      );
+
+      if (unknownCompanies.length > 0) {
+        console.log(`[AutoDossier] Found ${unknownCompanies.length} unknown companies from calendar: ${unknownCompanies.map(c => c.name).join(", ")}`);
+        
+        // Research up to 3 companies in parallel (to limit latency)
+        const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+        if (perplexityKey) {
+          const researchPromises = unknownCompanies.slice(0, 3).map(async (company) => {
+            try {
+              const response = await withTimeout(
+                fetch("https://api.perplexity.ai/chat/completions", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${perplexityKey}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    model: "sonar",
+                    messages: [{
+                      role: "user",
+                      content: `Research "${company.name}" for a B2B sales meeting. Provide:
+1. Company overview (what they do, size, headquarters)
+2. Key products/services they sell
+3. Recent news or developments
+4. Key leadership/decision makers
+5. Their target market and customers
+6. Potential pain points or opportunities for a sales technology/coaching platform
+Keep it concise and actionable for someone preparing for a sales call in the next 48 hours.`
+                    }],
+                  }),
+                }),
+                8_000,
+                `autoDossier:${company.name}`
+              );
+              if (response.ok) {
+                const data = await response.json();
+                const summary = data.choices?.[0]?.message?.content || "";
+                const citations = data.citations || [];
+                console.log(`[AutoDossier] Researched ${company.name}: ${summary.length} chars`);
+                return { name: company.name, summary, citations, meetingTime: company.meetingTime, attendees: company.attendees };
+              }
+            } catch (err) {
+              console.warn(`[AutoDossier] Research failed for ${company.name}: ${err instanceof Error ? err.message : "unknown"}`);
+            }
+            return null;
+          });
+
+          const results = (await Promise.all(researchPromises)).filter(Boolean);
+          context.calendarDossiers = results;
+          if (results.length > 0) {
+            console.log(`[AutoDossier] Completed ${results.length} dossiers`);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[AutoDossier] Error: ${err instanceof Error ? err.message : "unknown"}`);
+    }
+  }
+
   if (extracted.companies.length > 0) {
     const companyName = extracted.companies[0].name;
     const normalizedSearch = companyName.toLowerCase().trim();
