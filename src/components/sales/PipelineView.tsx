@@ -239,12 +239,12 @@ export const PipelineView = ({ userId, stages, companyId, onDealsChange, enableF
                 onDragStart={(e) => handleDragStart(e, deal.id)}
                 onDragEnd={handleDragEnd}
               >
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+                <CardContent className="p-2.5">
+                  <div className="flex items-start justify-between gap-1">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{deal.deal_name}</p>
+                        <p className="font-medium text-xs leading-tight line-clamp-2">{deal.deal_name}</p>
                         {deal.sales_companies?.name && (
                           <button
                             onClick={(e) => {
@@ -254,10 +254,10 @@ export const PipelineView = ({ userId, stages, companyId, onDealsChange, enableF
                                 setShowCustomerDetail(true);
                               }
                             }}
-                            className="text-xs text-muted-foreground flex items-center gap-1 mt-1 hover:text-primary transition-colors"
+                            className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 hover:text-primary transition-colors"
                           >
-                            <Building2 className="h-3 w-3" />
-                            <span className="underline decoration-dotted">{deal.sales_companies.name}</span>
+                            <Building2 className="h-2.5 w-2.5" />
+                            <span className="underline decoration-dotted truncate">{deal.sales_companies.name}</span>
                           </button>
                         )}
                       </div>
@@ -265,8 +265,8 @@ export const PipelineView = ({ userId, stages, companyId, onDealsChange, enableF
                     
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0">
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -291,50 +291,58 @@ export const PipelineView = ({ userId, stages, companyId, onDealsChange, enableF
                     </DropdownMenu>
                   </div>
 
-                  {/* Target categories, customer type, and purchase history badges */}
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {deal.sales_companies?.name && (
-                      <PurchaseHistoryBadge 
-                        customerName={deal.sales_companies.name}
-                        companyId={companyId || undefined}
-                      />
-                    )}
-                    {deal.target_categories?.primary && (
-                      <Badge variant="secondary" className="text-xs py-0 h-5">
-                        <Leaf className="h-3 w-3 mr-1" />
-                        {deal.target_categories.primary}
-                      </Badge>
+                  {/* Value prominently displayed */}
+                  {deal.value && Number(deal.value) > 0 && (
+                    <p className="text-sm font-semibold text-foreground mt-1.5">
+                      ${Number(deal.value) >= 1000 
+                        ? `${(Number(deal.value) / 1000).toFixed(0)}K` 
+                        : Number(deal.value).toLocaleString()}
+                    </p>
+                  )}
+
+                  {/* Compact info row */}
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                    {deal.estimated_acres && (
+                      <span className="flex items-center gap-0.5">
+                        <Users className="h-2.5 w-2.5" />
+                        {deal.estimated_acres.toLocaleString()} ac
+                      </span>
                     )}
                     {deal.customer_type && (
                       <Badge 
                         variant={deal.customer_type === 'prospect' ? 'outline' : 'default'}
-                        className="text-xs py-0 h-5"
+                        className="text-[10px] py-0 h-4 px-1.5"
                       >
                         {deal.customer_type === 'prospect' ? 'Prospect' : 'Customer'}
                       </Badge>
                     )}
-                  </div>
-
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    {deal.estimated_acres && (
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {deal.estimated_acres.toLocaleString()} ac
-                      </span>
-                    )}
-                    {deal.value && (
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {Number(deal.value).toLocaleString()}
-                      </span>
-                    )}
                     {deal.expected_close_date && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
+                      <span className="flex items-center gap-0.5">
+                        <Calendar className="h-2.5 w-2.5" />
                         {format(new Date(deal.expected_close_date), "MMM d")}
                       </span>
                     )}
                   </div>
+
+                  {/* Category tag */}
+                  {deal.target_categories?.primary && (
+                    <div className="mt-1">
+                      <Badge variant="secondary" className="text-[10px] py-0 h-4 px-1.5">
+                        <Leaf className="h-2.5 w-2.5 mr-0.5" />
+                        {deal.target_categories.primary}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {/* Purchase history */}
+                  {deal.sales_companies?.name && (
+                    <div className="mt-1">
+                      <PurchaseHistoryBadge 
+                        customerName={deal.sales_companies.name}
+                        companyId={companyId || undefined}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
