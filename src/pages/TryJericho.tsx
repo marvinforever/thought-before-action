@@ -697,6 +697,13 @@ export default function TryJericho() {
                 const pct = data.percent || 0;
                 setProgressPercent(pct);
                 setProgressLabel(data.label || "");
+                // Track stuck: same phase repeated
+                if (pct === prevPhaseRef.current && pct > 0) {
+                  setStuckCount(c => c + 1);
+                } else if (pct !== prevPhaseRef.current) {
+                  setStuckCount(0);
+                  prevPhaseRef.current = pct;
+                }
                 if (pct !== lastPhaseRef.current) {
                   lastPhaseRef.current = pct;
                   trackEvent("try_phase_reached", {
