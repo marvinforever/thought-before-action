@@ -952,9 +952,11 @@ async function gatherContext(
         
         // Research up to 3 companies in parallel (to limit latency)
         const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+        const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
         if (perplexityKey) {
           const researchPromises = unknownCompanies.slice(0, 3).map(async (company) => {
             try {
+              // Step 1: Perplexity research for company overview + find their website
               const response = await withTimeout(
                 fetch("https://api.perplexity.ai/chat/completions", {
                   method: "POST",
@@ -970,6 +972,7 @@ async function gatherContext(
 4. Key leadership/decision makers
 5. Their target market and customers
 6. Potential pain points or opportunities for a sales technology/coaching platform
+7. Their main website URL and product catalog/product page URL if available
 Keep it concise and actionable for someone preparing for a sales call in the next 48 hours.`
                     }],
                   }),
@@ -982,7 +985,126 @@ Keep it concise and actionable for someone preparing for a sales call in the nex
                 const summary = data.choices?.[0]?.message?.content || "";
                 const citations = data.citations || [];
                 console.log(`[AutoDossier] Researched ${company.name}: ${summary.length} chars`);
-                return { name: company.name, summary, citations, meetingTime: company.meetingTime, attendees: company.attendees };
+
+                // Step 2: Try to scrape product catalog via Firecrawl
+                let productCatalog = "";
+                if (firecrawlKey && citations.length > 0) {
+                  try {
+                    // Find the most likely product page URL from citations or construct one
+                    const productUrls = citations.filter((url: string) =>
+                      /product|catalog|portfolio|solution|offering|crop-protection|seed|biologicals/i.test(url)
+                    );
+                    // Also try the company's main domain + /products
+                    const mainDomain = citations[0] ? new URL(citations[0]).origin : null;
+                    const urlsToTry = [
+                      ...productUrls.slice(0, 2),
+                      ...(mainDomain ? [`${mainDomain}/products`, `${mainDomain}/our-products`] : [])
+                    ].slice(0, 3);
+
+                    if (urlsToTry.length > 0) {
+                      console.log(`[AutoDossier] Scraping product pages for ${company.name}: ${urlsToTry.join(", ")}`);
+                      const scrapeResults = await Promise.all(
+                        urlsToTry.map(async (scrapeUrl: string) => {
+                          try {
+                            const scrapeResp = await withTimeout(
+                              fetch("https://api.firecrawl.dev/v1/scrape", {
+                                method: "POST",
+                                headers: {
+                                  Authorization: `Bearer ${firecrawlKey}`,
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  url: scrapeUrl,
+                                  formats: ["markdown"],
+                                  onlyMainContent: true,
+                                }),
+                              }),
+                              10_000,
+                              `firecrawl:${scrapeUrl}`
+                            );
+                            if (scrapeResp.ok) {
+                              const scrapeData = await scrapeResp.json();
+                              const md = scrapeData.data?.markdown || scrapeData.markdown || "";
+                              if (md.length > 100) {
+                                console.log(`[AutoDossier] Scraped ${scrapeUrl}: ${md.length} chars`);
+                                return md.substring(0, 8000); // Cap per page
+                              }
+                            }
+                          } catch (e) {
+                            console.warn(`[AutoDossier] Scrape failed for ${scrapeUrl}: ${e instanceof Error ? e.message : "unknown"}`);
+                          }
+                          return "";
+                        })
+                      );
+                      productCatalog = scrapeResults.filter(Boolean).join("\n\n---\n\n");
+                    }
+
+                    // Step 3: If we got product data, use AI to extract a clean catalog
+                    if (productCatalog.length > 200) {
+                      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+                      if (lovableKey) {
+                        try {
+                          const extractResp = await withTimeout(
+                            fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                              method: "POST",
+                              headers: {
+                                Authorization: `Bearer ${lovableKey}`,
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({
+                                model: "google/gemini-2.5-flash",
+                                messages: [
+                                  { role: "system", content: "Extract a structured product catalog from this webpage content. For each product, list: Product Name, Active Ingredients/Key Components, Target Crops/Use Cases, and any notable features. Be thorough but concise. Format as markdown." },
+                                  { role: "user", content: `Company: ${company.name}\n\nWebpage content:\n${productCatalog.substring(0, 15000)}` },
+                                ],
+                              }),
+                            }),
+                            12_000,
+                            `catalogExtract:${company.name}`
+                          );
+                          if (extractResp.ok) {
+                            const extractData = await extractResp.json();
+                            const cleanCatalog = extractData.choices?.[0]?.message?.content || "";
+                            if (cleanCatalog.length > 100) {
+                              productCatalog = cleanCatalog;
+                              console.log(`[AutoDossier] Extracted clean catalog for ${company.name}: ${cleanCatalog.length} chars`);
+
+                              // Step 4: Auto-save to company knowledge for future use
+                              if (companyId) {
+                                try {
+                                  await adminClient.from("company_knowledge").insert({
+                                    company_id: companyId,
+                                    title: `${company.name} - Product Catalog (Auto-Generated)`,
+                                    content: cleanCatalog,
+                                    document_type: "product_catalog",
+                                    category: "product_catalog",
+                                    is_active: true,
+                                  });
+                                  console.log(`[AutoDossier] Saved product catalog for ${company.name} to knowledge base`);
+                                } catch (saveErr) {
+                                  console.warn(`[AutoDossier] Failed to save catalog: ${saveErr instanceof Error ? saveErr.message : "unknown"}`);
+                                }
+                              }
+                            }
+                          }
+                        } catch (extractErr) {
+                          console.warn(`[AutoDossier] Catalog extraction failed for ${company.name}: ${extractErr instanceof Error ? extractErr.message : "unknown"}`);
+                        }
+                      }
+                    }
+                  } catch (scrapeErr) {
+                    console.warn(`[AutoDossier] Product scrape failed for ${company.name}: ${scrapeErr instanceof Error ? scrapeErr.message : "unknown"}`);
+                  }
+                }
+
+                return {
+                  name: company.name,
+                  summary,
+                  citations,
+                  meetingTime: company.meetingTime,
+                  attendees: company.attendees,
+                  productCatalog: productCatalog || null,
+                };
               }
             } catch (err) {
               console.warn(`[AutoDossier] Research failed for ${company.name}: ${err instanceof Error ? err.message : "unknown"}`);
@@ -993,7 +1115,7 @@ Keep it concise and actionable for someone preparing for a sales call in the nex
           const results = (await Promise.all(researchPromises)).filter(Boolean);
           context.calendarDossiers = results;
           if (results.length > 0) {
-            console.log(`[AutoDossier] Completed ${results.length} dossiers`);
+            console.log(`[AutoDossier] Completed ${results.length} dossiers (${results.filter((r: any) => r.productCatalog).length} with product catalogs)`);
           }
         }
       }
@@ -1627,9 +1749,15 @@ async function generateResponse(
       if (d.attendees?.length > 0) dossierContext += `**In the room:** ${d.attendees.join(", ")}\n`;
       dossierContext += `${d.summary}\n`;
       if (d.citations?.length > 0) dossierContext += `Sources: ${d.citations.slice(0, 3).join(", ")}\n`;
+      if (d.productCatalog) {
+        dossierContext += `\n#### 📦 Product Catalog (auto-scraped from their website):\n${d.productCatalog.substring(0, 4000)}\n`;
+        dossierContext += `✅ This catalog has been saved to your knowledge base for future coaching sessions.\n`;
+      } else {
+        dossierContext += `⚠️ Product catalog not found automatically. Suggest the user upload a PDF or share a product page URL.\n`;
+      }
       dossierContext += "\n";
     }
-    dossierContext += "IMPORTANT: When the user asks about their calendar, meetings, or any of these companies, proactively surface this intel. Offer to build a pre-call plan, load their product catalog, or draft talking points.\n";
+    dossierContext += "IMPORTANT: When the user asks about their calendar, meetings, or any of these companies, proactively surface this intel INCLUDING product details. If a product catalog was scraped, reference specific products in your coaching. Offer to build a pre-call plan or draft talking points tailored to THEIR products.\n";
   }
 
   const systemPrompt =
