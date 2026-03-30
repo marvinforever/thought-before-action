@@ -21,6 +21,17 @@ export interface UserContext {
   appUrl: string;
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
   calendarEvents: { title: string; startTime: string; endTime: string; isAllDay: boolean; attendees: string[]; location: string | null }[];
+  // New: evidence-based progress
+  resourcesCompletedThisWeek: number;
+  quickWinStatus: string | null; // 'accepted' | 'rejected' | 'completed' | null
+  quickWinStepsTotal: number;
+  quickWinStepsDone: number;
+  capabilitiesStarted: string[];
+  priorityActionsCompleted: number;
+  priorityActionsTotal: number;
+  lastJerichoChat: string | null; // ISO date
+  daysOnPlatform: number;
+  hasCalendarConnected: boolean;
 }
 
 export interface BriefContent {
@@ -47,9 +58,10 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
   const [
     profileResult, episodeResult, habitsResult, habitCompletionsResult,
     targetsResult, capabilitiesResult, achievementsResult, visionResult,
-    recognitionsResult, tasksResult
+    recognitionsResult, tasksResult, playbookInteractionsResult,
+    lastConversationResult
   ] = await Promise.all([
-    supabase.from("profiles").select("id, email, full_name, company_id").eq("id", profileId).maybeSingle(),
+    supabase.from("profiles").select("id, email, full_name, company_id, created_at").eq("id", profileId).maybeSingle(),
     supabase.from("podcast_episodes").select("*").eq("profile_id", profileId).eq("episode_date", today).maybeSingle(),
     supabase.from("leading_indicators").select("id, habit_name, current_streak").eq("profile_id", profileId).eq("is_active", true),
     supabase.from("habit_completions").select("habit_id").eq("profile_id", profileId).gte("completed_date", weekAgo),
@@ -59,11 +71,20 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     supabase.from("personal_visions").select("vision_statement").eq("profile_id", profileId).maybeSingle(),
     supabase.from("recognition_notes").select("id", { count: 'exact', head: true }).eq("given_by", profileId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     supabase.from("project_tasks").select("title, priority, due_date").eq("profile_id", profileId).in("column_status", ["todo", "in_progress"]).order("priority", { ascending: false }).limit(5),
+    // Playbook interactions from the last week
+    supabase.from("playbook_interactions").select("section_type, section_key, interaction_type").eq("profile_id", profileId).gte("created_at", weekAgo),
+    // Last Jericho conversation
+    supabase.from("conversations").select("created_at").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(1),
   ]);
 
   const profile = profileResult.data;
   const episode = episodeResult.data;
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
+
+  // Calculate days on platform
+  const daysOnPlatform = profile?.created_at
+    ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
 
   const habits = (habitsResult.data || []).map((h: any) => ({
     name: h.habit_name,
@@ -110,8 +131,23 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
 
   const focusCapability = episode?.capability_name || topCapabilities[0]?.name || null;
 
+  // Parse playbook interactions for evidence-based reporting
+  const pbInteractions = playbookInteractionsResult.data || [];
+  const resourcesCompletedThisWeek = pbInteractions.filter((i: any) => i.section_type === 'resource' && i.interaction_type === 'completed').length;
+  const quickWinInteraction = pbInteractions.find((i: any) => i.section_type === 'quick_win');
+  const quickWinStatus = quickWinInteraction?.interaction_type || null;
+  const quickWinStepsDone = pbInteractions.filter((i: any) => i.section_type === 'quick_win_step' && i.interaction_type === 'completed').length;
+  const capabilitiesStarted = pbInteractions
+    .filter((i: any) => i.section_type === 'capability' && i.interaction_type === 'started')
+    .map((i: any) => i.section_key);
+  const priorityActionsCompleted = pbInteractions.filter((i: any) => i.section_type === 'priority_action' && i.interaction_type === 'completed').length;
+  const priorityActionsTotal = pbInteractions.filter((i: any) => i.section_type === 'priority_action').length;
+
+  const lastJerichoChat = lastConversationResult.data?.[0]?.created_at || null;
+
   // Fetch today's calendar events if Google is connected
   let calendarEvents: { title: string; startTime: string; endTime: string; isAllDay: boolean; attendees: string[]; location: string | null }[] = [];
+  let hasCalendarConnected = false;
   try {
     const { data: googleIntegration } = await supabase
       .from('user_integrations')
@@ -122,6 +158,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
       .maybeSingle();
 
     if (googleIntegration) {
+      hasCalendarConnected = true;
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const calResponse = await fetch(`${supabaseUrl}/functions/v1/google-calendar-read`, {
@@ -135,7 +172,6 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
 
       if (calResponse.ok) {
         const calData = await calResponse.json();
-        // Get today's date in user's timezone for proper filtering
         const userNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
         const todayUser = userNow.toISOString().split('T')[0];
         
@@ -191,11 +227,24 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     appUrl,
     priorityTasks: (tasksResult.data || []).map((t: any) => ({ title: t.title, priority: t.priority, dueDate: t.due_date })),
     calendarEvents,
+    resourcesCompletedThisWeek,
+    quickWinStatus,
+    quickWinStepsTotal: 0, // Will be enriched from playbook data if available
+    quickWinStepsDone,
+    capabilitiesStarted,
+    priorityActionsCompleted,
+    priorityActionsTotal,
+    lastJerichoChat,
+    daysOnPlatform,
+    hasCalendarConnected,
   };
 }
 
 export async function generateBriefContent(context: UserContext, format: BriefFormat): Promise<BriefContent> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+  // Determine the user's timezone for calendar display
+  const userTimezone = 'America/New_York'; // fallback — real timezone passed upstream
 
   const formatInstruction = format === 'html'
     ? 'Format the "body" as HTML using <p>, <strong>, <a> tags. Keep it scannable.'
@@ -204,75 +253,98 @@ export async function generateBriefContent(context: UserContext, format: BriefFo
     : 'Format the "body" as plain text. No HTML, no markdown. Keep it very concise (~150 words).';
 
   const linkInstruction = format === 'html'
-    ? `Use <a href="..."> for links. Valid routes: ${context.appUrl}/dashboard/my-growth-plan, ${context.appUrl}/dashboard/my-resources, ${context.appUrl}/dashboard/my-capabilities, ${context.appUrl}/dashboard/personal-assistant`
+    ? `Use <a href="..."> for links. Valid app routes:
+  - ${context.appUrl}/dashboard/my-growth-plan (Growth Plan / Playbook)
+  - ${context.appUrl}/dashboard/my-resources (Resources & Learning)
+  - ${context.appUrl}/dashboard/my-capabilities (Capabilities)
+  - ${context.appUrl}/dashboard/personal-assistant (Jericho AI Coach)
+  - ${context.appUrl}/dashboard/sales (Sales Agent — for sales meetings/calls)
+  - ${context.appUrl}/dashboard/settings (Settings & Integrations)`
     : format === 'markdown'
-    ? `For links use: [text](url). Valid routes: ${context.appUrl}/dashboard/my-growth-plan, ${context.appUrl}/dashboard/personal-assistant`
+    ? `For links use: [text](url). Valid routes: ${context.appUrl}/dashboard/my-growth-plan, ${context.appUrl}/dashboard/personal-assistant, ${context.appUrl}/dashboard/sales`
     : `Mention the app URL ${context.appUrl} once at the end.`;
 
-  const systemPrompt = `You are Jericho, a warm AI growth coach. Write a personalized daily briefing.
+  const systemPrompt = `You are Jericho — a trusted advisor who is honest, direct, and supportive. You are NOT a cheerleader. You celebrate REAL progress backed by evidence, and you gently call out where things haven't moved.
 
-Voice: Warm, encouraging, practical, conversational, data-informed.
+CORE RULES:
+1. NEVER give credit for things the user hasn't actually done. If data shows 0 resources completed, say so. If a habit streak is 0, don't pretend it's going well.
+2. Celebrate PROVEN wins: completed tasks, maintained streaks, finished resources. These deserve genuine recognition.
+3. For things that haven't progressed, be honest but constructive: "Your quick win hasn't been started yet — want to tackle one step today?"
+4. Be specific. Reference actual numbers, names, and dates — not vague encouragement.
+5. Suggest specific Jericho features that can help TODAY based on what's on their calendar and task list.
 
-Structure:
-1. Warm greeting
-2. Today's schedule snapshot (from calendar, if available — mention key meetings and who they're with)
-3. Top 3-5 priorities for today (from their task list)
-4. Quick 90-day goal status
-5. Habit tracker summary
-6. Today's learning focus (specific capability name)
-7. Daily challenge
-8. A "Quick Reflect" question — ONE short question that connects to something from their playbook, a recent goal, or today's challenge. Frame it as something they can reply to answer. Keep it to one sentence, make it specific to them, and always start with "Quick reflect:"
-9. Motivating sign-off
+TONE: Like a mentor who respects you too much to BS you. Warm when warranted. Direct always. Think: "I'm telling you this because I believe in what you can do."
 
-IMPORTANT: The Quick Reflect question MUST be specific to this person — reference a goal, habit, challenge, or something from their recent history. Never ask a generic question.
+STRUCTURE:
+1. Honest greeting — brief, no fluff. One line max.
+2. TODAY'S SCHEDULE — If calendar is connected, highlight the most important meeting(s). For each notable meeting:
+   - What it is and who's in it
+   - A prep suggestion: "Before your call with [person], check [feature] in Jericho" (e.g., Sales Agent for customer calls, Growth Plan for 1:1s with manager)
+   If no calendar: suggest connecting Google Calendar for smarter briefings
+3. PROGRESS CHECK — Evidence-based status:
+   - Resources completed this week (actual number)
+   - Quick win status (accepted/in-progress/not started)
+   - Capabilities being worked on (or not)
+   - Habit streaks (real numbers, highlight gaps honestly)
+   - 90-day goal progress (days remaining + benchmarks completed)
+4. TODAY'S PRIORITIES — Top 2-3 actionable items from tasks, with specific next steps
+5. JERICHO TIP — One specific feature suggestion relevant to today. Examples:
+   - "You have a sales call at 2pm — open Sales Agent to prep with customer intel"
+   - "Your 'Strategic Thinking' capability hasn't moved — try the curated resource in your Playbook"
+   - "Haven't chatted with Jericho in X days — a quick check-in could help unblock your goal"
+6. Quick Reflect — ONE specific question tied to something real in their data. Not generic.
+7. Sign-off — One sentence. Honest, forward-looking.
 
 ${formatInstruction}
 ${linkInstruction}
 
-ALSO generate a "shortSummary" field: a ~140 character plain text summary suitable for SMS. Include one key insight and the app URL.
+Generate a "shortSummary" field: ~140 character plain text for SMS. Include one honest insight + app URL.
 
 Return JSON: { "subject": "...", "body": "...", "shortSummary": "..." }`;
 
-  const userPrompt = `Write today's briefing for ${context.firstName}.
+  // Build evidence-based context
+  const progressSection = buildProgressEvidence(context);
+  const calendarSection = buildCalendarContext(context);
 
-${context.personalVision ? `Vision: "${context.personalVision}"` : ''}
-Focus Capability: ${context.focusCapability || 'Growth & Development'}
+  const userPrompt = `Write today's briefing for ${context.firstName}. Day ${context.daysOnPlatform} on the platform.
 
-90-Day Targets (${context.ninetyDayTargets.length}):
-${context.ninetyDayTargets.map(t => `- ${t.title}: ${t.daysRemaining} days left`).join('\n') || 'None set'}
+${context.personalVision ? `Vision: "${context.personalVision}"` : 'No vision set yet.'}
+Focus Capability: ${context.focusCapability || 'None selected'}
 
-Habits: ${context.habits.map(h => `${h.name} (${h.currentStreak}d streak)`).join(', ') || 'None'}
-${context.streakDays ? `Login Streak: ${context.streakDays} days` : ''}
+── EVIDENCE-BASED PROGRESS ──
+${progressSection}
 
-Tasks:
-${context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]`).join('\n') || 'No tasks'}
+── TODAY'S CALENDAR ──
+${calendarSection}
 
-Capabilities: ${context.topCapabilities.map(c => `${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join(', ') || 'None'}
+── TASKS ──
+${context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]${t.dueDate ? ` (due: ${t.dueDate})` : ''}`).join('\n') || 'No tasks set up yet.'}
 
-TODAY'S CALENDAR (${context.calendarEvents.length} events):
-${context.calendarEvents.length > 0
-  ? context.calendarEvents.map(e => {
-      let timeLabel: string;
-      if (e.isAllDay) {
-        timeLabel = 'All day';
-      } else if (e.startTime) {
-        // Convert to user's timezone for display
-        const eventDate = new Date(e.startTime);
-        timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: userTimezone });
-      } else {
-        timeLabel = 'All day';
-      }
-      const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
-      return `- ${timeLabel}: ${e.title}${attendeeList}${e.location ? ` (${e.location})` : ''}`;
-    }).join('\n')
-  : 'No calendar connected or no events today'}
+── 90-DAY TARGETS (${context.ninetyDayTargets.length}) ──
+${context.ninetyDayTargets.map(t => {
+  const completedCount = t.benchmarks.filter(b => b.isCompleted).length;
+  return `- ${t.title}: ${t.daysRemaining} days left, ${completedCount}/${t.benchmarks.length} benchmarks done`;
+}).join('\n') || 'None set — suggest they create one in Growth Plan.'}
 
-${context.dailyChallenge ? `Challenge: ${context.dailyChallenge}` : ''}
-${context.recentAchievements.length > 0 ? `Recent wins: ${context.recentAchievements.join(', ')}` : ''}`;
+── HABITS ──
+${context.habits.length > 0
+  ? context.habits.map(h => `- ${h.name}: ${h.currentStreak}d streak, ${h.completionsThisWeek} completions this week`).join('\n')
+  : 'No habits tracked yet.'}
+${context.streakDays !== null ? `Login Streak: ${context.streakDays} days` : 'No login streak data.'}
+
+── CAPABILITIES ──
+${context.topCapabilities.length > 0
+  ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n')
+  : 'No capabilities assigned yet.'}
+Capabilities actively being worked on: ${context.capabilitiesStarted.length > 0 ? context.capabilitiesStarted.join(', ') : 'None started yet'}
+
+${context.lastJerichoChat ? `Last Jericho conversation: ${context.lastJerichoChat.split('T')[0]}` : 'Has not chatted with Jericho yet.'}
+${context.dailyChallenge ? `Today's challenge: ${context.dailyChallenge}` : ''}
+${context.recentAchievements.length > 0 ? `Verified achievements: ${context.recentAchievements.join(', ')}` : 'No recent achievements logged.'}`;
 
   if (!LOVABLE_API_KEY) {
     return {
-      subject: `Hey ${context.firstName}, your daily growth update`,
+      subject: `${context.firstName}, your morning brief`,
       body: format === 'html'
         ? `<p>Hey ${context.firstName}, here's your daily brief. Check your goals and habits today!</p>`
         : `Hey ${context.firstName}, here's your daily brief. Check your goals and habits today!`,
@@ -303,7 +375,7 @@ ${context.recentAchievements.length > 0 ? `Recent wins: ${context.recentAchievem
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
-        subject: parsed.subject || `Hey ${context.firstName}, your daily growth update`,
+        subject: parsed.subject || `${context.firstName}, your morning brief`,
         body: parsed.body || `Hey ${context.firstName}, check in today!`,
         shortSummary: (parsed.shortSummary || `${context.firstName}, check your growth plan today! ${context.appUrl}`).substring(0, 160)
       };
@@ -312,11 +384,89 @@ ${context.recentAchievements.length > 0 ? `Recent wins: ${context.recentAchievem
   } catch (error) {
     console.error("Brief content generation error:", error);
     return {
-      subject: `Hey ${context.firstName}, your daily growth update`,
+      subject: `${context.firstName}, your morning brief`,
       body: format === 'html'
         ? `<p>Hey ${context.firstName}, here's your daily brief. Check your goals and habits today!</p>`
         : `Hey ${context.firstName}, here's your daily brief. Check your goals and habits today!`,
       shortSummary: `${context.firstName}, check in on your goals today! ${context.appUrl}`
     };
   }
+}
+
+// ── Helper: Build evidence-based progress summary ──
+
+function buildProgressEvidence(ctx: UserContext): string {
+  const lines: string[] = [];
+
+  // Resources
+  lines.push(`Resources completed this week: ${ctx.resourcesCompletedThisWeek}`);
+
+  // Quick Win
+  if (ctx.quickWinStatus === 'completed') {
+    lines.push(`Quick Win: COMPLETED ✓`);
+  } else if (ctx.quickWinStatus === 'accepted') {
+    lines.push(`Quick Win: Accepted, ${ctx.quickWinStepsDone} steps done (in progress)`);
+  } else if (ctx.quickWinStatus === 'rejected') {
+    lines.push(`Quick Win: User said it wasn't a fit — don't mention it positively`);
+  } else {
+    lines.push(`Quick Win: Not yet started — hasn't accepted or rejected it`);
+  }
+
+  // Priority Actions
+  if (ctx.priorityActionsTotal > 0) {
+    lines.push(`Priority Actions: ${ctx.priorityActionsCompleted}/${ctx.priorityActionsTotal} completed`);
+  } else {
+    lines.push(`Priority Actions: None tracked yet`);
+  }
+
+  // Benchmarks
+  lines.push(`90-day benchmarks: ${ctx.completedBenchmarks}/${ctx.totalBenchmarks} completed`);
+
+  // Recognitions
+  lines.push(`Recognitions sent (30d): ${ctx.recognitionsSent}`);
+
+  return lines.join('\n');
+}
+
+// ── Helper: Build calendar context with feature suggestions ──
+
+function buildCalendarContext(ctx: UserContext): string {
+  if (!ctx.hasCalendarConnected) {
+    return `Calendar NOT connected. Suggest: "Connect Google Calendar in Settings for smarter daily briefings with meeting prep."`;
+  }
+
+  if (ctx.calendarEvents.length === 0) {
+    return `Calendar connected but no events today. Light day — suggest deep work on capabilities or resources.`;
+  }
+
+  const lines = ctx.calendarEvents.map(e => {
+    let timeLabel: string;
+    if (e.isAllDay) {
+      timeLabel = 'All day';
+    } else if (e.startTime) {
+      const eventDate = new Date(e.startTime);
+      timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } else {
+      timeLabel = 'All day';
+    }
+    const attendeeList = e.attendees.length > 0 ? ` with ${e.attendees.slice(0, 3).join(', ')}` : '';
+    const locationInfo = e.location ? ` (${e.location})` : '';
+
+    // Suggest Jericho features based on meeting type
+    let featureSuggestion = '';
+    const titleLower = e.title.toLowerCase();
+    if (titleLower.includes('sales') || titleLower.includes('customer') || titleLower.includes('prospect') || titleLower.includes('demo') || titleLower.includes('call')) {
+      featureSuggestion = ' → SUGGEST: Sales Agent for pre-call prep & customer intel';
+    } else if (titleLower.includes('1:1') || titleLower.includes('one on one') || titleLower.includes('check-in') || titleLower.includes('sync')) {
+      featureSuggestion = ' → SUGGEST: Growth Plan review before the meeting';
+    } else if (titleLower.includes('review') || titleLower.includes('performance') || titleLower.includes('feedback')) {
+      featureSuggestion = ' → SUGGEST: Check Capabilities & recent achievements in Playbook';
+    } else if (titleLower.includes('team') || titleLower.includes('standup') || titleLower.includes('huddle')) {
+      featureSuggestion = ' → SUGGEST: Quick check on team priorities in Personal Assistant';
+    }
+
+    return `- ${timeLabel}: ${e.title}${attendeeList}${locationInfo}${featureSuggestion}`;
+  });
+
+  return `${ctx.calendarEvents.length} events today:\n${lines.join('\n')}`;
 }
