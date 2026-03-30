@@ -341,7 +341,17 @@ serve(async (req) => {
         if (!existsInPipeline) {
           researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey);
         }
+    }
+
+    // General Research (topics, products, tactics)
+    if (extracted.generalResearchRequest) {
+      const requestedTopic = extracted.generalResearchRequest.toLowerCase().trim();
+      const researchBlocklist = ["jericho", "momentum", "the momentum company"];
+      const isBlocked = researchBlocklist.some((b) => requestedTopic.includes(b));
+      if (!isBlocked) {
+        generalResearchCompleted = await handleGeneralResearch(extracted.generalResearchRequest, lovableApiKey);
       }
+    }
     }
 
     // Email
