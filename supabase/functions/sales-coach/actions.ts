@@ -127,9 +127,29 @@ export async function createContact(
   triggeredBy: string
 ): Promise<ActionResult> {
   try {
+    const trimmedName = name.trim();
+    
+    // Check for existing contact with same name under this company or profile
+    const { data: existingContacts } = await client
+      .from("sales_contacts")
+      .select("id, name")
+      .eq("profile_id", userId)
+      .ilike("name", `%${trimmedName}%`);
+
+    if (existingContacts && existingContacts.length > 0) {
+      return {
+        type: "contact_exists",
+        entityId: existingContacts[0].id,
+        undoToken: "",
+        success: true,
+        details: { name: existingContacts[0].name, wasExisting: true },
+        message: `Found existing contact "${existingContacts[0].name}"`,
+      };
+    }
+
     const { data: newContact, error } = await client
       .from("sales_contacts")
-      .insert({ company_id: salesCompanyId, profile_id: userId, name: name.trim(), title: title || null })
+      .insert({ company_id: salesCompanyId, profile_id: userId, name: trimmedName, title: title || null })
       .select("id")
       .single();
 
