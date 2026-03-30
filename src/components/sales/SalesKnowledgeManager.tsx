@@ -607,7 +607,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
               Update this knowledge item
             </DialogDescription>
           </DialogHeader>
-          <FormContent />
+          {formContent}
         </DialogContent>
       </Dialog>
 
