@@ -39,8 +39,9 @@ interface ExtractedEntities {
   contacts: { name: string; title?: string; companyName?: string }[];
   dealSignals: { value?: number; stage?: string; notes?: string };
   researchRequest?: string;
+  generalResearchRequest?: string;
   emailRequest?: { recipient?: string; type?: string; company?: string };
-  intentType: "coaching" | "data_lookup" | "create_entity" | "research" | "email" | "pipeline_action";
+  intentType: "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action";
   // Auto-deal detection
   conversationDealDetected?: boolean;
   detectedProduct?: string;
