@@ -80,6 +80,7 @@ export default function PersonalAssistant() {
   const [newTaskCategory, setNewTaskCategory] = useState<string>("work");
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatInitialMessage, setChatInitialMessage] = useState<string | undefined>(undefined);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
