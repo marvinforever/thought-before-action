@@ -1310,12 +1310,15 @@ async function generateResponse(
       if (byStage[stage]) byStage[stage].push(c);
       else byStage.prospect.push(c);
     }
-    contactsContext = `\n## YOUR CONTACTS (${contactsList.length} total):`;
+    contactsContext = `\n## YOUR GROWERS & CONTACTS (${contactsList.length} total):\nIMPORTANT: Always refer to accounts by the GROWER NAME (person), not by deal/opportunity name. Lead with the person.`;
     for (const [stage, contacts] of Object.entries(byStage)) {
       if (contacts.length === 0) continue;
       const stageLabel = stage === "at_risk" ? "At-Risk" : stage.charAt(0).toUpperCase() + stage.slice(1);
-      contactsContext += `\n${stageLabel} (${contacts.length}): ${contacts.slice(0, 15).map((c: any) => `${c.name}${c.sales_companies?.name ? ` @ ${c.sales_companies.name}` : ""}`).join(", ")}`;
-      if (contacts.length > 15) contactsContext += `, +${contacts.length - 15} more`;
+      contactsContext += `\n${stageLabel} (${contacts.length}):`;
+      for (const c of contacts.slice(0, 15)) {
+        contactsContext += `\n- **${c.name}**${c.title ? ` (${c.title})` : ""}${c.sales_companies?.name ? ` @ ${c.sales_companies.name}` : ""}${c.last_purchase_date ? ` | Last purchase: ${c.last_purchase_date}` : ""}`;
+      }
+      if (contacts.length > 15) contactsContext += `\n  +${contacts.length - 15} more`;
     }
     if (byStage.at_risk.length > 0) {
       contactsContext += `\n⚠️ AT-RISK ACCOUNTS: ${byStage.at_risk.map((c: any) => c.name).join(", ")} — proactively suggest follow-up actions for these.`;
