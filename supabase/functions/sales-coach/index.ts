@@ -782,7 +782,7 @@ async function gatherContext(
   const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult, contactsResult] = await withTimeout(
     Promise.all([
       client.from("sales_deals").select(`id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at, sales_companies(id, name), sales_contacts(id, name, title)`).eq("profile_id", userId).order("priority").limit(50),
-      client.from("sales_companies").select("id, name").eq("profile_id", userId).order("name").limit(500),
+      client.from("sales_companies").select("id, name, notes, location, operation_details, customer_since, industry").eq("profile_id", userId).order("name").limit(500),
       client.from("sales_knowledge").select("title, content, category").is("company_id", null).eq("is_active", true).limit(30),
       companyId
         ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
