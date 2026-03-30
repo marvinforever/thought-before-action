@@ -1018,7 +1018,15 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           })}
           </div>
         </div>
-      )}
+      {/* Sales Methodology Training */}
+      <div className="pt-4 mt-4 border-t">
+        <SalesMethodologyTraining
+          userId={userId}
+          companyId={companyId}
+          deals={deals}
+          customers={customers}
+        />
+      </div>
     </div>
   );
 };
