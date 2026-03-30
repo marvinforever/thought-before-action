@@ -331,7 +331,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
     }
   };
 
-  const FormContent = () => (
+  const formContent = (
     <div className="space-y-4">
       {/* File Upload */}
       <div className="space-y-2">
@@ -515,7 +515,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
                 Upload documents or paste content that Jericho will use for recommendations
               </DialogDescription>
             </DialogHeader>
-            <FormContent />
+            {formContent}
           </DialogContent>
         </Dialog>
       </div>
@@ -607,7 +607,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
               Update this knowledge item
             </DialogDescription>
           </DialogHeader>
-          <FormContent />
+          {formContent}
         </DialogContent>
       </Dialog>
 
