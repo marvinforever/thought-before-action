@@ -1665,7 +1665,16 @@ async function generateResponse(
     if (dealActions.length > 0) actionSummary += `Created a prospecting deal. `;
     actionSummary += "\n\n";
   }
-  if (researchCompleted) actionSummary += `**Research on ${researchCompleted.company}:**\n${researchCompleted.summary}\n\n`;
+  if (researchCompleted) {
+    actionSummary += `**Research on ${researchCompleted.company}:**\n${researchCompleted.summary}\n`;
+    if (researchCompleted.productCatalog) {
+      actionSummary += `\n**📦 Product Catalog (auto-scraped):**\n${researchCompleted.productCatalog.substring(0, 3000)}\n`;
+    }
+    if (researchCompleted.savedToKnowledge) {
+      actionSummary += `\n✅ **Saved to ${researchCompleted.savedToCompany || "your"} knowledge base** — this intel will be available in all future coaching sessions.\n`;
+    }
+    actionSummary += "\n";
+  }
   if (generalResearchCompleted) actionSummary += `**🔍 Research: "${generalResearchCompleted.query}"**\n${generalResearchCompleted.summary}\n\n`;
   if (emailDrafted) actionSummary += `**📧 Email Draft - "${emailDrafted.subject}":**\n\n${emailDrafted.preview}\n\n*[Full email saved]*\n\n`;
 
