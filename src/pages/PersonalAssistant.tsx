@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, MessageSquare, Trash2, GripVertical, Folder, Calendar, RefreshCw, X, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { JerichoChat } from "@/components/JerichoChat";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -80,6 +80,7 @@ export default function PersonalAssistant() {
   const [newTaskCategory, setNewTaskCategory] = useState<string>("work");
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatInitialMessage, setChatInitialMessage] = useState<string | undefined>(undefined);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -92,6 +93,18 @@ export default function PersonalAssistant() {
   const [editDescription, setEditDescription] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Auto-open chat with context from navigation state (e.g., from Playbook)
+  useEffect(() => {
+    const state = location.state as { chatMessage?: string } | null;
+    if (state?.chatMessage) {
+      setChatInitialMessage(state.chatMessage);
+      setChatOpen(true);
+      // Clear the state so it doesn't re-trigger
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     checkAuth();
@@ -270,6 +283,7 @@ export default function PersonalAssistant() {
 
   const handleChatClose = useCallback(() => {
     setChatOpen(false);
+    setChatInitialMessage(undefined);
     loadData();
   }, []);
 
@@ -667,7 +681,7 @@ export default function PersonalAssistant() {
       </Dialog>
 
       {/* Jericho Chat */}
-      <JerichoChat isOpen={chatOpen} onClose={handleChatClose} />
+      <JerichoChat isOpen={chatOpen} onClose={handleChatClose} initialMessage={chatInitialMessage} />
     </div>
   );
 }
