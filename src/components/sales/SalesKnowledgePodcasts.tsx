@@ -127,6 +127,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     fetchKnowledge();
     fetchDeals();
     fetchCustomers();
+    fetchPurchaseProducts();
   }, [userId, companyId]);
 
   // Generate training suggestions based on deals and their stages
