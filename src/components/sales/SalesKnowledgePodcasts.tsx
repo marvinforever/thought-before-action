@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { SalesMethodologyTraining } from "./SalesMethodologyTraining";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1018,6 +1019,16 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           </div>
         </div>
       )}
+
+      {/* Sales Methodology Training */}
+      <div className="pt-4 mt-4 border-t">
+        <SalesMethodologyTraining
+          userId={userId}
+          companyId={companyId}
+          deals={deals}
+          customers={customers}
+        />
+      </div>
     </div>
   );
 };
