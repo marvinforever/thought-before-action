@@ -21,6 +21,7 @@ import {
   X,
   UserPlus,
   Bell,
+  Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
