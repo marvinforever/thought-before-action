@@ -22,6 +22,7 @@ interface Message {
   content: string;
   id?: string;
   contactPrompts?: { name: string; companyName?: string }[];
+  researchData?: { query: string; summary: string; citations: string[] };
 }
 
 interface Company {
