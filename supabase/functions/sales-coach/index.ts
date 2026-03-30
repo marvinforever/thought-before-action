@@ -340,7 +340,10 @@ serve(async (req) => {
           });
 
         if (!existsInPipeline) {
-          researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey);
+          researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey, extracted.saveResearchTo || null);
+        } else {
+          // Even if in pipeline, still do research if user explicitly asked + wants to save
+          researchCompleted = await handleResearch(adminClient, effectiveUserId, effectiveCompanyId, extracted.researchRequest, lovableApiKey, extracted.saveResearchTo || null);
         }
     }
 
