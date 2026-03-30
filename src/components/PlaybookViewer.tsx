@@ -63,7 +63,7 @@ export interface Narrative {
   unlock_memory?: string;
 }
 
-interface CapabilityEntry {
+export interface CapabilityEntry {
   capability_name: string;
   category: string;
   current_level: string;
