@@ -606,6 +606,13 @@ If conversationDealDetected is true, also extract:
 
 RESEARCH IS EXPLICIT-ONLY - only set researchRequest if user says "research [company]", "look up [company] online", "find out about [company]".
 
+SAVE RESEARCH TO KNOWLEDGE BASE: Set "saveResearchTo" (string) when the user wants to save research about one company INTO another company's knowledge base. Examples:
+- "research UPL and save it for Streamline Ag" → researchRequest="UPL", saveResearchTo="Streamline Ag"
+- "look up DPH Biologicals and add to Streamline knowledge" → researchRequest="DPH Biologicals", saveResearchTo="Streamline"
+- "research AgroTech and save that info for Streamline Ag" → researchRequest="AgroTech", saveResearchTo="Streamline Ag"
+- "research this company and save it" (no target specified) → researchRequest="company", saveResearchTo=null (use user's own company)
+If no specific target company is mentioned for saving, leave saveResearchTo as null.
+
 GENERAL RESEARCH: Set generalResearchRequest (string) when the user asks to research a TOPIC, PRODUCT, TACTIC, MARKET TREND, or any non-company subject. Examples:
 - "research cover crops", "look up no-till farming benefits", "what's the latest on fungicide timing"
 - "research cold calling strategies", "find me info on SPIN selling"
@@ -619,6 +626,7 @@ Return JSON:
   "dealSignals": {"value": null, "stage": "prospecting", "notes": "..."},
   "researchRequest": null,
   "generalResearchRequest": null,
+  "saveResearchTo": null,
   "emailRequest": null,
   "intentType": "coaching" | "data_lookup" | "create_entity" | "research" | "general_research" | "email" | "pipeline_action",
   "conversationDealDetected": false,
