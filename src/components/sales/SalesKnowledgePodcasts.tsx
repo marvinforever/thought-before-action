@@ -109,6 +109,7 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [expandedTranscripts, setExpandedTranscripts] = useState<Set<string>>(new Set());
   const [showSuggested, setShowSuggested] = useState(true);
+  const [purchaseProducts, setPurchaseProducts] = useState<string[]>([]);
 
   const toggleTranscript = (key: string) => {
     setExpandedTranscripts(prev => {
