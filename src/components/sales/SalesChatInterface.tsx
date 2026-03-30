@@ -420,6 +420,15 @@ export function SalesChatInterface({
         >
           Today's priorities
         </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => onInputChange("Research ")}
+          className="gap-1"
+        >
+          <Search className="h-3 w-3" />
+          Research a topic
+        </Button>
       </div>
 
       {/* Input */}
