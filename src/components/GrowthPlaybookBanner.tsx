@@ -57,7 +57,11 @@ export function GrowthPlaybookBanner() {
   };
 
   const handleOpenNewTab = () => {
-    const html = getHtmlContent();
+    const structured = getStructuredData();
+    // Prefer native-styled HTML from structured data; fall back to email HTML
+    const html = structured
+      ? generatePlaybookHtml(structured.narrative, structured.scores, structured.capabilities)
+      : getHtmlContent();
     if (!html) return;
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
