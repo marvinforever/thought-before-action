@@ -787,7 +787,7 @@ async function gatherContext(
       companyId
         ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
         : Promise.resolve({ data: [] }),
-      client.from("sales_contacts").select("id, name, title, pipeline_stage, last_purchase_date, sales_companies(name)").eq("profile_id", userId).order("name").limit(200),
+      client.from("sales_contacts").select("id, name, title, pipeline_stage, last_purchase_date, notes, email, phone, is_decision_maker, sales_companies(name)").eq("profile_id", userId).order("name").limit(200),
     ]),
     10_000,
     "gatherContext:base-queries"
