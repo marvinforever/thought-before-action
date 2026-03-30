@@ -1309,7 +1309,7 @@ async function generateResponse(
 
     const relevantDocs = mentionedCustomerId
       ? customerDocs.filter((d: any) => d.customer_id === mentionedCustomerId || !d.customer_id)
-      : customerDocs.filter((d: any) => !d.customer_id).slice(0, 5); // general docs only when no customer focus
+      : customerDocs.slice(0, 10); // include all recent docs when no specific customer focus
 
     if (relevantDocs.length > 0) {
       documentContext = "\n\n## UPLOADED DOCUMENTS:\n";
