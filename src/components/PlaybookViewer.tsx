@@ -13,7 +13,7 @@ import {
 
 // ── Types ──
 
-interface EngagementScores {
+export interface EngagementScores {
   composite: number;
   burnoutRisk: number;
   roleStrain: number;
