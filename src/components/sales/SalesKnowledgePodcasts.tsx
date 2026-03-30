@@ -22,7 +22,8 @@ import {
   Package,
   FileText,
   Eye,
-  EyeOff
+  EyeOff,
+  Users
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -501,11 +502,13 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           </p>
         </div>
         
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap">
           {/* Product Selection */}
           {extractedProducts.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-orange-500" />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Package className="h-3 w-3" /> Product
+              </label>
               <Select 
                 value={selectedProductName ? `${selectedKnowledgeId}::${selectedProductName}` : "all"} 
                 onValueChange={(v) => {
@@ -520,10 +523,10 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                 }}
               >
                 <SelectTrigger className="w-[200px] h-9">
-                  <SelectValue placeholder="Select product..." />
+                  <SelectValue placeholder="All products" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
-                  <SelectItem value="all">All Training</SelectItem>
+                  <SelectItem value="all">All Products</SelectItem>
                   {Object.entries(productsBySource).map(([source, products]) => (
                     <div key={source}>
                       <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t first:border-t-0">
@@ -541,30 +544,37 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
             </div>
           )}
 
-          {/* Customer Selection - always show */}
-          <Select value={selectedCustomerId || "general"} onValueChange={(v) => setSelectedCustomerId(v === "general" ? null : v)}>
-            <SelectTrigger className="w-[180px] h-9">
-              <SelectValue placeholder="Choose customer..." />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="general">General</SelectItem>
-              {customers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  {customer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Deal Selection - always show */}
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
-              <SelectTrigger className="w-[160px] h-9">
-                <SelectValue placeholder="Apply to deal..." />
+          {/* Customer Selection */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Users className="h-3 w-3" /> Customer Context
+            </label>
+            <Select value={selectedCustomerId || "none"} onValueChange={(v) => setSelectedCustomerId(v === "none" ? null : v)}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="No customer" />
               </SelectTrigger>
               <SelectContent className="bg-popover">
-                <SelectItem value="none">No specific deal</SelectItem>
+                <SelectItem value="none">No Customer Filter</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Deal Selection */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Target className="h-3 w-3" /> Deal Context
+            </label>
+            <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="No deal" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="none">No Deal Filter</SelectItem>
                 {deals.map((deal) => (
                   <SelectItem key={deal.id} value={deal.id}>
                     {deal.deal_name}
