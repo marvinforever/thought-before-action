@@ -1248,9 +1248,16 @@ async function generateResponse(
   if (customerFocused && relevantDeals.length === 0) {
     pipelineContext = `No deals found for ${mentionedCompany || mentionedContact || "this customer"} in your pipeline.`;
   } else if (customerFocused) {
-    pipelineContext = relevantDeals.map((d: any) => `- ${d.deal_name} (${d.stage}): $${d.value || 0}`).join("\n");
+    pipelineContext = relevantDeals.map((d: any) => {
+      const grower = d.sales_companies?.name || d.sales_contacts?.name || "Unknown";
+      const contact = d.sales_contacts?.name ? ` (Contact: ${d.sales_contacts.name}${d.sales_contacts.title ? `, ${d.sales_contacts.title}` : ""})` : "";
+      return `- **${grower}**${contact} — ${d.deal_name} (${d.stage}): $${d.value || 0}`;
+    }).join("\n");
   } else if (context.deals.length > 0) {
-    pipelineContext = context.deals.slice(0, 10).map((d: any) => `- ${d.deal_name} (${d.stage}): $${d.value || 0} at ${d.sales_companies?.name || "Unknown"}`).join("\n");
+    pipelineContext = context.deals.slice(0, 10).map((d: any) => {
+      const grower = d.sales_companies?.name || "Unknown";
+      return `- **${grower}** — ${d.deal_name} (${d.stage}): $${d.value || 0}`;
+    }).join("\n");
   } else {
     pipelineContext = "No deals in pipeline yet.";
   }
@@ -1303,12 +1310,15 @@ async function generateResponse(
       if (byStage[stage]) byStage[stage].push(c);
       else byStage.prospect.push(c);
     }
-    contactsContext = `\n## YOUR CONTACTS (${contactsList.length} total):`;
+    contactsContext = `\n## YOUR GROWERS & CONTACTS (${contactsList.length} total):\nIMPORTANT: Always refer to accounts by the GROWER NAME (person), not by deal/opportunity name. Lead with the person.`;
     for (const [stage, contacts] of Object.entries(byStage)) {
       if (contacts.length === 0) continue;
       const stageLabel = stage === "at_risk" ? "At-Risk" : stage.charAt(0).toUpperCase() + stage.slice(1);
-      contactsContext += `\n${stageLabel} (${contacts.length}): ${contacts.slice(0, 15).map((c: any) => `${c.name}${c.sales_companies?.name ? ` @ ${c.sales_companies.name}` : ""}`).join(", ")}`;
-      if (contacts.length > 15) contactsContext += `, +${contacts.length - 15} more`;
+      contactsContext += `\n${stageLabel} (${contacts.length}):`;
+      for (const c of contacts.slice(0, 15)) {
+        contactsContext += `\n- **${c.name}**${c.title ? ` (${c.title})` : ""}${c.sales_companies?.name ? ` @ ${c.sales_companies.name}` : ""}${c.last_purchase_date ? ` | Last purchase: ${c.last_purchase_date}` : ""}`;
+      }
+      if (contacts.length > 15) contactsContext += `\n  +${contacts.length - 15} more`;
     }
     if (byStage.at_risk.length > 0) {
       contactsContext += `\n⚠️ AT-RISK ACCOUNTS: ${byStage.at_risk.map((c: any) => c.name).join(", ")} — proactively suggest follow-up actions for these.`;
