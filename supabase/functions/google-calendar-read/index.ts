@@ -134,16 +134,19 @@ Deno.serve(async (req) => {
         .eq("id", integration.id);
     }
 
-    // Call Google Calendar API
+    // Call Google Calendar API — support configurable range (default: -30 to +30 days)
     const now = new Date();
-    const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const daysBack = body.daysBack ?? 30;
+    const daysForward = body.daysForward ?? 30;
+    const rangeStart = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+    const rangeEnd = new Date(now.getTime() + daysForward * 24 * 60 * 60 * 1000);
 
     const calParams = new URLSearchParams({
-      timeMin: now.toISOString(),
-      timeMax: sevenDaysLater.toISOString(),
+      timeMin: rangeStart.toISOString(),
+      timeMax: rangeEnd.toISOString(),
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "50",
+      maxResults: "100",
     });
 
     const calRes = await fetch(
