@@ -1294,6 +1294,34 @@ async function generateResponse(
     knowledgeContext += `\n\n## PRODUCT KNOWLEDGE: **NO KNOWLEDGE BASE AVAILABLE** - Do not recommend specific products.`;
   }
 
+  // Build uploaded document context
+  let documentContext = "";
+  const customerDocs = context.customerDocuments || [];
+  if (customerDocs.length > 0) {
+    // If we have a focused customer, prioritize their docs
+    const mentionedCustomerId = customerFocused
+      ? context.existingCompanies.find((c: any) => {
+          const cn = c.name?.toLowerCase() || "";
+          const mn = (mentionedCompany || "").toLowerCase();
+          return cn === mn || cn.includes(mn) || mn.includes(cn);
+        })?.id
+      : null;
+
+    const relevantDocs = mentionedCustomerId
+      ? customerDocs.filter((d: any) => d.customer_id === mentionedCustomerId || !d.customer_id)
+      : customerDocs.filter((d: any) => !d.customer_id).slice(0, 5); // general docs only when no customer focus
+
+    if (relevantDocs.length > 0) {
+      documentContext = "\n\n## UPLOADED DOCUMENTS:\n";
+      for (const doc of relevantDocs.slice(0, 5)) {
+        const docTitle = doc.title || doc.file_name;
+        const text = doc.extracted_text?.slice(0, 8000) || doc.summary || "No content extracted";
+        documentContext += `### ${docTitle} (${doc.document_type || "document"}):\n${text}\n\n`;
+      }
+      documentContext += "Use the information from these documents when relevant to the conversation.";
+    }
+  }
+
   const focusInstruction = customerFocused
     ? `\n\nIMPORTANT: The user is asking specifically about "${mentionedCompany || mentionedContact}". Focus ONLY on this customer.`
     : "";
