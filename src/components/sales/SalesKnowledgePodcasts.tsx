@@ -565,24 +565,31 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
           </div>
           
           {/* Deal Selection */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Target className="h-3 w-3" /> Deal Context
-            </label>
-            <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="No deal" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="none">No Deal Filter</SelectItem>
-                {deals.map((deal) => (
-                  <SelectItem key={deal.id} value={deal.id}>
-                    {deal.deal_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {deals.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Target className="h-3 w-3" /> Apply to Deal
+              </label>
+              <Select value={selectedDealId || "none"} onValueChange={(v) => setSelectedDealId(v === "none" ? null : v)}>
+                <SelectTrigger className="w-[220px] h-9">
+                  <SelectValue placeholder="No deal" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="none">No Deal Filter</SelectItem>
+                  {deals.map((deal) => (
+                    <SelectItem key={deal.id} value={deal.id}>
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate max-w-[120px]">{deal.deal_name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ({deal.stage}{deal.sales_companies?.name ? ` · ${deal.sales_companies.name}` : ''})
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 
