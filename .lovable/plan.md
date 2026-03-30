@@ -1,67 +1,70 @@
 
 
-# Plan: Post-Playbook Engagement — "Stage 2" Conversation Flow
+# Plan: Native Playbook Viewer + Stuck Fix (Layer 1)
 
-## What We're Building
+## Scope
+Two deliverables only. No activation workflows, no playbook regeneration — those come later.
 
-After the user provides their email and the playbook generation is triggered, Jericho doesn't stop. It transitions into a **Stage 2** flow that keeps the user engaged, enriches their data, and teaches them about Jericho — all while rewarding them for staying.
+## Step 1: Fix Stuck Onboarding
 
-## Four Key Behaviors to Add
+**File:** `supabase/functions/proxy-try-chat/index.ts`
 
-### 1. Playbook Delivery Message
-Immediately after emitting the `GENERATION` and `EXTRACTED_DATA` markers, Jericho tells the user:
-- Their playbook is being built and will land in their inbox in a few minutes
-- Check spam if they don't see it
-- Humor: "It's worth the wait — trust me."
+- Track the phase number from `<!--PROGRESS:` markers across turns
+- If the same phase appears in 2+ consecutive assistant messages, append a system instruction: "The user has answered sufficiently. Accept their response and advance to the next phase immediately."
+- Store phase history in the conversation context already being passed
 
-### 2. Job Description Upload Offer
-Right after the delivery message, offer to accept a JD:
-- "Got a job description handy? Drop it in and I'll supercharge your playbook with it."
-- If they don't have one: "No worries — we can grab it later."
-- If they do paste/upload one, acknowledge it and emit a new `<!--EXTRACTED_DATA:...-->` update with a `job_description` field
+**File:** `src/pages/TryJericho.tsx`
 
-### 3. Stage 2 Continued Coaching Questions
-After the JD offer (whether they provide one or not), Jericho keeps going with deeper questions. The prompt will include a **Stage 2 question bank** covering:
-- Leadership style / management philosophy
-- Career aspirations (where do you want to be in 3 years?)
-- Biggest recent win
-- What feedback they've received lately
-- What skill they wish they had
-- How they handle conflict
-- What motivates them most
+- Add a subtle "Skip this question →" button that appears after 2 user messages on the same phase
+- On click, send a system-level message like "[user skipped]" to trigger advance
 
-Rules for Stage 2:
-- One question per turn (same as Stage 1)
-- Response length up to 60 words (rapport is established)
-- Periodically reinforce: "You're in the top 10% of people who keep going — every answer makes your playbook sharper."
-- Pepper in **Jericho product education**: "This is actually how Jericho works day-to-day — it learns from conversations like this and turns them into action plans."
-- Keep the humor dial turned up
+## Step 2: Native Playbook Viewer
 
-### 4. Jericho FAQ / Pricing Handling
-Add a section to the prompt for handling product questions mid-conversation:
-- **Pricing**: "Ha — like me so much you're ready to buy? I'm flattered. I'm not allowed to share pricing, but I can get you on a call with one of our team. Want me to set that up?"
-- **What is Jericho?**: Brief, punchy explanation — personal performance coach that learns from you and builds actionable growth plans
-- **How does it work?**: "Exactly like this — we talk, I learn, and I build you a plan that actually fits your life. Then I check in, nudge you, and keep you accountable."
+**New file:** `src/components/PlaybookViewer.tsx`
 
-## Technical Changes
+Replace the iframe-based display with a native React component that reads structured data from `leadership_reports`:
 
-### File: `supabase/functions/_shared/try-system-prompt.ts`
+- `report_content.narrative` — north star, snapshot, superpower, growth edge, quick win, learning resources
+- `report_content.engagement_scores` — composite score, burnout risk, role strain, etc.
+- `capability_matrix` — 7 capabilities with levels, priorities, reasoning
 
-Add a new **STAGE 2** section after Phase 9 in the system prompt covering:
+Sections to render natively:
+1. **Score Overview** — engagement scores as visual gauges/rings
+2. **North Star Card** — prominent display with the user's north star text
+3. **Intro paragraph** — "This Playbook was built from a single conversation..." with gold accent on "this document breathes"
+4. **Snapshot** — key paragraphs with metric indicators
+5. **Superpower + Growth Edge** — side-by-side cards
+6. **Capability Map** — 7 capabilities with level badges and priority indicators
+7. **Quick Win** — checklist-style card with steps
+8. **Learning Resources** — resource cards
+9. **Diagnostic Grid** — score breakdown
 
-1. **Transition message template** — playbook in inbox, check spam, stay and chat
-2. **JD upload offer** — optional, low pressure
-3. **Stage 2 question bank** — 8-10 deeper questions to cycle through, one per turn
-4. **Gamification language** — "top 10%", "your playbook just got better", "most people bounce by now — you're not most people"
-5. **Product education snippets** — weave in naturally, never salesy
-6. **FAQ handling rules** — pricing deflection with humor, feature explanations, booking calls
-7. **Response length**: Up to 60 words per turn in Stage 2
+Each section includes an action link to the relevant in-app feature (capabilities page, 90-day tracker, resources).
 
-### File: `supabase/functions/proxy-try-chat/index.ts`
+Keep a "View full report" fallback link that opens the HTML version in a new tab.
 
-No structural changes needed — the existing streaming + marker system handles Stage 2 naturally since it's all prompt-driven.
+**File:** `src/components/GrowthPlaybookBanner.tsx`
 
-### Deployment
+- Replace the iframe dialog with `PlaybookViewer`
+- Keep the banner detection logic (query `leadership_reports` for `individual_playbook`)
+- Change banner text for users who have already viewed it: "Your Growth Playbook" (no urgency)
 
-Redeploy `proxy-try-chat` edge function to pick up the updated prompt.
+## Technical Details
+
+**Data source** (no new tables or migrations):
+```
+leadership_reports table:
+  report_content -> { html, narrative: { north_star_text, snapshot_paragraphs, 
+    superpower_paragraphs, growth_edge_quote, priorities[], quick_win_title, 
+    quick_win_steps[], learning_resources[], diagnostic_commentary }, 
+    engagement_scores: { composite, burnoutRisk, roleStrain, ... } }
+  capability_matrix -> [{ capability_name, category, current_level, 
+    target_level, is_priority, reasoning }]
+```
+
+**Deployment:** Redeploy `proxy-try-chat` edge function after stuck-fix changes.
+
+## What This Sets Up for Later
+- Layer 2: Playbook Activation wizard plugs into the same `PlaybookViewer` component
+- Layer 3: Playbook regeneration writes updated data to the same `leadership_reports` row, and the viewer automatically reflects changes
 
