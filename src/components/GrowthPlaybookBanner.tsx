@@ -4,10 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Sparkles, ExternalLink, X } from "lucide-react";
+import { PlaybookViewer } from "./PlaybookViewer";
 
 interface PlaybookData {
   id: string;
   report_content: any;
+  capability_matrix: any;
   status: string;
   completed_at: string | null;
   share_token: string | null;
@@ -29,7 +31,7 @@ export function GrowthPlaybookBanner() {
 
       const { data } = await supabase
         .from("leadership_reports")
-        .select("id, report_content, status, completed_at, share_token")
+        .select("id, report_content, capability_matrix, status, completed_at, share_token")
         .eq("profile_id", user.id)
         .eq("report_type", "individual_playbook")
         .in("status", ["generated", "delivered"])
@@ -48,7 +50,6 @@ export function GrowthPlaybookBanner() {
   const getHtmlContent = (): string => {
     if (!playbook?.report_content) return "";
     const content = playbook.report_content as any;
-    // report_content can be { html: "..." } or a raw string
     if (typeof content === "string") return content;
     if (content.html) return content.html;
     return "";
@@ -62,10 +63,24 @@ export function GrowthPlaybookBanner() {
     window.open(url, "_blank");
   };
 
+  // Extract structured data
+  const getStructuredData = () => {
+    const content = playbook?.report_content as any;
+    if (!content) return null;
+    const narrative = content.narrative;
+    const scores = content.engagement_scores;
+    const caps = playbook?.capability_matrix;
+    if (narrative && scores && Array.isArray(caps)) {
+      return { narrative, scores, capabilities: caps };
+    }
+    return null;
+  };
+
   if (loading || !playbook) return null;
 
   const html = getHtmlContent();
-  if (!html) return null;
+  const structured = getStructuredData();
+  if (!html && !structured) return null;
 
   return (
     <>
@@ -77,7 +92,7 @@ export function GrowthPlaybookBanner() {
                 <Sparkles className="w-6 h-6 text-accent" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-foreground">Your Growth Playbook is Ready</h3>
+                <h3 className="font-bold text-base text-foreground">Your Growth Playbook</h3>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Personalized coaching report based on your diagnostic conversation
                 </p>
@@ -115,20 +130,31 @@ export function GrowthPlaybookBanner() {
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={handleOpenNewTab} className="gap-1 text-xs">
                 <ExternalLink className="w-3.5 h-3.5" />
-                New Tab
+                Full Report
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDialogOpen(false)}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
           </div>
-          <iframe
-            srcDoc={html}
-            className="w-full flex-1 border-0"
-            style={{ height: "calc(90vh - 52px)" }}
-            title="Growth Playbook"
-            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
-          />
+          <div className="flex-1 overflow-hidden" style={{ height: "calc(90vh - 52px)" }}>
+            {structured ? (
+              <PlaybookViewer
+                narrative={structured.narrative}
+                scores={structured.scores}
+                capabilities={structured.capabilities}
+                htmlFallback={html}
+                onOpenInNewTab={handleOpenNewTab}
+              />
+            ) : (
+              <iframe
+                srcDoc={html}
+                className="w-full h-full border-0"
+                title="Growth Playbook"
+                sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>

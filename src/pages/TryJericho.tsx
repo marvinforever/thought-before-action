@@ -397,6 +397,7 @@ export default function TryJericho() {
   const [generating, setGenerating] = useState(false);
   const [playbookReady, setPlaybookReady] = useState(false);
   const [channelChosen, setChannelChosen] = useState(false);
+  const [stuckCount, setStuckCount] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -404,6 +405,7 @@ export default function TryJericho() {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionStartRef = useRef<number>(0);
   const lastPhaseRef = useRef(0);
+  const prevPhaseRef = useRef(0);
 
   // ── Track page view on mount ──
   useEffect(() => {
@@ -695,6 +697,13 @@ export default function TryJericho() {
                 const pct = data.percent || 0;
                 setProgressPercent(pct);
                 setProgressLabel(data.label || "");
+                // Track stuck: same phase repeated
+                if (pct === prevPhaseRef.current && pct > 0) {
+                  setStuckCount(c => c + 1);
+                } else if (pct !== prevPhaseRef.current) {
+                  setStuckCount(0);
+                  prevPhaseRef.current = pct;
+                }
                 if (pct !== lastPhaseRef.current) {
                   lastPhaseRef.current = pct;
                   trackEvent("try_phase_reached", {
@@ -1047,7 +1056,7 @@ export default function TryJericho() {
                 <div className="border-t border-white/10 bg-primary/95 backdrop-blur-sm">
                   <form
                     onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                    className="max-w-2xl mx-auto flex gap-2 p-4 pb-2"
+                    className="max-w-2xl mx-auto flex gap-2 p-4 pb-1"
                   >
                     <Input
                       ref={inputRef}
@@ -1066,7 +1075,29 @@ export default function TryJericho() {
                       <Send className="w-4 h-4" />
                     </Button>
                   </form>
-                  <PlaybookProgressBar percent={progressPercent} label={progressLabel} />
+                  <div className="max-w-2xl mx-auto flex items-center justify-between px-4 pb-1">
+                    <PlaybookProgressBar percent={progressPercent} label={progressLabel} />
+                    <AnimatePresence>
+                      {stuckCount >= 2 && !isLoading && !generating && (
+                        <motion.button
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 10 }}
+                          onClick={() => {
+                            setStuckCount(0);
+                            trackEvent("try_question_skipped", {
+                              phase_percent: progressPercent,
+                              turn: turnCountRef.current,
+                            });
+                            sendToJericho("[user skipped this question — move to the next phase]");
+                          }}
+                          className="text-xs text-white/40 hover:text-white/70 transition-colors whitespace-nowrap py-1"
+                        >
+                          Skip this question →
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               )}
             </motion.div>

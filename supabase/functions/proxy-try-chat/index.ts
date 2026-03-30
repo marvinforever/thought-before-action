@@ -356,6 +356,32 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Stuck detection: check if the same phase appeared 2+ times in recent assistant messages ──
+    const incomingMessages = messages || [];
+    let stuckNudge = '';
+    
+    // Extract phase numbers from recent PROGRESS markers in assistant messages
+    const recentPhases: number[] = [];
+    for (let i = incomingMessages.length - 1; i >= 0 && recentPhases.length < 4; i--) {
+      const msg = incomingMessages[i];
+      if (msg.role === 'assistant' && typeof msg.content === 'string') {
+        const progressMatch = msg.content.match(/<!--PROGRESS:\s*\{[^}]*"percent"\s*:\s*(\d+)/);
+        if (progressMatch) {
+          recentPhases.unshift(Number(progressMatch[1]));
+        }
+      }
+    }
+    
+    // If we have 2+ consecutive identical phase percentages, the user is stuck
+    if (recentPhases.length >= 2) {
+      const last = recentPhases[recentPhases.length - 1];
+      const prev = recentPhases[recentPhases.length - 2];
+      if (last === prev && last > 0) {
+        stuckNudge = `\n\n[SYSTEM OVERRIDE] The user has been on the same phase (${last}%) for multiple turns. They have answered sufficiently. Accept their response as-is and IMMEDIATELY advance to the next phase. Do not ask the same question again or rephrase it. Move forward.`;
+        console.log(`[proxy-try-chat] Stuck detected at ${last}% — injecting advance nudge`);
+      }
+    }
+
     const aiMessages = [
       { role: 'system', content: TRY_SYSTEM_PROMPT },
       {
@@ -364,9 +390,9 @@ Deno.serve(async (req) => {
 - Keep every response under 60 words. The user is on a small screen.
 - Ask exactly ONE question per message. Never ask compound or follow-up questions in the same turn.
 - Do not repeat or summarize what the user just said back to them. Move forward.
-- Be warm but brief. Think text message, not email.`
+- Be warm but brief. Think text message, not email.${stuckNudge}`
       },
-      ...(messages || []),
+      ...incomingMessages,
     ];
 
     const geminiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
