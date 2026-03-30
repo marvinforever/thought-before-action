@@ -214,7 +214,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
         // Extract text from document
         if (selectedFile.type !== "text/plain") {
           try {
-            const extractedText = await extractDocumentText(filePath, selectedFile.type);
+            const extractedText = await extractDocumentText(filePath, selectedFile.type, "company-documents");
             if (extractedText) {
               content = extractedText;
             }
