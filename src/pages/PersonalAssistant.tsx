@@ -93,6 +93,18 @@ export default function PersonalAssistant() {
   const [editDescription, setEditDescription] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Auto-open chat with context from navigation state (e.g., from Playbook)
+  useEffect(() => {
+    const state = location.state as { chatMessage?: string } | null;
+    if (state?.chatMessage) {
+      setChatInitialMessage(state.chatMessage);
+      setChatOpen(true);
+      // Clear the state so it doesn't re-trigger
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     checkAuth();
