@@ -32,6 +32,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json().catch(() => ({}));
+
     // Auth: accept service role key or user JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -46,7 +48,6 @@ Deno.serve(async (req) => {
     let userId: string;
 
     if (token === serviceRoleKey) {
-      const body = await req.json().catch(() => ({}));
       if (!body.userId) {
         return new Response(JSON.stringify({ error: "userId required" }), {
           status: 400,
