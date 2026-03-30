@@ -1232,7 +1232,7 @@ async function generateResponse(
     if (productItems.length > 0) {
       // Give product catalogs much more content so the AI can actually reference specific products
       const productContext = productItems.map((k: any) => {
-        const maxLen = k.category === "product_catalog" ? 12000 : 3000;
+        const maxLen = k.category === "product_catalog" ? 30000 : 3000;
         const content = k.content?.slice(0, maxLen) || "";
         const truncated = content.length < (k.content?.length || 0) ? "\n[... catalog continues, ask user for specific product if needed]" : "";
         return `### ${k.title}:\n${content}${truncated}`;
