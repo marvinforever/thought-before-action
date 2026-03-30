@@ -35,24 +35,6 @@ const isProductTraining = (category: string | null) => {
   return PRODUCT_CATEGORIES.some(pc => lowerCat.includes(pc) || lowerCat === pc);
 };
 import { useToast } from "@/hooks/use-toast";
-  const fetchPurchaseProducts = async () => {
-    if (!companyId) return;
-    const { data } = await supabase
-      .from("customer_purchase_history")
-      .select("product_description")
-      .eq("company_id", companyId)
-      .not("product_description", "is", null)
-      .limit(500);
-    
-    if (data) {
-      const unique = [...new Set(
-        data
-          .map(d => d.product_description?.trim())
-          .filter((p): p is string => !!p && p.length > 2 && p.length < 80)
-      )].sort();
-      setPurchaseProducts(unique);
-    }
-  };
 
 
 interface SalesKnowledgePodcastsProps {
