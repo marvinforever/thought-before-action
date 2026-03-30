@@ -1749,9 +1749,15 @@ async function generateResponse(
       if (d.attendees?.length > 0) dossierContext += `**In the room:** ${d.attendees.join(", ")}\n`;
       dossierContext += `${d.summary}\n`;
       if (d.citations?.length > 0) dossierContext += `Sources: ${d.citations.slice(0, 3).join(", ")}\n`;
+      if (d.productCatalog) {
+        dossierContext += `\n#### 📦 Product Catalog (auto-scraped from their website):\n${d.productCatalog.substring(0, 4000)}\n`;
+        dossierContext += `✅ This catalog has been saved to your knowledge base for future coaching sessions.\n`;
+      } else {
+        dossierContext += `⚠️ Product catalog not found automatically. Suggest the user upload a PDF or share a product page URL.\n`;
+      }
       dossierContext += "\n";
     }
-    dossierContext += "IMPORTANT: When the user asks about their calendar, meetings, or any of these companies, proactively surface this intel. Offer to build a pre-call plan, load their product catalog, or draft talking points.\n";
+    dossierContext += "IMPORTANT: When the user asks about their calendar, meetings, or any of these companies, proactively surface this intel INCLUDING product details. If a product catalog was scraped, reference specific products in your coaching. Offer to build a pre-call plan or draft talking points tailored to THEIR products.\n";
   }
 
   const systemPrompt =
