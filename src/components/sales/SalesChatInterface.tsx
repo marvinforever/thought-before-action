@@ -8,6 +8,7 @@ import { MessageFeedback } from "./MessageFeedback";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { AddContactPromptCard } from "./AddContactPromptCard";
 import { ResearchResultCard } from "./ResearchResultCard";
+import { ProductCatalogCard } from "./ProductCatalogCard";
 import {
   Sparkles,
   Send,
