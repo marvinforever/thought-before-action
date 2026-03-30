@@ -1614,6 +1614,24 @@ async function generateResponse(
     calendarContext += "Use this calendar data to reference past meetings, suggest follow-up timing, flag upcoming customer meetings, and help with call prep.\n";
   }
 
+  // Build auto-dossier context for upcoming meetings
+  let dossierContext = "";
+  const dossiers = context.calendarDossiers || [];
+  if (dossiers.length > 0) {
+    dossierContext = "\n## 🔍 AUTO-RESEARCHED MEETING INTEL (companies from your upcoming calendar):\n";
+    dossierContext += "These dossiers were automatically researched because these companies appear in your upcoming meetings but aren't in your pipeline yet.\n\n";
+    for (const d of dossiers) {
+      const tz = context.userTimezone || "America/New_York";
+      const timeStr = d.meetingTime ? new Date(d.meetingTime).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz }) : "TBD";
+      dossierContext += `### ${d.name} (Meeting: ${timeStr})\n`;
+      if (d.attendees?.length > 0) dossierContext += `**In the room:** ${d.attendees.join(", ")}\n`;
+      dossierContext += `${d.summary}\n`;
+      if (d.citations?.length > 0) dossierContext += `Sources: ${d.citations.slice(0, 3).join(", ")}\n`;
+      dossierContext += "\n";
+    }
+    dossierContext += "IMPORTANT: When the user asks about their calendar, meetings, or any of these companies, proactively surface this intel. Offer to build a pre-call plan, load their product catalog, or draft talking points.\n";
+  }
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
