@@ -977,10 +977,11 @@ async function handleResearch(
   companyId: string | null,
   companyName: string,
   apiKey: string
-): Promise<{ company: string; summary: string } | null> {
+): Promise<{ company: string; summary: string; citations?: string[] } | null> {
   try {
     const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
     let researchResult = "";
+    let citations: string[] = [];
 
     if (perplexityKey) {
       const response = await fetch("https://api.perplexity.ai/chat/completions", {
@@ -994,6 +995,7 @@ async function handleResearch(
       if (response.ok) {
         const data = await response.json();
         researchResult = data.choices?.[0]?.message?.content || "";
+        citations = data.citations || [];
       }
     }
 
@@ -1006,9 +1008,62 @@ async function handleResearch(
       }
     }
 
-    return { company: companyName, summary: researchResult };
+    return { company: companyName, summary: researchResult, citations };
   } catch (err) {
     console.error("Research error:", err);
+    return null;
+  }
+}
+
+// ============================================
+// GENERAL RESEARCH (topics, products, tactics)
+// ============================================
+
+async function handleGeneralResearch(
+  query: string,
+  apiKey: string
+): Promise<{ query: string; summary: string; citations: string[] } | null> {
+  try {
+    const perplexityKey = Deno.env.get("PERPLEXITY_API_KEY");
+    if (!perplexityKey) {
+      console.warn("[GeneralResearch] No PERPLEXITY_API_KEY configured");
+      return null;
+    }
+
+    console.log(`[GeneralResearch] Researching: "${query}"`);
+
+    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${perplexityKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          {
+            role: "system",
+            content: "You are a research assistant for sales professionals. Provide practical, actionable information. Use bullet points and clear structure. Focus on what's useful for someone who sells for a living."
+          },
+          {
+            role: "user",
+            content: `Research the following topic thoroughly: "${query}". Provide key findings, latest developments, and practical applications. Be specific with data and examples where possible.`
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[GeneralResearch] Perplexity API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const summary = data.choices?.[0]?.message?.content || "";
+    const citations = data.citations || [];
+
+    console.log(`[GeneralResearch] Got ${summary.length} chars, ${citations.length} citations`);
+
+    return { query, summary, citations };
+  } catch (err) {
+    console.error("[GeneralResearch] Error:", err);
     return null;
   }
 }
