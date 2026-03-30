@@ -1391,7 +1391,7 @@ ${repIdentity}
 ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
-${knowledgeContext}
+${knowledgeContext}${documentContext}
 ${repDataBlock}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
