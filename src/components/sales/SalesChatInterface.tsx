@@ -272,6 +272,16 @@ export function SalesChatInterface({
                       citations={msg.researchData.citations}
                     />
                   )}
+                  {/* Product catalog card */}
+                  {msg.role === "assistant" && msg.catalogData && (
+                    <ProductCatalogCard
+                      companyName={msg.catalogData.companyName}
+                      catalog={msg.catalogData.catalog}
+                      citations={msg.catalogData.citations}
+                      savedToCompany={msg.catalogData.savedToCompany}
+                      userCompanyId={companyId}
+                    />
+                  )}
                 </div>
               </motion.div>
             ))}
