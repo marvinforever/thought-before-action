@@ -1643,7 +1643,7 @@ ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}${documentContext}
-${repDataBlock}${calendarContext}
+${repDataBlock}${calendarContext}${dossierContext}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}${companyDetailBlock}
@@ -1657,13 +1657,20 @@ ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 
-AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actions using → format. These must be specific to what the data shows, not generic. Examples:
-→ Draft a pre-call plan for their upcoming meeting
-→ Pull last year's purchase comparison
-→ Create a deal to track this opportunity
+AGENTIC BEHAVIOR: You are a proactive executive sales assistant. Don't wait to be asked — lead with intelligence.
+- When you see upcoming calendar meetings with companies, automatically surface your research dossiers and offer meeting prep
+- After surfacing data or insights, suggest 2-3 contextual actions using → format
+- If you have auto-researched intel on a company the user mentions, lead with it
+- Identify gaps (missing product catalogs, unknown contacts) and tell the user exactly what you need to fill them
+- Think ahead: if there's a meeting tomorrow, prep for it today
+Examples:
+→ Build a pre-call plan for your 2:00 PM meeting with UPL
+→ Research their product line and load it into your knowledge base
+→ Draft an intro email to the decision maker
+→ Pull competitive intel on their market position
 ${focusInstruction}
 ${knowledgeContext}${documentContext}
-${repDataBlock}${calendarContext}
+${repDataBlock}${calendarContext}${dossierContext}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}${companyDetailBlock}
