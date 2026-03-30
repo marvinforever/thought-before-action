@@ -168,6 +168,81 @@ class MarkerParser {
 
       switch (type) {
         case 'EXTRACTED_DATA': {
+          // Determine if this is an initial extraction or a Stage 2 enrichment
+          const isEnrichment = !data.email; // Initial extraction always has email
+
+          if (isEnrichment) {
+            // ── Stage 2 enrichment: MERGE into existing extracted_data ──
+            const enrichPromise = (async () => {
+              try {
+                const { data: session } = await this.supabase
+                  .from('try_sessions')
+                  .select('extracted_data, profile_id, status')
+                  .eq('session_token', this.sessionToken)
+                  .single();
+
+                const existingData = session?.extracted_data || {};
+                const mergedData = { ...existingData, ...data };
+
+                // Track enrichment count for playbook refresh triggers
+                const enrichmentCount = (existingData._enrichment_count || 0) + 1;
+                mergedData._enrichment_count = enrichmentCount;
+                mergedData._last_enriched_at = new Date().toISOString();
+
+                await this.supabase
+                  .from('try_sessions')
+                  .update({ extracted_data: mergedData })
+                  .eq('session_token', this.sessionToken);
+
+                console.log(`[proxy-try-chat] Stage 2 enrichment #${enrichmentCount} merged:`, Object.keys(data).join(', '));
+
+                // If user has a profile, also enrich their active context
+                const profileId = session?.profile_id;
+                if (profileId) {
+                  const { data: ctx } = await this.supabase
+                    .from('user_active_context')
+                    .select('onboarding_data, continuity_summary')
+                    .eq('profile_id', profileId)
+                    .maybeSingle();
+
+                  const existingOnboarding = ctx?.onboarding_data || {};
+                  const enrichedOnboarding = { ...existingOnboarding, ...data };
+
+                  await this.supabase
+                    .from('user_active_context')
+                    .update({
+                      onboarding_data: enrichedOnboarding,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq('profile_id', profileId);
+
+                  console.log(`[proxy-try-chat] Profile ${profileId} context enriched`);
+
+                  // Every 5 enrichments, trigger a playbook refresh
+                  if (enrichmentCount > 0 && enrichmentCount % 5 === 0) {
+                    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+                    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+                    console.log(`[proxy-try-chat] Triggering playbook refresh after ${enrichmentCount} enrichments`);
+                    await fetch(`${supabaseUrl}/functions/v1/generate-individual-playbook`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        profileId,
+                        extractedData: mergedData,
+                        isRefresh: true,
+                      }),
+                    }).catch(e => console.error('[proxy-try-chat] Playbook refresh error:', e));
+                  }
+                }
+              } catch (e) {
+                console.error('[proxy-try-chat] Enrichment merge error:', e);
+              }
+            })();
+            this.pendingPromises.push(enrichPromise);
+            break;
+          }
+
+          // ── Initial extraction (has email) — original logic ──
           // Save to DB — push as tracked promise
           const savePromise = this.supabase
             .from('try_sessions')
