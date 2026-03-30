@@ -523,34 +523,34 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
         </div>
         
         <div className="flex items-center gap-4 flex-wrap">
-          {/* Product Selection */}
-          {extractedProducts.length > 0 && (
+          {/* Product Focus */}
+          {(extractedProducts.length > 0 || purchaseProducts.length > 0) && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Package className="h-3 w-3" /> Product
+                <Package className="h-3 w-3" /> Product Focus
               </label>
               <Select 
-                value={selectedProductName ? `${selectedKnowledgeId}::${selectedProductName}` : "all"} 
+                value={selectedProductName ? `${selectedKnowledgeId || 'purchase'}::${selectedProductName}` : "all"} 
                 onValueChange={(v) => {
                   if (v === "all") {
                     setSelectedProductName(null);
                     setSelectedKnowledgeId(null);
                   } else {
                     const [knowledgeId, ...nameParts] = v.split("::");
-                    setSelectedKnowledgeId(knowledgeId);
+                    setSelectedKnowledgeId(knowledgeId === 'purchase' ? null : knowledgeId);
                     setSelectedProductName(nameParts.join("::"));
                   }
                 }}
               >
-                <SelectTrigger className="w-[200px] h-9">
+                <SelectTrigger className="w-[220px] h-9">
                   <SelectValue placeholder="All products" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover">
+                <SelectContent className="bg-popover max-h-[300px]">
                   <SelectItem value="all">All Products</SelectItem>
                   {Object.entries(productsBySource).map(([source, products]) => (
                     <div key={source}>
                       <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t first:border-t-0">
-                        {source}
+                        📚 {source}
                       </div>
                       {products.map((product, idx) => (
                         <SelectItem key={`${product.knowledgeId}-${idx}`} value={`${product.knowledgeId}::${product.name}`}>
@@ -559,6 +559,18 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
                       ))}
                     </div>
                   ))}
+                  {purchaseProducts.length > 0 && (
+                    <div>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t">
+                        🛒 From Purchase History
+                      </div>
+                      {purchaseProducts.map((product, idx) => (
+                        <SelectItem key={`purchase-${idx}`} value={`purchase::${product}`}>
+                          {product}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
