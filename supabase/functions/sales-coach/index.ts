@@ -806,6 +806,12 @@ async function gatherContext(
     console.log(`[gatherContext] Loaded ${context.customerDocuments.length} customer documents`);
   }
 
+  // Fetch user's timezone preference
+  if (userId) {
+    const { data: emailPrefs } = await client.from("email_preferences").select("timezone").eq("profile_id", userId).maybeSingle();
+    context.userTimezone = emailPrefs?.timezone || "America/New_York";
+  }
+
   // Fetch Google Calendar events (fire-and-forget safe — won't break if not connected)
   if (userId) {
     try {
