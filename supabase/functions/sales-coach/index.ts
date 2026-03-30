@@ -1411,6 +1411,28 @@ async function generateResponse(
   // Identify the rep by name so the AI addresses them correctly (critical for View As mode)
   const repIdentity = context.repName ? `\n## YOU ARE COACHING: ${context.repName}\nAddress this person by their first name. This is the rep whose data, pipeline, and customers you see below.\n` : "";
 
+  // Build calendar context block
+  let calendarContext = "";
+  const calEvents = context.calendarEvents || [];
+  if (calEvents.length > 0) {
+    calendarContext = "\n## YOUR UPCOMING CALENDAR (next 7 days):\n";
+    for (const evt of calEvents.slice(0, 20)) {
+      const start = evt.start?.dateTime || evt.start?.date || "TBD";
+      const end = evt.end?.dateTime || evt.end?.date || "";
+      const summary = evt.summary || "(No title)";
+      const attendees = (evt.attendees || []).map((a: any) => a.displayName || a.email).join(", ");
+      const location = evt.location || "";
+      const startDate = new Date(start);
+      const dateStr = startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      const timeStr = evt.start?.dateTime ? startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "All day";
+      calendarContext += `- **${summary}** — ${dateStr} ${timeStr}`;
+      if (attendees) calendarContext += ` | With: ${attendees}`;
+      if (location) calendarContext += ` | ${location}`;
+      calendarContext += "\n";
+    }
+    calendarContext += "Use this calendar data to suggest optimal timing for follow-ups, flag upcoming customer meetings, and help with call prep.\n";
+  }
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
