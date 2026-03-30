@@ -760,6 +760,89 @@ function extractCompanyFallback(message: string): { name: string; isConversation
 }
 
 // ============================================
+// CALENDAR COMPANY EXTRACTION
+// ============================================
+
+function extractCompaniesFromCalendar(events: any[]): { name: string; meetingTime: string; attendees: string[] }[] {
+  const companies: { name: string; meetingTime: string; attendees: string[] }[] = [];
+  const seen = new Set<string>();
+
+  // Common words to filter out of company name extraction
+  const stopWords = new Set([
+    "meeting", "call", "sync", "standup", "stand-up", "lunch", "dinner", "breakfast",
+    "blocked", "block", "busy", "pto", "vacation", "holiday", "birthday", "reminder",
+    "interview", "review", "1:1", "one-on-one", "coffee", "happy hour", "team",
+    "introduction", "intro", "jericho", "demo", "onboarding", "check-in", "check in",
+    "training", "workshop", "webinar", "conference", "all hands", "retro", "sprint",
+    "planning", "grooming", "backlog", "kickoff", "kick-off", "debrief",
+    "connection call", "biz dev", "biz dev block"
+  ]);
+
+  for (const evt of events) {
+    const title = evt.summary || "";
+    if (!title || title.length < 3) continue;
+    
+    // Skip obvious non-company events
+    const lowerTitle = title.toLowerCase().trim();
+    if (stopWords.has(lowerTitle)) continue;
+    if (/^(blocked|busy|pto|vacation|lunch|dinner|breakfast|birthday)/i.test(lowerTitle)) continue;
+
+    const attendees = (evt.attendees || []).map((a: any) => a.displayName || a.email).filter(Boolean);
+    const meetingTime = evt.start?.dateTime || evt.start?.date || "";
+
+    // Pattern 1: "Company Name - Topic" or "Topic (Company Name)"
+    let companyMatch = title.match(/\(([A-Za-z][A-Za-z\s&.,'-]{1,50})\)/);
+    if (companyMatch) {
+      const name = companyMatch[1].trim();
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+      continue;
+    }
+
+    // Pattern 2: "Something - Company Name" or "Company Name - Something"
+    companyMatch = title.match(/(?:^|\s*[-–—]\s*)([A-Z][A-Za-z\s&.,'-]{2,40})(?:\s*[-–—]|$)/);
+    if (companyMatch) {
+      const name = companyMatch[1].trim();
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+      continue;
+    }
+
+    // Pattern 3: "Meeting with Company" or "Call with Company"
+    companyMatch = title.match(/(?:meeting|call|demo|intro|introduction|presentation)\s+(?:with|@|at)\s+([A-Z][A-Za-z\s&.,'-]{2,40})/i);
+    if (companyMatch) {
+      const name = companyMatch[1].trim().replace(/\s*[-–—].*$/, "");
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+      continue;
+    }
+
+    // Pattern 4: Title contains a known company-like structure (capitalized multi-word)
+    // Only for titles that look like they contain a proper noun company name
+    companyMatch = title.match(/([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}(?:\s+(?:Inc|LLC|Corp|Ltd|USA|Co|Group|Labs|Bio|Tech|Ag|Sciences)\.?))/);
+    if (companyMatch) {
+      const name = companyMatch[1].trim();
+      const key = name.toLowerCase();
+      if (!seen.has(key) && !stopWords.has(key) && name.length > 2) {
+        seen.add(key);
+        companies.push({ name, meetingTime, attendees });
+      }
+    }
+  }
+
+  return companies;
+}
+
+// ============================================
 // CONTEXT GATHERING
 // ============================================
 
