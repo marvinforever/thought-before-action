@@ -771,7 +771,7 @@ async function gatherContext(
   userContext: string,
   userMessage: string = ""
 ) {
-  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [], industry: null };
+  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [], industry: null, calendarEvents: [] };
   if (!userId) return context;
 
   // Fetch industry and name from profile for conditional intelligence injection and rep identity
