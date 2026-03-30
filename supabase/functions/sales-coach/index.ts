@@ -771,7 +771,7 @@ async function gatherContext(
   userContext: string,
   userMessage: string = ""
 ) {
-  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [], industry: null };
+  const context: any = { userContext, deals: [], existingCompanies: [], intelligence: null, purchaseHistory: null, salesKnowledge: [], industry: null, calendarEvents: [] };
   if (!userId) return context;
 
   // Fetch industry and name from profile for conditional intelligence injection and rep identity
@@ -804,6 +804,36 @@ async function gatherContext(
   context.customerDocuments = customerDocsResult.data || [];
   if (context.customerDocuments.length > 0) {
     console.log(`[gatherContext] Loaded ${context.customerDocuments.length} customer documents`);
+  }
+
+  // Fetch Google Calendar events (fire-and-forget safe — won't break if not connected)
+  if (userId) {
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const calRes = await withTimeout(
+        fetch(`${supabaseUrl}/functions/v1/google-calendar-read`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId }),
+        }),
+        5_000,
+        "gatherContext:calendar"
+      );
+      if (calRes.ok) {
+        const calData = await calRes.json();
+        context.calendarEvents = calData.events || [];
+        if (context.calendarEvents.length > 0) {
+          console.log(`[gatherContext] Loaded ${context.calendarEvents.length} calendar events`);
+        }
+      }
+    } catch (err) {
+      // Calendar not connected or timed out — no problem
+      console.log(`[gatherContext] Calendar fetch skipped: ${err instanceof Error ? err.message : "unavailable"}`);
+    }
   }
 
   if (extracted.companies.length > 0) {
@@ -1381,6 +1411,28 @@ async function generateResponse(
   // Identify the rep by name so the AI addresses them correctly (critical for View As mode)
   const repIdentity = context.repName ? `\n## YOU ARE COACHING: ${context.repName}\nAddress this person by their first name. This is the rep whose data, pipeline, and customers you see below.\n` : "";
 
+  // Build calendar context block
+  let calendarContext = "";
+  const calEvents = context.calendarEvents || [];
+  if (calEvents.length > 0) {
+    calendarContext = "\n## YOUR UPCOMING CALENDAR (next 7 days):\n";
+    for (const evt of calEvents.slice(0, 20)) {
+      const start = evt.start?.dateTime || evt.start?.date || "TBD";
+      const end = evt.end?.dateTime || evt.end?.date || "";
+      const summary = evt.summary || "(No title)";
+      const attendees = (evt.attendees || []).map((a: any) => a.displayName || a.email).join(", ");
+      const location = evt.location || "";
+      const startDate = new Date(start);
+      const dateStr = startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      const timeStr = evt.start?.dateTime ? startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "All day";
+      calendarContext += `- **${summary}** — ${dateStr} ${timeStr}`;
+      if (attendees) calendarContext += ` | With: ${attendees}`;
+      if (location) calendarContext += ` | ${location}`;
+      calendarContext += "\n";
+    }
+    calendarContext += "Use this calendar data to suggest optimal timing for follow-ups, flag upcoming customer meetings, and help with call prep.\n";
+  }
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
@@ -1392,7 +1444,7 @@ ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
 ${productValidationRules}
 ${knowledgeContext}${documentContext}
-${repDataBlock}
+${repDataBlock}${calendarContext}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}${companyDetailBlock}
@@ -1412,7 +1464,7 @@ AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actio
 → Create a deal to track this opportunity
 ${focusInstruction}
 ${knowledgeContext}${documentContext}
-${repDataBlock}
+${repDataBlock}${calendarContext}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}${companyDetailBlock}
