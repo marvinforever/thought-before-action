@@ -37,7 +37,7 @@ interface LearningResource {
   time_estimate?: string;
 }
 
-interface Narrative {
+export interface Narrative {
   snapshot_paragraphs?: string[];
   north_star_text?: string;
   north_star_followup?: string;
