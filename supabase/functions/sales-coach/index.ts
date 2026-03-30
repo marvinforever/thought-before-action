@@ -1229,7 +1229,16 @@ async function generateResponse(
       return ["product_catalog", "product_knowledge", "product_sheet", "catalog"].includes(cat) || title.includes("seed") || title.includes("product") || title.includes("catalog") || title.includes("guide") || title.includes("hybrid");
     });
     if (methodologyItems.length > 0) knowledgeContext += `\n\nSALES METHODOLOGY:\n${methodologyItems.map((k: any) => `**${k.title}**: ${k.content?.slice(0, 500)}...`).join("\n\n")}`;
-    if (productItems.length > 0) knowledgeContext += `\n\n## PRODUCT KNOWLEDGE (Use ONLY these):\n${productItems.map((k: any) => `### ${k.title}:\n${k.content?.slice(0, 3000)}`).join("\n\n")}`;
+    if (productItems.length > 0) {
+      // Give product catalogs much more content so the AI can actually reference specific products
+      const productContext = productItems.map((k: any) => {
+        const maxLen = k.category === "product_catalog" ? 12000 : 3000;
+        const content = k.content?.slice(0, maxLen) || "";
+        const truncated = content.length < (k.content?.length || 0) ? "\n[... catalog continues, ask user for specific product if needed]" : "";
+        return `### ${k.title}:\n${content}${truncated}`;
+      }).join("\n\n");
+      knowledgeContext += `\n\n## PRODUCT KNOWLEDGE (Use ONLY these — you have ${productItems.length} product source(s) loaded):\n${productContext}`;
+    }
     else knowledgeContext += `\n\n## PRODUCT KNOWLEDGE: **NO PRODUCT CATALOG LOADED** - Do not recommend specific products by code.`;
   } else {
     knowledgeContext += `\n\n## PRODUCT KNOWLEDGE: **NO KNOWLEDGE BASE AVAILABLE** - Do not recommend specific products.`;
