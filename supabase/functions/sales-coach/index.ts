@@ -1297,6 +1297,9 @@ async function generateResponse(
   // Industry-conditional intelligence
   const industryIntelligence = context.industry === 'agriculture' ? `\n${AGRICULTURE_INTELLIGENCE}` : '';
 
+  // Identify the rep by name so the AI addresses them correctly (critical for View As mode)
+  const repIdentity = context.repName ? `\n## YOU ARE COACHING: ${context.repName}\nAddress this person by their first name. This is the rep whose data, pipeline, and customers you see below.\n` : "";
+
   const systemPrompt =
     chatMode === "rec"
       ? `${JERICHO_PERSONALITY}
