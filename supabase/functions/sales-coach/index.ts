@@ -1637,7 +1637,7 @@ async function generateResponse(
   deal: any,
   generateCallPlan: boolean | undefined,
   dealsCount: number,
-  researchCompleted: { company: string; summary: string; citations?: string[] } | null,
+  researchCompleted: { company: string; summary: string; citations?: string[]; productCatalog?: string; savedToKnowledge?: boolean; savedToCompany?: string } | null,
   emailDrafted: { id: string; subject: string; preview: string } | null,
   apiKey: string,
   userId: string,
