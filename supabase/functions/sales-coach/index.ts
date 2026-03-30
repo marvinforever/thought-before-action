@@ -1464,7 +1464,7 @@ AGENTIC BEHAVIOR: After surfacing data or insights, suggest 2-3 contextual actio
 → Create a deal to track this opportunity
 ${focusInstruction}
 ${knowledgeContext}${documentContext}
-${repDataBlock}
+${repDataBlock}${calendarContext}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
 ${pipelineContext}${companyDetailBlock}
