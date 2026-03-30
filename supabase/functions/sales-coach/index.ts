@@ -1305,6 +1305,7 @@ async function generateResponse(
       ? `${JERICHO_PERSONALITY}
 
 REC MODE OVERRIDE: Be direct, data-first, 2-3 sentences max. No teaching moments. Peer-to-peer energy. Skip coaching frameworks — just answer fast.
+${repIdentity}
 
 ${SALES_INTELLIGENCE_FRAMEWORK}${industryIntelligence}
 ${formattingRules}
