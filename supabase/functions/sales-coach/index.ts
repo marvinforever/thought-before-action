@@ -252,7 +252,8 @@ serve(async (req) => {
     let companyCreated: { id: string; name: string } | null = null;
     let contactsCreated: { id: string; name: string }[] = [];
     let emailDrafted: { id: string; subject: string; preview: string } | null = null;
-    let researchCompleted: { company: string; summary: string } | null = null;
+    let researchCompleted: { company: string; summary: string; citations?: string[] } | null = null;
+    let generalResearchCompleted: { query: string; summary: string; citations: string[] } | null = null;
     let newCustomerPrompt: { name: string } | null = null;
     let newContactPrompts: { name: string; companyName?: string }[] = [];
 
