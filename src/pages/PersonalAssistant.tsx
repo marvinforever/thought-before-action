@@ -681,7 +681,7 @@ export default function PersonalAssistant() {
       </Dialog>
 
       {/* Jericho Chat */}
-      <JerichoChat isOpen={chatOpen} onClose={handleChatClose} />
+      <JerichoChat isOpen={chatOpen} onClose={handleChatClose} initialMessage={chatInitialMessage} />
     </div>
   );
 }
