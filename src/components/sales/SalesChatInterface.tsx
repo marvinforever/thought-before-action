@@ -8,6 +8,7 @@ import { MessageFeedback } from "./MessageFeedback";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { AddContactPromptCard } from "./AddContactPromptCard";
 import { ResearchResultCard } from "./ResearchResultCard";
+import { ProductCatalogCard } from "./ProductCatalogCard";
 import {
   Sparkles,
   Send,
@@ -31,6 +32,7 @@ interface Message {
   id?: string;
   contactPrompts?: { name: string; companyName?: string }[];
   researchData?: { query: string; summary: string; citations: string[] };
+  catalogData?: { companyName: string; catalog: string; citations?: string[]; savedToCompany?: string };
 }
 
 interface SalesChatInterfaceProps {
@@ -268,6 +270,16 @@ export function SalesChatInterface({
                       query={msg.researchData.query}
                       summary={msg.researchData.summary}
                       citations={msg.researchData.citations}
+                    />
+                  )}
+                  {/* Product catalog card */}
+                  {msg.role === "assistant" && msg.catalogData && (
+                    <ProductCatalogCard
+                      companyName={msg.catalogData.companyName}
+                      catalog={msg.catalogData.catalog}
+                      citations={msg.catalogData.citations}
+                      savedToCompany={msg.catalogData.savedToCompany}
+                      userCompanyId={companyId}
                     />
                   )}
                 </div>
