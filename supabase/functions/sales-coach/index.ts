@@ -782,12 +782,12 @@ async function gatherContext(
   const [dealsResult, companiesResult, globalKnowledgeResult, companyKnowledgeResult, contactsResult] = await withTimeout(
     Promise.all([
       client.from("sales_deals").select(`id, deal_name, stage, value, expected_close_date, priority, notes, last_activity_at, sales_companies(id, name), sales_contacts(id, name, title)`).eq("profile_id", userId).order("priority").limit(50),
-      client.from("sales_companies").select("id, name").eq("profile_id", userId).order("name").limit(500),
+      client.from("sales_companies").select("id, name, notes, location, operation_details, customer_since, industry").eq("profile_id", userId).order("name").limit(500),
       client.from("sales_knowledge").select("title, content, category").is("company_id", null).eq("is_active", true).limit(30),
       companyId
         ? client.from("sales_knowledge").select("title, content, category").eq("company_id", companyId).eq("is_active", true).limit(50)
         : Promise.resolve({ data: [] }),
-      client.from("sales_contacts").select("id, name, title, pipeline_stage, last_purchase_date, sales_companies(name)").eq("profile_id", userId).order("name").limit(200),
+      client.from("sales_contacts").select("id, name, title, pipeline_stage, last_purchase_date, notes, email, phone, is_decision_maker, sales_companies(name)").eq("profile_id", userId).order("name").limit(200),
     ]),
     10_000,
     "gatherContext:base-queries"
@@ -1210,6 +1210,40 @@ async function generateResponse(
     });
   }
 
+  // Build rich company detail block when customer-focused
+  let companyDetailBlock = "";
+  if (customerFocused && context.existingCompanies?.length > 0) {
+    const searchTerm = mentionedCompany || mentionedContact || "";
+    const matchedCompany = context.existingCompanies.find((c: any) => {
+      const cn = c.name?.toLowerCase() || "";
+      return cn.includes(searchTerm) || searchTerm.includes(cn) || cn.split(/\s+/)[0] === searchTerm.split(/\s+/)[0];
+    });
+    if (matchedCompany) {
+      companyDetailBlock = `\n## ACCOUNT DETAIL: ${matchedCompany.name}`;
+      if (matchedCompany.location) companyDetailBlock += `\nLocation: ${matchedCompany.location}`;
+      if (matchedCompany.customer_since) companyDetailBlock += `\nCustomer since: ${matchedCompany.customer_since}`;
+      if (matchedCompany.industry) companyDetailBlock += `\nIndustry: ${matchedCompany.industry}`;
+      if (matchedCompany.notes) companyDetailBlock += `\nNotes: ${matchedCompany.notes}`;
+      if (matchedCompany.operation_details) {
+        const od = typeof matchedCompany.operation_details === 'string' ? JSON.parse(matchedCompany.operation_details) : matchedCompany.operation_details;
+        companyDetailBlock += `\nOperation Details: ${JSON.stringify(od)}`;
+      }
+    }
+    // Also find matching contacts with their notes
+    const matchedContacts = (context.contacts || []).filter((c: any) => {
+      const cn = c.sales_companies?.name?.toLowerCase() || "";
+      const contactName = c.name?.toLowerCase() || "";
+      return cn.includes(searchTerm) || searchTerm.includes(cn) || contactName.includes(searchTerm) || searchTerm.includes(contactName);
+    });
+    if (matchedContacts.length > 0) {
+      companyDetailBlock += `\nKey Contacts:`;
+      for (const c of matchedContacts.slice(0, 5)) {
+        companyDetailBlock += `\n- ${c.name}${c.title ? ` (${c.title})` : ""}${c.email ? ` | ${c.email}` : ""}${c.phone ? ` | ${c.phone}` : ""}${c.is_decision_maker ? " [DECISION MAKER]" : ""}`;
+        if (c.notes) companyDetailBlock += `\n  Notes: ${c.notes}`;
+      }
+    }
+  }
+
   let pipelineContext = "";
   if (customerFocused && relevantDeals.length === 0) {
     pipelineContext = `No deals found for ${mentionedCompany || mentionedContact || "this customer"} in your pipeline.`;
@@ -1315,7 +1349,7 @@ ${knowledgeContext}
 ${repDataBlock}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
-${pipelineContext}
+${pipelineContext}${companyDetailBlock}
 ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.purchaseHistorySummary}` : ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}${focusInstruction}`
@@ -1335,7 +1369,7 @@ ${knowledgeContext}
 ${repDataBlock}
 ${contactsContext}
 ${customerFocused ? `Customer context for ${mentionedCompany || mentionedContact}:` : "Current pipeline:"}
-${pipelineContext}
+${pipelineContext}${companyDetailBlock}
 ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.purchaseHistorySummary}` : ""}
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
