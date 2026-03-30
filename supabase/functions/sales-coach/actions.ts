@@ -42,20 +42,39 @@ export async function createCompany(
   triggeredBy: string
 ): Promise<ActionResult> {
   try {
-    const { data: existing } = await client
+    const trimmedName = name.trim();
+    const nameParts = trimmedName.split(/\s+/);
+    const firstName = nameParts[0];
+
+    // Try exact match first, then fuzzy (contains) match
+    const { data: allCompanies } = await client
       .from("sales_companies")
       .select("id, name")
-      .eq("profile_id", userId)
-      .ilike("name", name.trim());
+      .eq("profile_id", userId);
 
-    if (existing && existing.length > 0) {
+    const normalizedSearch = trimmedName.toLowerCase();
+    const existing = (allCompanies || []).find((c: any) => {
+      const en = c.name.toLowerCase().trim();
+      // Exact match
+      if (en === normalizedSearch) return true;
+      // Contains match (either direction)
+      if (en.includes(normalizedSearch) || normalizedSearch.includes(en)) return true;
+      // First-word match (e.g. "Prairie Vista" matches "Prairie Vista Farms")
+      const ep = en.split(/\s+/);
+      if (firstName.toLowerCase() === ep[0] && nameParts.length > 1 && ep.length > 1 && ep[1].startsWith(nameParts[1].toLowerCase())) return true;
+      // Single-name match against first word of existing
+      if (nameParts.length === 1 && ep[0] === normalizedSearch) return true;
+      return false;
+    });
+
+    if (existing) {
       return {
         type: "company_exists",
-        entityId: existing[0].id,
+        entityId: existing.id,
         undoToken: "",
         success: true,
-        details: { name: existing[0].name, wasExisting: true },
-        message: `Found existing company "${existing[0].name}"`,
+        details: { name: existing.name, wasExisting: true },
+        message: `Found existing company "${existing.name}"`,
       };
     }
 
