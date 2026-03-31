@@ -735,6 +735,7 @@ const SalesTrainer = () => {
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
           onShowCallPlanTracker={() => setShowCallPlanTracker(true)}
+          onShowPitchDeck={() => setShowPitchDeck(true)}
           onDismissContactPrompt={(msgIdx, promptIdx) => {
             setMessages(prev => prev.map((m, i) =>
               i === msgIdx
