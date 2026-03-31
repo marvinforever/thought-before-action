@@ -325,6 +325,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     lastJerichoChat,
     daysOnPlatform,
     hasCalendarConnected,
+    playbook: playbookContext,
   };
 }
 
