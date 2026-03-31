@@ -257,8 +257,16 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
 
       if (calResponse.ok) {
         const calData = await calResponse.json();
-        const userNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
-        const todayUser = userNow.toISOString().split('T')[0];
+        
+        // Calculate today's date in user timezone using offset math (not toLocaleString which is unreliable in Deno)
+        const nowMs = Date.now();
+        // Get offset by comparing UTC date string with locale date string
+        const utcDate = new Date(nowMs).toISOString().split('T')[0];
+        // Use Intl.DateTimeFormat for reliable timezone date extraction
+        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: userTimezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+        const todayUser = formatter.format(new Date(nowMs)); // YYYY-MM-DD format from en-CA locale
+        
+        console.log(`[daily-brief] Calendar filter: todayUser=${todayUser}, timezone=${userTimezone}, events returned=${(calData.events || []).length}`);
         
         calendarEvents = (calData.events || [])
           .filter((e: any) => {
@@ -268,8 +276,9 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
               const endDate = e.end?.date || startDate;
               return startDate <= todayUser && todayUser < endDate;
             } else {
-              const eventLocal = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: userTimezone }));
-              const eventDateStr = eventLocal.toISOString().split('T')[0];
+              // Extract date in user's timezone from the event's dateTime
+              const eventFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: userTimezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+              const eventDateStr = eventFormatter.format(new Date(e.start.dateTime));
               return eventDateStr === todayUser;
             }
           })
