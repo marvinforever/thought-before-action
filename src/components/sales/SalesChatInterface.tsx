@@ -84,6 +84,7 @@ export function SalesChatInterface({
   onAddDeal,
   onShowProposalWizard,
   onShowCallPlanTracker,
+  onShowPitchDeck,
   onDismissContactPrompt,
   onContactAdded,
 }: SalesChatInterfaceProps) {
