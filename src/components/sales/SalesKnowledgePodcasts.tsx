@@ -227,25 +227,78 @@ export const SalesKnowledgePodcasts = ({ userId, companyId }: SalesKnowledgePodc
     return suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]).slice(0, 5);
   }, [knowledge, deals]);
 
-  // Extract products from knowledge base content (### headers)
+  // Extract products from knowledge base content (multiple format support)
   const extractedProducts = useMemo((): ExtractedProduct[] => {
     const products: ExtractedProduct[] = [];
+    const seen = new Set<string>();
     
+    const addProduct = (name: string, item: KnowledgeItem) => {
+      const cleaned = name.replace(/[®™©]/g, '').trim();
+      if (cleaned.length > 2 && cleaned.length < 60) {
+        const key = `${item.id}::${cleaned.toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          products.push({ name: cleaned, knowledgeId: item.id, source: item.title });
+        }
+      }
+    };
+
+    // Skip generic headers / section labels
+    const skipPatterns = /^(section|table of contents|company overview|page \d|prepared|comprehensive|distribution|regulatory|recent|core value|primary market)/i;
+
     for (const item of knowledge) {
       if (!isProductTraining(item.category)) continue;
       
-      // Extract ### headers (product names) from markdown
-      const productMatches = item.content.match(/###\s*([^\n(]+)/g);
-      if (productMatches) {
-        for (const match of productMatches) {
-          const name = match.replace(/###\s*/, '').trim();
-          // Filter out headers that are too short or too long
-          if (name.length > 2 && name.length < 60) {
-            products.push({
-              name,
-              knowledgeId: item.id,
-              source: item.title
-            });
+      // 1. Markdown ### headers (Rob-See-Co style)
+      const mdMatches = item.content.match(/^###\s+([^\n(]+)/gm);
+      if (mdMatches) {
+        for (const match of mdMatches) {
+          const name = match.replace(/^###\s+/, '').trim();
+          if (!skipPatterns.test(name)) addProduct(name, item);
+        }
+      }
+
+      // 2. Named product lines: "PRODUCT_NAME® Type" on its own line (UPL / Brandt style)
+      const namedMatches = item.content.match(/^([A-Z][A-Za-z0-9\-® ™]+(?:®|™))\s*[A-Za-z]*/gm);
+      if (namedMatches) {
+        for (const match of namedMatches) {
+          const name = match.trim();
+          if (name.length > 3 && !skipPatterns.test(name)) addProduct(name, item);
+        }
+      }
+
+      // 3. "Category: Herbicide/Fungicide/..." pattern → grab the line before it as product name
+      const lines = item.content.split('\n');
+      for (let i = 1; i < lines.length; i++) {
+        if (/^\s*Category:\s*(Herbicide|Fungicide|Insecticide|Seed Treatment|Adjuvant|Fertilizer|Biostimulant|Biological)/i.test(lines[i])) {
+          const prevLine = lines[i - 1].trim();
+          if (prevLine.length > 3 && !skipPatterns.test(prevLine)) {
+            addProduct(prevLine, item);
+          }
+        }
+      }
+
+      // 4. Comma-separated product lists in section headers (Streamline style)
+      const sectionMatches = item.content.match(/^Section \d+:.*\n([^\n]+)/gm);
+      if (sectionMatches) {
+        for (const match of sectionMatches) {
+          const productLine = match.split('\n')[1]?.trim();
+          if (productLine && productLine.includes(',')) {
+            for (const p of productLine.split(',')) {
+              const name = p.trim();
+              if (name.length > 3 && !skipPatterns.test(name)) addProduct(name, item);
+            }
+          }
+        }
+      }
+
+      // 5. ## headers for broader product categories
+      const h2Matches = item.content.match(/^##\s+([^\n]+)/gm);
+      if (h2Matches) {
+        for (const match of h2Matches) {
+          const name = match.replace(/^##\s+/, '').trim();
+          if (!skipPatterns.test(name) && name.length > 3 && name.length < 50) {
+            addProduct(name, item);
           }
         }
       }
