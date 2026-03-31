@@ -126,6 +126,11 @@ interface PodcastContext {
     capOutAt: number | null;
     coaching: string | null;
   };
+  // Playbook content
+  playbookQuickWin: { title: string; description: string } | null;
+  playbookPriorityActions: { title: string; description: string }[];
+  playbookCapabilityCoaching: { name: string; coaching: string }[];
+  playbookNarrativeHighlight: string | null;
 }
 
 interface DayTheme {
