@@ -72,6 +72,7 @@ const SalesTrainer = () => {
   const [showPrepGenerator, setShowPrepGenerator] = useState(false);
   const [showProposalWizard, setShowProposalWizard] = useState(false);
   const [showCallPlanTracker, setShowCallPlanTracker] = useState(false);
+  const [showPitchDeck, setShowPitchDeck] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [enableFieldMaps, setEnableFieldMaps] = useState(false);
