@@ -354,7 +354,7 @@ export function PlaybookViewer({ narrative, scores, capabilities, htmlFallback, 
                     onToggle={() => setExpandedCap(expandedCap === cap.capability_name ? null : cap.capability_name)}
                     interaction={getInteraction("capability", cap.capability_name)}
                     onInteract={(type, feedback) => logInteraction("capability", cap.capability_name, type, feedback)}
-                    onNavigate={() => navigate("/dashboard/capabilities")}
+                    onNavigate={() => navigate("/dashboard/my-capabilities")}
                   />
                 ))}
               </div>
@@ -375,7 +375,7 @@ export function PlaybookViewer({ narrative, scores, capabilities, htmlFallback, 
                     onToggle={() => setExpandedCap(expandedCap === cap.capability_name ? null : cap.capability_name)}
                     interaction={getInteraction("capability", cap.capability_name)}
                     onInteract={(type, feedback) => logInteraction("capability", cap.capability_name, type, feedback)}
-                    onNavigate={() => navigate("/dashboard/capabilities")}
+                    onNavigate={() => navigate("/dashboard/my-capabilities")}
                   />
                 ))}
               </div>
