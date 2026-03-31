@@ -717,7 +717,56 @@ serve(async (req) => {
       priorityTasks,
       calendarEvents,
       userTimezone,
+      playbookQuickWin: null as any,
+      playbookPriorityActions: [] as any[],
+      playbookCapabilityCoaching: [] as any[],
+      playbookNarrativeHighlight: null as string | null,
     };
+
+    // Enrich with playbook content
+    try {
+      const { data: pbData } = await supabase
+        .from('leadership_reports')
+        .select('report_content, capability_matrix')
+        .eq('profile_id', profileId)
+        .eq('report_type', 'individual_playbook')
+        .eq('status', 'generated')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pbData) {
+        const narrative = (pbData.report_content as any)?.narrative;
+        const capMatrix = (pbData.capability_matrix || []) as any[];
+
+        if (narrative?.opening_hook || narrative?.executive_summary) {
+          userContext.playbookNarrativeHighlight = narrative.opening_hook || narrative.executive_summary;
+        }
+        if (narrative?.quick_win) {
+          userContext.playbookQuickWin = {
+            title: narrative.quick_win.title || 'Quick Win',
+            description: narrative.quick_win.description || narrative.quick_win.text || '',
+          };
+        }
+        if (narrative?.priority_actions && Array.isArray(narrative.priority_actions)) {
+          userContext.playbookPriorityActions = narrative.priority_actions.slice(0, 3).map((pa: any) => ({
+            title: pa.title || pa.action || '',
+            description: pa.description || pa.rationale || '',
+          }));
+        }
+        capMatrix.filter((c: any) => c.is_top3).slice(0, 3).forEach((cap: any) => {
+          if (cap.growth_actions?.[0] || cap.development_focus) {
+            userContext.playbookCapabilityCoaching.push({
+              name: cap.capability_name || '',
+              coaching: cap.growth_actions?.[0] || cap.development_focus || '',
+            });
+          }
+        });
+        console.log(`Playbook enrichment: quickWin=${!!userContext.playbookQuickWin}, actions=${userContext.playbookPriorityActions.length}, coaching=${userContext.playbookCapabilityCoaching.length}`);
+      }
+    } catch (pbErr) {
+      console.error('[send-daily-brief-email] Playbook fetch error (non-fatal):', pbErr);
+    }
 
     console.log("Generating personalized email for", firstName, "with context:", {
       habits: habits.length,
