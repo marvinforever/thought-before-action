@@ -10,6 +10,7 @@ import { SalesChatInterface } from "@/components/sales/SalesChatInterface";
 import { AddDealDialog } from "@/components/sales/AddDealDialog";
 import { DealCoachDialog } from "@/components/sales/DealCoachDialog";
 import { PrepDocumentGenerator } from "@/components/sales/PrepDocumentGenerator";
+import { PitchDeckGenerator } from "@/components/sales/PitchDeckGenerator";
 import { SalesProposalWizard } from "@/components/sales/SalesProposalWizard";
 import { FourCallPlanTracker } from "@/components/sales/FourCallPlanTracker";
 import { DocumentUploadDialog } from "@/components/sales/DocumentUploadDialog";
