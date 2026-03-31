@@ -795,6 +795,15 @@ const SalesTrainer = () => {
         userName={viewAsUserName || profile?.full_name}
       />
 
+      <PitchDeckGenerator
+        open={showPitchDeck}
+        onOpenChange={setShowPitchDeck}
+        customerId={activeCustomerId}
+        customerName={activeCustomerName || ""}
+        companyId={viewAsCompanyId || profile?.company_id}
+        conversationContext={messages.slice(-10).map(m => `${m.role}: ${m.content}`).join("\n")}
+      />
+
       <DocumentUploadDialog
         open={showUploadDialog}
         onOpenChange={setShowUploadDialog}
