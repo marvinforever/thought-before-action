@@ -156,17 +156,15 @@ RULES:
 - Include 5-7 slides total
 - Make ROI/value props specific with numbers when possible`;
 
-    const result = await callAI({
-      model: "gemini-flash",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      responseFormat: "json",
-      functionName: "generate-pitch-deck",
-    });
+    const result = await callAI(
+      { taskType: "chat", functionName: "generate-pitch-deck" },
+      [{ role: "user", content: prompt }],
+      { temperature: 0.7, maxTokens: 4096 }
+    );
 
     let deckData;
     try {
-      const cleaned = result.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const cleaned = result.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       deckData = JSON.parse(cleaned);
     } catch {
       return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
