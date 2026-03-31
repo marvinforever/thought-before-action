@@ -164,7 +164,7 @@ RULES:
 
     let deckData;
     try {
-      const cleaned = result.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const cleaned = result.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       deckData = JSON.parse(cleaned);
     } catch {
       return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
