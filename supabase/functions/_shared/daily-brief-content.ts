@@ -160,6 +160,79 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
 
   const lastJerichoChat = lastConversationResult.data?.[0]?.created_at || null;
 
+  // Parse playbook content for richer daily briefs
+  let playbookContext: PlaybookContext | null = null;
+  try {
+    const pbData = playbookResult.data;
+    if (pbData) {
+      const reportContent = pbData.report_content as any;
+      const capMatrix = (pbData.capability_matrix || []) as any[];
+      const narrative = reportContent?.narrative;
+
+      // Extract narrative highlights (first key paragraph)
+      let narrativeHighlights: string | null = null;
+      if (narrative?.opening_hook) {
+        narrativeHighlights = narrative.opening_hook;
+      } else if (narrative?.executive_summary) {
+        narrativeHighlights = narrative.executive_summary;
+      }
+
+      // Extract quick win from narrative
+      let quickWin: PlaybookContext['quickWin'] = null;
+      if (narrative?.quick_win) {
+        const qw = narrative.quick_win;
+        quickWin = {
+          title: qw.title || 'Quick Win',
+          description: qw.description || qw.text || '',
+          steps: Array.isArray(qw.steps) ? qw.steps.map((s: any) => typeof s === 'string' ? s : s.text || String(s)) : [],
+        };
+      }
+
+      // Extract priority actions from narrative
+      const priorityActions: PlaybookContext['priorityActions'] = [];
+      if (narrative?.priority_actions && Array.isArray(narrative.priority_actions)) {
+        narrative.priority_actions.slice(0, 3).forEach((pa: any) => {
+          priorityActions.push({
+            title: pa.title || pa.action || '',
+            description: pa.description || pa.rationale || '',
+          });
+        });
+      }
+
+      // Extract top capability insights with coaching tips from the matrix
+      const topCapabilityInsights: PlaybookContext['topCapabilityInsights'] = [];
+      const recommendedResources: PlaybookContext['recommendedResources'] = [];
+      capMatrix.filter((c: any) => c.is_top3).slice(0, 3).forEach((cap: any) => {
+        topCapabilityInsights.push({
+          name: cap.capability_name || '',
+          currentLevel: cap.current_level || '',
+          targetLevel: cap.target_level || '',
+          coaching: cap.growth_actions?.[0] || cap.development_focus || '',
+        });
+        // Gather recommended resources from each capability
+        if (cap.recommended_resources && Array.isArray(cap.recommended_resources)) {
+          cap.recommended_resources.slice(0, 2).forEach((r: any) => {
+            recommendedResources.push({
+              title: r.title || r.name || '',
+              contentType: r.content_type || r.type || 'resource',
+              capabilityName: cap.capability_name || '',
+            });
+          });
+        }
+      });
+
+      playbookContext = {
+        narrativeHighlights,
+        quickWin,
+        priorityActions,
+        recommendedResources: recommendedResources.slice(0, 5),
+        topCapabilityInsights,
+      };
+    }
+  } catch (pbErr) {
+    console.error('[daily-brief-content] Playbook parse error (non-fatal):', pbErr);
+  }
+
   // Fetch today's calendar events if Google is connected
   let calendarEvents: { title: string; startTime: string; endTime: string; isAllDay: boolean; attendees: string[]; location: string | null }[] = [];
   let hasCalendarConnected = false;
