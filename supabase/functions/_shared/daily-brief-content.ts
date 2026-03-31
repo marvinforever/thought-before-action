@@ -458,6 +458,7 @@ ${context.recentAchievements.length > 0 ? `Achievements: ${context.recentAchieve
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -471,16 +472,43 @@ ${context.recentAchievements.length > 0 ? `Achievements: ${context.recentAchieve
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error("No AI content");
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        subject: parsed.subject || `${context.firstName}, your morning brief`,
-        body: parsed.body || `Hey ${context.firstName}, check in today!`,
-        shortSummary: (parsed.shortSummary || `${context.firstName}, check your growth plan today! ${context.appUrl}`).substring(0, 160)
-      };
+    // Try direct parse first, then regex extraction
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        // Try to fix common JSON issues: unescaped newlines in strings
+        const cleaned = jsonMatch[0]
+          .replace(/(?<=:\s*"[^"]*)\n/g, '\\n')
+          .replace(/(?<=:\s*"[^"]*)\r/g, '\\r');
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch {
+          // Last resort: extract fields with regex
+          const subjectMatch = content.match(/"subject"\s*:\s*"([^"]+)"/);
+          const summaryMatch = content.match(/"shortSummary"\s*:\s*"([^"]+)"/);
+          // Extract body between "body": " and the next key or end
+          const bodyMatch = content.match(/"body"\s*:\s*"([\s\S]*?)"\s*[,}]\s*"(?:shortSummary|subject)/);
+          parsed = {
+            subject: subjectMatch?.[1] || `${context.firstName}, your morning brief`,
+            body: bodyMatch?.[1]?.replace(/\\n/g, '\n').replace(/\\"/g, '"') || '',
+            shortSummary: summaryMatch?.[1] || '',
+          };
+        }
+      }
     }
-    throw new Error("Could not parse AI JSON");
+
+    if (!parsed || (!parsed.body && !parsed.subject)) {
+      throw new Error("Could not parse AI JSON");
+    }
+
+    return {
+      subject: parsed.subject || `${context.firstName}, your morning brief`,
+      body: parsed.body || `Hey ${context.firstName}, check in today!`,
+      shortSummary: (parsed.shortSummary || `${context.firstName}, check your growth plan today! ${context.appUrl}`).substring(0, 160)
+    };
   } catch (error) {
     console.error("Brief content generation error:", error);
     return {
