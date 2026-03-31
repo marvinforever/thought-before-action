@@ -23,6 +23,7 @@ import {
   UserPlus,
   Bell,
   Search,
+  Presentation,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -57,6 +58,7 @@ interface SalesChatInterfaceProps {
   onAddDeal: () => void;
   onShowProposalWizard: () => void;
   onShowCallPlanTracker: () => void;
+  onShowPitchDeck?: () => void;
   onDismissContactPrompt?: (messageIdx: number, promptIdx: number) => void;
   onContactAdded?: (name: string) => void;
 }
@@ -83,6 +85,7 @@ export function SalesChatInterface({
   onAddDeal,
   onShowProposalWizard,
   onShowCallPlanTracker,
+  onShowPitchDeck,
   onDismissContactPrompt,
   onContactAdded,
 }: SalesChatInterfaceProps) {
@@ -481,7 +484,18 @@ export function SalesChatInterface({
         
         {/* Create Proposal button */}
         {messages.length >= 2 && chatMode === 'rec' && (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {onShowPitchDeck && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={onShowPitchDeck}
+                className="gap-1.5 border-primary/20 hover:bg-primary/5"
+              >
+                <Presentation className="h-3.5 w-3.5" />
+                Pitch Deck
+              </Button>
+            )}
             <Button 
               variant="outline" 
               size="sm"

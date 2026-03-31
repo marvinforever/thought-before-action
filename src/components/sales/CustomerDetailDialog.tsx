@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, MapPin, Calendar, DollarSign, Users, FileText, TrendingUp, History, Phone, Mail, Map, Package, ShoppingCart } from "lucide-react";
+import { Building2, MapPin, Calendar, DollarSign, Users, FileText, TrendingUp, History, Phone, Mail, Map, Package, ShoppingCart, Presentation } from "lucide-react";
 import { format } from "date-fns";
 import { FieldMapAnalyzer } from "./FieldMapAnalyzer";
+import { PitchDeckGenerator } from "./PitchDeckGenerator";
 
 interface CustomerDetailDialogProps {
   open: boolean;
@@ -72,6 +74,7 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
   const [purchaseHistory, setPurchaseHistory] = useState<PurchaseSummary | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showPitchDeck, setShowPitchDeck] = useState(false);
 
   useEffect(() => {
     if (open && customerId) {
@@ -190,6 +193,17 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Pitch Deck Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPitchDeck(true)}
+                  className="w-full gap-2"
+                >
+                  <Presentation className="h-4 w-4" />
+                  Create Product Pitch Deck
+                </Button>
 
                 {/* Details */}
                 <Card>
@@ -476,6 +490,14 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
           </div>
         )}
       </DialogContent>
+
+      <PitchDeckGenerator
+        open={showPitchDeck}
+        onOpenChange={setShowPitchDeck}
+        customerId={customerId}
+        customerName={customer?.name || ""}
+        companyId={companyId}
+      />
     </Dialog>
   );
 };

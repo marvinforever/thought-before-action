@@ -10,6 +10,7 @@ import { SalesChatInterface } from "@/components/sales/SalesChatInterface";
 import { AddDealDialog } from "@/components/sales/AddDealDialog";
 import { DealCoachDialog } from "@/components/sales/DealCoachDialog";
 import { PrepDocumentGenerator } from "@/components/sales/PrepDocumentGenerator";
+import { PitchDeckGenerator } from "@/components/sales/PitchDeckGenerator";
 import { SalesProposalWizard } from "@/components/sales/SalesProposalWizard";
 import { FourCallPlanTracker } from "@/components/sales/FourCallPlanTracker";
 import { DocumentUploadDialog } from "@/components/sales/DocumentUploadDialog";
@@ -71,6 +72,7 @@ const SalesTrainer = () => {
   const [showPrepGenerator, setShowPrepGenerator] = useState(false);
   const [showProposalWizard, setShowProposalWizard] = useState(false);
   const [showCallPlanTracker, setShowCallPlanTracker] = useState(false);
+  const [showPitchDeck, setShowPitchDeck] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [enableFieldMaps, setEnableFieldMaps] = useState(false);
@@ -733,6 +735,7 @@ const SalesTrainer = () => {
           onAddDeal={() => setShowAddDeal(true)}
           onShowProposalWizard={() => setShowProposalWizard(true)}
           onShowCallPlanTracker={() => setShowCallPlanTracker(true)}
+          onShowPitchDeck={() => setShowPitchDeck(true)}
           onDismissContactPrompt={(msgIdx, promptIdx) => {
             setMessages(prev => prev.map((m, i) =>
               i === msgIdx
@@ -791,6 +794,15 @@ const SalesTrainer = () => {
         companyId={viewAsCompanyId || profile?.company_id || ""}
         userId={viewAsUserId || user?.id || ""}
         userName={viewAsUserName || profile?.full_name}
+      />
+
+      <PitchDeckGenerator
+        open={showPitchDeck}
+        onOpenChange={setShowPitchDeck}
+        customerId={activeCustomerId}
+        customerName={activeCustomerName || ""}
+        companyId={viewAsCompanyId || profile?.company_id}
+        conversationContext={messages.slice(-10).map(m => `${m.role}: ${m.content}`).join("\n")}
       />
 
       <DocumentUploadDialog
