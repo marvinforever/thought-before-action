@@ -371,18 +371,24 @@ STRUCTURE:
    - A prep suggestion: "Before your call with [person], check [feature] in Jericho" (e.g., Sales Agent for customer calls, Growth Plan for 1:1s with manager)
    If no calendar: suggest connecting Google Calendar for smarter briefings
 3. PROGRESS CHECK — Evidence-based status:
-   - Resources completed this week (actual number)
+    - Resources completed this week (actual number)
    - Quick win status (accepted/in-progress/not started)
    - Capabilities being worked on (or not)
    - Habit streaks (real numbers, highlight gaps honestly)
    - 90-day goal progress (days remaining + benchmarks completed)
-4. TODAY'S PRIORITIES — Top 2-3 actionable items from tasks, with specific next steps
-5. JERICHO TIP — One specific feature suggestion relevant to today. Examples:
+4. PLAYBOOK COACHING — If they have a Growth Playbook, weave in specific content from it:
+   - Reference their Quick Win by name and nudge progress
+   - Mention a specific Priority Action they should focus on today
+   - Suggest a specific resource from their playbook that's relevant to today's meetings or tasks
+   - Connect their capability coaching tips to what's on their calendar
+   This should feel like you KNOW their playbook and are holding them accountable to it.
+5. TODAY'S PRIORITIES — Top 2-3 actionable items from tasks, with specific next steps
+6. JERICHO TIP — One specific feature suggestion relevant to today. Examples:
    - "You have a sales call at 2pm — open Sales Agent to prep with customer intel"
    - "Your 'Strategic Thinking' capability hasn't moved — try the curated resource in your Playbook"
    - "Haven't chatted with Jericho in X days — a quick check-in could help unblock your goal"
-6. Quick Reflect — ONE specific question tied to something real in their data. Not generic.
-7. Sign-off — One sentence. Honest, forward-looking.
+7. Quick Reflect — ONE specific question tied to something real in their data or playbook. Not generic.
+8. Sign-off — One sentence. Honest, forward-looking.
 
 ${formatInstruction}
 ${linkInstruction}
