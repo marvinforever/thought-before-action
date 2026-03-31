@@ -8,6 +8,14 @@ export interface PlaybookContext {
   topCapabilityInsights: { name: string; currentLevel: string; targetLevel: string; coaching: string }[];
 }
 
+export interface SalesConversationContext {
+  customerName: string;
+  productsDiscussed: string[];
+  keyTopics: string[];
+  lastMessageSnippet: string;
+  conversationDate: string;
+}
+
 export interface UserContext {
   firstName: string;
   episodeTitle: string;
@@ -42,6 +50,8 @@ export interface UserContext {
   hasCalendarConnected: boolean;
   // Playbook-driven context
   playbook: PlaybookContext | null;
+  // Sales conversation continuity
+  recentSalesConversations: SalesConversationContext[];
 }
 
 export interface BriefContent {
