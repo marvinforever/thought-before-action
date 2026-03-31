@@ -1843,6 +1843,7 @@ async function generateResponse(
 
   const formattingRules = `
 ## RESPONSE FORMATTING RULES (ALWAYS follow these):
+- **GROWER-FIRST RULE (CRITICAL):** When listing pipeline deals, opportunities, or accounts, ALWAYS lead with the GROWER/CUSTOMER NAME (the person or company), NOT the deal/opportunity title. Format: "1. **Ron Kiefer** — Discovery, $50,000" NOT "1. Win back acres from WinField". The human relationship comes first. Deal titles are internal labels — never present them as the primary identifier.
 - When listing customers/accounts, use numbered lists: "1. **Customer Name** — $Amount (X%)"
 - Always format currency with $ and commas (e.g. $27,756 not 27756)
 - When showing ranked data, include rank number, name in bold, dollar amount, and percentage of total
