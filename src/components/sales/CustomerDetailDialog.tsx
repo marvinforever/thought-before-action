@@ -74,6 +74,7 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
   const [purchaseHistory, setPurchaseHistory] = useState<PurchaseSummary | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showPitchDeck, setShowPitchDeck] = useState(false);
 
   useEffect(() => {
     if (open && customerId) {
