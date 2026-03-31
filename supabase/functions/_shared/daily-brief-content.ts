@@ -88,9 +88,6 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     // Playbook (latest individual playbook)
     supabase.from("leadership_reports").select("report_content, capability_matrix").eq("profile_id", profileId).eq("report_type", "individual_playbook").eq("status", "generated").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
-    // Last Jericho conversation
-    supabase.from("conversations").select("created_at").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(1),
-  ]);
 
   const profile = profileResult.data;
   const episode = episodeResult.data;
