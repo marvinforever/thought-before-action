@@ -788,6 +788,57 @@ serve(async (req) => {
     // Pick a random inspirational quote for today
     const todayQuote = INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)];
 
+    // Fetch Growth Playbook for rich coaching content
+    let playbookQuickWin: PodcastContext['playbookQuickWin'] = null;
+    let playbookPriorityActions: PodcastContext['playbookPriorityActions'] = [];
+    let playbookCapabilityCoaching: PodcastContext['playbookCapabilityCoaching'] = [];
+    let playbookNarrativeHighlight: string | null = null;
+
+    try {
+      const { data: pbData } = await supabase
+        .from('leadership_reports')
+        .select('report_content, capability_matrix')
+        .eq('profile_id', profileId)
+        .eq('report_type', 'individual_playbook')
+        .eq('status', 'generated')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pbData) {
+        const narrative = (pbData.report_content as any)?.narrative;
+        const capMatrix = (pbData.capability_matrix || []) as any[];
+
+        if (narrative?.opening_hook || narrative?.executive_summary) {
+          playbookNarrativeHighlight = narrative.opening_hook || narrative.executive_summary;
+        }
+        if (narrative?.quick_win) {
+          playbookQuickWin = {
+            title: narrative.quick_win.title || 'Quick Win',
+            description: narrative.quick_win.description || narrative.quick_win.text || '',
+          };
+        }
+        if (narrative?.priority_actions && Array.isArray(narrative.priority_actions)) {
+          playbookPriorityActions = narrative.priority_actions.slice(0, 3).map((pa: any) => ({
+            title: pa.title || pa.action || '',
+            description: pa.description || pa.rationale || '',
+          }));
+        }
+        capMatrix.filter((c: any) => c.is_top3).slice(0, 3).forEach((cap: any) => {
+          if (cap.growth_actions?.[0] || cap.development_focus) {
+            playbookCapabilityCoaching.push({
+              name: cap.capability_name || '',
+              coaching: cap.growth_actions?.[0] || cap.development_focus || '',
+            });
+          }
+        });
+      }
+    } catch (pbErr) {
+      console.error('Playbook fetch error (non-fatal):', pbErr);
+    }
+
+    console.log(`Playbook context: quickWin=${!!playbookQuickWin}, actions=${playbookPriorityActions.length}, coaching=${playbookCapabilityCoaching.length}`);
+
     const context: PodcastContext = {
       userName,
       habitStreak: topHabit?.current_streak || 0,
@@ -830,6 +881,10 @@ serve(async (req) => {
       totalEmployees,
       underutilizedFeatures,
       streakPattern,
+      playbookQuickWin,
+      playbookPriorityActions,
+      playbookCapabilityCoaching,
+      playbookNarrativeHighlight,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
