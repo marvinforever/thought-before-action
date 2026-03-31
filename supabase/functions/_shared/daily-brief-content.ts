@@ -1,5 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
+export interface PlaybookContext {
+  narrativeHighlights: string | null; // Key paragraph from playbook narrative
+  quickWin: { title: string; description: string; steps: string[] } | null;
+  priorityActions: { title: string; description: string }[];
+  recommendedResources: { title: string; contentType: string; capabilityName: string }[];
+  topCapabilityInsights: { name: string; currentLevel: string; targetLevel: string; coaching: string }[];
+}
+
 export interface UserContext {
   firstName: string;
   episodeTitle: string;
@@ -32,6 +40,8 @@ export interface UserContext {
   lastJerichoChat: string | null; // ISO date
   daysOnPlatform: number;
   hasCalendarConnected: boolean;
+  // Playbook-driven context
+  playbook: PlaybookContext | null;
 }
 
 export interface BriefContent {
