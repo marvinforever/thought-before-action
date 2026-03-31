@@ -529,6 +529,7 @@ ${context.recentSalesConversations.length > 0 ? context.recentSalesConversations
     return `- Customer: ${sc.customerName}\n  ${[products, topics, snippet].filter(Boolean).join('\n  ')}`;
   }).join('\n') : 'No recent sales conversations.'}
 
+── PLAYBOOK COACHING DATA ──
 ${context.playbook ? `
 ${context.playbook.topCapabilityInsights.length > 0 ? `Coaching Tips:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name}: "${c.coaching}"`).join('\n')}` : ''}
 ${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}` : ''}
