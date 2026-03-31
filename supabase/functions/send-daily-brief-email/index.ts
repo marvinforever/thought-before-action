@@ -50,6 +50,11 @@ interface UserContext {
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
   calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[];
   userTimezone: string;
+  // Playbook-driven content
+  playbookQuickWin: { title: string; description: string } | null;
+  playbookPriorityActions: { title: string; description: string }[];
+  playbookCapabilityCoaching: { name: string; coaching: string }[];
+  playbookNarrativeHighlight: string | null;
 }
 
 async function fetchProfileWithRetry(
@@ -191,20 +196,28 @@ ${context.dailyChallenge ? `Today's Challenge: ${context.dailyChallenge}` : ''}
 Episode Content Summary:
 ${context.script.substring(0, 2000)}
 
+=== GROWTH PLAYBOOK ===
+${(context as any).playbookNarrativeHighlight ? `Playbook Summary: "${(context as any).playbookNarrativeHighlight}"` : 'No playbook yet.'}
+${(context as any).playbookQuickWin ? `Quick Win: "${(context as any).playbookQuickWin.title}" — ${(context as any).playbookQuickWin.description}` : ''}
+${(context as any).playbookPriorityActions?.length > 0 ? `Priority Actions:\n${(context as any).playbookPriorityActions.map((a: any) => `- ${a.title}: ${a.description}`).join('\n')}` : ''}
+${(context as any).playbookCapabilityCoaching?.length > 0 ? `Capability Coaching:\n${(context as any).playbookCapabilityCoaching.map((c: any) => `- ${c.name}: ${c.coaching}`).join('\n')}` : ''}
+
 === INSTRUCTIONS ===
 Write a personalized daily briefing email that:
 1. Opens with a warm greeting that acknowledges where they are in their journey
 2. **IMPORTANT**: Lists their TOP 3-5 PRIORITIES for today from their task list (if they have tasks)
 3. Gives a quick, encouraging update on their 90-day targets (if any are close to deadline or behind, gently nudge)
 4. Celebrates habit streaks or encourages consistency where needed
-5. Introduces today's episode focusing on "${context.focusCapability}" - mention this SPECIFIC capability by name
-6. Mentions the daily challenge as something specific to try today
-7. Signs off warmly as Jericho
+5. **PLAYBOOK COACHING**: If they have a Growth Playbook, reference their Quick Win, a Priority Action, or a capability coaching tip. Make it feel like you KNOW their plan. Hold them accountable.
+6. Introduces today's episode focusing on "${context.focusCapability}" - mention this SPECIFIC capability by name
+7. Mentions the daily challenge as something specific to try today
+8. Signs off warmly as Jericho
 
 APP URL for any links: ${context.appUrl}
 Their Personal Assistant (task board): ${context.appUrl}/dashboard/personal-assistant
+Their Growth Playbook: ${context.appUrl}/dashboard/my-growth-plan
 
-Keep it around 250-350 words. Make it feel like a personal check-in from a coach who knows them well.`;
+Keep it around 250-350 words. Make it feel like a personal check-in from a coach who knows their playbook and plan inside-out.`;
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -704,7 +717,56 @@ serve(async (req) => {
       priorityTasks,
       calendarEvents,
       userTimezone,
+      playbookQuickWin: null as any,
+      playbookPriorityActions: [] as any[],
+      playbookCapabilityCoaching: [] as any[],
+      playbookNarrativeHighlight: null as string | null,
     };
+
+    // Enrich with playbook content
+    try {
+      const { data: pbData } = await supabase
+        .from('leadership_reports')
+        .select('report_content, capability_matrix')
+        .eq('profile_id', profileId)
+        .eq('report_type', 'individual_playbook')
+        .eq('status', 'generated')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pbData) {
+        const narrative = (pbData.report_content as any)?.narrative;
+        const capMatrix = (pbData.capability_matrix || []) as any[];
+
+        if (narrative?.opening_hook || narrative?.executive_summary) {
+          userContext.playbookNarrativeHighlight = narrative.opening_hook || narrative.executive_summary;
+        }
+        if (narrative?.quick_win) {
+          userContext.playbookQuickWin = {
+            title: narrative.quick_win.title || 'Quick Win',
+            description: narrative.quick_win.description || narrative.quick_win.text || '',
+          };
+        }
+        if (narrative?.priority_actions && Array.isArray(narrative.priority_actions)) {
+          userContext.playbookPriorityActions = narrative.priority_actions.slice(0, 3).map((pa: any) => ({
+            title: pa.title || pa.action || '',
+            description: pa.description || pa.rationale || '',
+          }));
+        }
+        capMatrix.filter((c: any) => c.is_top3).slice(0, 3).forEach((cap: any) => {
+          if (cap.growth_actions?.[0] || cap.development_focus) {
+            userContext.playbookCapabilityCoaching.push({
+              name: cap.capability_name || '',
+              coaching: cap.growth_actions?.[0] || cap.development_focus || '',
+            });
+          }
+        });
+        console.log(`Playbook enrichment: quickWin=${!!userContext.playbookQuickWin}, actions=${userContext.playbookPriorityActions.length}, coaching=${userContext.playbookCapabilityCoaching.length}`);
+      }
+    } catch (pbErr) {
+      console.error('[send-daily-brief-email] Playbook fetch error (non-fatal):', pbErr);
+    }
 
     console.log("Generating personalized email for", firstName, "with context:", {
       habits: habits.length,

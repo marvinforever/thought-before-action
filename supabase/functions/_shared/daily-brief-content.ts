@@ -1,5 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
+export interface PlaybookContext {
+  narrativeHighlights: string | null; // Key paragraph from playbook narrative
+  quickWin: { title: string; description: string; steps: string[] } | null;
+  priorityActions: { title: string; description: string }[];
+  recommendedResources: { title: string; contentType: string; capabilityName: string }[];
+  topCapabilityInsights: { name: string; currentLevel: string; targetLevel: string; coaching: string }[];
+}
+
 export interface UserContext {
   firstName: string;
   episodeTitle: string;
@@ -32,6 +40,8 @@ export interface UserContext {
   lastJerichoChat: string | null; // ISO date
   daysOnPlatform: number;
   hasCalendarConnected: boolean;
+  // Playbook-driven context
+  playbook: PlaybookContext | null;
 }
 
 export interface BriefContent {
@@ -59,7 +69,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     profileResult, episodeResult, habitsResult, habitCompletionsResult,
     targetsResult, capabilitiesResult, achievementsResult, visionResult,
     recognitionsResult, tasksResult, playbookInteractionsResult,
-    lastConversationResult
+    lastConversationResult, playbookResult
   ] = await Promise.all([
     supabase.from("profiles").select("id, email, full_name, company_id, created_at").eq("id", profileId).maybeSingle(),
     supabase.from("podcast_episodes").select("*").eq("profile_id", profileId).eq("episode_date", today).maybeSingle(),
@@ -75,6 +85,8 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     supabase.from("playbook_interactions").select("section_type, section_key, interaction_type").eq("profile_id", profileId).gte("created_at", weekAgo),
     // Last Jericho conversation
     supabase.from("conversations").select("created_at").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(1),
+    // Playbook (latest individual playbook)
+    supabase.from("leadership_reports").select("report_content, capability_matrix").eq("profile_id", profileId).eq("report_type", "individual_playbook").eq("status", "generated").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const profile = profileResult.data;
@@ -144,6 +156,79 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
   const priorityActionsTotal = pbInteractions.filter((i: any) => i.section_type === 'priority_action').length;
 
   const lastJerichoChat = lastConversationResult.data?.[0]?.created_at || null;
+
+  // Parse playbook content for richer daily briefs
+  let playbookContext: PlaybookContext | null = null;
+  try {
+    const pbData = playbookResult.data;
+    if (pbData) {
+      const reportContent = pbData.report_content as any;
+      const capMatrix = (pbData.capability_matrix || []) as any[];
+      const narrative = reportContent?.narrative;
+
+      // Extract narrative highlights (first key paragraph)
+      let narrativeHighlights: string | null = null;
+      if (narrative?.opening_hook) {
+        narrativeHighlights = narrative.opening_hook;
+      } else if (narrative?.executive_summary) {
+        narrativeHighlights = narrative.executive_summary;
+      }
+
+      // Extract quick win from narrative
+      let quickWin: PlaybookContext['quickWin'] = null;
+      if (narrative?.quick_win) {
+        const qw = narrative.quick_win;
+        quickWin = {
+          title: qw.title || 'Quick Win',
+          description: qw.description || qw.text || '',
+          steps: Array.isArray(qw.steps) ? qw.steps.map((s: any) => typeof s === 'string' ? s : s.text || String(s)) : [],
+        };
+      }
+
+      // Extract priority actions from narrative
+      const priorityActions: PlaybookContext['priorityActions'] = [];
+      if (narrative?.priority_actions && Array.isArray(narrative.priority_actions)) {
+        narrative.priority_actions.slice(0, 3).forEach((pa: any) => {
+          priorityActions.push({
+            title: pa.title || pa.action || '',
+            description: pa.description || pa.rationale || '',
+          });
+        });
+      }
+
+      // Extract top capability insights with coaching tips from the matrix
+      const topCapabilityInsights: PlaybookContext['topCapabilityInsights'] = [];
+      const recommendedResources: PlaybookContext['recommendedResources'] = [];
+      capMatrix.filter((c: any) => c.is_top3).slice(0, 3).forEach((cap: any) => {
+        topCapabilityInsights.push({
+          name: cap.capability_name || '',
+          currentLevel: cap.current_level || '',
+          targetLevel: cap.target_level || '',
+          coaching: cap.growth_actions?.[0] || cap.development_focus || '',
+        });
+        // Gather recommended resources from each capability
+        if (cap.recommended_resources && Array.isArray(cap.recommended_resources)) {
+          cap.recommended_resources.slice(0, 2).forEach((r: any) => {
+            recommendedResources.push({
+              title: r.title || r.name || '',
+              contentType: r.content_type || r.type || 'resource',
+              capabilityName: cap.capability_name || '',
+            });
+          });
+        }
+      });
+
+      playbookContext = {
+        narrativeHighlights,
+        quickWin,
+        priorityActions,
+        recommendedResources: recommendedResources.slice(0, 5),
+        topCapabilityInsights,
+      };
+    }
+  } catch (pbErr) {
+    console.error('[daily-brief-content] Playbook parse error (non-fatal):', pbErr);
+  }
 
   // Fetch today's calendar events if Google is connected
   let calendarEvents: { title: string; startTime: string; endTime: string; isAllDay: boolean; attendees: string[]; location: string | null }[] = [];
@@ -237,6 +322,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     lastJerichoChat,
     daysOnPlatform,
     hasCalendarConnected,
+    playbook: playbookContext,
   };
 }
 
@@ -282,18 +368,24 @@ STRUCTURE:
    - A prep suggestion: "Before your call with [person], check [feature] in Jericho" (e.g., Sales Agent for customer calls, Growth Plan for 1:1s with manager)
    If no calendar: suggest connecting Google Calendar for smarter briefings
 3. PROGRESS CHECK — Evidence-based status:
-   - Resources completed this week (actual number)
+    - Resources completed this week (actual number)
    - Quick win status (accepted/in-progress/not started)
    - Capabilities being worked on (or not)
    - Habit streaks (real numbers, highlight gaps honestly)
    - 90-day goal progress (days remaining + benchmarks completed)
-4. TODAY'S PRIORITIES — Top 2-3 actionable items from tasks, with specific next steps
-5. JERICHO TIP — One specific feature suggestion relevant to today. Examples:
+4. PLAYBOOK COACHING — If they have a Growth Playbook, weave in specific content from it:
+   - Reference their Quick Win by name and nudge progress
+   - Mention a specific Priority Action they should focus on today
+   - Suggest a specific resource from their playbook that's relevant to today's meetings or tasks
+   - Connect their capability coaching tips to what's on their calendar
+   This should feel like you KNOW their playbook and are holding them accountable to it.
+5. TODAY'S PRIORITIES — Top 2-3 actionable items from tasks, with specific next steps
+6. JERICHO TIP — One specific feature suggestion relevant to today. Examples:
    - "You have a sales call at 2pm — open Sales Agent to prep with customer intel"
    - "Your 'Strategic Thinking' capability hasn't moved — try the curated resource in your Playbook"
    - "Haven't chatted with Jericho in X days — a quick check-in could help unblock your goal"
-6. Quick Reflect — ONE specific question tied to something real in their data. Not generic.
-7. Sign-off — One sentence. Honest, forward-looking.
+7. Quick Reflect — ONE specific question tied to something real in their data or playbook. Not generic.
+8. Sign-off — One sentence. Honest, forward-looking.
 
 ${formatInstruction}
 ${linkInstruction}
@@ -337,6 +429,15 @@ ${context.topCapabilities.length > 0
   ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n')
   : 'No capabilities assigned yet.'}
 Capabilities actively being worked on: ${context.capabilitiesStarted.length > 0 ? context.capabilitiesStarted.join(', ') : 'None started yet'}
+
+── GROWTH PLAYBOOK ──
+${context.playbook ? `
+${context.playbook.narrativeHighlights ? `Playbook Summary: "${context.playbook.narrativeHighlights}"` : ''}
+${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}${context.playbook.quickWin.steps.length > 0 ? `\n  Steps: ${context.playbook.quickWin.steps.map((s, i) => `${i + 1}. ${s}`).join(', ')}` : ''}` : ''}
+${context.playbook.priorityActions.length > 0 ? `Priority Actions:\n${context.playbook.priorityActions.map(a => `- ${a.title}: ${a.description}`).join('\n')}` : ''}
+${context.playbook.topCapabilityInsights.length > 0 ? `Capability Coaching:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name} (${c.currentLevel} → ${c.targetLevel}): ${c.coaching}`).join('\n')}` : ''}
+${context.playbook.recommendedResources.length > 0 ? `Recommended Resources:\n${context.playbook.recommendedResources.map(r => `- "${r.title}" (${r.contentType}) for ${r.capabilityName}`).join('\n')}` : ''}
+` : 'No playbook generated yet — suggest they complete onboarding to get their personalized Growth Playbook.'}
 
 ${context.lastJerichoChat ? `Last Jericho conversation: ${context.lastJerichoChat.split('T')[0]}` : 'Has not chatted with Jericho yet.'}
 ${context.dailyChallenge ? `Today's challenge: ${context.dailyChallenge}` : ''}

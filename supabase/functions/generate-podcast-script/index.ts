@@ -126,6 +126,11 @@ interface PodcastContext {
     capOutAt: number | null;
     coaching: string | null;
   };
+  // Playbook content
+  playbookQuickWin: { title: string; description: string } | null;
+  playbookPriorityActions: { title: string; description: string }[];
+  playbookCapabilityCoaching: { name: string; coaching: string }[];
+  playbookNarrativeHighlight: string | null;
 }
 
 interface DayTheme {
@@ -783,6 +788,57 @@ serve(async (req) => {
     // Pick a random inspirational quote for today
     const todayQuote = INSPIRATIONAL_QUOTES[Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length)];
 
+    // Fetch Growth Playbook for rich coaching content
+    let playbookQuickWin: PodcastContext['playbookQuickWin'] = null;
+    let playbookPriorityActions: PodcastContext['playbookPriorityActions'] = [];
+    let playbookCapabilityCoaching: PodcastContext['playbookCapabilityCoaching'] = [];
+    let playbookNarrativeHighlight: string | null = null;
+
+    try {
+      const { data: pbData } = await supabase
+        .from('leadership_reports')
+        .select('report_content, capability_matrix')
+        .eq('profile_id', profileId)
+        .eq('report_type', 'individual_playbook')
+        .eq('status', 'generated')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pbData) {
+        const narrative = (pbData.report_content as any)?.narrative;
+        const capMatrix = (pbData.capability_matrix || []) as any[];
+
+        if (narrative?.opening_hook || narrative?.executive_summary) {
+          playbookNarrativeHighlight = narrative.opening_hook || narrative.executive_summary;
+        }
+        if (narrative?.quick_win) {
+          playbookQuickWin = {
+            title: narrative.quick_win.title || 'Quick Win',
+            description: narrative.quick_win.description || narrative.quick_win.text || '',
+          };
+        }
+        if (narrative?.priority_actions && Array.isArray(narrative.priority_actions)) {
+          playbookPriorityActions = narrative.priority_actions.slice(0, 3).map((pa: any) => ({
+            title: pa.title || pa.action || '',
+            description: pa.description || pa.rationale || '',
+          }));
+        }
+        capMatrix.filter((c: any) => c.is_top3).slice(0, 3).forEach((cap: any) => {
+          if (cap.growth_actions?.[0] || cap.development_focus) {
+            playbookCapabilityCoaching.push({
+              name: cap.capability_name || '',
+              coaching: cap.growth_actions?.[0] || cap.development_focus || '',
+            });
+          }
+        });
+      }
+    } catch (pbErr) {
+      console.error('Playbook fetch error (non-fatal):', pbErr);
+    }
+
+    console.log(`Playbook context: quickWin=${!!playbookQuickWin}, actions=${playbookPriorityActions.length}, coaching=${playbookCapabilityCoaching.length}`);
+
     const context: PodcastContext = {
       userName,
       habitStreak: topHabit?.current_streak || 0,
@@ -825,6 +881,10 @@ serve(async (req) => {
       totalEmployees,
       underutilizedFeatures,
       streakPattern,
+      playbookQuickWin,
+      playbookPriorityActions,
+      playbookCapabilityCoaching,
+      playbookNarrativeHighlight,
     };
 
     console.log('Enhanced podcast context:', JSON.stringify(context, null, 2));
@@ -1038,6 +1098,15 @@ ${context.underutilizedFeatures.length > 0
 ${context.underutilizedFeatures.slice(0, 2).map(f => `- ${f}`).join('\n')}
 Work this in casually, like "Hey, one thing I'd love you to try..." - don't lecture!`
   : ''}
+
+📋 GROWTH PLAYBOOK CONTENT (use this to make the podcast feel deeply personal):
+${context.playbookNarrativeHighlight ? `Playbook Insight: "${context.playbookNarrativeHighlight}"` : 'No playbook yet.'}
+${context.playbookQuickWin ? `Quick Win from their Playbook: "${context.playbookQuickWin.title}" — ${context.playbookQuickWin.description}
+Reference this naturally: "Your playbook has a quick win waiting for you..." or hold them accountable if they haven't started it.` : ''}
+${context.playbookPriorityActions.length > 0 ? `Priority Actions from Playbook:\n${context.playbookPriorityActions.map(a => `- ${a.title}: ${a.description}`).join('\n')}
+Weave ONE of these into today's coaching. Make it feel like you know their plan inside and out.` : ''}
+${context.playbookCapabilityCoaching.length > 0 ? `Capability Coaching Tips (from their personalized playbook):\n${context.playbookCapabilityCoaching.map(c => `- ${c.name}: ${c.coaching}`).join('\n')}
+Use these specific coaching tips when discussing their capabilities — they're tailored to THIS person.` : ''}
 
 SCRIPT FORMAT REQUIREMENTS:
 1. Open warmly with their name: "Hey ${context.userName}!"
