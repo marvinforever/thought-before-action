@@ -252,7 +252,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
           'Authorization': `Bearer ${serviceKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: profileId }),
+        body: JSON.stringify({ userId: profileId, daysBack: 0, daysForward: 1 }),
       });
 
       if (calResponse.ok) {
