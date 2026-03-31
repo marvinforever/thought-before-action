@@ -252,13 +252,21 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
           'Authorization': `Bearer ${serviceKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: profileId }),
+        body: JSON.stringify({ userId: profileId, daysBack: 0, daysForward: 1 }),
       });
 
       if (calResponse.ok) {
         const calData = await calResponse.json();
-        const userNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
-        const todayUser = userNow.toISOString().split('T')[0];
+        
+        // Calculate today's date in user timezone using offset math (not toLocaleString which is unreliable in Deno)
+        const nowMs = Date.now();
+        // Get offset by comparing UTC date string with locale date string
+        const utcDate = new Date(nowMs).toISOString().split('T')[0];
+        // Use Intl.DateTimeFormat for reliable timezone date extraction
+        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: userTimezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+        const todayUser = formatter.format(new Date(nowMs)); // YYYY-MM-DD format from en-CA locale
+        
+        console.log(`[daily-brief] Calendar filter: todayUser=${todayUser}, timezone=${userTimezone}, events returned=${(calData.events || []).length}`);
         
         calendarEvents = (calData.events || [])
           .filter((e: any) => {
@@ -268,8 +276,9 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
               const endDate = e.end?.date || startDate;
               return startDate <= todayUser && todayUser < endDate;
             } else {
-              const eventLocal = new Date(new Date(e.start.dateTime).toLocaleString('en-US', { timeZone: userTimezone }));
-              const eventDateStr = eventLocal.toISOString().split('T')[0];
+              // Extract date in user's timezone from the event's dateTime
+              const eventFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: userTimezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+              const eventDateStr = eventFormatter.format(new Date(e.start.dateTime));
               return eventDateStr === todayUser;
             }
           })
@@ -350,28 +359,27 @@ export async function generateBriefContent(context: UserContext, format: BriefFo
     ? `For links use: [text](url). Valid routes: ${context.appUrl}/dashboard/my-growth-plan, ${context.appUrl}/dashboard/personal-assistant, ${context.appUrl}/dashboard/sales`
     : `Mention the app URL ${context.appUrl} once at the end.`;
 
-  const systemPrompt = `You are Jericho — a sharp, no-BS executive coach. NOT a cheerleader. NOT a morning show host. You give the kind of advice a $500/hr coach would give in a 2-minute hallway conversation.
+  const systemPrompt = `You are Jericho — a sharp, no-BS executive coach. NOT a cheerleader. NOT a morning show host. You give the kind of advice a $500/hr coach would give in a 5-minute conversation.
 
 ABSOLUTE RULES (violating these is a failure):
-1. NEVER celebrate anything under a 5-day streak. A 1-day or 2-day streak is NOTHING. Do NOT mention it. Do NOT say "great to see you keeping up." Ignore it entirely.
-2. NEVER include personal/admin tasks (tax prep, medical, insurance, legal paperwork, errands, "Frost Law", credit cards, home tasks). These have already been filtered out. If somehow one slips through, SKIP IT.
-3. NEVER define a capability. "Self Awareness is about understanding your own emotions" = INSTANT FAIL. Instead, pull the SPECIFIC coaching action from their playbook data and say: "Try this today: [exact action]."
+1. NEVER celebrate anything under a 5-day streak. A 1-day or 2-day streak is NOTHING. Ignore it entirely.
+2. NEVER include personal/admin tasks (tax prep, medical, insurance, legal paperwork, errands, "Frost Law", credit cards, home tasks). These have already been filtered out.
+3. NEVER define a capability. "Self Awareness is about understanding your own emotions" = INSTANT FAIL. Instead, pull the SPECIFIC coaching action from their playbook data.
 4. NEVER use filler phrases: "keep up the great work", "that's fantastic", "you're showing up", "let's make today count", "cheering you on", "your growth journey", "keep that momentum", "perfect examples of". These are BANNED.
-5. MAX 200 WORDS for the body. Not a suggestion — a hard limit. If you go over, you failed.
+5. AIM for 250-350 WORDS. Enough to be substantive, short enough to respect their time.
 6. Every sentence must contain SPECIFIC information (a name, number, date, or action). Generic sentences = delete them.
-7. For EXPIRED targets (0 days remaining): Do NOT say "0 days remaining" — instead say the target has lapsed and ask ONE pointed question about whether to reset it or close it. Don't pile on.
-8. Clear calendar days: ONE sentence, not a paragraph. "Calendar's clear — block 2 hours for [specific priority]."
+7. For EXPIRED targets (0 days remaining): Say the target has lapsed and ask ONE pointed question about whether to reset it or close it. Don't pile on.
 
-TONE: Like texting a friend who happens to be a brilliant strategist. Casual, sharp, zero padding.
+TONE: Like a sharp friend who's also a brilliant strategist. Warm but direct. Think: "I'm telling you this because I know you can handle it."
 
-STRUCTURE (each section = 1-3 sentences MAX):
-1. Greeting — One casual line. No metrics, no streaks under 5 days.
-2. SCHEDULE — If meetings: the most important one + prep action. If clear: one line.
-3. REAL TALK — The ONE thing that matters most today. A stalled target? A streak worth celebrating? A quick win to knock out? Pick ONE, go deep for 2 sentences.
-4. DO THIS TODAY — One specific playbook coaching action. Quote it directly from their data. No definitions.
-5. PRIORITIES — Top 2 work tasks only. Bullet format.
-6. REFLECT — One razor-sharp question tied to a specific goal, benchmark, or playbook action.
-7. Sign-off — Your name. That's it. "— Jericho"
+STRUCTURE (use clear section headers):
+1. **Greeting** — One casual, warm line. Reference something real (day of week, what's on their plate). No metrics.
+2. **SCHEDULE** — If meetings exist: list the top 2-3 with times, attendees, and one prep action per meeting. Suggest Sales Agent for customer calls. If no meetings: suggest what to do with the open time (specific to their priorities).
+3. **REAL TALK** — The 1-2 things that matter most today. A stalled target? A streak worth celebrating? Progress on quick win? Go specific with numbers and names. Be honest about what's behind.
+4. **PLAYBOOK ACTION** — One specific coaching tip quoted from their playbook data. Frame it as: "Your playbook says: [exact tip]. Here's how to apply it today: [concrete action]."
+5. **PRIORITIES** — Top 2-3 WORK tasks as bullets. Add a quick note on approach if helpful.
+6. **REFLECT** — One specific question tied to a real goal, benchmark, or recent event. Not generic "how will X influence Y" — instead: "You need 12 contracts and have 0 benchmarks done. Who are you calling first?"
+7. **Sign-off** — "— Jericho" (nothing else)
 
 ${formatInstruction}
 ${linkInstruction}
