@@ -521,7 +521,14 @@ ${context.streakDays !== null && context.streakDays >= 5 ? `Login Streak: ${cont
 ── CAPABILITIES ──
 ${context.topCapabilities.length > 0 ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n') : 'None assigned.'}
 
-── PLAYBOOK COACHING DATA ──
+── YESTERDAY'S SALES CONVERSATIONS ──
+${context.recentSalesConversations.length > 0 ? context.recentSalesConversations.map(sc => {
+    const products = sc.productsDiscussed.length > 0 ? `Products discussed: ${sc.productsDiscussed.join(', ')}` : '';
+    const topics = sc.keyTopics.length > 0 ? `Topics: ${sc.keyTopics.join(', ')}` : '';
+    const snippet = sc.lastMessageSnippet ? `Last message: "${sc.lastMessageSnippet}"` : '';
+    return `- Customer: ${sc.customerName}\n  ${[products, topics, snippet].filter(Boolean).join('\n  ')}`;
+  }).join('\n') : 'No recent sales conversations.'}
+
 ${context.playbook ? `
 ${context.playbook.topCapabilityInsights.length > 0 ? `Coaching Tips:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name}: "${c.coaching}"`).join('\n')}` : ''}
 ${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}` : ''}
