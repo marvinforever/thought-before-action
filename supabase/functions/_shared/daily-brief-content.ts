@@ -384,50 +384,63 @@ Return JSON: { "subject": "...", "body": "...", "shortSummary": "..." }`;
   const progressSection = buildProgressEvidence(context);
   const calendarSection = buildCalendarContext(context);
 
-  const userPrompt = `Write today's briefing for ${context.firstName}. Day ${context.daysOnPlatform} on the platform.
+  // Pre-filter tasks: remove personal/admin items before they reach the AI
+  const personalKeywords = ['frost law', 'tax', 'medical', 'insurance', 'credit card', 'health insurance', 'real property', 'dental', 'doctor', 'pharmacy', 'grocery', 'laundry', 'personal', 'errand'];
+  const filteredTasks = context.priorityTasks.filter(t => {
+    const lower = t.title.toLowerCase();
+    return !personalKeywords.some(kw => lower.includes(kw));
+  });
 
-${context.personalVision ? `Vision: "${context.personalVision}"` : 'No vision set yet.'}
-Focus Capability: ${context.focusCapability || 'None selected'}
+  // Reframe expired targets
+  const targetLines = context.ninetyDayTargets.map(t => {
+    const completedCount = t.benchmarks.filter(b => b.isCompleted).length;
+    if (t.daysRemaining <= 0) {
+      return `- ${t.title}: TARGET LAPSED (was due this quarter), ${completedCount}/${t.benchmarks.length} benchmarks done. Needs reset or closure.`;
+    }
+    return `- ${t.title}: ${t.daysRemaining} days left, ${completedCount}/${t.benchmarks.length} benchmarks done`;
+  }).join('\n') || 'None set.';
 
-── EVIDENCE-BASED PROGRESS ──
-${progressSection}
+  // Only include meaningful streaks
+  const meaningfulHabits = context.habits.filter(h => h.currentStreak >= 5 || h.completionsThisWeek >= 3);
+  const habitsSection = meaningfulHabits.length > 0
+    ? meaningfulHabits.map(h => `- ${h.name}: ${h.currentStreak}d streak, ${h.completionsThisWeek} completions this week`).join('\n')
+    : context.habits.length > 0
+      ? `${context.habits.length} habits tracked but no streaks above 5 days yet.`
+      : 'No habits tracked.';
 
-── TODAY'S CALENDAR ──
+  const userPrompt = `Briefing for ${context.firstName}. Day ${context.daysOnPlatform} on platform.
+
+${context.personalVision ? `Vision: "${context.personalVision}"` : ''}
+Focus Capability: ${context.focusCapability || 'None'}
+
+── PROGRESS ──
+${buildProgressEvidence(context)}
+
+── CALENDAR ──
 ${calendarSection}
 
-── TASKS ──
-${context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]${t.dueDate ? ` (due: ${t.dueDate})` : ''}`).join('\n') || 'No tasks set up yet.'}
+── WORK TASKS (personal items already removed) ──
+${filteredTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]${t.dueDate ? ` (due: ${t.dueDate})` : ''}`).join('\n') || 'No work tasks today.'}
 
-── 90-DAY TARGETS (${context.ninetyDayTargets.length}) ──
-${context.ninetyDayTargets.map(t => {
-  const completedCount = t.benchmarks.filter(b => b.isCompleted).length;
-  return `- ${t.title}: ${t.daysRemaining} days left, ${completedCount}/${t.benchmarks.length} benchmarks done`;
-}).join('\n') || 'None set — suggest they create one in Growth Plan.'}
+── 90-DAY TARGETS ──
+${targetLines}
 
-── HABITS ──
-${context.habits.length > 0
-  ? context.habits.map(h => `- ${h.name}: ${h.currentStreak}d streak, ${h.completionsThisWeek} completions this week`).join('\n')
-  : 'No habits tracked yet.'}
-${context.streakDays !== null ? `Login Streak: ${context.streakDays} days` : 'No login streak data.'}
+── HABITS (only 5+ day streaks shown) ──
+${habitsSection}
+${context.streakDays !== null && context.streakDays >= 5 ? `Login Streak: ${context.streakDays} days` : ''}
 
 ── CAPABILITIES ──
-${context.topCapabilities.length > 0
-  ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n')
-  : 'No capabilities assigned yet.'}
-Capabilities actively being worked on: ${context.capabilitiesStarted.length > 0 ? context.capabilitiesStarted.join(', ') : 'None started yet'}
+${context.topCapabilities.length > 0 ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n') : 'None assigned.'}
 
-── GROWTH PLAYBOOK ──
+── PLAYBOOK COACHING DATA ──
 ${context.playbook ? `
-${context.playbook.narrativeHighlights ? `Playbook Summary: "${context.playbook.narrativeHighlights}"` : ''}
-${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}${context.playbook.quickWin.steps.length > 0 ? `\n  Steps: ${context.playbook.quickWin.steps.map((s, i) => `${i + 1}. ${s}`).join(', ')}` : ''}` : ''}
+${context.playbook.topCapabilityInsights.length > 0 ? `Coaching Tips:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name}: "${c.coaching}"`).join('\n')}` : ''}
+${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}` : ''}
 ${context.playbook.priorityActions.length > 0 ? `Priority Actions:\n${context.playbook.priorityActions.map(a => `- ${a.title}: ${a.description}`).join('\n')}` : ''}
-${context.playbook.topCapabilityInsights.length > 0 ? `Capability Coaching:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name} (${c.currentLevel} → ${c.targetLevel}): ${c.coaching}`).join('\n')}` : ''}
-${context.playbook.recommendedResources.length > 0 ? `Recommended Resources:\n${context.playbook.recommendedResources.map(r => `- "${r.title}" (${r.contentType}) for ${r.capabilityName}`).join('\n')}` : ''}
-` : 'No playbook generated yet — suggest they complete onboarding to get their personalized Growth Playbook.'}
+` : 'No playbook yet.'}
 
-${context.lastJerichoChat ? `Last Jericho conversation: ${context.lastJerichoChat.split('T')[0]}` : 'Has not chatted with Jericho yet.'}
-${context.dailyChallenge ? `Today's challenge: ${context.dailyChallenge}` : ''}
-${context.recentAchievements.length > 0 ? `Verified achievements: ${context.recentAchievements.join(', ')}` : 'No recent achievements logged.'}`;
+${context.dailyChallenge ? `Challenge: ${context.dailyChallenge}` : ''}
+${context.recentAchievements.length > 0 ? `Achievements: ${context.recentAchievements.join(', ')}` : ''}`;
 
   if (!LOVABLE_API_KEY) {
     return {
