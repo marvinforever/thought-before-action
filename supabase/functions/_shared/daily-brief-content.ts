@@ -350,37 +350,33 @@ export async function generateBriefContent(context: UserContext, format: BriefFo
     ? `For links use: [text](url). Valid routes: ${context.appUrl}/dashboard/my-growth-plan, ${context.appUrl}/dashboard/personal-assistant, ${context.appUrl}/dashboard/sales`
     : `Mention the app URL ${context.appUrl} once at the end.`;
 
-  const systemPrompt = `You are Jericho — a trusted advisor who is honest, direct, and supportive. You are NOT a cheerleader. You celebrate REAL progress backed by evidence, and you gently call out where things haven't moved.
+  const systemPrompt = `You are Jericho — a sharp, no-BS executive coach. NOT a cheerleader. NOT a morning show host. You give the kind of advice a $500/hr coach would give in a 2-minute hallway conversation.
 
-CORE RULES:
-1. NEVER give credit for things the user hasn't actually done. If data shows 0 resources completed, say so. If a habit streak is 0, don't pretend it's going well.
-2. Celebrate PROVEN wins: completed tasks, maintained streaks, finished resources. These deserve genuine recognition.
-3. For things that haven't progressed, be honest but constructive: "Your quick win hasn't been started yet — want to tackle one step today?"
-4. Be specific. Reference actual numbers, names, and dates — not vague encouragement.
-5. Suggest specific Jericho features that can help TODAY based on what's on their calendar and task list.
-6. STREAK THRESHOLD: A 1-2 day streak is NOT worth mentioning. Only highlight streaks of 5+ days as meaningful. A 2-day login streak is not an achievement — ignore it.
-7. TASK FILTERING: Only include tasks that are WORK-RELATED or GROWTH-RELATED. Skip obvious personal/administrative items (tax prep, medical expenses, health insurance paperwork, credit card statements, errands, home maintenance). If ALL tasks are personal, say "No work tasks today" and move on.
-8. CAPABILITY SPECIFICITY: When discussing a capability, NEVER give a textbook definition. Instead, reference a SPECIFIC coaching action from their Growth Playbook. Example of what NOT to do: "Self Awareness is about understanding your own emotions..." — instead say: "Your playbook coaching tip for Self Awareness is to [specific action]. Try that today."
-9. BREVITY: Keep the entire brief to 150-250 words. Every sentence must earn its place. No padding, no filler, no "keep up the great work!" generics.
+ABSOLUTE RULES (violating these is a failure):
+1. NEVER celebrate anything under a 5-day streak. A 1-day or 2-day streak is NOTHING. Do NOT mention it. Do NOT say "great to see you keeping up." Ignore it entirely.
+2. NEVER include personal/admin tasks (tax prep, medical, insurance, legal paperwork, errands, "Frost Law", credit cards, home tasks). These have already been filtered out. If somehow one slips through, SKIP IT.
+3. NEVER define a capability. "Self Awareness is about understanding your own emotions" = INSTANT FAIL. Instead, pull the SPECIFIC coaching action from their playbook data and say: "Try this today: [exact action]."
+4. NEVER use filler phrases: "keep up the great work", "that's fantastic", "you're showing up", "let's make today count", "cheering you on", "your growth journey", "keep that momentum", "perfect examples of". These are BANNED.
+5. MAX 200 WORDS for the body. Not a suggestion — a hard limit. If you go over, you failed.
+6. Every sentence must contain SPECIFIC information (a name, number, date, or action). Generic sentences = delete them.
+7. For EXPIRED targets (0 days remaining): Do NOT say "0 days remaining" — instead say the target has lapsed and ask ONE pointed question about whether to reset it or close it. Don't pile on.
+8. Clear calendar days: ONE sentence, not a paragraph. "Calendar's clear — block 2 hours for [specific priority]."
 
-TONE: Like a mentor who respects you too much to BS you. Warm when warranted. Direct always. Think: "I'm telling you this because I believe in what you can do."
+TONE: Like texting a friend who happens to be a brilliant strategist. Casual, sharp, zero padding.
 
-STRUCTURE:
-1. Honest greeting — brief, no fluff. One line max. Do NOT mention login streaks under 5 days.
-2. TODAY'S SCHEDULE — If calendar is connected, highlight the 1-2 most important meetings with a prep nudge. If no calendar: one-line suggestion to connect it.
-3. PROGRESS CHECK — Only mention items with real movement or real stalls. Skip anything that's just "status quo." Be surgical:
-   - Habit streaks worth celebrating (5+ days only)
-   - 90-day targets that are behind or ahead
-   - Quick win progress
-4. PLAYBOOK COACHING — One specific, actionable tip from their Growth Playbook. Reference the exact coaching action or resource by name. Not a definition, not a platitude.
-5. TODAY'S PRIORITIES — Top 2-3 WORK tasks only (skip personal items).
-6. Quick Reflect — ONE specific question tied to a real playbook action, a recent conversation topic, or a specific 90-day benchmark. NEVER ask "how will X influence Y" generically. Example: "You said you wanted 12 contracts this quarter — what's one prospect you can call before noon?"
-7. Sign-off — One sentence. No "cheering you on." Be honest and forward-looking.
+STRUCTURE (each section = 1-3 sentences MAX):
+1. Greeting — One casual line. No metrics, no streaks under 5 days.
+2. SCHEDULE — If meetings: the most important one + prep action. If clear: one line.
+3. REAL TALK — The ONE thing that matters most today. A stalled target? A streak worth celebrating? A quick win to knock out? Pick ONE, go deep for 2 sentences.
+4. DO THIS TODAY — One specific playbook coaching action. Quote it directly from their data. No definitions.
+5. PRIORITIES — Top 2 work tasks only. Bullet format.
+6. REFLECT — One razor-sharp question tied to a specific goal, benchmark, or playbook action.
+7. Sign-off — Your name. That's it. "— Jericho"
 
 ${formatInstruction}
 ${linkInstruction}
 
-Generate a "shortSummary" field: ~140 character plain text for SMS. Include one honest insight + app URL.
+Generate a "shortSummary" field: ~140 character plain text for SMS. One honest insight + app URL.
 
 Return JSON: { "subject": "...", "body": "...", "shortSummary": "..." }`;
 
@@ -388,50 +384,63 @@ Return JSON: { "subject": "...", "body": "...", "shortSummary": "..." }`;
   const progressSection = buildProgressEvidence(context);
   const calendarSection = buildCalendarContext(context);
 
-  const userPrompt = `Write today's briefing for ${context.firstName}. Day ${context.daysOnPlatform} on the platform.
+  // Pre-filter tasks: remove personal/admin items before they reach the AI
+  const personalKeywords = ['frost law', 'tax', 'medical', 'insurance', 'credit card', 'health insurance', 'real property', 'dental', 'doctor', 'pharmacy', 'grocery', 'laundry', 'personal', 'errand'];
+  const filteredTasks = context.priorityTasks.filter(t => {
+    const lower = t.title.toLowerCase();
+    return !personalKeywords.some(kw => lower.includes(kw));
+  });
 
-${context.personalVision ? `Vision: "${context.personalVision}"` : 'No vision set yet.'}
-Focus Capability: ${context.focusCapability || 'None selected'}
+  // Reframe expired targets
+  const targetLines = context.ninetyDayTargets.map(t => {
+    const completedCount = t.benchmarks.filter(b => b.isCompleted).length;
+    if (t.daysRemaining <= 0) {
+      return `- ${t.title}: TARGET LAPSED (was due this quarter), ${completedCount}/${t.benchmarks.length} benchmarks done. Needs reset or closure.`;
+    }
+    return `- ${t.title}: ${t.daysRemaining} days left, ${completedCount}/${t.benchmarks.length} benchmarks done`;
+  }).join('\n') || 'None set.';
 
-── EVIDENCE-BASED PROGRESS ──
-${progressSection}
+  // Only include meaningful streaks
+  const meaningfulHabits = context.habits.filter(h => h.currentStreak >= 5 || h.completionsThisWeek >= 3);
+  const habitsSection = meaningfulHabits.length > 0
+    ? meaningfulHabits.map(h => `- ${h.name}: ${h.currentStreak}d streak, ${h.completionsThisWeek} completions this week`).join('\n')
+    : context.habits.length > 0
+      ? `${context.habits.length} habits tracked but no streaks above 5 days yet.`
+      : 'No habits tracked.';
 
-── TODAY'S CALENDAR ──
+  const userPrompt = `Briefing for ${context.firstName}. Day ${context.daysOnPlatform} on platform.
+
+${context.personalVision ? `Vision: "${context.personalVision}"` : ''}
+Focus Capability: ${context.focusCapability || 'None'}
+
+── PROGRESS ──
+${buildProgressEvidence(context)}
+
+── CALENDAR ──
 ${calendarSection}
 
-── TASKS ──
-${context.priorityTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]${t.dueDate ? ` (due: ${t.dueDate})` : ''}`).join('\n') || 'No tasks set up yet.'}
+── WORK TASKS (personal items already removed) ──
+${filteredTasks.map((t, i) => `${i + 1}. ${t.title} [${t.priority}]${t.dueDate ? ` (due: ${t.dueDate})` : ''}`).join('\n') || 'No work tasks today.'}
 
-── 90-DAY TARGETS (${context.ninetyDayTargets.length}) ──
-${context.ninetyDayTargets.map(t => {
-  const completedCount = t.benchmarks.filter(b => b.isCompleted).length;
-  return `- ${t.title}: ${t.daysRemaining} days left, ${completedCount}/${t.benchmarks.length} benchmarks done`;
-}).join('\n') || 'None set — suggest they create one in Growth Plan.'}
+── 90-DAY TARGETS ──
+${targetLines}
 
-── HABITS ──
-${context.habits.length > 0
-  ? context.habits.map(h => `- ${h.name}: ${h.currentStreak}d streak, ${h.completionsThisWeek} completions this week`).join('\n')
-  : 'No habits tracked yet.'}
-${context.streakDays !== null ? `Login Streak: ${context.streakDays} days` : 'No login streak data.'}
+── HABITS (only 5+ day streaks shown) ──
+${habitsSection}
+${context.streakDays !== null && context.streakDays >= 5 ? `Login Streak: ${context.streakDays} days` : ''}
 
 ── CAPABILITIES ──
-${context.topCapabilities.length > 0
-  ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n')
-  : 'No capabilities assigned yet.'}
-Capabilities actively being worked on: ${context.capabilitiesStarted.length > 0 ? context.capabilitiesStarted.join(', ') : 'None started yet'}
+${context.topCapabilities.length > 0 ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n') : 'None assigned.'}
 
-── GROWTH PLAYBOOK ──
+── PLAYBOOK COACHING DATA ──
 ${context.playbook ? `
-${context.playbook.narrativeHighlights ? `Playbook Summary: "${context.playbook.narrativeHighlights}"` : ''}
-${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}${context.playbook.quickWin.steps.length > 0 ? `\n  Steps: ${context.playbook.quickWin.steps.map((s, i) => `${i + 1}. ${s}`).join(', ')}` : ''}` : ''}
+${context.playbook.topCapabilityInsights.length > 0 ? `Coaching Tips:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name}: "${c.coaching}"`).join('\n')}` : ''}
+${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}` : ''}
 ${context.playbook.priorityActions.length > 0 ? `Priority Actions:\n${context.playbook.priorityActions.map(a => `- ${a.title}: ${a.description}`).join('\n')}` : ''}
-${context.playbook.topCapabilityInsights.length > 0 ? `Capability Coaching:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name} (${c.currentLevel} → ${c.targetLevel}): ${c.coaching}`).join('\n')}` : ''}
-${context.playbook.recommendedResources.length > 0 ? `Recommended Resources:\n${context.playbook.recommendedResources.map(r => `- "${r.title}" (${r.contentType}) for ${r.capabilityName}`).join('\n')}` : ''}
-` : 'No playbook generated yet — suggest they complete onboarding to get their personalized Growth Playbook.'}
+` : 'No playbook yet.'}
 
-${context.lastJerichoChat ? `Last Jericho conversation: ${context.lastJerichoChat.split('T')[0]}` : 'Has not chatted with Jericho yet.'}
-${context.dailyChallenge ? `Today's challenge: ${context.dailyChallenge}` : ''}
-${context.recentAchievements.length > 0 ? `Verified achievements: ${context.recentAchievements.join(', ')}` : 'No recent achievements logged.'}`;
+${context.dailyChallenge ? `Challenge: ${context.dailyChallenge}` : ''}
+${context.recentAchievements.length > 0 ? `Achievements: ${context.recentAchievements.join(', ')}` : ''}`;
 
   if (!LOVABLE_API_KEY) {
     return {
