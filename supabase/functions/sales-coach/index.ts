@@ -1857,7 +1857,7 @@ async function generateResponse(
   const industryIntelligence = context.industry === 'agriculture' ? `\n${AGRICULTURE_INTELLIGENCE}` : '';
 
   // Identify the rep by name so the AI addresses them correctly (critical for View As mode)
-  const repIdentity = context.repName ? `\n## YOU ARE COACHING: ${context.repName}\nAddress this person by their first name. This is the rep whose data, pipeline, and customers you see below.\n` : "";
+  const repIdentity = context.repName ? `\n## YOU ARE COACHING: ${context.repName}\nCRITICAL: Address this person as "${context.repName.split(" ")[0]}" — this is who you are talking to RIGHT NOW. Their name is ${context.repName}. Do NOT use any other name from conversation history. This is the rep whose data, pipeline, and customers you see below.\n` : "";
 
   // Build calendar context block
   let calendarContext = "";
