@@ -8,6 +8,14 @@ export interface PlaybookContext {
   topCapabilityInsights: { name: string; currentLevel: string; targetLevel: string; coaching: string }[];
 }
 
+export interface SalesConversationContext {
+  customerName: string;
+  productsDiscussed: string[];
+  keyTopics: string[];
+  lastMessageSnippet: string;
+  conversationDate: string;
+}
+
 export interface UserContext {
   firstName: string;
   episodeTitle: string;
@@ -42,6 +50,8 @@ export interface UserContext {
   hasCalendarConnected: boolean;
   // Playbook-driven context
   playbook: PlaybookContext | null;
+  // Sales conversation continuity
+  recentSalesConversations: SalesConversationContext[];
 }
 
 export interface BriefContent {
@@ -300,6 +310,75 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     console.error('[daily-brief-content] Calendar fetch error (non-fatal):', calErr);
   }
 
+  // ── Fetch recent sales conversations for coaching continuity ──
+  let recentSalesConversations: SalesConversationContext[] = [];
+  try {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const companyId = profile?.company_id;
+
+    if (companyId) {
+      // Get recent sales coach messages from the last 24 hours
+      const { data: recentConvos } = await supabase
+        .from('sales_coach_conversations')
+        .select('id, customer_focus, created_at, sales_coach_messages(content, role, created_at)')
+        .eq('profile_id', profileId)
+        .eq('company_id', companyId)
+        .gte('updated_at', yesterday)
+        .order('updated_at', { ascending: false })
+        .limit(3);
+
+      if (recentConvos && recentConvos.length > 0) {
+        // Also get recent customer insights for product mentions
+        const { data: recentInsights } = await supabase
+          .from('customer_insights')
+          .select('customer_name, insight_type, insight_text')
+          .eq('profile_id', profileId)
+          .eq('company_id', companyId)
+          .gte('created_at', yesterday)
+          .in('insight_type', ['product_interest', 'buying_signal', 'crops', 'acreage'])
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        // Also check company knowledge for product info related to discussed products
+        const productKeywords = (recentInsights || [])
+          .filter((i: any) => i.insight_type === 'product_interest')
+          .map((i: any) => i.insight_text)
+          .join(' ');
+
+        for (const convo of recentConvos) {
+          const messages = (convo.sales_coach_messages || []) as any[];
+          const userMessages = messages.filter((m: any) => m.role === 'user');
+          const lastUserMsg = userMessages.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )[0];
+
+          // Extract product mentions from conversation
+          const allContent = messages.map((m: any) => m.content || '').join(' ');
+          const productPatterns = /(?:seed|treatment|chemical|fertilizer|fungicide|herbicide|insecticide|biological|inoculant|adjuvant|micronutrient|foliar|pre-?emerge|post-?emerge|starter|nitrogen|phosphorus|potassium|trait|variety|hybrid|(?:[A-Z][a-z]+(?:®|™)))/gi;
+          const productMatches = [...new Set((allContent.match(productPatterns) || []).map((p: string) => p.trim()))];
+
+          // Extract key discussion topics
+          const topicPatterns = /(?:recommend|pitch|propose|suggest|trial|demo|switch|compare|ROI|pricing|program|package|value stack|bundle|acre|field|rotation|application|timing|rate)/gi;
+          const topicMatches = [...new Set((allContent.match(topicPatterns) || []).map((t: string) => t.toLowerCase().trim()))];
+
+          const customerInsights = (recentInsights || []).filter((i: any) => 
+            convo.customer_focus && i.customer_name?.toLowerCase().includes(convo.customer_focus.toLowerCase())
+          );
+
+          recentSalesConversations.push({
+            customerName: convo.customer_focus || 'General',
+            productsDiscussed: productMatches.slice(0, 5),
+            keyTopics: topicMatches.slice(0, 5),
+            lastMessageSnippet: lastUserMsg?.content?.slice(0, 200) || '',
+            conversationDate: convo.created_at,
+          });
+        }
+      }
+    }
+  } catch (salesErr) {
+    console.error('[daily-brief-content] Sales conversation fetch error (non-fatal):', salesErr);
+  }
+
   return {
     firstName,
     episodeTitle: episode?.title || "Your Daily Growth Brief",
@@ -323,7 +402,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     calendarEvents,
     resourcesCompletedThisWeek,
     quickWinStatus,
-    quickWinStepsTotal: 0, // Will be enriched from playbook data if available
+    quickWinStepsTotal: 0,
     quickWinStepsDone,
     capabilitiesStarted,
     priorityActionsCompleted,
@@ -332,6 +411,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     daysOnPlatform,
     hasCalendarConnected,
     playbook: playbookContext,
+    recentSalesConversations,
   };
 }
 
@@ -374,12 +454,13 @@ TONE: Like a sharp friend who's also a brilliant strategist. Warm but direct. Th
 
 STRUCTURE (use clear section headers):
 1. **Greeting** — One casual, warm line. Reference something real (day of week, what's on their plate). No metrics.
-2. **SCHEDULE** — If meetings exist: list the top 2-3 with times, attendees, and one prep action per meeting. Suggest Sales Agent for customer calls. If no meetings: suggest what to do with the open time (specific to their priorities).
-3. **REAL TALK** — The 1-2 things that matter most today. A stalled target? A streak worth celebrating? Progress on quick win? Go specific with numbers and names. Be honest about what's behind.
-4. **PLAYBOOK ACTION** — One specific coaching tip quoted from their playbook data. Frame it as: "Your playbook says: [exact tip]. Here's how to apply it today: [concrete action]."
-5. **PRIORITIES** — Top 2-3 WORK tasks as bullets. Add a quick note on approach if helpful.
-6. **REFLECT** — One specific question tied to a real goal, benchmark, or recent event. Not generic "how will X influence Y" — instead: "You need 12 contracts and have 0 benchmarks done. Who are you calling first?"
-7. **Sign-off** — "— Jericho" (nothing else)
+2. **YESTERDAY'S SALES INTEL** (ONLY if sales conversations exist) — Reference the specific customer and product they discussed yesterday. Connect it to today: "You were working the [Product] angle with [Customer] yesterday. Here's how to keep that momentum..." Include a specific training suggestion or product knowledge tip relevant to what they discussed. Link to Sales Agent.
+3. **SCHEDULE** — If meetings exist: list the top 2-3 with times, attendees, and one prep action per meeting. If a meeting involves a customer they discussed with the Sales Agent, call that out explicitly. Suggest Sales Agent for customer calls. If no meetings: suggest what to do with the open time (specific to their priorities).
+4. **REAL TALK** — The 1-2 things that matter most today. A stalled target? A streak worth celebrating? Progress on quick win? Go specific with numbers and names. Be honest about what's behind.
+5. **PLAYBOOK ACTION** — One specific coaching tip quoted from their playbook data. Frame it as: "Your playbook says: [exact tip]. Here's how to apply it today: [concrete action]."
+6. **PRIORITIES** — Top 2-3 WORK tasks as bullets. Add a quick note on approach if helpful.
+7. **REFLECT** — One specific question tied to a real goal, benchmark, or recent event. Not generic "how will X influence Y" — instead: "You need 12 contracts and have 0 benchmarks done. Who are you calling first?"
+8. **Sign-off** — "— Jericho" (nothing else)
 
 ${formatInstruction}
 ${linkInstruction}
@@ -439,6 +520,14 @@ ${context.streakDays !== null && context.streakDays >= 5 ? `Login Streak: ${cont
 
 ── CAPABILITIES ──
 ${context.topCapabilities.length > 0 ? context.topCapabilities.map(c => `- ${c.name}: ${c.currentLevel} → ${c.targetLevel}`).join('\n') : 'None assigned.'}
+
+── YESTERDAY'S SALES CONVERSATIONS ──
+${context.recentSalesConversations.length > 0 ? context.recentSalesConversations.map(sc => {
+    const products = sc.productsDiscussed.length > 0 ? `Products discussed: ${sc.productsDiscussed.join(', ')}` : '';
+    const topics = sc.keyTopics.length > 0 ? `Topics: ${sc.keyTopics.join(', ')}` : '';
+    const snippet = sc.lastMessageSnippet ? `Last message: "${sc.lastMessageSnippet}"` : '';
+    return `- Customer: ${sc.customerName}\n  ${[products, topics, snippet].filter(Boolean).join('\n  ')}`;
+  }).join('\n') : 'No recent sales conversations.'}
 
 ── PLAYBOOK COACHING DATA ──
 ${context.playbook ? `
