@@ -50,6 +50,11 @@ interface UserContext {
   priorityTasks: { title: string; priority: string; dueDate: string | null }[];
   calendarEvents: { title: string; startTime: string; endTime: string; attendees: string[]; location: string | null }[];
   userTimezone: string;
+  // Playbook-driven content
+  playbookQuickWin: { title: string; description: string } | null;
+  playbookPriorityActions: { title: string; description: string }[];
+  playbookCapabilityCoaching: { name: string; coaching: string }[];
+  playbookNarrativeHighlight: string | null;
 }
 
 async function fetchProfileWithRetry(
