@@ -490,6 +490,14 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
           </div>
         )}
       </DialogContent>
+
+      <PitchDeckGenerator
+        open={showPitchDeck}
+        onOpenChange={setShowPitchDeck}
+        customerId={customerId}
+        customerName={customer?.name || ""}
+        companyId={companyId}
+      />
     </Dialog>
   );
 };
