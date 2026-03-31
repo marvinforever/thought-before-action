@@ -1,70 +1,46 @@
 
 
-# Plan: Native Playbook Viewer + Stuck Fix (Layer 1)
+# Fix the Daily Brief Email Quality
 
-## Scope
-Two deliverables only. No activation workflows, no playbook regeneration — those come later.
+## Problem
 
-## Step 1: Fix Stuck Onboarding
+The `send-daily-brief-email` edge function has its **own AI prompt** (line 102) that is completely separate from the improved shared module `_shared/daily-brief-content.ts`. The email prompt is:
+- Cheerleader-ish ("encouraging but not cheesy" — it still is)
+- Celebrates meaningless metrics (1-day streaks, 2-day login streaks)
+- Dumps raw task lists including irrelevant personal items (Frost Law tax prep)
+- Generic capability coaching
+- Missing evidence-based progress tracking
+- Duplicates all data fetching instead of using `gatherUserContext()`
 
-**File:** `supabase/functions/proxy-try-chat/index.ts`
+Meanwhile, `daily-brief-content.ts` already has the better "trusted advisor" prompt with evidence-based reporting, honest progress checks, and playbook-specific coaching — but the email function **never calls it**.
 
-- Track the phase number from `<!--PROGRESS:` markers across turns
-- If the same phase appears in 2+ consecutive assistant messages, append a system instruction: "The user has answered sufficiently. Accept their response and advance to the next phase immediately."
-- Store phase history in the conversation context already being passed
+## Plan
 
-**File:** `src/pages/TryJericho.tsx`
+### 1. Refactor `send-daily-brief-email/index.ts` to use the shared module
 
-- Add a subtle "Skip this question →" button that appears after 2 user messages on the same phase
-- On click, send a system-level message like "[user skipped]" to trigger advance
+- Remove the duplicate `generatePersonalizedEmail()` function and its old prompt (~180 lines)
+- Remove duplicate data fetching (profiles, episodes, habits, targets, capabilities, calendar, playbook — all already handled by `gatherUserContext()`)
+- Import and call `gatherUserContext()` and `generateBriefContent()` from `_shared/daily-brief-content.ts`
+- Keep only: welcome email logic, HTML template wrapping, Resend sending, delivery logging
 
-## Step 2: Native Playbook Viewer
+### 2. Upgrade the shared prompt in `daily-brief-content.ts`
 
-**New file:** `src/components/PlaybookViewer.tsx`
+Tighten the system prompt to fix the specific issues shown in the sample email:
 
-Replace the iframe-based display with a native React component that reads structured data from `leadership_reports`:
+- **No celebrating trivial streaks**: Add rule: "A 1-2 day streak is not worth mentioning. Only highlight streaks of 5+ days."
+- **Filter irrelevant tasks**: Add rule: "Only include tasks that are WORK-RELATED or growth-related. Skip obvious personal items (tax prep, medical, errands)."
+- **No generic capability fluff**: Add rule: "When discussing a capability, reference a SPECIFIC action from their playbook coaching tips — never give a textbook definition of the capability."
+- **Shorter, punchier**: Reduce target word count from 250-350 to 150-250 words. Cut the padding.
+- **Quick Reflect must connect to something real**: Strengthen the rule — tie it to a specific playbook action or recent conversation, not just "how will X influence Y."
 
-- `report_content.narrative` — north star, snapshot, superpower, growth edge, quick win, learning resources
-- `report_content.engagement_scores` — composite score, burnout risk, role strain, etc.
-- `capability_matrix` — 7 capabilities with levels, priorities, reasoning
+### 3. Deploy and test
 
-Sections to render natively:
-1. **Score Overview** — engagement scores as visual gauges/rings
-2. **North Star Card** — prominent display with the user's north star text
-3. **Intro paragraph** — "This Playbook was built from a single conversation..." with gold accent on "this document breathes"
-4. **Snapshot** — key paragraphs with metric indicators
-5. **Superpower + Growth Edge** — side-by-side cards
-6. **Capability Map** — 7 capabilities with level badges and priority indicators
-7. **Quick Win** — checklist-style card with steps
-8. **Learning Resources** — resource cards
-9. **Diagnostic Grid** — score breakdown
-
-Each section includes an action link to the relevant in-app feature (capabilities page, 90-day tracker, resources).
-
-Keep a "View full report" fallback link that opens the HTML version in a new tab.
-
-**File:** `src/components/GrowthPlaybookBanner.tsx`
-
-- Replace the iframe dialog with `PlaybookViewer`
-- Keep the banner detection logic (query `leadership_reports` for `individual_playbook`)
-- Change banner text for users who have already viewed it: "Your Growth Playbook" (no urgency)
+- Deploy the updated edge function
+- Trigger a test email to mark@themomentumcompany.com to verify the improved output
 
 ## Technical Details
 
-**Data source** (no new tables or migrations):
-```
-leadership_reports table:
-  report_content -> { html, narrative: { north_star_text, snapshot_paragraphs, 
-    superpower_paragraphs, growth_edge_quote, priorities[], quick_win_title, 
-    quick_win_steps[], learning_resources[], diagnostic_commentary }, 
-    engagement_scores: { composite, burnoutRisk, roleStrain, ... } }
-  capability_matrix -> [{ capability_name, category, current_level, 
-    target_level, is_priority, reasoning }]
-```
-
-**Deployment:** Redeploy `proxy-try-chat` edge function after stuck-fix changes.
-
-## What This Sets Up for Later
-- Layer 2: Playbook Activation wizard plugs into the same `PlaybookViewer` component
-- Layer 3: Playbook regeneration writes updated data to the same `leadership_reports` row, and the viewer automatically reflects changes
+**Files modified:**
+- `supabase/functions/send-daily-brief-email/index.ts` — Major refactor: replace ~400 lines of duplicate logic with imports from shared module. Keep welcome email, HTML wrapper, Resend send, delivery logging.
+- `supabase/functions/_shared/daily-brief-content.ts` — Tighten prompt rules for streak thresholds, task filtering, capability specificity, and brevity.
 
