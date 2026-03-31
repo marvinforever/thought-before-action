@@ -1099,6 +1099,15 @@ ${context.underutilizedFeatures.slice(0, 2).map(f => `- ${f}`).join('\n')}
 Work this in casually, like "Hey, one thing I'd love you to try..." - don't lecture!`
   : ''}
 
+📋 GROWTH PLAYBOOK CONTENT (use this to make the podcast feel deeply personal):
+${context.playbookNarrativeHighlight ? `Playbook Insight: "${context.playbookNarrativeHighlight}"` : 'No playbook yet.'}
+${context.playbookQuickWin ? `Quick Win from their Playbook: "${context.playbookQuickWin.title}" — ${context.playbookQuickWin.description}
+Reference this naturally: "Your playbook has a quick win waiting for you..." or hold them accountable if they haven't started it.` : ''}
+${context.playbookPriorityActions.length > 0 ? `Priority Actions from Playbook:\n${context.playbookPriorityActions.map(a => `- ${a.title}: ${a.description}`).join('\n')}
+Weave ONE of these into today's coaching. Make it feel like you know their plan inside and out.` : ''}
+${context.playbookCapabilityCoaching.length > 0 ? `Capability Coaching Tips (from their personalized playbook):\n${context.playbookCapabilityCoaching.map(c => `- ${c.name}: ${c.coaching}`).join('\n')}
+Use these specific coaching tips when discussing their capabilities — they're tailored to THIS person.` : ''}
+
 SCRIPT FORMAT REQUIREMENTS:
 1. Open warmly with their name: "Hey ${context.userName}!"
 2. NO speaker labels - just write the words to be spoken
