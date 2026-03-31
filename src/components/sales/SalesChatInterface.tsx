@@ -23,6 +23,7 @@ import {
   UserPlus,
   Bell,
   Search,
+  Presentation,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
