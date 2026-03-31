@@ -1966,10 +1966,11 @@ ${context.purchaseHistorySummary ? `\n## CUSTOMER PURCHASE HISTORY:\n${context.p
 ${context.customerMemory ? `\n${context.customerMemory}` : ""}
 ${context.userContext ? `User context:\n${context.userContext}` : ""}`;
 
+  const repReminder = context.repName ? `[Remember: you are coaching ${context.repName}. Address them as "${context.repName.split(" ")[0]}".]\n` : "";
+
   try {
     const result = await callAI(
       { taskType: "sales-coaching-main", companyId, profileId: userId, functionName: "sales-coach" },
-      const repReminder = context.repName ? `[Remember: you are coaching ${context.repName}. Address them as "${context.repName.split(" ")[0]}".]\n` : "";
       [{ role: "user", content: `${conversationHistory ? `Previous conversation:\n${conversationHistory.slice(-8000)}\n\n` : ""}${repReminder}User says: ${message}` }],
       { systemPrompt, temperature: 0.7, maxTokens: 4096 }
     );
