@@ -433,6 +433,15 @@ ${context.topCapabilities.length > 0
   : 'No capabilities assigned yet.'}
 Capabilities actively being worked on: ${context.capabilitiesStarted.length > 0 ? context.capabilitiesStarted.join(', ') : 'None started yet'}
 
+── GROWTH PLAYBOOK ──
+${context.playbook ? `
+${context.playbook.narrativeHighlights ? `Playbook Summary: "${context.playbook.narrativeHighlights}"` : ''}
+${context.playbook.quickWin ? `Quick Win: "${context.playbook.quickWin.title}" — ${context.playbook.quickWin.description}${context.playbook.quickWin.steps.length > 0 ? `\n  Steps: ${context.playbook.quickWin.steps.map((s, i) => `${i + 1}. ${s}`).join(', ')}` : ''}` : ''}
+${context.playbook.priorityActions.length > 0 ? `Priority Actions:\n${context.playbook.priorityActions.map(a => `- ${a.title}: ${a.description}`).join('\n')}` : ''}
+${context.playbook.topCapabilityInsights.length > 0 ? `Capability Coaching:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name} (${c.currentLevel} → ${c.targetLevel}): ${c.coaching}`).join('\n')}` : ''}
+${context.playbook.recommendedResources.length > 0 ? `Recommended Resources:\n${context.playbook.recommendedResources.map(r => `- "${r.title}" (${r.contentType}) for ${r.capabilityName}`).join('\n')}` : ''}
+` : 'No playbook generated yet — suggest they complete onboarding to get their personalized Growth Playbook.'}
+
 ${context.lastJerichoChat ? `Last Jericho conversation: ${context.lastJerichoChat.split('T')[0]}` : 'Has not chatted with Jericho yet.'}
 ${context.dailyChallenge ? `Today's challenge: ${context.dailyChallenge}` : ''}
 ${context.recentAchievements.length > 0 ? `Verified achievements: ${context.recentAchievements.join(', ')}` : 'No recent achievements logged.'}`;
