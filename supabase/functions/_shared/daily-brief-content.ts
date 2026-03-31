@@ -310,6 +310,75 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     console.error('[daily-brief-content] Calendar fetch error (non-fatal):', calErr);
   }
 
+  // ── Fetch recent sales conversations for coaching continuity ──
+  let recentSalesConversations: SalesConversationContext[] = [];
+  try {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const companyId = profile?.company_id;
+
+    if (companyId) {
+      // Get recent sales coach messages from the last 24 hours
+      const { data: recentConvos } = await supabase
+        .from('sales_coach_conversations')
+        .select('id, customer_focus, created_at, sales_coach_messages(content, role, created_at)')
+        .eq('profile_id', profileId)
+        .eq('company_id', companyId)
+        .gte('updated_at', yesterday)
+        .order('updated_at', { ascending: false })
+        .limit(3);
+
+      if (recentConvos && recentConvos.length > 0) {
+        // Also get recent customer insights for product mentions
+        const { data: recentInsights } = await supabase
+          .from('customer_insights')
+          .select('customer_name, insight_type, insight_text')
+          .eq('profile_id', profileId)
+          .eq('company_id', companyId)
+          .gte('created_at', yesterday)
+          .in('insight_type', ['product_interest', 'buying_signal', 'crops', 'acreage'])
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        // Also check company knowledge for product info related to discussed products
+        const productKeywords = (recentInsights || [])
+          .filter((i: any) => i.insight_type === 'product_interest')
+          .map((i: any) => i.insight_text)
+          .join(' ');
+
+        for (const convo of recentConvos) {
+          const messages = (convo.sales_coach_messages || []) as any[];
+          const userMessages = messages.filter((m: any) => m.role === 'user');
+          const lastUserMsg = userMessages.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )[0];
+
+          // Extract product mentions from conversation
+          const allContent = messages.map((m: any) => m.content || '').join(' ');
+          const productPatterns = /(?:seed|treatment|chemical|fertilizer|fungicide|herbicide|insecticide|biological|inoculant|adjuvant|micronutrient|foliar|pre-?emerge|post-?emerge|starter|nitrogen|phosphorus|potassium|trait|variety|hybrid|(?:[A-Z][a-z]+(?:®|™)))/gi;
+          const productMatches = [...new Set((allContent.match(productPatterns) || []).map((p: string) => p.trim()))];
+
+          // Extract key discussion topics
+          const topicPatterns = /(?:recommend|pitch|propose|suggest|trial|demo|switch|compare|ROI|pricing|program|package|value stack|bundle|acre|field|rotation|application|timing|rate)/gi;
+          const topicMatches = [...new Set((allContent.match(topicPatterns) || []).map((t: string) => t.toLowerCase().trim()))];
+
+          const customerInsights = (recentInsights || []).filter((i: any) => 
+            convo.customer_focus && i.customer_name?.toLowerCase().includes(convo.customer_focus.toLowerCase())
+          );
+
+          recentSalesConversations.push({
+            customerName: convo.customer_focus || 'General',
+            productsDiscussed: productMatches.slice(0, 5),
+            keyTopics: topicMatches.slice(0, 5),
+            lastMessageSnippet: lastUserMsg?.content?.slice(0, 200) || '',
+            conversationDate: convo.created_at,
+          });
+        }
+      }
+    }
+  } catch (salesErr) {
+    console.error('[daily-brief-content] Sales conversation fetch error (non-fatal):', salesErr);
+  }
+
   return {
     firstName,
     episodeTitle: episode?.title || "Your Daily Growth Brief",
@@ -333,7 +402,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     calendarEvents,
     resourcesCompletedThisWeek,
     quickWinStatus,
-    quickWinStepsTotal: 0, // Will be enriched from playbook data if available
+    quickWinStepsTotal: 0,
     quickWinStepsDone,
     capabilitiesStarted,
     priorityActionsCompleted,
@@ -342,6 +411,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     daysOnPlatform,
     hasCalendarConnected,
     playbook: playbookContext,
+    recentSalesConversations,
   };
 }
 
