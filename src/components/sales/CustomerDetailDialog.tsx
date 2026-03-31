@@ -194,6 +194,17 @@ export const CustomerDetailDialog = ({ open, onOpenChange, customerId, companyId
                   </Card>
                 </div>
 
+                {/* Pitch Deck Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPitchDeck(true)}
+                  className="w-full gap-2"
+                >
+                  <Presentation className="h-4 w-4" />
+                  Create Product Pitch Deck
+                </Button>
+
                 {/* Details */}
                 <Card>
                   <CardHeader className="py-3">
