@@ -69,7 +69,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     profileResult, episodeResult, habitsResult, habitCompletionsResult,
     targetsResult, capabilitiesResult, achievementsResult, visionResult,
     recognitionsResult, tasksResult, playbookInteractionsResult,
-    lastConversationResult
+    lastConversationResult, playbookResult
   ] = await Promise.all([
     supabase.from("profiles").select("id, email, full_name, company_id, created_at").eq("id", profileId).maybeSingle(),
     supabase.from("podcast_episodes").select("*").eq("profile_id", profileId).eq("episode_date", today).maybeSingle(),
@@ -83,6 +83,11 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     supabase.from("project_tasks").select("title, priority, due_date").eq("profile_id", profileId).in("column_status", ["todo", "in_progress"]).order("priority", { ascending: false }).limit(5),
     // Playbook interactions from the last week
     supabase.from("playbook_interactions").select("section_type, section_key, interaction_type").eq("profile_id", profileId).gte("created_at", weekAgo),
+    // Last Jericho conversation
+    supabase.from("conversations").select("created_at").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(1),
+    // Playbook (latest individual playbook)
+    supabase.from("leadership_reports").select("report_content, capability_matrix").eq("profile_id", profileId).eq("report_type", "individual_playbook").eq("status", "generated").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
     // Last Jericho conversation
     supabase.from("conversations").select("created_at").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(1),
   ]);
