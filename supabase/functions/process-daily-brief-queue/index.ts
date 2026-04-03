@@ -91,6 +91,12 @@ serve(async (req) => {
         continue;
       }
 
+      // Skip users who opted out
+      if (optedOutIds.has(profile.id)) {
+        console.log(`Skipping ${profile.email} - opted out of daily brief`);
+        continue;
+      }
+
       // Check if user wants to skip weekend emails
       const easternDayName = easternTime.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' });
       const isWeekendDay = easternDayName === 'Saturday' || easternDayName === 'Sunday';
