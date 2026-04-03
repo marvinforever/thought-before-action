@@ -45,35 +45,25 @@ serve(async (req) => {
     }
     
     console.log(`ALLOWED: Within 6-8am Eastern window. Proceeding with daily brief emails.`);
-    console.log(`SENDING TO ALL USERS with daily_podcast flag enabled`);
+    console.log(`SENDING TO ALL USERS by default (opt-out model)`);
 
-    // Get all companies with daily_podcast flag enabled
-    const { data: enabledCompanies, error: flagError } = await supabase
-      .from("company_feature_flags")
-      .select("company_id")
-      .eq("flag_id", DAILY_PODCAST_FLAG_ID)
-      .eq("is_enabled", true);
+    // Get users who have explicitly opted out of email
+    const { data: optedOutUsers, error: optOutError } = await supabase
+      .from("email_preferences")
+      .select("profile_id")
+      .eq("email_enabled", false);
 
-    if (flagError) {
-      throw new Error(`Failed to fetch feature flags: ${flagError.message}`);
+    if (optOutError) {
+      console.error(`Failed to fetch opt-out list: ${optOutError.message}`);
     }
 
-    if (!enabledCompanies || enabledCompanies.length === 0) {
-      console.log("No companies have the daily_podcast feature enabled");
-      return new Response(
-        JSON.stringify({ message: "No companies with feature enabled" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const optedOutIds = new Set((optedOutUsers || []).map(u => u.profile_id));
+    console.log(`${optedOutIds.size} users have opted out of daily brief emails`);
 
-    const companyIds = enabledCompanies.map(c => c.company_id);
-    console.log(`Found ${companyIds.length} companies with daily_podcast enabled`);
-
-    // Get ALL users in those companies
+    // Get ALL users with an email address
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
       .select("id, email, full_name, company_id")
-      .in("company_id", companyIds)
       .not("email", "is", null);
 
     if (profileError) {
@@ -81,7 +71,7 @@ serve(async (req) => {
     }
 
     if (!profiles || profiles.length === 0) {
-      console.log("No users found in enabled companies");
+      console.log("No users found");
       return new Response(
         JSON.stringify({ message: "No users to process" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
