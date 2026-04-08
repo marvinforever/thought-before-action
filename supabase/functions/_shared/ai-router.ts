@@ -63,6 +63,16 @@ export const MODELS: Record<string, ModelConfig> = {
     supportsVision: true,
     supportsStreaming: true,
   },
+  'gemini-3-pro': {
+    id: 'google/gemini-3.1-pro-preview',
+    provider: 'lovable',
+    maxTokens: 65536,
+    costPer1MInput: 1.25,
+    costPer1MOutput: 5.00,
+    latency: 'medium',
+    strengths: ['reasoning', 'sales coaching', 'complex analysis', 'instruction following'],
+    supportsStreaming: true,
+  },
   
   // Anthropic models (requires ANTHROPIC_API_KEY)
   'opus': {
@@ -157,8 +167,8 @@ export const ROUTING_TABLE: Record<TaskType, string> = {
   'chat': 'gemini-flash',
   'podcast-script': 'gemini-flash',
   'resource-recommendation': 'gemini-flash',
-  'sales-coaching': 'opus',
-  'sales-coaching-main': 'opus',  // Upgraded to Opus 4.6 for superior data reasoning and instruction following
+  'sales-coaching': 'gemini-3-pro',
+  'sales-coaching-main': 'gemini-3-pro',  // Switched from Opus to Gemini 3.1 Pro for faster demos
   'meeting-parsing': 'gemini-flash',
   'habit-suggestions': 'gemini-flash',
   'goal-writing': 'gemini-flash',
@@ -225,8 +235,8 @@ export function routeToModel(context: RoutingContext): RoutingResult {
   
   // Auto-upgrade for high token count (>40k tokens → Opus)
   const estimatedTokens = (context.estimatedInputTokens || 0) + (context.estimatedOutputTokens || 0);
-  if (estimatedTokens > 40000 && modelKey !== 'opus') {
-    modelKey = 'opus';
+  if (estimatedTokens > 40000 && modelKey !== 'gemini-3-pro' && modelKey !== 'opus') {
+    modelKey = 'gemini-3-pro';
     wasUpgraded = true;
     upgradeReason = `Token count (${estimatedTokens}) exceeds threshold for ${baseModelKey}`;
   }
