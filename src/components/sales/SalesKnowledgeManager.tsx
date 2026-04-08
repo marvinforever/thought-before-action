@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,8 @@ import {
   X,
   Users,
   Lock,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -115,6 +118,10 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
   const [selectedAccessProfiles, setSelectedAccessProfiles] = useState<string[]>([]);
   const [teamMembers, setTeamMembers] = useState<{ id: string; full_name: string | null; email: string }[]>([]);
   const [teamMembersLoading, setTeamMembersLoading] = useState(false);
+  
+  // Collapsible category state
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchKnowledge();
@@ -648,7 +655,7 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
         />
       </div>
 
-      {/* Knowledge List */}
+      {/* Knowledge List - Grouped by Category */}
       <ScrollArea className="h-[400px]">
         {filteredKnowledge.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -659,58 +666,95 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
             </p>
           </div>
         ) : (
-          <div className="space-y-3 pr-4">
-            {filteredKnowledge.map((item) => (
-              <Card key={item.id} className="group hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {getCategoryIcon(item.category)}
-                        <h4 className="font-medium truncate">{item.title}</h4>
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                        {item.content.substring(0, 150)}...
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {getCategoryLabel(item.category)}
-                        </Badge>
-                        {item.stage && (
-                          <Badge className={`text-xs ${getStageColor(item.stage)}`}>
-                            {STAGES.find(s => s.value === item.stage)?.label || item.stage}
-                          </Badge>
-                        )}
-                        {item.file_name && (
-                          <Badge variant="outline" className="text-xs gap-1">
-                            <Upload className="h-3 w-3" />
-                            {item.file_name}
-                          </Badge>
-                        )}
-                      </div>
+          <div className="space-y-2 pr-4">
+            {Object.entries(
+              filteredKnowledge.reduce<Record<string, KnowledgeItem[]>>((groups, item) => {
+                const key = getCategoryLabel(item.category);
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(item);
+                return groups;
+              }, {})
+            ).map(([category, items]) => {
+              const isCollapsed = collapsedCategories.has(category);
+              const activeCount = items.filter(i => i.is_active !== false).length;
+              return (
+                <div key={category} className="border rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedCategories(prev => {
+                      const next = new Set(prev);
+                      next.has(category) ? next.delete(category) : next.add(category);
+                      return next;
+                    })}
+                    className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {getCategoryIcon(items[0].category)}
+                      <span className="font-medium text-sm">{category}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {activeCount}/{items.length} active
+                      </Badge>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(item)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteId(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                  </button>
+                  {!isCollapsed && (
+                    <div className="border-t divide-y">
+                      {items.map((item) => (
+                        <div key={item.id} className={`group p-3 transition-colors ${item.is_active === false ? 'opacity-50' : ''}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <Switch
+                                checked={item.is_active !== false}
+                                disabled={togglingId === item.id}
+                                onCheckedChange={async (checked) => {
+                                  setTogglingId(item.id);
+                                  const { error } = await supabase
+                                    .from("sales_knowledge")
+                                    .update({ is_active: checked })
+                                    .eq("id", item.id);
+                                  if (!error) {
+                                    setKnowledge(prev => prev.map(k => k.id === item.id ? { ...k, is_active: checked } : k));
+                                  }
+                                  setTogglingId(null);
+                                }}
+                                className="mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm truncate">{item.title}</h4>
+                                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                  {item.content.substring(0, 100)}
+                                </p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {item.stage && (
+                                    <Badge className={`text-xs ${getStageColor(item.stage)}`}>
+                                      {STAGES.find(s => s.value === item.stage)?.label || item.stage}
+                                    </Badge>
+                                  )}
+                                  {item.file_name && (
+                                    <Badge variant="outline" className="text-xs gap-1">
+                                      <Upload className="h-3 w-3" />
+                                      {item.file_name}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(item)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </ScrollArea>
