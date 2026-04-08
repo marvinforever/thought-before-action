@@ -167,8 +167,8 @@ export const ROUTING_TABLE: Record<TaskType, string> = {
   'chat': 'gemini-flash',
   'podcast-script': 'gemini-flash',
   'resource-recommendation': 'gemini-flash',
-  'sales-coaching': 'gemini-3-pro',
-  'sales-coaching-main': 'gemini-3-pro',  // Switched from Opus to Gemini 3.1 Pro for faster demos
+  'sales-coaching': 'opus',
+  'sales-coaching-main': 'opus',
   'meeting-parsing': 'gemini-flash',
   'habit-suggestions': 'gemini-flash',
   'goal-writing': 'gemini-flash',
