@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
       timeMax: rangeEnd.toISOString(),
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "100",
+      maxResults: "250",
     });
 
     const calRes = await fetch(
