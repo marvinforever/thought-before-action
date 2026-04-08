@@ -3680,6 +3680,42 @@ export type Database = {
           },
         ]
       }
+      knowledge_access: {
+        Row: {
+          created_at: string
+          id: string
+          knowledge_id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          knowledge_id: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          knowledge_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_access_knowledge_id_fkey"
+            columns: ["knowledge_id"]
+            isOneToOne: false
+            referencedRelation: "sales_knowledge"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_access_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_sources: {
         Row: {
           author: string | null
@@ -6257,6 +6293,7 @@ export type Database = {
       }
       sales_knowledge: {
         Row: {
+          access_level: string
           category: string | null
           company_id: string | null
           content: string
@@ -6273,6 +6310,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_level?: string
           category?: string | null
           company_id?: string | null
           content: string
@@ -6289,6 +6327,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_level?: string
           category?: string | null
           company_id?: string | null
           content?: string
