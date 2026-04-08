@@ -1922,6 +1922,7 @@ export type Database = {
       }
       customer_documents: {
         Row: {
+          access_level: string
           company_id: string
           created_at: string
           customer_id: string | null
@@ -1941,6 +1942,7 @@ export type Database = {
           uploaded_by: string
         }
         Insert: {
+          access_level?: string
           company_id: string
           created_at?: string
           customer_id?: string | null
@@ -1960,6 +1962,7 @@ export type Database = {
           uploaded_by: string
         }
         Update: {
+          access_level?: string
           company_id?: string
           created_at?: string
           customer_id?: string | null
@@ -2704,6 +2707,42 @@ export type Database = {
             foreignKeyName: "diagnostic_scores_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_access: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_access_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "customer_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_access_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -3634,6 +3673,42 @@ export type Database = {
           },
           {
             foreignKeyName: "job_descriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_access: {
+        Row: {
+          created_at: string
+          id: string
+          knowledge_id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          knowledge_id: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          knowledge_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_access_knowledge_id_fkey"
+            columns: ["knowledge_id"]
+            isOneToOne: false
+            referencedRelation: "sales_knowledge"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_access_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -6218,6 +6293,7 @@ export type Database = {
       }
       sales_knowledge: {
         Row: {
+          access_level: string
           category: string | null
           company_id: string | null
           content: string
@@ -6234,6 +6310,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_level?: string
           category?: string | null
           company_id?: string | null
           content: string
@@ -6250,6 +6327,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_level?: string
           category?: string | null
           company_id?: string | null
           content?: string

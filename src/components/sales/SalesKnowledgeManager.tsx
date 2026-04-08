@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,8 @@ import {
   FileUp,
   Check,
   X,
+  Users,
+  Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -106,10 +109,28 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
     tags: "",
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // Access control state
+  const [accessLevel, setAccessLevel] = useState<"all" | "restricted">("all");
+  const [selectedAccessProfiles, setSelectedAccessProfiles] = useState<string[]>([]);
+  const [teamMembers, setTeamMembers] = useState<{ id: string; full_name: string | null; email: string }[]>([]);
+  const [teamMembersLoading, setTeamMembersLoading] = useState(false);
 
   useEffect(() => {
     fetchKnowledge();
+    fetchTeamMembers();
   }, [companyId]);
+
+  const fetchTeamMembers = async () => {
+    setTeamMembersLoading(true);
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("company_id", companyId)
+      .order("full_name");
+    if (data) setTeamMembers(data);
+    setTeamMembersLoading(false);
+  };
 
   const fetchKnowledge = async () => {
     setLoading(true);
@@ -129,6 +150,8 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
     setFormData({ title: "", content: "", category: "", stage: "", tags: "" });
     setSelectedFile(null);
     setEditingItem(null);
+    setAccessLevel("all");
+    setSelectedAccessProfiles([]);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,7 +270,10 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
         file_name: fileName,
         file_type: fileType,
         is_active: true,
+        access_level: accessLevel,
       };
+
+      let knowledgeId = editingItem?.id;
 
       if (editingItem) {
         const { error } = await supabase
@@ -256,14 +282,30 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
           .eq("id", editingItem.id);
 
         if (error) throw error;
+
+        // Clear existing access entries and re-insert
+        await supabase.from("knowledge_access").delete().eq("knowledge_id", editingItem.id);
+
         toast({ title: "Knowledge updated successfully" });
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("sales_knowledge")
-          .insert([knowledgeData]);
+          .insert([knowledgeData])
+          .select("id")
+          .single();
 
         if (error) throw error;
+        knowledgeId = inserted.id;
         toast({ title: "Knowledge added successfully" });
+      }
+
+      // Insert access records for restricted items
+      if (accessLevel === "restricted" && selectedAccessProfiles.length > 0 && knowledgeId) {
+        const accessRows = selectedAccessProfiles.map(profileId => ({
+          knowledge_id: knowledgeId!,
+          profile_id: profileId,
+        }));
+        await supabase.from("knowledge_access").insert(accessRows);
       }
 
       resetForm();
@@ -456,6 +498,73 @@ export function SalesKnowledgeManager({ userId, companyId }: SalesKnowledgeManag
           onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
           placeholder="e.g., corn, non-gmo, tar-spot"
         />
+      </div>
+
+      {/* Access Control */}
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2">
+          <Lock className="h-4 w-4" />
+          Who can access this?
+        </Label>
+        <div className="flex gap-3">
+          <Button
+            type="button"
+            variant={accessLevel === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setAccessLevel("all"); setSelectedAccessProfiles([]); }}
+            className="gap-2"
+          >
+            <Users className="h-4 w-4" />
+            Everyone
+          </Button>
+          <Button
+            type="button"
+            variant={accessLevel === "restricted" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setAccessLevel("restricted")}
+            className="gap-2"
+          >
+            <Lock className="h-4 w-4" />
+            Specific People
+          </Button>
+        </div>
+
+        {accessLevel === "restricted" && (
+          <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+            {teamMembersLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading team...
+              </div>
+            ) : teamMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No team members found</p>
+            ) : (
+              teamMembers
+                .filter(m => m.id !== userId)
+                .map(member => (
+                  <label key={member.id} className="flex items-center gap-3 py-1 cursor-pointer hover:bg-muted/50 rounded px-2 -mx-2">
+                    <Checkbox
+                      checked={selectedAccessProfiles.includes(member.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedAccessProfiles(prev =>
+                          checked
+                            ? [...prev, member.id]
+                            : prev.filter(id => id !== member.id)
+                        );
+                      }}
+                    />
+                    <span className="text-sm">
+                      {member.full_name || member.email}
+                    </span>
+                  </label>
+                ))
+            )}
+            {selectedAccessProfiles.length > 0 && (
+              <p className="text-xs text-muted-foreground pt-1 border-t">
+                {selectedAccessProfiles.length} team member{selectedAccessProfiles.length !== 1 ? 's' : ''} selected (+ you)
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Submit */}
