@@ -1,46 +1,44 @@
 
 
-# Fix the Daily Brief Email Quality
+# Switch Sales Coach from Opus to Gemini 3.1 Pro
 
-## Problem
+## Why This Makes Sense
 
-The `send-daily-brief-email` edge function has its **own AI prompt** (line 102) that is completely separate from the improved shared module `_shared/daily-brief-content.ts`. The email prompt is:
-- Cheerleader-ish ("encouraging but not cheesy" — it still is)
-- Celebrates meaningless metrics (1-day streaks, 2-day login streaks)
-- Dumps raw task lists including irrelevant personal items (Frost Law tax prep)
-- Generic capability coaching
-- Missing evidence-based progress tracking
-- Duplicates all data fetching instead of using `gatherUserContext()`
+The sales coach currently routes through **Claude Opus 4.6** (Anthropic direct API), which is the slowest and most expensive model in the stack ($5/$25 per 1M tokens). Switching to **Gemini 3.1 Pro** via the Lovable AI Gateway would:
 
-Meanwhile, `daily-brief-content.ts` already has the better "trusted advisor" prompt with evidence-based reporting, honest progress checks, and playbook-specific coaching — but the email function **never calls it**.
+- **Significantly faster response times** — Gemini Pro is "medium" latency vs Opus's "slow"
+- **No external API key dependency** — routes through Lovable AI Gateway instead of requiring ANTHROPIC_API_KEY
+- **Lower cost** — ~$1.25/$5 vs $5/$25 per 1M tokens
+- **Great for demos** — snappier responses make a better impression
 
-## Plan
+## What Changes
 
-### 1. Refactor `send-daily-brief-email/index.ts` to use the shared module
+**One file: `supabase/functions/_shared/ai-router.ts`**
 
-- Remove the duplicate `generatePersonalizedEmail()` function and its old prompt (~180 lines)
-- Remove duplicate data fetching (profiles, episodes, habits, targets, capabilities, calendar, playbook — all already handled by `gatherUserContext()`)
-- Import and call `gatherUserContext()` and `generateBriefContent()` from `_shared/daily-brief-content.ts`
-- Keep only: welcome email logic, HTML template wrapping, Resend sending, delivery logging
+1. Add a new model entry for Gemini 3.1 Pro:
+   ```
+   'gemini-3-pro': {
+     id: 'google/gemini-3.1-pro-preview',
+     provider: 'lovable',
+     maxTokens: 65536,
+     latency: 'medium',
+     strengths: ['reasoning', 'sales coaching', 'complex analysis'],
+     supportsStreaming: true,
+   }
+   ```
 
-### 2. Upgrade the shared prompt in `daily-brief-content.ts`
+2. Update the routing table to point `sales-coaching` and `sales-coaching-main` to `gemini-3-pro` instead of `opus`.
 
-Tighten the system prompt to fix the specific issues shown in the sample email:
+3. Update the auto-upgrade threshold (line 228-231) to upgrade to `gemini-3-pro` instead of `opus` for high-token tasks, keeping everything on the Lovable gateway.
 
-- **No celebrating trivial streaks**: Add rule: "A 1-2 day streak is not worth mentioning. Only highlight streaks of 5+ days."
-- **Filter irrelevant tasks**: Add rule: "Only include tasks that are WORK-RELATED or growth-related. Skip obvious personal items (tax prep, medical, errands)."
-- **No generic capability fluff**: Add rule: "When discussing a capability, reference a SPECIFIC action from their playbook coaching tips — never give a textbook definition of the capability."
-- **Shorter, punchier**: Reduce target word count from 250-350 to 150-250 words. Cut the padding.
-- **Quick Reflect must connect to something real**: Strengthen the rule — tie it to a specific playbook action or recent conversation, not just "how will X influence Y."
+## Rollback Plan
 
-### 3. Deploy and test
+If quality isn't where it needs to be after testing, it's a single routing table change back to `opus`. The Anthropic fallback logic already exists if needed.
 
-- Deploy the updated edge function
-- Trigger a test email to mark@themomentumcompany.com to verify the improved output
+## Risk
 
-## Technical Details
+- Gemini 3.1 Pro is a "preview" model — quality may differ from Opus on nuanced multi-step reasoning
+- The existing Anthropic fallback (lines 437-444) would need updating since the primary would no longer be Anthropic
 
-**Files modified:**
-- `supabase/functions/send-daily-brief-email/index.ts` — Major refactor: replace ~400 lines of duplicate logic with imports from shared module. Keep welcome email, HTML wrapper, Resend send, delivery logging.
-- `supabase/functions/_shared/daily-brief-content.ts` — Tighten prompt rules for streak thresholds, task filtering, capability specificity, and brevity.
+This is a low-risk, easily reversible change — perfect for a demo trial run.
 
