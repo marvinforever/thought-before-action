@@ -22,7 +22,7 @@ serve(async (req) => {
   }
 
   try {
-    const { profileId, episodeDate, isWelcome } = await req.json();
+    const { profileId, episodeDate, isWelcome, preview = false, testRecipient = null } = await req.json();
 
     if (!profileId) {
       throw new Error("profileId is required");
@@ -295,6 +295,13 @@ serve(async (req) => {
 </body>
 </html>`;
 
+    if (preview) {
+      return new Response(
+        JSON.stringify({ success: true, preview: true, html: emailHtml, subject }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Send email
     const rawFrom = Deno.env.get("RESEND_FROM");
     const cleanedFrom = (rawFrom || "").trim().replace(/^"|"$/g, "");
@@ -303,11 +310,12 @@ serve(async (req) => {
       ? (isBareEmail ? `Jericho <${cleanedFrom}>` : cleanedFrom)
       : "Jericho <onboarding@resend.dev>";
 
-    console.log("Sending email from:", fromAddress, "to:", email);
+    const recipientEmail = testRecipient || email;
+    console.log("Sending email from:", fromAddress, "to:", recipientEmail);
 
     const emailResponse = await resend.emails.send({
       from: fromAddress,
-      to: [email],
+      to: [recipientEmail],
       subject: subject,
       html: emailHtml,
       reply_to: 'jericho@sender.askjericho.com',
@@ -335,7 +343,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Daily brief email sent to ${email}:`, emailResponse);
+    console.log(`Daily brief email sent to ${recipientEmail}:`, emailResponse);
 
     await supabase.from("email_deliveries").insert({
       profile_id: profileId,
@@ -356,7 +364,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         emailId: (emailResponse as any)?.data?.id || (emailResponse as any)?.id || 'sent',
-        to: email,
+        to: recipientEmail,
         subject,
         from: fromAddress,
       }),
