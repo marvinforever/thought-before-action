@@ -1212,16 +1212,15 @@ const SuperAdmin = () => {
 
     setIsGeneratingPreview(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-growth-email', {
+      const { data, error } = await supabase.functions.invoke('send-daily-brief-email', {
         body: { 
           profileId: selectedTestUserId,
-          preview: true 
         }
       });
 
       if (error) throw error;
 
-      setPreviewHtml(data.html);
+      setPreviewHtml(data.html || '<p>Preview is only available after sending a test Daily Brief.</p>');
       setPreviewSubject(data.subject);
       setIsPreviewOpen(true);
     } catch (error: any) {
@@ -1257,10 +1256,9 @@ const SuperAdmin = () => {
 
     setIsSendingTest(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-growth-email', {
+      const { data, error } = await supabase.functions.invoke('send-daily-brief-email', {
         body: { 
           profileId: selectedTestUserId,
-          testRecipient: testEmailAddress 
         }
       });
 
