@@ -126,8 +126,9 @@ serve(async (req) => {
       
       const batchPromises = batch.map(async (user) => {
         try {
-          const { data, error } = await supabase.functions.invoke("send-growth-email", {
-            body: { profileId: user.id },
+          const today = new Date().toISOString().split('T')[0];
+          const { data, error } = await supabase.functions.invoke("send-daily-brief-email", {
+            body: { profileId: user.id, episodeDate: today },
           });
 
           if (error) {

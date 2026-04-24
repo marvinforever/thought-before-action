@@ -690,7 +690,6 @@ Rules: isNew=true only if NEW MESSAGE implies just met or had a call. "show me",
         dealSignals: parsed.dealSignals || {},
         researchRequest: parsed.researchRequest || null,
         generalResearchRequest: parsed.generalResearchRequest || null,
-        generalResearchRequest: parsed.generalResearchRequest || null,
         saveResearchTo: parsed.saveResearchTo || null,
         emailRequest: parsed.emailRequest || null,
         intentType: parsed.intentType || "coaching",
@@ -954,11 +953,13 @@ async function gatherContext(
       
       // Filter out companies we already know about
       const knownNames = new Set(
-        (context.existingCompanies || []).map((c: any) => c.name?.toLowerCase().trim())
+        (context.existingCompanies || [])
+          .map((c: any) => c.name?.toLowerCase().trim())
+          .filter(Boolean) as string[]
       );
       const unknownCompanies = calendarCompanies.filter(
         (c) => !knownNames.has(c.name.toLowerCase().trim()) &&
-               !Array.from(knownNames).some((k) => k.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(k))
+               !Array.from(knownNames).some((k: string) => k.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(k))
       );
 
       if (unknownCompanies.length > 0) {
@@ -1086,7 +1087,7 @@ Keep it concise and actionable for someone preparing for a sales call in the nex
                               // Step 4: Auto-save to company knowledge for future use
                               if (companyId) {
                                 try {
-                                  await adminClient.from("company_knowledge").insert({
+                                  await client.from("company_knowledge").insert({
                                     company_id: companyId,
                                     title: `${company.name} - Product Catalog (Auto-Generated)`,
                                     content: cleanCatalog,
@@ -1225,6 +1226,7 @@ Keep it concise and actionable for someone preparing for a sales call in the nex
   // even when no specific customer is mentioned
   if (companyId && userId && !context.repDataSummary) {
     try {
+      const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
       const { data: userProfile } = await client
         .from("profiles")
         .select("full_name")
@@ -1240,7 +1242,6 @@ Keep it concise and actionable for someone preparing for a sales call in the nex
         });
         
         if (repData && repData.length > 0) {
-          const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
           const totalRevenue = repData.reduce((sum: number, row: any) => sum + (Number(row.total_revenue) || 0), 0);
           const totalCustomers = repData.length;
           const actualRepName = repData[0].rep_name;
