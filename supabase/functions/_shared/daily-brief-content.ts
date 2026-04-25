@@ -414,6 +414,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     hasCalendarConnected,
     playbook: playbookContext,
     recentSalesConversations,
+    userTimezone,
   };
 }
 
@@ -421,7 +422,7 @@ export async function generateBriefContent(context: UserContext, format: BriefFo
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
   // Determine the user's timezone for calendar display
-  const userTimezone = 'America/New_York'; // fallback — real timezone passed upstream
+  const userTimezone = context.userTimezone || 'America/New_York';
 
   const formatInstruction = format === 'html'
     ? 'Format the "body" as HTML using <p>, <strong>, <a> tags. Keep it scannable.'
