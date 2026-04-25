@@ -54,7 +54,15 @@ export interface UserContext {
   recentSalesConversations: SalesConversationContext[];
   // Timezone used to render dates/times in the brief (IANA string)
   userTimezone: string;
+  // Behavior-aware classification: ENGAGED | DRIFTING | DISENGAGED | DORMANT
+  userState: UserState;
+  // Days since the user's most recent meaningful activity (login/chat/habit/task)
+  daysSinceLastActivity: number | null;
+  // ISO date of the most recent activity signal observed
+  lastActivityAt: string | null;
 }
+
+export type UserState = 'ENGAGED' | 'DRIFTING' | 'DISENGAGED' | 'DORMANT';
 
 export interface BriefContent {
   subject: string;
