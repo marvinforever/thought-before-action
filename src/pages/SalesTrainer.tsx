@@ -17,6 +17,7 @@ import { DocumentUploadDialog } from "@/components/sales/DocumentUploadDialog";
 import { CustomerSelector } from "@/components/sales/CustomerSelector";
 import { NewCustomerQuickCreateDialog } from "@/components/sales/NewCustomerQuickCreateDialog";
 import { AnalyzeCallTab } from "@/components/sales/AnalyzeCallTab";
+import { MyDevelopmentTab } from "@/components/sales/MyDevelopmentTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
@@ -695,6 +696,7 @@ const SalesTrainer = () => {
           <TabsList className="self-start mb-4">
             <TabsTrigger value="coach">Coach</TabsTrigger>
             <TabsTrigger value="analyze">Analyze Call</TabsTrigger>
+            <TabsTrigger value="development">My Development</TabsTrigger>
           </TabsList>
 
           <TabsContent value="coach" className="flex-1 flex flex-col min-h-0 mt-0">
@@ -765,6 +767,14 @@ const SalesTrainer = () => {
               effectiveCompanyId={effectiveCompanyId}
               isSuperAdmin={isSuperAdmin}
               isManager={!!profile?.is_admin}
+              viewAsUserId={viewAsUserId}
+              viewAsUserName={viewAsUserName}
+            />
+          </TabsContent>
+
+          <TabsContent value="development" className="mt-0">
+            <MyDevelopmentTab
+              userId={user?.id || ""}
               viewAsUserId={viewAsUserId}
               viewAsUserName={viewAsUserName}
             />
