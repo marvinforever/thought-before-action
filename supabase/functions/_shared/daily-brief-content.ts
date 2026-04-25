@@ -177,6 +177,42 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
 
   const lastJerichoChat = lastConversationResult.data?.[0]?.created_at || null;
 
+  // ── Behavior-aware state classification ──
+  // Pull lightweight activity signals: login, chat, habit completion, recent task touch
+  let lastActivityAt: string | null = null;
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [
+      lastLoginRes,
+      lastHabitRes,
+      lastTaskTouchRes,
+    ] = await Promise.all([
+      supabase.from("login_streaks").select("last_login_date").eq("profile_id", profileId).maybeSingle(),
+      supabase.from("habit_completions").select("completed_date").eq("profile_id", profileId).order("completed_date", { ascending: false }).limit(1),
+      supabase.from("project_tasks").select("updated_at").eq("profile_id", profileId).gte("updated_at", since).order("updated_at", { ascending: false }).limit(1),
+    ]);
+
+    const candidates: string[] = [];
+    if (streakRow?.last_login_date) candidates.push(`${streakRow.last_login_date}T12:00:00Z`);
+    else if (lastLoginRes.data?.last_login_date) candidates.push(`${lastLoginRes.data.last_login_date}T12:00:00Z`);
+    if (lastJerichoChat) candidates.push(lastJerichoChat);
+    const lastHabit = lastHabitRes.data?.[0]?.completed_date;
+    if (lastHabit) candidates.push(`${lastHabit}T12:00:00Z`);
+    const lastTaskTouch = lastTaskTouchRes.data?.[0]?.updated_at;
+    if (lastTaskTouch) candidates.push(lastTaskTouch);
+
+    if (candidates.length > 0) {
+      lastActivityAt = candidates.reduce((a, b) => (new Date(a) > new Date(b) ? a : b));
+    }
+  } catch (stateErr) {
+    console.error('[daily-brief-content] State signal fetch error (non-fatal):', stateErr);
+  }
+
+  const daysSinceLastActivity = lastActivityAt
+    ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const userState: UserState = classifyState(daysSinceLastActivity, daysOnPlatform);
+
   // Parse playbook content for richer daily briefs
   let playbookContext: PlaybookContext | null = null;
   try {
@@ -423,7 +459,62 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     playbook: playbookContext,
     recentSalesConversations,
     userTimezone,
+    userState,
+    daysSinceLastActivity,
+    lastActivityAt,
   };
+}
+
+// ── Lightweight standalone state classifier ──
+// Used by callers (e.g. send-daily-brief-email) that want to decide whether to
+// send AT ALL before paying for a full context gather + AI call.
+export async function classifyUserStateForProfile(
+  supabase: any,
+  profileId: string,
+): Promise<{ state: UserState; daysSinceLastActivity: number | null; lastActivityAt: string | null }> {
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [profileRes, loginRes, chatRes, habitRes, taskRes] = await Promise.all([
+      supabase.from("profiles").select("created_at").eq("id", profileId).maybeSingle(),
+      supabase.from("login_streaks").select("last_login_date").eq("profile_id", profileId).maybeSingle(),
+      supabase.from("conversations").select("created_at").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(1),
+      supabase.from("habit_completions").select("completed_date").eq("profile_id", profileId).order("completed_date", { ascending: false }).limit(1),
+      supabase.from("project_tasks").select("updated_at").eq("profile_id", profileId).gte("updated_at", since).order("updated_at", { ascending: false }).limit(1),
+    ]);
+
+    const candidates: string[] = [];
+    if (loginRes.data?.last_login_date) candidates.push(`${loginRes.data.last_login_date}T12:00:00Z`);
+    const chat = chatRes.data?.[0]?.created_at;
+    if (chat) candidates.push(chat);
+    const habit = habitRes.data?.[0]?.completed_date;
+    if (habit) candidates.push(`${habit}T12:00:00Z`);
+    const task = taskRes.data?.[0]?.updated_at;
+    if (task) candidates.push(task);
+
+    const lastActivityAt = candidates.length > 0
+      ? candidates.reduce((a, b) => (new Date(a) > new Date(b) ? a : b))
+      : null;
+    const daysSinceLastActivity = lastActivityAt
+      ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    const daysOnPlatform = profileRes.data?.created_at
+      ? Math.floor((Date.now() - new Date(profileRes.data.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+    return { state: classifyState(daysSinceLastActivity, daysOnPlatform), daysSinceLastActivity, lastActivityAt };
+  } catch (err) {
+    console.error('[daily-brief-content] classifyUserStateForProfile error:', err);
+    return { state: 'ENGAGED', daysSinceLastActivity: null, lastActivityAt: null };
+  }
+}
+
+function classifyState(days: number | null, daysOnPlatform: number): UserState {
+  // New users (< 3 days on platform) without signals are still ENGAGED — they
+  // just haven't had time to build activity history yet.
+  if (days === null) return daysOnPlatform < 3 ? 'ENGAGED' : 'DISENGAGED';
+  if (days <= 3) return 'ENGAGED';
+  if (days <= 7) return 'DRIFTING';
+  if (days <= 14) return 'DISENGAGED';
+  return 'DORMANT';
 }
 
 export async function generateBriefContent(context: UserContext, format: BriefFormat): Promise<BriefContent> {
