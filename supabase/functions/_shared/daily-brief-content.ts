@@ -808,3 +808,41 @@ function buildCalendarContext(ctx: UserContext): string {
 
   return `${ctx.calendarEvents.length} events today:\n${lines.join('\n')}`;
 }
+
+// ── Helper: State-specific override block injected into the system prompt ──
+// Engaged users get the standard rich brief (no override). DRIFTING/DISENGAGED/
+// DORMANT users get progressively shorter, more re-engagement-focused output
+// that REPLACES the standard STRUCTURE above.
+function buildStateInstruction(ctx: UserContext): string {
+  switch (ctx.userState) {
+    case 'ENGAGED':
+      return `STATE = ENGAGED (active in last 3 days). Use the full STRUCTURE above. Reinforce momentum with specific evidence (named target, named customer, named habit). End with one clear next action — not a question that adds load.`;
+
+    case 'DRIFTING':
+      return `STATE = DRIFTING (last activity ${ctx.daysSinceLastActivity ?? '?'} days ago). OVERRIDE THE STRUCTURE ABOVE. Output exactly:
+1. **Greeting** — One warm line. No metrics. No guilt.
+2. **What you committed to** — Reference ONE specific commitment from their data (a 90-day target, a habit, a quick win, or a customer they were working). Use exact names/numbers. One sentence.
+3. **Today's one move** — One concrete next step that takes <15 minutes. Specific. Linked.
+4. **Sign-off** — "— Jericho"
+TOTAL LENGTH: 80–140 words. No "REAL TALK" section. No PRIORITIES list. No REFLECT question.`;
+
+    case 'DISENGAGED':
+      return `STATE = DISENGAGED (last activity ${ctx.daysSinceLastActivity ?? '?'} days ago). OVERRIDE THE STRUCTURE ABOVE. This is a re-engagement message. Output exactly:
+1. **Greeting** — One human line. Acknowledge they've been heads-down without guilting.
+2. **The hook** — ONE sentence that connects to something real they set up (a vision phrase, a target name, or a customer name). No dashboards. No metrics. No bullet lists.
+3. **One move** — One small action that takes <5 minutes. A single link.
+4. **Sign-off** — "— Jericho"
+TOTAL LENGTH: 40–80 words. NEVER include schedule, priorities, playbook tips, or reflect questions. Emotional hook over information.`;
+
+    case 'DORMANT':
+      return `STATE = DORMANT (last activity ${ctx.daysSinceLastActivity ?? '14+'} days ago). OVERRIDE THE STRUCTURE ABOVE. This is a reactivation note, not a brief. Output exactly:
+1. **Greeting** — One short line by first name. No "long time no see" guilt.
+2. **The invitation** — ONE sentence offering a fresh start: reset goals, or pause the briefs entirely. Make both options feel okay.
+3. **Two links** — One to come back (Growth Plan), one to mute (Settings).
+4. **Sign-off** — "— Jericho"
+TOTAL LENGTH: 30–60 words. NEVER reference old goals, lapsed targets, dashboards, or metrics.`;
+
+    default:
+      return '';
+  }
+}
