@@ -12,7 +12,8 @@ import {
   FileSpreadsheet,
   ClipboardList,
   Target,
-  MessageCircle
+  MessageCircle,
+  Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -90,6 +91,7 @@ const SuperAdminLayout = () => {
     { icon: ClipboardList, label: "Diagnostic Import", path: "/super-admin/diagnostic-import" },
     { icon: Target, label: "Targeted Accounts", path: "/super-admin/targeted-accounts" },
     { icon: MessageCircle, label: "Telegram Setup", path: "/super-admin/telegram-setup" },
+    { icon: Mail, label: "Daily Brief Preview", path: "/super-admin/daily-brief-preview" },
   ];
 
   const isActive = (path: string) => location.pathname === path;

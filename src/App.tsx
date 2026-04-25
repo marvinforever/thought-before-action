@@ -58,6 +58,7 @@ import SuperAdminAnalytics from "./pages/SuperAdminAnalytics";
 import ConnectGoogle from "./pages/ConnectGoogle";
 import GoogleOAuthCallback from "./pages/GoogleOAuthCallback";
 import TryJericho from "./pages/TryJericho";
+import AdminDailyBriefPreview from "./pages/AdminDailyBriefPreview";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -119,6 +120,7 @@ const App = () => (
               <Route path="diagnostic-import" element={<AdminDiagnosticImport />} />
               <Route path="targeted-accounts" element={<AdminTargetedAccountsImport />} />
               <Route path="telegram-setup" element={<TelegramSetup />} />
+              <Route path="daily-brief-preview" element={<AdminDailyBriefPreview />} />
             </Route>
             {/* Use /* so nested dashboard routes (e.g. /dashboard/my-growth-plan) always match */}
             <Route path="/dashboard/*" element={<DashboardLayout />}>
