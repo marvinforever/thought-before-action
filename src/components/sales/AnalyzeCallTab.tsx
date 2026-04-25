@@ -32,6 +32,7 @@ import {
   ChevronDown,
   Sparkles,
   Mic,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +56,7 @@ interface CoachingScore {
 }
 
 interface AIOutput {
+  one_thing_to_fix_next_call?: string;
   call_summary?: string;
   what_went_well?: string[];
   missed_opportunities?: string[];
@@ -126,18 +128,72 @@ function AnalysisResults({ output }: { output: AIOutput }) {
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      {output.call_summary && (
-        <Card>
+      {/* 1. One Thing to Fix */}
+      {output.one_thing_to_fix_next_call && (
+        <Card className="border-primary bg-primary/5">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Summary</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              One Thing to Fix Next Call
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm leading-relaxed">{output.call_summary}</p>
+            <p className="text-sm leading-relaxed font-medium">{output.one_thing_to_fix_next_call}</p>
           </CardContent>
         </Card>
       )}
 
+      {/* 2. Missed opportunities */}
+      {output.missed_opportunities?.length ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Missed Opportunities</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pl-5 text-sm space-y-1.5">
+              {output.missed_opportunities.map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* 3. Improved recommendation */}
+      {output.improved_recommendation && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Improved Recommendation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{output.improved_recommendation}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 4. Follow-up email */}
+      {email && (email.subject || email.body) && (
+        <Card>
+          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Follow-Up Email</CardTitle>
+            <CopyButton text={emailText} />
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {email.subject && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-0.5">Subject</div>
+                <div className="text-sm font-medium">{email.subject}</div>
+              </div>
+            )}
+            {email.body && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-0.5">Body</div>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{email.body}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 5. Everything else */}
       {/* Coaching Score */}
       {score && (
         <Card>
@@ -176,20 +232,6 @@ function AnalysisResults({ output }: { output: AIOutput }) {
         </Card>
       ) : null}
 
-      {/* Missed opportunities */}
-      {output.missed_opportunities?.length ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Missed Opportunities</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc pl-5 text-sm space-y-1.5">
-              {output.missed_opportunities.map((s, i) => <li key={i}>{s}</li>)}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {/* Better questions */}
       {output.better_questions?.length ? (
         <Card>
@@ -203,42 +245,6 @@ function AnalysisResults({ output }: { output: AIOutput }) {
           </CardContent>
         </Card>
       ) : null}
-
-      {/* Improved recommendation */}
-      {output.improved_recommendation && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Improved Recommendation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{output.improved_recommendation}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Follow-up email */}
-      {email && (email.subject || email.body) && (
-        <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Follow-Up Email</CardTitle>
-            <CopyButton text={emailText} />
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {email.subject && (
-              <div>
-                <div className="text-xs text-muted-foreground mb-0.5">Subject</div>
-                <div className="text-sm font-medium">{email.subject}</div>
-              </div>
-            )}
-            {email.body && (
-              <div>
-                <div className="text-xs text-muted-foreground mb-0.5">Body</div>
-                <p className="text-sm whitespace-pre-wrap leading-relaxed">{email.body}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Farmer Insights */}
       {(output.farmer_concerns?.length || output.objections?.length) && (
@@ -298,6 +304,18 @@ function AnalysisResults({ output }: { output: AIOutput }) {
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Summary (de-prioritized) */}
+      {output.call_summary && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed">{output.call_summary}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Coach's note callout */}
       {output.rep_coaching_note && (
