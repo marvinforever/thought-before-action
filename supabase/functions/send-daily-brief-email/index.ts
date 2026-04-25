@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { gatherUserContext, generateBriefContent } from "../_shared/daily-brief-content.ts";
+import { gatherUserContext, generateBriefContent, classifyUserStateForProfile } from "../_shared/daily-brief-content.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -164,6 +164,38 @@ serve(async (req) => {
 
     const briefFormat = prefs?.brief_format || 'both';
     const userTimezone = prefs?.timezone || 'America/New_York';
+
+    // ── Behavior-aware cadence: dormant users get ≤1 brief / 7 days ──
+    // Skip the send entirely when the user is DORMANT and has received any
+    // brief in the past 7 days. Preview/test sends bypass this throttle so
+    // admins can still inspect output for any user.
+    if (!preview && !testRecipient) {
+      try {
+        const { state } = await classifyUserStateForProfile(supabase, profileId);
+        if (state === 'DORMANT') {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: recentDelivery } = await supabase
+            .from("email_deliveries")
+            .select("sent_at")
+            .eq("profile_id", profileId)
+            .eq("status", "sent")
+            .gte("sent_at", sevenDaysAgo)
+            .order("sent_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (recentDelivery) {
+            console.log(`[daily-brief-email] Skipping DORMANT user ${profileId} — last brief sent ${recentDelivery.sent_at}`);
+            return new Response(
+              JSON.stringify({ success: true, skipped: true, reason: "dormant_throttle", lastSentAt: recentDelivery.sent_at }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      } catch (stateErr) {
+        // Never block the send on a classifier failure — fail open, send the brief.
+        console.error("[daily-brief-email] Dormant cadence check failed (sending anyway):", stateErr);
+      }
+    }
 
     // Use shared module for context gathering + content generation
     const context = await gatherUserContext(supabase, profileId, userTimezone);
