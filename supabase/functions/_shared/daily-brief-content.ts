@@ -16,6 +16,35 @@ export interface SalesConversationContext {
   conversationDate: string;
 }
 
+export interface SalesPipelineContext {
+  isSalesperson: boolean;          // true if user has any deals OR sales activities OR sales conversations
+  hasRecentActivity: boolean;      // any sales activity (deal touch / activity log / convo) in last 14 days
+  totalOpenDeals: number;
+  totalPipelineValue: number;
+  stalledDeals: {
+    dealName: string;
+    stage: string;
+    value: number | null;
+    daysSinceActivity: number;
+  }[];
+  missedFollowUps: {
+    subject: string;
+    activityType: string;
+    dealName: string | null;
+    scheduledFor: string;
+    daysOverdue: number;
+  }[];
+  opportunities: {
+    dealName: string;
+    stage: string;
+    value: number | null;
+    probability: number | null;
+    expectedCloseDate: string | null;
+    daysToClose: number | null;
+  }[];
+  daysSinceLastSalesActivity: number | null;
+}
+
 export interface UserContext {
   firstName: string;
   episodeTitle: string;
@@ -52,6 +81,8 @@ export interface UserContext {
   playbook: PlaybookContext | null;
   // Sales conversation continuity
   recentSalesConversations: SalesConversationContext[];
+  // Sales pipeline coaching context (only meaningful for salespeople)
+  salesPipeline: SalesPipelineContext;
   // Timezone used to render dates/times in the brief (IANA string)
   userTimezone: string;
   // Behavior-aware classification: ENGAGED | DRIFTING | DISENGAGED | DORMANT
