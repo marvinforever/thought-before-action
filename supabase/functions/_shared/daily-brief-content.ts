@@ -16,6 +16,35 @@ export interface SalesConversationContext {
   conversationDate: string;
 }
 
+export interface SalesPipelineContext {
+  isSalesperson: boolean;          // true if user has any deals OR sales activities OR sales conversations
+  hasRecentActivity: boolean;      // any sales activity (deal touch / activity log / convo) in last 14 days
+  totalOpenDeals: number;
+  totalPipelineValue: number;
+  stalledDeals: {
+    dealName: string;
+    stage: string;
+    value: number | null;
+    daysSinceActivity: number;
+  }[];
+  missedFollowUps: {
+    subject: string;
+    activityType: string;
+    dealName: string | null;
+    scheduledFor: string;
+    daysOverdue: number;
+  }[];
+  opportunities: {
+    dealName: string;
+    stage: string;
+    value: number | null;
+    probability: number | null;
+    expectedCloseDate: string | null;
+    daysToClose: number | null;
+  }[];
+  daysSinceLastSalesActivity: number | null;
+}
+
 export interface UserContext {
   firstName: string;
   episodeTitle: string;
@@ -52,6 +81,8 @@ export interface UserContext {
   playbook: PlaybookContext | null;
   // Sales conversation continuity
   recentSalesConversations: SalesConversationContext[];
+  // Sales pipeline coaching context (only meaningful for salespeople)
+  salesPipeline: SalesPipelineContext;
   // Timezone used to render dates/times in the brief (IANA string)
   userTimezone: string;
   // Behavior-aware classification: ENGAGED | DRIFTING | DISENGAGED | DORMANT
@@ -425,6 +456,133 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     console.error('[daily-brief-content] Sales conversation fetch error (non-fatal):', salesErr);
   }
 
+  // ── Fetch sales pipeline coaching context ──
+  // Surfaces stalled deals, missed follow-ups, and live opportunities for salespeople.
+  // If the user has no deals AND no activities AND no sales conversations, they're not
+  // a salesperson — we return an empty/inactive shell and the prompt skips this section.
+  let salesPipeline: SalesPipelineContext = {
+    isSalesperson: false,
+    hasRecentActivity: false,
+    totalOpenDeals: 0,
+    totalPipelineValue: 0,
+    stalledDeals: [],
+    missedFollowUps: [],
+    opportunities: [],
+    daysSinceLastSalesActivity: null,
+  };
+  try {
+    const nowMs = Date.now();
+    const fourteenDaysAgo = new Date(nowMs - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const todayIso = new Date().toISOString();
+
+    const [openDealsRes, missedFollowupsRes, recentActivityRes] = await Promise.all([
+      supabase
+        .from('sales_deals')
+        .select('id, deal_name, stage, value, probability, expected_close_date, last_activity_at, updated_at')
+        .eq('profile_id', profileId)
+        .not('stage', 'in', '(closed_won,closed_lost)')
+        .order('value', { ascending: false, nullsFirst: false })
+        .limit(50),
+      supabase
+        .from('sales_activities')
+        .select('id, subject, activity_type, scheduled_for, completed_at, deal_id, sales_deals(deal_name)')
+        .eq('profile_id', profileId)
+        .is('completed_at', null)
+        .not('scheduled_for', 'is', null)
+        .lt('scheduled_for', todayIso)
+        .order('scheduled_for', { ascending: true })
+        .limit(10),
+      supabase
+        .from('sales_activities')
+        .select('completed_at, created_at')
+        .eq('profile_id', profileId)
+        .order('created_at', { ascending: false })
+        .limit(1),
+    ]);
+
+    const openDeals = (openDealsRes.data || []) as any[];
+    const missed = (missedFollowupsRes.data || []) as any[];
+    const lastActivityRow = (recentActivityRes.data || [])[0] as any;
+
+    const lastSalesActivityIso = lastActivityRow?.completed_at || lastActivityRow?.created_at || null;
+    const daysSinceLastSalesActivity = lastSalesActivityIso
+      ? Math.floor((nowMs - new Date(lastSalesActivityIso).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const isSalesperson = openDeals.length > 0 || missed.length > 0 || lastSalesActivityIso !== null || recentSalesConversations.length > 0;
+    const hasRecentActivity = (daysSinceLastSalesActivity !== null && daysSinceLastSalesActivity <= 14) || recentSalesConversations.length > 0;
+
+    // Stalled deals: open deals with no activity in 14+ days
+    const stalledDeals = openDeals
+      .map((d: any) => {
+        const lastTouch = d.last_activity_at || d.updated_at;
+        const daysSinceActivity = lastTouch
+          ? Math.floor((nowMs - new Date(lastTouch).getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+        return {
+          dealName: d.deal_name,
+          stage: d.stage,
+          value: d.value !== null ? Number(d.value) : null,
+          daysSinceActivity,
+        };
+      })
+      .filter(d => d.daysSinceActivity >= 14)
+      .sort((a, b) => (b.value || 0) - (a.value || 0))
+      .slice(0, 5);
+
+    const missedFollowUps = missed.map((m: any) => {
+      const scheduled = new Date(m.scheduled_for).getTime();
+      return {
+        subject: m.subject || m.activity_type || 'Follow-up',
+        activityType: m.activity_type,
+        dealName: m.sales_deals?.deal_name || null,
+        scheduledFor: m.scheduled_for,
+        daysOverdue: Math.max(0, Math.floor((nowMs - scheduled) / (1000 * 60 * 60 * 24))),
+      };
+    }).slice(0, 5);
+
+    // Opportunities: open deals at later stages OR closing within 30 days, sorted by value
+    const opportunityStages = ['proposal', 'negotiation', 'commitment', 'closing'];
+    const opportunities = openDeals
+      .filter((d: any) => {
+        const stageOpp = opportunityStages.includes(String(d.stage || '').toLowerCase());
+        const closeSoon = d.expected_close_date
+          ? (new Date(d.expected_close_date).getTime() - nowMs) <= 30 * 24 * 60 * 60 * 1000
+          : false;
+        return stageOpp || closeSoon;
+      })
+      .map((d: any) => {
+        const daysToClose = d.expected_close_date
+          ? Math.ceil((new Date(d.expected_close_date).getTime() - nowMs) / (1000 * 60 * 60 * 24))
+          : null;
+        return {
+          dealName: d.deal_name,
+          stage: d.stage,
+          value: d.value !== null ? Number(d.value) : null,
+          probability: d.probability !== null ? Number(d.probability) : null,
+          expectedCloseDate: d.expected_close_date,
+          daysToClose,
+        };
+      })
+      .sort((a, b) => (b.value || 0) - (a.value || 0))
+      .slice(0, 5);
+
+    const totalPipelineValue = openDeals.reduce((sum: number, d: any) => sum + (Number(d.value) || 0), 0);
+
+    salesPipeline = {
+      isSalesperson,
+      hasRecentActivity,
+      totalOpenDeals: openDeals.length,
+      totalPipelineValue,
+      stalledDeals,
+      missedFollowUps,
+      opportunities,
+      daysSinceLastSalesActivity,
+    };
+  } catch (pipeErr) {
+    console.error('[daily-brief-content] Sales pipeline fetch error (non-fatal):', pipeErr);
+  }
+
   return {
     firstName,
     episodeTitle: episode?.title || "Your Daily Growth Brief",
@@ -458,6 +616,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     hasCalendarConnected,
     playbook: playbookContext,
     recentSalesConversations,
+    salesPipeline,
     userTimezone,
     userState,
     daysSinceLastActivity,
@@ -565,18 +724,24 @@ ABSOLUTE RULES (violating these is a failure):
 9. NEVER reference outdated quarters or goals from past quarters. If a target lapsed, address it ONCE and move on.
 10. NEVER guilt the user about being absent or inactive. Notice it like a friend would, not like an HR report.
 11. Use contractions. Short sentences. Occasional sentence fragments. Read it out loud — if it sounds like a memo, rewrite it.
+12. SALES PIPELINE RULES (CRITICAL):
+    a. If the user is NOT a salesperson (no deals, no activities, no sales conversations) → DO NOT include any PIPELINE section. Don't invent it. Don't reference deals.
+    b. If the user IS a salesperson but has NO recent sales activity (last 14+ days quiet) → DO NOT fabricate insight. Skip pipeline specifics. Switch to a single re-engagement nudge in REAL TALK: notice the quiet, ask one honest question, point them back to the Sales Agent. NEVER list deals as if they're being worked.
+    c. If the user IS a salesperson WITH recent activity → include a PIPELINE section (see STRUCTURE) using ONLY the data provided. Never invent deal names, customer names, dollar amounts, or stages.
+    d. Reps should feel COACHED, not monitored. No "you have 4 stalled deals" report-talk. Instead: "The Henderson deal hasn't moved in 18 days. What's the real holdup?"
 
 TONE: A coach who knows them and isn't afraid to push. Warm but unflinching. Think the friend who tells you the truth at the bar, not the one who sends you a motivational quote. The user should feel SEEN, not analyzed.
 
 STRUCTURE (use clear section headers):
 1. **Greeting** — One casual, warm line. Reference something real (day of week, what's on their plate). No metrics.
 2. **YESTERDAY'S SALES INTEL** (ONLY if sales conversations exist) — Reference the specific customer and product they discussed yesterday. Connect it to today: "You were working the [Product] angle with [Customer] yesterday. Here's how to keep that momentum..." Include a specific training suggestion or product knowledge tip relevant to what they discussed. Link to Sales Agent.
-3. **SCHEDULE** — If meetings exist: list the top 2-3 with times, attendees, and one prep action per meeting. If a meeting involves a customer they discussed with the Sales Agent, call that out explicitly. Suggest Sales Agent for customer calls. If no meetings: suggest what to do with the open time (specific to their priorities).
-4. **REAL TALK** — The 1-2 things that matter most today. A stalled target? A streak worth celebrating? Progress on quick win? Go specific with numbers and names. Be honest about what's behind.
-5. **PLAYBOOK ACTION** — One specific coaching tip quoted from their playbook data. Frame it as: "Your playbook says: [exact tip]. Here's how to apply it today: [concrete action]."
-6. **PRIORITIES** — Top 2-3 WORK tasks as bullets. Add a quick note on approach if helpful.
-7. **REFLECT** — One specific question tied to a real goal, benchmark, or recent event. Not generic "how will X influence Y" — instead: "You need 12 contracts and have 0 benchmarks done. Who are you calling first?"
-8. **Sign-off** — "— Jericho" (nothing else)
+3. **PIPELINE** (ONLY when user is a salesperson WITH recent activity AND there are stalled deals, missed follow-ups, OR opportunities to surface) — Pick 1–2 things that matter most. Name the deal/customer specifically. Coach, don't report. Examples: "Henderson hasn't moved in 18 days — what's the real holdup?" / "You owe Miller a follow-up call from Tuesday. Knock it out before 10am." / "The Carter deal is 30 days from close at 60% probability. Time to get the decision-maker on the phone." Skip this section entirely if no pipeline data, or if the user is quiet on sales (then the re-engagement nudge belongs in REAL TALK).
+4. **SCHEDULE** — If meetings exist: list the top 2-3 with times, attendees, and one prep action per meeting. If a meeting involves a customer they discussed with the Sales Agent, call that out explicitly. Suggest Sales Agent for customer calls. If no meetings: suggest what to do with the open time (specific to their priorities).
+5. **REAL TALK** — The 1-2 things that matter most today. A stalled target? A streak worth celebrating? Progress on quick win? Go specific with numbers and names. Be honest about what's behind. (For salespeople gone quiet: this is where the re-engagement nudge lives — one honest line, one question, one link to Sales Agent. Do NOT fabricate pipeline activity.)
+6. **PLAYBOOK ACTION** — One specific coaching tip quoted from their playbook data. Frame it as: "Your playbook says: [exact tip]. Here's how to apply it today: [concrete action]."
+7. **PRIORITIES** — Top 2-3 WORK tasks as bullets. Add a quick note on approach if helpful.
+8. **REFLECT** — One specific question tied to a real goal, benchmark, or recent event. Not generic "how will X influence Y" — instead: "You need 12 contracts and have 0 benchmarks done. Who are you calling first?"
+9. **Sign-off** — "— Jericho" (nothing else)
 
 ${stateInstruction}
 
@@ -647,6 +812,33 @@ ${context.recentSalesConversations.length > 0 ? context.recentSalesConversations
     const snippet = sc.lastMessageSnippet ? `Last message: "${sc.lastMessageSnippet}"` : '';
     return `- Customer: ${sc.customerName}\n  ${[products, topics, snippet].filter(Boolean).join('\n  ')}`;
   }).join('\n') : 'No recent sales conversations.'}
+
+── SALES PIPELINE ──
+${(() => {
+  const sp = context.salesPipeline;
+  if (!sp.isSalesperson) {
+    return 'NOT A SALESPERSON — do not include any PIPELINE section. Do not invent deals.';
+  }
+  if (!sp.hasRecentActivity) {
+    return `SALESPERSON BUT QUIET (last sales activity: ${sp.daysSinceLastSalesActivity ?? '?'} days ago).
+RULE: Do NOT fabricate pipeline insight. Do NOT list old deals as if they're being worked.
+SWITCH TO RE-ENGAGEMENT MODE in REAL TALK: notice the quiet honestly, ask one question, point them to the Sales Agent. Skip the PIPELINE section entirely.`;
+  }
+  const stalledLines = sp.stalledDeals.length > 0
+    ? `Stalled (no activity 14+ days):\n${sp.stalledDeals.map(d => `- ${d.dealName} [${d.stage}]${d.value ? ` $${d.value.toLocaleString()}` : ''} — ${d.daysSinceActivity}d quiet`).join('\n')}`
+    : 'Stalled deals: none.';
+  const missedLines = sp.missedFollowUps.length > 0
+    ? `Missed follow-ups (overdue, never completed):\n${sp.missedFollowUps.map(m => `- ${m.subject} (${m.activityType})${m.dealName ? ` for ${m.dealName}` : ''} — ${m.daysOverdue}d overdue`).join('\n')}`
+    : 'Missed follow-ups: none.';
+  const oppLines = sp.opportunities.length > 0
+    ? `Live opportunities (late-stage or closing soon):\n${sp.opportunities.map(o => `- ${o.dealName} [${o.stage}]${o.value ? ` $${o.value.toLocaleString()}` : ''}${o.probability !== null ? ` @ ${o.probability}%` : ''}${o.daysToClose !== null ? ` — ${o.daysToClose}d to close` : ''}`).join('\n')}`
+    : 'Live opportunities: none surfaced.';
+  return `${sp.totalOpenDeals} open deals${sp.totalPipelineValue > 0 ? `, $${sp.totalPipelineValue.toLocaleString()} total pipeline` : ''} (last sales activity: ${sp.daysSinceLastSalesActivity ?? '?'}d ago).
+${stalledLines}
+${missedLines}
+${oppLines}
+Pick 1–2 of the above to coach on in PIPELINE. Use exact deal names. Never invent.`;
+})()}
 
 ── PLAYBOOK COACHING DATA ──
 ${context.playbook ? `
