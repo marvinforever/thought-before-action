@@ -283,6 +283,58 @@ REP NOTES: ${body.notes || "(none)"}`;
       );
     }
 
+    // ---- Persist structured market trends ----
+    try {
+      const rawTrends = Array.isArray(parsed?.market_trend_tags) ? parsed.market_trend_tags : [];
+      const trendRows = rawTrends
+        .map((t: any) => {
+          // Backward compatibility: allow plain strings from older prompts
+          if (typeof t === "string") {
+            return {
+              trend_type: "other",
+              trend_label: t,
+              evidence: null,
+              confidence: null,
+            };
+          }
+          if (t && typeof t === "object") {
+            const label = String(t.trend_label || "").trim();
+            if (!label) return null;
+            const conf = Number(t.confidence);
+            return {
+              trend_type: String(t.trend_type || "other").trim() || "other",
+              trend_label: label,
+              evidence: t.evidence ? String(t.evidence).trim() : null,
+              confidence: Number.isFinite(conf) ? Math.max(1, Math.min(10, Math.round(conf))) : null,
+            };
+          }
+          return null;
+        })
+        .filter((r: any) => r !== null)
+        .map((r: any) => ({
+          ...r,
+          analysis_id: saved.id,
+          user_id: body.user_id,
+          sales_rep_id: body.sales_rep_id,
+          org_id: body.org_id || null,
+          customer_id: body.customer_id || null,
+          crop_context: body.crop_context || null,
+          region: body.region || null,
+          call_date: body.call_date || null,
+        }));
+
+      if (trendRows.length > 0) {
+        const { error: trendErr } = await supabase
+          .from("sales_market_trends")
+          .insert(trendRows);
+        if (trendErr) {
+          console.error("[analyze-sales-call] Trend save error:", trendErr);
+        }
+      }
+    } catch (e) {
+      console.error("[analyze-sales-call] Trend extraction error:", e);
+    }
+
     return new Response(
       JSON.stringify({ analysis: saved }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
