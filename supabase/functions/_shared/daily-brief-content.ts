@@ -54,7 +54,15 @@ export interface UserContext {
   recentSalesConversations: SalesConversationContext[];
   // Timezone used to render dates/times in the brief (IANA string)
   userTimezone: string;
+  // Behavior-aware classification: ENGAGED | DRIFTING | DISENGAGED | DORMANT
+  userState: UserState;
+  // Days since the user's most recent meaningful activity (login/chat/habit/task)
+  daysSinceLastActivity: number | null;
+  // ISO date of the most recent activity signal observed
+  lastActivityAt: string | null;
 }
+
+export type UserState = 'ENGAGED' | 'DRIFTING' | 'DISENGAGED' | 'DORMANT';
 
 export interface BriefContent {
   subject: string;
@@ -168,6 +176,42 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
   const priorityActionsTotal = pbInteractions.filter((i: any) => i.section_type === 'priority_action').length;
 
   const lastJerichoChat = lastConversationResult.data?.[0]?.created_at || null;
+
+  // ── Behavior-aware state classification ──
+  // Pull lightweight activity signals: login, chat, habit completion, recent task touch
+  let lastActivityAt: string | null = null;
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [
+      lastLoginRes,
+      lastHabitRes,
+      lastTaskTouchRes,
+    ] = await Promise.all([
+      supabase.from("login_streaks").select("last_login_date").eq("profile_id", profileId).maybeSingle(),
+      supabase.from("habit_completions").select("completed_date").eq("profile_id", profileId).order("completed_date", { ascending: false }).limit(1),
+      supabase.from("project_tasks").select("updated_at").eq("profile_id", profileId).gte("updated_at", since).order("updated_at", { ascending: false }).limit(1),
+    ]);
+
+    const candidates: string[] = [];
+    if (streakRow?.last_login_date) candidates.push(`${streakRow.last_login_date}T12:00:00Z`);
+    else if (lastLoginRes.data?.last_login_date) candidates.push(`${lastLoginRes.data.last_login_date}T12:00:00Z`);
+    if (lastJerichoChat) candidates.push(lastJerichoChat);
+    const lastHabit = lastHabitRes.data?.[0]?.completed_date;
+    if (lastHabit) candidates.push(`${lastHabit}T12:00:00Z`);
+    const lastTaskTouch = lastTaskTouchRes.data?.[0]?.updated_at;
+    if (lastTaskTouch) candidates.push(lastTaskTouch);
+
+    if (candidates.length > 0) {
+      lastActivityAt = candidates.reduce((a, b) => (new Date(a) > new Date(b) ? a : b));
+    }
+  } catch (stateErr) {
+    console.error('[daily-brief-content] State signal fetch error (non-fatal):', stateErr);
+  }
+
+  const daysSinceLastActivity = lastActivityAt
+    ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const userState: UserState = classifyState(daysSinceLastActivity, daysOnPlatform);
 
   // Parse playbook content for richer daily briefs
   let playbookContext: PlaybookContext | null = null;
@@ -415,7 +459,62 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     playbook: playbookContext,
     recentSalesConversations,
     userTimezone,
+    userState,
+    daysSinceLastActivity,
+    lastActivityAt,
   };
+}
+
+// ── Lightweight standalone state classifier ──
+// Used by callers (e.g. send-daily-brief-email) that want to decide whether to
+// send AT ALL before paying for a full context gather + AI call.
+export async function classifyUserStateForProfile(
+  supabase: any,
+  profileId: string,
+): Promise<{ state: UserState; daysSinceLastActivity: number | null; lastActivityAt: string | null }> {
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [profileRes, loginRes, chatRes, habitRes, taskRes] = await Promise.all([
+      supabase.from("profiles").select("created_at").eq("id", profileId).maybeSingle(),
+      supabase.from("login_streaks").select("last_login_date").eq("profile_id", profileId).maybeSingle(),
+      supabase.from("conversations").select("created_at").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(1),
+      supabase.from("habit_completions").select("completed_date").eq("profile_id", profileId).order("completed_date", { ascending: false }).limit(1),
+      supabase.from("project_tasks").select("updated_at").eq("profile_id", profileId).gte("updated_at", since).order("updated_at", { ascending: false }).limit(1),
+    ]);
+
+    const candidates: string[] = [];
+    if (loginRes.data?.last_login_date) candidates.push(`${loginRes.data.last_login_date}T12:00:00Z`);
+    const chat = chatRes.data?.[0]?.created_at;
+    if (chat) candidates.push(chat);
+    const habit = habitRes.data?.[0]?.completed_date;
+    if (habit) candidates.push(`${habit}T12:00:00Z`);
+    const task = taskRes.data?.[0]?.updated_at;
+    if (task) candidates.push(task);
+
+    const lastActivityAt = candidates.length > 0
+      ? candidates.reduce((a, b) => (new Date(a) > new Date(b) ? a : b))
+      : null;
+    const daysSinceLastActivity = lastActivityAt
+      ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    const daysOnPlatform = profileRes.data?.created_at
+      ? Math.floor((Date.now() - new Date(profileRes.data.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+    return { state: classifyState(daysSinceLastActivity, daysOnPlatform), daysSinceLastActivity, lastActivityAt };
+  } catch (err) {
+    console.error('[daily-brief-content] classifyUserStateForProfile error:', err);
+    return { state: 'ENGAGED', daysSinceLastActivity: null, lastActivityAt: null };
+  }
+}
+
+function classifyState(days: number | null, daysOnPlatform: number): UserState {
+  // New users (< 3 days on platform) without signals are still ENGAGED — they
+  // just haven't had time to build activity history yet.
+  if (days === null) return daysOnPlatform < 3 ? 'ENGAGED' : 'DISENGAGED';
+  if (days <= 3) return 'ENGAGED';
+  if (days <= 7) return 'DRIFTING';
+  if (days <= 14) return 'DISENGAGED';
+  return 'DORMANT';
 }
 
 export async function generateBriefContent(context: UserContext, format: BriefFormat): Promise<BriefContent> {
@@ -442,6 +541,8 @@ export async function generateBriefContent(context: UserContext, format: BriefFo
     ? `For links use: [text](url). Valid routes: ${context.appUrl}/dashboard/my-growth-plan, ${context.appUrl}/dashboard/personal-assistant, ${context.appUrl}/dashboard/sales`
     : `Mention the app URL ${context.appUrl} once at the end.`;
 
+  const stateInstruction = buildStateInstruction(context);
+
   const systemPrompt = `You are Jericho — a sharp, no-BS executive coach. NOT a cheerleader. NOT a morning show host. You give the kind of advice a $500/hr coach would give in a 5-minute conversation.
 
 ABSOLUTE RULES (violating these is a failure):
@@ -452,6 +553,8 @@ ABSOLUTE RULES (violating these is a failure):
 5. AIM for 250-350 WORDS. Enough to be substantive, short enough to respect their time.
 6. Every sentence must contain SPECIFIC information (a name, number, date, or action). Generic sentences = delete them.
 7. For EXPIRED targets (0 days remaining): Say the target has lapsed and ask ONE pointed question about whether to reset it or close it. Don't pile on.
+8. NEVER reference outdated quarters or goals from past quarters. If a target lapsed, address it ONCE and move on.
+9. NEVER guilt the user about being absent or inactive. Re-engage with curiosity, not shame.
 
 TONE: Like a sharp friend who's also a brilliant strategist. Warm but direct. Think: "I'm telling you this because I know you can handle it."
 
@@ -464,6 +567,8 @@ STRUCTURE (use clear section headers):
 6. **PRIORITIES** — Top 2-3 WORK tasks as bullets. Add a quick note on approach if helpful.
 7. **REFLECT** — One specific question tied to a real goal, benchmark, or recent event. Not generic "how will X influence Y" — instead: "You need 12 contracts and have 0 benchmarks done. Who are you calling first?"
 8. **Sign-off** — "— Jericho" (nothing else)
+
+${stateInstruction}
 
 ${formatInstruction}
 ${linkInstruction}
@@ -501,6 +606,7 @@ Return JSON: { "subject": "...", "body": "...", "shortSummary": "..." }`;
       : 'No habits tracked.';
 
   const userPrompt = `Briefing for ${context.firstName}. Day ${context.daysOnPlatform} on platform.
+USER STATE: ${context.userState}${context.daysSinceLastActivity !== null ? ` (last meaningful activity: ${context.daysSinceLastActivity} day${context.daysSinceLastActivity === 1 ? '' : 's'} ago)` : ' (no activity signal yet)'}
 
 ${context.personalVision ? `Vision: "${context.personalVision}"` : ''}
 Focus Capability: ${context.focusCapability || 'None'}
@@ -701,4 +807,42 @@ function buildCalendarContext(ctx: UserContext): string {
   });
 
   return `${ctx.calendarEvents.length} events today:\n${lines.join('\n')}`;
+}
+
+// ── Helper: State-specific override block injected into the system prompt ──
+// Engaged users get the standard rich brief (no override). DRIFTING/DISENGAGED/
+// DORMANT users get progressively shorter, more re-engagement-focused output
+// that REPLACES the standard STRUCTURE above.
+function buildStateInstruction(ctx: UserContext): string {
+  switch (ctx.userState) {
+    case 'ENGAGED':
+      return `STATE = ENGAGED (active in last 3 days). Use the full STRUCTURE above. Reinforce momentum with specific evidence (named target, named customer, named habit). End with one clear next action — not a question that adds load.`;
+
+    case 'DRIFTING':
+      return `STATE = DRIFTING (last activity ${ctx.daysSinceLastActivity ?? '?'} days ago). OVERRIDE THE STRUCTURE ABOVE. Output exactly:
+1. **Greeting** — One warm line. No metrics. No guilt.
+2. **What you committed to** — Reference ONE specific commitment from their data (a 90-day target, a habit, a quick win, or a customer they were working). Use exact names/numbers. One sentence.
+3. **Today's one move** — One concrete next step that takes <15 minutes. Specific. Linked.
+4. **Sign-off** — "— Jericho"
+TOTAL LENGTH: 80–140 words. No "REAL TALK" section. No PRIORITIES list. No REFLECT question.`;
+
+    case 'DISENGAGED':
+      return `STATE = DISENGAGED (last activity ${ctx.daysSinceLastActivity ?? '?'} days ago). OVERRIDE THE STRUCTURE ABOVE. This is a re-engagement message. Output exactly:
+1. **Greeting** — One human line. Acknowledge they've been heads-down without guilting.
+2. **The hook** — ONE sentence that connects to something real they set up (a vision phrase, a target name, or a customer name). No dashboards. No metrics. No bullet lists.
+3. **One move** — One small action that takes <5 minutes. A single link.
+4. **Sign-off** — "— Jericho"
+TOTAL LENGTH: 40–80 words. NEVER include schedule, priorities, playbook tips, or reflect questions. Emotional hook over information.`;
+
+    case 'DORMANT':
+      return `STATE = DORMANT (last activity ${ctx.daysSinceLastActivity ?? '14+'} days ago). OVERRIDE THE STRUCTURE ABOVE. This is a reactivation note, not a brief. Output exactly:
+1. **Greeting** — One short line by first name. No "long time no see" guilt.
+2. **The invitation** — ONE sentence offering a fresh start: reset goals, or pause the briefs entirely. Make both options feel okay.
+3. **Two links** — One to come back (Growth Plan), one to mute (Settings).
+4. **Sign-off** — "— Jericho"
+TOTAL LENGTH: 30–60 words. NEVER reference old goals, lapsed targets, dashboards, or metrics.`;
+
+    default:
+      return '';
+  }
 }
