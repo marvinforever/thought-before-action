@@ -16,6 +16,8 @@ import { FourCallPlanTracker } from "@/components/sales/FourCallPlanTracker";
 import { DocumentUploadDialog } from "@/components/sales/DocumentUploadDialog";
 import { CustomerSelector } from "@/components/sales/CustomerSelector";
 import { NewCustomerQuickCreateDialog } from "@/components/sales/NewCustomerQuickCreateDialog";
+import { AnalyzeCallTab } from "@/components/sales/AnalyzeCallTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -689,64 +691,85 @@ const SalesTrainer = () => {
       />
 
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col max-w-3xl">
-        {/* Customer Context Selector */}
-        <div className="mb-4 flex items-center gap-3">
-          <CustomerSelector
-            userId={effectiveUserId}
-            selectedCustomerId={activeCustomerId}
-            selectedCustomerName={activeCustomerName}
-            onSelect={(customerId, customerName) => {
-              setActiveCustomerId(customerId);
-              setActiveCustomerName(customerName);
-              // Clear messages when switching customer context
-              if (customerId !== activeCustomerId) {
-                setMessages([]);
-                setHasStarted(false);
-                setConversationId(null);
-              }
-            }}
-          />
-          {activeCustomerName && (
-            <span className="text-sm text-muted-foreground">
-              Memory focused on <strong>{activeCustomerName}</strong>
-            </span>
-          )}
-        </div>
-        
-        <SalesChatInterface
-          messages={messages}
-          input={input}
-          chatLoading={chatLoading}
-          hasStarted={hasStarted}
-          hasMethodologyAccess={effectiveHasMethodologyAccess}
-          chatMode={chatMode}
-          deals={deals}
-          profile={profile}
-          companyId={effectiveCompanyId || ""}
-          userId={user?.id || ""}
-          newCustomerPrompt={newCustomerPrompt}
-          onUploadDocument={() => setShowUploadDialog(true)}
-          onInputChange={setInput}
-          onSendMessage={sendMessage}
-          onCancel={cancelMessage}
-          onDismissNewCustomerPrompt={() => setNewCustomerPrompt(null)}
-          onCreateCustomerProfile={() => setShowQuickCreate(true)}
-          onStartCoaching={startCoaching}
-          onAddDeal={() => setShowAddDeal(true)}
-          onShowProposalWizard={() => setShowProposalWizard(true)}
-          onShowCallPlanTracker={() => setShowCallPlanTracker(true)}
-          onShowPitchDeck={() => setShowPitchDeck(true)}
-          onDismissContactPrompt={(msgIdx, promptIdx) => {
-            setMessages(prev => prev.map((m, i) =>
-              i === msgIdx
-                ? { ...m, contactPrompts: m.contactPrompts?.filter((_, j) => j !== promptIdx) }
-                : m
-            ));
-          }}
-          onContactAdded={(name) => {
-            toast({ title: `✅ ${name} added to your contacts.` });
-          }}
-        />
+        <Tabs defaultValue="coach" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="self-start mb-4">
+            <TabsTrigger value="coach">Coach</TabsTrigger>
+            <TabsTrigger value="analyze">Analyze Call</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="coach" className="flex-1 flex flex-col min-h-0 mt-0">
+            {/* Customer Context Selector */}
+            <div className="mb-4 flex items-center gap-3">
+              <CustomerSelector
+                userId={effectiveUserId}
+                selectedCustomerId={activeCustomerId}
+                selectedCustomerName={activeCustomerName}
+                onSelect={(customerId, customerName) => {
+                  setActiveCustomerId(customerId);
+                  setActiveCustomerName(customerName);
+                  // Clear messages when switching customer context
+                  if (customerId !== activeCustomerId) {
+                    setMessages([]);
+                    setHasStarted(false);
+                    setConversationId(null);
+                  }
+                }}
+              />
+              {activeCustomerName && (
+                <span className="text-sm text-muted-foreground">
+                  Memory focused on <strong>{activeCustomerName}</strong>
+                </span>
+              )}
+            </div>
+
+            <SalesChatInterface
+              messages={messages}
+              input={input}
+              chatLoading={chatLoading}
+              hasStarted={hasStarted}
+              hasMethodologyAccess={effectiveHasMethodologyAccess}
+              chatMode={chatMode}
+              deals={deals}
+              profile={profile}
+              companyId={effectiveCompanyId || ""}
+              userId={user?.id || ""}
+              newCustomerPrompt={newCustomerPrompt}
+              onUploadDocument={() => setShowUploadDialog(true)}
+              onInputChange={setInput}
+              onSendMessage={sendMessage}
+              onCancel={cancelMessage}
+              onDismissNewCustomerPrompt={() => setNewCustomerPrompt(null)}
+              onCreateCustomerProfile={() => setShowQuickCreate(true)}
+              onStartCoaching={startCoaching}
+              onAddDeal={() => setShowAddDeal(true)}
+              onShowProposalWizard={() => setShowProposalWizard(true)}
+              onShowCallPlanTracker={() => setShowCallPlanTracker(true)}
+              onShowPitchDeck={() => setShowPitchDeck(true)}
+              onDismissContactPrompt={(msgIdx, promptIdx) => {
+                setMessages(prev => prev.map((m, i) =>
+                  i === msgIdx
+                    ? { ...m, contactPrompts: m.contactPrompts?.filter((_, j) => j !== promptIdx) }
+                    : m
+                ));
+              }}
+              onContactAdded={(name) => {
+                toast({ title: `✅ ${name} added to your contacts.` });
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="analyze" className="mt-0">
+            <AnalyzeCallTab
+              userId={user?.id || ""}
+              profile={profile}
+              effectiveCompanyId={effectiveCompanyId}
+              isSuperAdmin={isSuperAdmin}
+              isManager={!!profile?.is_admin}
+              viewAsUserId={viewAsUserId}
+              viewAsUserName={viewAsUserName}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <AddDealDialog 
