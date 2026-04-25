@@ -675,15 +675,26 @@ export function AnalyzeCallTab({
                 const overall = row.ai_output?.coaching_score?.overall;
                 const custName = row.customer?.name || "—";
                 const dateStr = row.call_date ? format(new Date(row.call_date), "MMM d, yyyy") : format(new Date(row.created_at), "MMM d, yyyy");
+                const summary =
+                  row.ai_output?.one_thing_to_fix_next_call ||
+                  row.ai_output?.call_summary ||
+                  row.notes ||
+                  "";
                 return (
                   <Collapsible key={row.id} open={isOpen} onOpenChange={(o) => setExpandedId(o ? row.id : null)}>
                     <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent transition-colors">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
-                          <span className="text-sm font-medium truncate">{custName}</span>
-                          <span className="text-xs text-muted-foreground">{dateStr}</span>
+                      <button className="w-full flex items-start justify-between gap-3 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent transition-colors">
+                        <div className="flex flex-col gap-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium truncate">{custName}</span>
+                            <span className="text-xs text-muted-foreground">·</span>
+                            <span className="text-xs text-muted-foreground">{dateStr}</span>
+                          </div>
+                          {summary && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">{summary}</p>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0 pt-0.5">
                           {typeof overall === "number" && (
                             <Badge variant="secondary" className="font-mono">{overall}/10</Badge>
                           )}
