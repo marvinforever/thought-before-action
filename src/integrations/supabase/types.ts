@@ -5827,6 +5827,80 @@ export type Database = {
           },
         ]
       }
+      sales_call_analyses: {
+        Row: {
+          ai_output: Json | null
+          call_date: string | null
+          created_at: string
+          crop_context: string | null
+          customer_id: string | null
+          id: string
+          notes: string | null
+          org_id: string | null
+          region: string | null
+          sales_rep_id: string
+          transcript: string
+          user_id: string
+        }
+        Insert: {
+          ai_output?: Json | null
+          call_date?: string | null
+          created_at?: string
+          crop_context?: string | null
+          customer_id?: string | null
+          id?: string
+          notes?: string | null
+          org_id?: string | null
+          region?: string | null
+          sales_rep_id: string
+          transcript: string
+          user_id: string
+        }
+        Update: {
+          ai_output?: Json | null
+          call_date?: string | null
+          created_at?: string
+          crop_context?: string | null
+          customer_id?: string | null
+          id?: string
+          notes?: string | null
+          org_id?: string | null
+          region?: string | null
+          sales_rep_id?: string
+          transcript?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_call_analyses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_call_analyses_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_call_analyses_sales_rep_id_fkey"
+            columns: ["sales_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_call_analyses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_coach_conversations: {
         Row: {
           company_id: string
