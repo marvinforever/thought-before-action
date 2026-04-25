@@ -42,7 +42,13 @@ serve(async (req) => {
 
     // Gather context and generate markdown content
     console.log(`Generating telegram brief for ${profileId}`);
-    const context = await gatherUserContext(supabase, profileId);
+    const { data: prefs } = await supabase
+      .from("email_preferences")
+      .select("timezone")
+      .eq("profile_id", profileId)
+      .single();
+    const userTimezone = prefs?.timezone || 'America/New_York';
+    const context = await gatherUserContext(supabase, profileId, userTimezone);
     const { subject, body } = await generateBriefContent(context, 'markdown');
 
     // Send via Telegram Bot API with markdown fallback

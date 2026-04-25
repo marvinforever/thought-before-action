@@ -52,6 +52,8 @@ export interface UserContext {
   playbook: PlaybookContext | null;
   // Sales conversation continuity
   recentSalesConversations: SalesConversationContext[];
+  // Timezone used to render dates/times in the brief (IANA string)
+  userTimezone: string;
 }
 
 export interface BriefContent {
@@ -412,6 +414,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     hasCalendarConnected,
     playbook: playbookContext,
     recentSalesConversations,
+    userTimezone,
   };
 }
 
@@ -419,7 +422,7 @@ export async function generateBriefContent(context: UserContext, format: BriefFo
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
   // Determine the user's timezone for calendar display
-  const userTimezone = 'America/New_York'; // fallback — real timezone passed upstream
+  const userTimezone = context.userTimezone || 'America/New_York';
 
   const formatInstruction = format === 'html'
     ? 'Format the "body" as HTML using <p>, <strong>, <a> tags. Keep it scannable.'
@@ -670,7 +673,11 @@ function buildCalendarContext(ctx: UserContext): string {
       timeLabel = 'All day';
     } else if (e.startTime) {
       const eventDate = new Date(e.startTime);
-      timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      timeLabel = eventDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: ctx.userTimezone || 'America/New_York',
+      });
     } else {
       timeLabel = 'All day';
     }
