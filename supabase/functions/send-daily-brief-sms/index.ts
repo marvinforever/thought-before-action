@@ -37,7 +37,13 @@ serve(async (req) => {
 
     // Generate brief content
     console.log(`Generating SMS brief for ${profileId}`);
-    const context = await gatherUserContext(supabase, profileId);
+    const { data: prefs } = await supabase
+      .from("email_preferences")
+      .select("timezone")
+      .eq("profile_id", profileId)
+      .single();
+    const userTimezone = prefs?.timezone || 'America/New_York';
+    const context = await gatherUserContext(supabase, profileId, userTimezone);
     const { shortSummary } = await generateBriefContent(context, 'plain');
 
     // Send via send-sms function
