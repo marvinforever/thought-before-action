@@ -33,6 +33,8 @@ import {
   Sparkles,
   Mic,
   Target,
+  AlertTriangle,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +64,10 @@ interface AIOutput {
   missed_opportunities?: string[];
   better_questions?: string[];
   improved_recommendation?: string;
+  recommendation_source?: string;
+  needs_agronomist_review?: boolean;
+  knowledge_used?: string[];
+  missing_context?: string[];
   follow_up_email?: { subject?: string; body?: string };
   farmer_concerns?: string[];
   objections?: string[];
@@ -159,12 +165,56 @@ function AnalysisResults({ output }: { output: AIOutput }) {
 
       {/* 3. Improved recommendation */}
       {output.improved_recommendation && (
-        <Card>
+        <Card className={output.needs_agronomist_review ? "border-amber-500/50" : undefined}>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Improved Recommendation</CardTitle>
+            <CardTitle className="text-base flex items-center justify-between gap-2">
+              <span>Improved Recommendation</span>
+              {output.recommendation_source && (
+                <Badge
+                  variant={
+                    output.needs_agronomist_review
+                      ? "destructive"
+                      : output.recommendation_source.toLowerCase().includes("company")
+                        ? "default"
+                        : "secondary"
+                  }
+                  className="text-[10px] uppercase tracking-wide"
+                >
+                  {output.recommendation_source}
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {output.needs_agronomist_review && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>Flagged for agronomist review before sharing with the grower.</span>
+              </div>
+            )}
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{output.improved_recommendation}</p>
+            {output.knowledge_used?.length ? (
+              <div className="pt-2 border-t">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <BookOpen className="h-3.5 w-3.5" /> Knowledge Used
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {output.knowledge_used.map((k, i) => (
+                    <Badge key={i} variant="outline" className="text-xs font-normal">{k}</Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {output.missing_context?.length ? (
+              <div className="pt-2 border-t">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Missing Context
+                </div>
+                <ul className="list-disc pl-5 text-sm space-y-1">
+                  {output.missing_context.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       )}

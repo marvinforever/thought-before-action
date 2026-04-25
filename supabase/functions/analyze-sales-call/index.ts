@@ -105,20 +105,22 @@ serve(async (req) => {
 
     // ---- Load relevant knowledge base entries ----
     let knowledgeBase = "No knowledge base entries found.";
+    let knowledgeTitles: string[] = [];
     if (body.org_id) {
       const { data: knowledge } = await supabase
         .from("sales_knowledge")
         .select("title, content, category, tags")
         .eq("is_active", true)
         .or(`company_id.eq.${body.org_id},company_id.is.null`)
-        .limit(40);
+        .limit(80);
 
       if (knowledge?.length) {
-        // Naive keyword relevance ranking
-        const terms = [body.crop_context, body.region]
+        // Naive keyword relevance ranking — pull terms from crop, region, transcript, notes
+        const terms = [body.crop_context, body.region, body.notes, body.transcript?.slice(0, 4000)]
           .filter((s): s is string => !!s && s.trim().length > 0)
           .flatMap((s) => s.toLowerCase().split(/\s+/))
-          .filter((t) => t.length > 2);
+          .filter((t) => t.length > 3)
+          .slice(0, 200);
 
         const scored = knowledge.map((k: any) => {
           const haystack = `${k.title || ""} ${k.content || ""} ${(k.tags || []).join(" ")}`.toLowerCase();
@@ -127,7 +129,9 @@ serve(async (req) => {
         });
 
         scored.sort((a, b) => b.score - a.score);
-        const top = scored.slice(0, 10).map(({ k }) => `### ${k.title} [${k.category || "general"}]\n${k.content}`);
+        const topPicks = scored.slice(0, 12);
+        knowledgeTitles = topPicks.map(({ k }) => `${k.title}${k.category ? ` (${k.category})` : ""}`);
+        const top = topPicks.map(({ k }) => `### ${k.title} [${k.category || "general"}]\n${k.content}`);
         knowledgeBase = top.join("\n\n");
       }
     }
@@ -143,7 +147,20 @@ Your job:
 3. Improve their agronomy recommendation so it sounds like a trusted advisor
 4. Extract real farmer concerns and market signals
 
-Rules:
+Knowledge usage rules:
+- ALWAYS prefer the company KNOWLEDGE BASE first when it covers the topic.
+- If the knowledge base does not have enough information, you MAY use general agronomic best practices — but say so.
+- Label every recommendation with one of:
+    "Based on company knowledge"
+    "Based on general agronomic best practice"
+    "Needs agronomist review"
+- Do NOT invent specific company product claims, pricing, application rates, guarantees, labels, or policies.
+- Do NOT present uncertain agronomic advice as confirmed.
+- If the recommendation involves product rates, chemical applications, regulatory issues, or high-risk crop decisions, set "needs_agronomist_review": true and label it "Needs agronomist review".
+- List the knowledge base titles you actually used in "knowledge_used".
+- List anything important the rep is missing that would change the recommendation in "missing_context" (e.g. soil test, hybrid, prior chemistry, water source).
+
+Coaching rules:
 - Do NOT summarize unless necessary
 - Focus on insight, not repetition
 - Call out missed moments clearly
@@ -151,11 +168,10 @@ Rules:
 - Tie recommendations to yield, risk, cost, or timing
 - If information is missing, say exactly what is missing
 - Write like a real person, not AI
-- Do NOT invent agronomic claims or product capabilities not present in the knowledge base
 
 For "one_thing_to_fix_next_call": If the rep only fixed ONE thing, what would improve their performance the most? Be specific and actionable — one sentence, no hedging.
 
-For "improved_recommendation": Write it as a confident advisor speaking directly to the farmer. Clear and decisive. Not a suggestion — a plan. Tie it to yield, risk, cost, or timing.
+For "improved_recommendation": Write it as a confident advisor speaking directly to the farmer. Clear and decisive. Not a suggestion — a plan. Tie it to yield, risk, cost, or timing. Begin with the source label in brackets, e.g. "[Based on company knowledge] ..." or "[Based on general agronomic best practice] ..." or "[Needs agronomist review] ...". If you use specific product names, rates, or chemistry, they MUST come from the knowledge base — otherwise stay generic and flag for review.
 
 Return ONLY valid JSON, no markdown, no preamble:
 
@@ -163,6 +179,10 @@ Return ONLY valid JSON, no markdown, no preamble:
   "one_thing_to_fix_next_call": "",
   "missed_opportunities": [],
   "improved_recommendation": "",
+  "recommendation_source": "",
+  "needs_agronomist_review": false,
+  "knowledge_used": [],
+  "missing_context": [],
   "follow_up_email": { "subject": "", "body": "" },
   "call_summary": "",
   "what_went_well": [],
@@ -180,16 +200,21 @@ Return ONLY valid JSON, no markdown, no preamble:
     "overall": 0
   },
   "rep_coaching_note": ""
-}`;
+}
+
+"recommendation_source" must be exactly one of: "Based on company knowledge", "Based on general agronomic best practice", "Needs agronomist review".`;
 
     const userPrompt = `TRANSCRIPT:
 ${body.transcript}
 
-CUSTOMER CONTEXT:
+Customer Context:
 ${customerContext}
 
-KNOWLEDGE BASE:
+Knowledge Base Context:
 ${knowledgeBase}
+
+AVAILABLE KNOWLEDGE TITLES (use these names verbatim in "knowledge_used" when applicable):
+${knowledgeTitles.length ? knowledgeTitles.map((t) => `- ${t}`).join("\n") : "(none)"}
 
 CROP / CONTEXT: ${body.crop_context || "(not provided)"}
 REGION: ${body.region || "(not provided)"}
