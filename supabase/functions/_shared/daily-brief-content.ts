@@ -606,6 +606,7 @@ Return JSON: { "subject": "...", "body": "...", "shortSummary": "..." }`;
       : 'No habits tracked.';
 
   const userPrompt = `Briefing for ${context.firstName}. Day ${context.daysOnPlatform} on platform.
+USER STATE: ${context.userState}${context.daysSinceLastActivity !== null ? ` (last meaningful activity: ${context.daysSinceLastActivity} day${context.daysSinceLastActivity === 1 ? '' : 's'} ago)` : ' (no activity signal yet)'}
 
 ${context.personalVision ? `Vision: "${context.personalVision}"` : ''}
 Focus Capability: ${context.focusCapability || 'None'}
