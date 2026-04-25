@@ -813,6 +813,33 @@ ${context.recentSalesConversations.length > 0 ? context.recentSalesConversations
     return `- Customer: ${sc.customerName}\n  ${[products, topics, snippet].filter(Boolean).join('\n  ')}`;
   }).join('\n') : 'No recent sales conversations.'}
 
+── SALES PIPELINE ──
+${(() => {
+  const sp = context.salesPipeline;
+  if (!sp.isSalesperson) {
+    return 'NOT A SALESPERSON — do not include any PIPELINE section. Do not invent deals.';
+  }
+  if (!sp.hasRecentActivity) {
+    return `SALESPERSON BUT QUIET (last sales activity: ${sp.daysSinceLastSalesActivity ?? '?'} days ago).
+RULE: Do NOT fabricate pipeline insight. Do NOT list old deals as if they're being worked.
+SWITCH TO RE-ENGAGEMENT MODE in REAL TALK: notice the quiet honestly, ask one question, point them to the Sales Agent. Skip the PIPELINE section entirely.`;
+  }
+  const stalledLines = sp.stalledDeals.length > 0
+    ? `Stalled (no activity 14+ days):\n${sp.stalledDeals.map(d => `- ${d.dealName} [${d.stage}]${d.value ? ` $${d.value.toLocaleString()}` : ''} — ${d.daysSinceActivity}d quiet`).join('\n')}`
+    : 'Stalled deals: none.';
+  const missedLines = sp.missedFollowUps.length > 0
+    ? `Missed follow-ups (overdue, never completed):\n${sp.missedFollowUps.map(m => `- ${m.subject} (${m.activityType})${m.dealName ? ` for ${m.dealName}` : ''} — ${m.daysOverdue}d overdue`).join('\n')}`
+    : 'Missed follow-ups: none.';
+  const oppLines = sp.opportunities.length > 0
+    ? `Live opportunities (late-stage or closing soon):\n${sp.opportunities.map(o => `- ${o.dealName} [${o.stage}]${o.value ? ` $${o.value.toLocaleString()}` : ''}${o.probability !== null ? ` @ ${o.probability}%` : ''}${o.daysToClose !== null ? ` — ${o.daysToClose}d to close` : ''}`).join('\n')}`
+    : 'Live opportunities: none surfaced.';
+  return `${sp.totalOpenDeals} open deals${sp.totalPipelineValue > 0 ? `, $${sp.totalPipelineValue.toLocaleString()} total pipeline` : ''} (last sales activity: ${sp.daysSinceLastSalesActivity ?? '?'}d ago).
+${stalledLines}
+${missedLines}
+${oppLines}
+Pick 1–2 of the above to coach on in PIPELINE. Use exact deal names. Never invent.`;
+})()}
+
 ── PLAYBOOK COACHING DATA ──
 ${context.playbook ? `
 ${context.playbook.topCapabilityInsights.length > 0 ? `Coaching Tips:\n${context.playbook.topCapabilityInsights.map(c => `- ${c.name}: "${c.coaching}"`).join('\n')}` : ''}
