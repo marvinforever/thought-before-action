@@ -673,7 +673,11 @@ function buildCalendarContext(ctx: UserContext): string {
       timeLabel = 'All day';
     } else if (e.startTime) {
       const eventDate = new Date(e.startTime);
-      timeLabel = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      timeLabel = eventDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: ctx.userTimezone || 'America/New_York',
+      });
     } else {
       timeLabel = 'All day';
     }
