@@ -52,6 +52,8 @@ export interface UserContext {
   playbook: PlaybookContext | null;
   // Sales conversation continuity
   recentSalesConversations: SalesConversationContext[];
+  // Timezone used to render dates/times in the brief (IANA string)
+  userTimezone: string;
 }
 
 export interface BriefContent {
