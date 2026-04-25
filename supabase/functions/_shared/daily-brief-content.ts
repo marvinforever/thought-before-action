@@ -456,6 +456,133 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     console.error('[daily-brief-content] Sales conversation fetch error (non-fatal):', salesErr);
   }
 
+  // ── Fetch sales pipeline coaching context ──
+  // Surfaces stalled deals, missed follow-ups, and live opportunities for salespeople.
+  // If the user has no deals AND no activities AND no sales conversations, they're not
+  // a salesperson — we return an empty/inactive shell and the prompt skips this section.
+  let salesPipeline: SalesPipelineContext = {
+    isSalesperson: false,
+    hasRecentActivity: false,
+    totalOpenDeals: 0,
+    totalPipelineValue: 0,
+    stalledDeals: [],
+    missedFollowUps: [],
+    opportunities: [],
+    daysSinceLastSalesActivity: null,
+  };
+  try {
+    const nowMs = Date.now();
+    const fourteenDaysAgo = new Date(nowMs - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const todayIso = new Date().toISOString();
+
+    const [openDealsRes, missedFollowupsRes, recentActivityRes] = await Promise.all([
+      supabase
+        .from('sales_deals')
+        .select('id, deal_name, stage, value, probability, expected_close_date, last_activity_at, updated_at')
+        .eq('profile_id', profileId)
+        .not('stage', 'in', '(closed_won,closed_lost)')
+        .order('value', { ascending: false, nullsFirst: false })
+        .limit(50),
+      supabase
+        .from('sales_activities')
+        .select('id, subject, activity_type, scheduled_for, completed_at, deal_id, sales_deals(deal_name)')
+        .eq('profile_id', profileId)
+        .is('completed_at', null)
+        .not('scheduled_for', 'is', null)
+        .lt('scheduled_for', todayIso)
+        .order('scheduled_for', { ascending: true })
+        .limit(10),
+      supabase
+        .from('sales_activities')
+        .select('completed_at, created_at')
+        .eq('profile_id', profileId)
+        .order('created_at', { ascending: false })
+        .limit(1),
+    ]);
+
+    const openDeals = (openDealsRes.data || []) as any[];
+    const missed = (missedFollowupsRes.data || []) as any[];
+    const lastActivityRow = (recentActivityRes.data || [])[0] as any;
+
+    const lastSalesActivityIso = lastActivityRow?.completed_at || lastActivityRow?.created_at || null;
+    const daysSinceLastSalesActivity = lastSalesActivityIso
+      ? Math.floor((nowMs - new Date(lastSalesActivityIso).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const isSalesperson = openDeals.length > 0 || missed.length > 0 || lastSalesActivityIso !== null || recentSalesConversations.length > 0;
+    const hasRecentActivity = (daysSinceLastSalesActivity !== null && daysSinceLastSalesActivity <= 14) || recentSalesConversations.length > 0;
+
+    // Stalled deals: open deals with no activity in 14+ days
+    const stalledDeals = openDeals
+      .map((d: any) => {
+        const lastTouch = d.last_activity_at || d.updated_at;
+        const daysSinceActivity = lastTouch
+          ? Math.floor((nowMs - new Date(lastTouch).getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+        return {
+          dealName: d.deal_name,
+          stage: d.stage,
+          value: d.value !== null ? Number(d.value) : null,
+          daysSinceActivity,
+        };
+      })
+      .filter(d => d.daysSinceActivity >= 14)
+      .sort((a, b) => (b.value || 0) - (a.value || 0))
+      .slice(0, 5);
+
+    const missedFollowUps = missed.map((m: any) => {
+      const scheduled = new Date(m.scheduled_for).getTime();
+      return {
+        subject: m.subject || m.activity_type || 'Follow-up',
+        activityType: m.activity_type,
+        dealName: m.sales_deals?.deal_name || null,
+        scheduledFor: m.scheduled_for,
+        daysOverdue: Math.max(0, Math.floor((nowMs - scheduled) / (1000 * 60 * 60 * 24))),
+      };
+    }).slice(0, 5);
+
+    // Opportunities: open deals at later stages OR closing within 30 days, sorted by value
+    const opportunityStages = ['proposal', 'negotiation', 'commitment', 'closing'];
+    const opportunities = openDeals
+      .filter((d: any) => {
+        const stageOpp = opportunityStages.includes(String(d.stage || '').toLowerCase());
+        const closeSoon = d.expected_close_date
+          ? (new Date(d.expected_close_date).getTime() - nowMs) <= 30 * 24 * 60 * 60 * 1000
+          : false;
+        return stageOpp || closeSoon;
+      })
+      .map((d: any) => {
+        const daysToClose = d.expected_close_date
+          ? Math.ceil((new Date(d.expected_close_date).getTime() - nowMs) / (1000 * 60 * 60 * 24))
+          : null;
+        return {
+          dealName: d.deal_name,
+          stage: d.stage,
+          value: d.value !== null ? Number(d.value) : null,
+          probability: d.probability !== null ? Number(d.probability) : null,
+          expectedCloseDate: d.expected_close_date,
+          daysToClose,
+        };
+      })
+      .sort((a, b) => (b.value || 0) - (a.value || 0))
+      .slice(0, 5);
+
+    const totalPipelineValue = openDeals.reduce((sum: number, d: any) => sum + (Number(d.value) || 0), 0);
+
+    salesPipeline = {
+      isSalesperson,
+      hasRecentActivity,
+      totalOpenDeals: openDeals.length,
+      totalPipelineValue,
+      stalledDeals,
+      missedFollowUps,
+      opportunities,
+      daysSinceLastSalesActivity,
+    };
+  } catch (pipeErr) {
+    console.error('[daily-brief-content] Sales pipeline fetch error (non-fatal):', pipeErr);
+  }
+
   return {
     firstName,
     episodeTitle: episode?.title || "Your Daily Growth Brief",
@@ -489,6 +616,7 @@ export async function gatherUserContext(supabase: any, profileId: string, userTi
     hasCalendarConnected,
     playbook: playbookContext,
     recentSalesConversations,
+    salesPipeline,
     userTimezone,
     userState,
     daysSinceLastActivity,
