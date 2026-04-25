@@ -160,6 +160,16 @@ Knowledge usage rules:
 - List the knowledge base titles you actually used in "knowledge_used".
 - List anything important the rep is missing that would change the recommendation in "missing_context" (e.g. soil test, hybrid, prior chemistry, water source).
 
+Market intelligence rules:
+- Extract every market signal you can find in the transcript and put them in "market_trend_tags".
+- Each trend MUST be an OBJECT with: trend_type, trend_label, evidence, confidence (1–10).
+- "trend_type" must be one of: "input_cost", "yield_risk", "product_resistance", "competitor", "weather", "cash_flow", "regulatory", "agronomic_practice", "demand_shift", "other".
+- "trend_label" is a short human-readable label (e.g. "Glyphosate-resistant waterhemp pressure", "Tight cash flow heading into spring", "Pioneer pricing aggressively on corn").
+- "evidence" must be a short direct quote or close paraphrase from the transcript that supports the trend.
+- "confidence" is 1–10 based on how clearly the transcript supports the trend (10 = explicit grower statement, 5 = implied, 1 = weak signal).
+- If the transcript contains no market signals, return an empty array.
+- Do NOT invent trends that aren't grounded in the transcript.
+
 Coaching rules:
 - Do NOT summarize unless necessary
 - Focus on insight, not repetition
@@ -190,7 +200,9 @@ Return ONLY valid JSON, no markdown, no preamble:
   "farmer_concerns": [],
   "objections": [],
   "product_opportunities": [],
-  "market_trend_tags": [],
+  "market_trend_tags": [
+    { "trend_type": "", "trend_label": "", "evidence": "", "confidence": 0 }
+  ],
   "coaching_score": {
     "discovery": 0,
     "listening": 0,
@@ -269,6 +281,58 @@ REP NOTES: ${body.notes || "(none)"}`;
         JSON.stringify({ error: "Failed to save analysis", details: saveError.message, ai_output: parsed }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // ---- Persist structured market trends ----
+    try {
+      const rawTrends = Array.isArray(parsed?.market_trend_tags) ? parsed.market_trend_tags : [];
+      const trendRows = rawTrends
+        .map((t: any) => {
+          // Backward compatibility: allow plain strings from older prompts
+          if (typeof t === "string") {
+            return {
+              trend_type: "other",
+              trend_label: t,
+              evidence: null,
+              confidence: null,
+            };
+          }
+          if (t && typeof t === "object") {
+            const label = String(t.trend_label || "").trim();
+            if (!label) return null;
+            const conf = Number(t.confidence);
+            return {
+              trend_type: String(t.trend_type || "other").trim() || "other",
+              trend_label: label,
+              evidence: t.evidence ? String(t.evidence).trim() : null,
+              confidence: Number.isFinite(conf) ? Math.max(1, Math.min(10, Math.round(conf))) : null,
+            };
+          }
+          return null;
+        })
+        .filter((r: any) => r !== null)
+        .map((r: any) => ({
+          ...r,
+          analysis_id: saved.id,
+          user_id: body.user_id,
+          sales_rep_id: body.sales_rep_id,
+          org_id: body.org_id || null,
+          customer_id: body.customer_id || null,
+          crop_context: body.crop_context || null,
+          region: body.region || null,
+          call_date: body.call_date || null,
+        }));
+
+      if (trendRows.length > 0) {
+        const { error: trendErr } = await supabase
+          .from("sales_market_trends")
+          .insert(trendRows);
+        if (trendErr) {
+          console.error("[analyze-sales-call] Trend save error:", trendErr);
+        }
+      }
+    } catch (e) {
+      console.error("[analyze-sales-call] Trend extraction error:", e);
     }
 
     return new Response(

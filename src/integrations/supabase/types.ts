@@ -6434,6 +6434,93 @@ export type Database = {
           },
         ]
       }
+      sales_market_trends: {
+        Row: {
+          analysis_id: string
+          call_date: string | null
+          confidence: number | null
+          created_at: string
+          crop_context: string | null
+          customer_id: string | null
+          evidence: string | null
+          id: string
+          org_id: string | null
+          region: string | null
+          sales_rep_id: string
+          trend_label: string
+          trend_type: string
+          user_id: string
+        }
+        Insert: {
+          analysis_id: string
+          call_date?: string | null
+          confidence?: number | null
+          created_at?: string
+          crop_context?: string | null
+          customer_id?: string | null
+          evidence?: string | null
+          id?: string
+          org_id?: string | null
+          region?: string | null
+          sales_rep_id: string
+          trend_label: string
+          trend_type: string
+          user_id: string
+        }
+        Update: {
+          analysis_id?: string
+          call_date?: string | null
+          confidence?: number | null
+          created_at?: string
+          crop_context?: string | null
+          customer_id?: string | null
+          evidence?: string | null
+          id?: string
+          org_id?: string | null
+          region?: string | null
+          sales_rep_id?: string
+          trend_label?: string
+          trend_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_market_trends_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "sales_call_analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_market_trends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "sales_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_market_trends_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_market_trends_sales_rep_id_fkey"
+            columns: ["sales_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_market_trends_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_prep_documents: {
         Row: {
           call_objective: string | null
