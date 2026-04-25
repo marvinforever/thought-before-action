@@ -72,7 +72,15 @@ interface AIOutput {
   farmer_concerns?: string[];
   objections?: string[];
   product_opportunities?: string[];
-  market_trend_tags?: string[];
+  market_trend_tags?: Array<
+    | string
+    | {
+        trend_type?: string;
+        trend_label?: string;
+        evidence?: string;
+        confidence?: number;
+      }
+  >;
   coaching_score?: CoachingScore;
   rep_coaching_note?: string;
 }
@@ -329,13 +337,36 @@ function AnalysisResults({ output }: { output: AIOutput }) {
       {output.market_trend_tags?.length ? (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Market Trends</CardTitle>
+            <CardTitle className="text-base">Market Intelligence</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {output.market_trend_tags.map((t, i) => (
-                <Badge key={i} variant="secondary">{t}</Badge>
-              ))}
+            <div className="space-y-3">
+              {output.market_trend_tags.map((t, i) => {
+                if (typeof t === "string") {
+                  return <Badge key={i} variant="secondary">{t}</Badge>;
+                }
+                const label = t.trend_label || "(unlabeled)";
+                const type = t.trend_type || "other";
+                const conf = typeof t.confidence === "number" ? t.confidence : null;
+                return (
+                  <div key={i} className="rounded-md border p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs">{type.replace(/_/g, " ")}</Badge>
+                        <span className="font-medium text-sm">{label}</span>
+                      </div>
+                      {conf !== null && (
+                        <Badge variant="secondary" className="text-xs">
+                          Confidence {conf}/10
+                        </Badge>
+                      )}
+                    </div>
+                    {t.evidence && (
+                      <p className="text-xs text-muted-foreground italic">"{t.evidence}"</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
