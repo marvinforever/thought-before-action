@@ -1,44 +1,66 @@
+# Forward-to-Jericho: One Address, Smart Intent
 
+## What changes for the user
 
-# Switch Sales Coach from Opus to Gemini 3.1 Pro
+Nothing new to remember. Same Jericho email address you already reply to. Just start using it for more:
 
-## Why This Makes Sense
+- **Forward** a customer email thread → Jericho files it under your pipeline
+- **Reply** with a question ("what's Prairie Vista at?") → he answers from your data
+- **Reply** with a thought ("great call with Henderson today, talked seed for 2027") → he logs it as activity
+- **Reply** to a Daily Brief like today → still works exactly the same
 
-The sales coach currently routes through **Claude Opus 4.6** (Anthropic direct API), which is the slowest and most expensive model in the stack ($5/$25 per 1M tokens). Switching to **Gemini 3.1 Pro** via the Lovable AI Gateway would:
+One inbox. He figures out what you meant.
 
-- **Significantly faster response times** — Gemini Pro is "medium" latency vs Opus's "slow"
-- **No external API key dependency** — routes through Lovable AI Gateway instead of requiring ANTHROPIC_API_KEY
-- **Lower cost** — ~$1.25/$5 vs $5/$25 per 1M tokens
-- **Great for demos** — snappier responses make a better impression
+## How he tells the difference
 
-## What Changes
+The existing `process-email-reply` function gets a new first step: an intent classifier (Claude, fast pass).
 
-**One file: `supabase/functions/_shared/ai-router.ts`**
+```text
+inbound email
+   ↓
+[ verify sender = registered profile.email ]   ← isolation gate
+   ↓
+[ intent classifier ]
+   ├── forward    → has "Forwarded message" / "Begin forwarded message:" / quoted From: headers
+   ├── query      → asks about pipeline/customers/deals ("what's…", "show me…", "status on…")
+   ├── note       → narrative about an interaction ("had a call with…", "met with…")
+   └── reflect    → reply to a Daily Brief / coaching reply  (existing behavior, unchanged)
+   ↓
+[ route to handler ]
+```
 
-1. Add a new model entry for Gemini 3.1 Pro:
-   ```
-   'gemini-3-pro': {
-     id: 'google/gemini-3.1-pro-preview',
-     provider: 'lovable',
-     maxTokens: 65536,
-     latency: 'medium',
-     strengths: ['reasoning', 'sales coaching', 'complex analysis'],
-     supportsStreaming: true,
-   }
-   ```
+## Per-intent behavior
 
-2. Update the routing table to point `sales-coaching` and `sales-coaching-main` to `gemini-3-pro` instead of `opus`.
+**Forward** — extract grower, contact, deal signals from the quoted thread; reuse existing `createCompany` / `createContact` / `createDeal` / `logActivity` from `sales-coach/actions.ts` (fuzzy-matches existing records, no duplicates); save the raw email body as a note attached to the deal/contact; reply with a confirmation showing what was filed/matched + an undo link.
 
-3. Update the auto-upgrade threshold (line 228-231) to upgrade to `gemini-3-pro` instead of `opus` for high-token tasks, keeping everything on the Lovable gateway.
+**Query** — scope to sender's `profile_id` only, run the same Pipeline-First logic as the chat agent, reply with a branded HTML answer (deep navy + gold, table format).
 
-## Rollback Plan
+**Note** — log as a `sales_activity` against the closest matched grower/contact; if ambiguous, reply asking which grower (one short question, no menu).
 
-If quality isn't where it needs to be after testing, it's a single routing table change back to `opus`. The Anthropic fallback logic already exists if needed.
+**Reflect** — unchanged; today's Daily Brief reply flow.
 
-## Risk
+## Guardrails (the "sacred" part)
 
-- Gemini 3.1 Pro is a "preview" model — quality may differ from Opus on nuanced multi-step reasoning
-- The existing Anthropic fallback (lines 437-444) would need updating since the primary would no longer be Anthropic
+- **Sender identity = data ownership.** `From:` must match a row in `profiles.email`. Unknown sender → polite rejection, logged for super-admin review. No exceptions.
+- **Strict tenant isolation.** Every read and write filtered by the sender's `profile_id`. Same RLS that already protects the rest of the Sales Agent.
+- **No fabrication.** Extraction follows existing product-recommendation safety rules — never invents product codes, prices, or hybrid numbers.
+- **Confirmation before destructive moves.** Stage changes, deletes, or contact merges → "Reply YES to confirm" (matches existing communication safety guardrails).
+- **Full audit trail.** Every inbound logged to `email_reply_logs` (already exists) + new `sales_email_forwards` table for sales-specific provenance (raw body, classified intent, extracted entities, action log IDs).
 
-This is a low-risk, easily reversible change — perfect for a demo trial run.
+## What I'll build
 
+1. **DB migration** — `sales_email_forwards` table for audit/debug.
+2. **Intent classifier** — small Claude Haiku call inside `process-email-reply` that returns `{intent, confidence}`. Fast and cheap.
+3. **Forward handler** — Opus extraction → existing `actions.ts` functions → confirmation email via `send-email-reply`.
+4. **Query handler** — reuse the sales-coach Q&A path, scoped to sender, formatted as branded HTML email.
+5. **Note handler** — light extraction → `logActivity` against matched grower/contact.
+6. **Reply formatters** — match the existing email style (table-based HTML, deep navy + gold, sharp-friend tone).
+7. **Super-admin test page** — "Simulate Inbound" alongside the Daily Brief preview we just shipped: paste an email, see classified intent + extracted entities + what would be filed + the reply that would go back. No actual writes in test mode.
+
+## Open question
+
+When intent confidence is low (e.g. ambiguous email), should Jericho:
+- **A)** Make his best guess and act, with an undo link in the reply (faster, more agentic)
+- **B)** Reply asking "want me to file this under Prairie Vista or just log it as a note?" (safer, one extra round-trip)
+
+I'd default to **A** for forwards/notes (low risk — undo is one click) and **B** for destructive moves like stage changes or deletes. Sound right?

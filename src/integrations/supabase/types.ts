@@ -6365,6 +6365,71 @@ export type Database = {
           },
         ]
       }
+      sales_email_forwards: {
+        Row: {
+          actions_performed: Json | null
+          classified_intent: string
+          company_id: string | null
+          created_at: string
+          email_reply_log_id: string | null
+          email_subject: string | null
+          error_message: string | null
+          extracted_entities: Json | null
+          id: string
+          intent_confidence: number | null
+          processed_at: string | null
+          profile_id: string
+          raw_body: string | null
+          reply_sent: string | null
+          sender_email: string
+          status: string
+        }
+        Insert: {
+          actions_performed?: Json | null
+          classified_intent: string
+          company_id?: string | null
+          created_at?: string
+          email_reply_log_id?: string | null
+          email_subject?: string | null
+          error_message?: string | null
+          extracted_entities?: Json | null
+          id?: string
+          intent_confidence?: number | null
+          processed_at?: string | null
+          profile_id: string
+          raw_body?: string | null
+          reply_sent?: string | null
+          sender_email: string
+          status?: string
+        }
+        Update: {
+          actions_performed?: Json | null
+          classified_intent?: string
+          company_id?: string | null
+          created_at?: string
+          email_reply_log_id?: string | null
+          email_subject?: string | null
+          error_message?: string | null
+          extracted_entities?: Json | null
+          id?: string
+          intent_confidence?: number | null
+          processed_at?: string | null
+          profile_id?: string
+          raw_body?: string | null
+          reply_sent?: string | null
+          sender_email?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_email_forwards_email_reply_log_id_fkey"
+            columns: ["email_reply_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_reply_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_knowledge: {
         Row: {
           access_level: string
