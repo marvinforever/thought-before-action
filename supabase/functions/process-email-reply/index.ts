@@ -152,6 +152,63 @@ serve(async (req) => {
       );
     }
 
+    // ============ NEW: Sales intent routing (forward / query / note) ============
+    // Runs BEFORE the generic growth/coaching intent parser. If this matches
+    // (confidence >= 0.55), we send a sales-specific reply and short-circuit.
+    try {
+      const salesRoute = await routeSalesEmail(
+        supabase,
+        { id: profile.id, full_name: profile.full_name, company_id: profile.company_id, email: profile.email },
+        logEntry.email_body,
+        logEntry.email_subject || "",
+        logId
+      );
+
+      if (salesRoute && salesRoute.matched) {
+        console.log(`[sales-intent] matched: ${salesRoute.intent} (${salesRoute.confidence})`);
+
+        await supabase.functions.invoke("send-email-reply", {
+          body: {
+            toEmail: profile.email,
+            toName: profile.full_name,
+            subject: `Re: ${logEntry.email_subject}`,
+            bodyText: salesRoute.replyText,
+            inReplyTo: logEntry.parsed_data?.message_id,
+          },
+        });
+
+        await supabase
+          .from("email_reply_logs")
+          .update({
+            processing_status: "processed",
+            profile_id: profile.id,
+            processed_at: new Date().toISOString(),
+            parsed_data: {
+              ...logEntry.parsed_data,
+              sales_intent: salesRoute.intent,
+              sales_confidence: salesRoute.confidence,
+              sales_actions: salesRoute.actions.length,
+              sales_forward_log_id: salesRoute.forwardLogId,
+              response_sent: true,
+            },
+          })
+          .eq("id", logId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            route: "sales",
+            intent: salesRoute.intent,
+            actions: salesRoute.actions.length,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (err) {
+      // Sales routing must never block the existing growth/coaching pipeline.
+      console.error("[sales-intent] router error (falling through to growth handler):", err);
+    }
+
     // ============ ENHANCED: Fetch user's current context ============
     const userContext = await fetchUserContext(supabase, profile.id, profile.company_id);
     console.log("Fetched user context:", {
