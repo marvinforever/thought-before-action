@@ -29,6 +29,7 @@ import { JerichoChat } from "@/components/JerichoChat";
 import { TelegramConnectCTA } from "@/components/TelegramConnectCTA";
 
 import { GrowthPlaybookBanner } from "@/components/GrowthPlaybookBanner";
+import { ReflectionRadar } from "@/components/ReflectionRadar";
 
 interface AITask {
   task: string;
@@ -252,6 +253,11 @@ export default function MyGrowthPlan() {
       {/* 90 Day Tracker */}
       <div data-onboarding="goals">
         <NinetyDayTracker />
+      </div>
+
+      {/* Friday Debrief — Reflection Radar */}
+      <div data-onboarding="reflections">
+        <ReflectionRadar />
       </div>
 
       {/* Job Description Section */}
