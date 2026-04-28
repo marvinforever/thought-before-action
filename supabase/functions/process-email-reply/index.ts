@@ -156,6 +156,51 @@ serve(async (req) => {
     // Runs BEFORE the generic growth/coaching intent parser. If this matches
     // (confidence >= 0.55), we send a sales-specific reply and short-circuit.
     try {
+      // ---- HIGHEST PRIORITY: Friday Debrief intent ----
+      // Detection: subject explicitly contains "Friday Debrief", OR the
+      // In-Reply-To header matches a recent friday_debrief_invites.message_id.
+      const subj = (logEntry.email_subject || "").toLowerCase();
+      const inReplyTo = logEntry.parsed_data?.message_id || logEntry.parsed_data?.in_reply_to || null;
+      let isFridayDebrief = subj.includes("friday debrief");
+      if (!isFridayDebrief && inReplyTo) {
+        const { data: invMatch } = await supabase
+          .from("friday_debrief_invites")
+          .select("id, week_of")
+          .eq("message_id", inReplyTo)
+          .maybeSingle();
+        if (invMatch) isFridayDebrief = true;
+      }
+
+      if (isFridayDebrief) {
+        console.log("[friday-debrief] intent matched, routing");
+        const debriefRes = await supabase.functions.invoke("process-friday-debrief", {
+          body: {
+            profileId: profile.id,
+            rawResponse: logEntry.email_body,
+            channel: "email",
+            sendReply: true,
+          },
+        });
+        await supabase
+          .from("email_reply_logs")
+          .update({
+            processing_status: "processed",
+            profile_id: profile.id,
+            processed_at: new Date().toISOString(),
+            parsed_data: {
+              ...logEntry.parsed_data,
+              friday_debrief: true,
+              debrief_id: (debriefRes.data as any)?.debrief_id,
+              response_sent: true,
+            },
+          })
+          .eq("id", logId);
+        return new Response(
+          JSON.stringify({ success: true, route: "friday_debrief", data: debriefRes.data }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const salesRoute = await routeSalesEmail(
         supabase,
         { id: profile.id, full_name: profile.full_name, company_id: profile.company_id, email: profile.email },
