@@ -86,43 +86,47 @@ serve(async (req) => {
       ? `email:${emailId}`
       : `hash:${await sha256(`${from}|${to}|${subject}|${text || ''}|${html ? 'html' : ''}|${emailData.created_at || rawPayload.created_at || ''}`)}`;
 
-    // If no text/html from payload and we have emailId, try fetching from Resend API with retries
+    // Resend's `email.received` webhook payload contains ONLY metadata.
+    // The body must be fetched from the Received Emails API:
+    //   GET https://api.resend.com/emails/receiving/:email_id
+    // (NOT /emails/:id — that endpoint is for outbound emails.)
     if (!text && !html && emailId) {
-      console.log("No content in payload, trying Resend API with retries...");
+      console.log("Inbound webhook has no body (expected). Fetching from Received Emails API...");
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      
-      // Retry up to 3 times with increasing delays (Resend may need time to index the email)
-      const delays = [1000, 2000, 3000]; // 1s, 2s, 3s
-      
+
+      // Retry with backoff — Resend may take a moment to index the inbound email.
+      const delays = [500, 1500, 3000, 5000];
+
       for (let attempt = 0; attempt < delays.length; attempt++) {
-        // Wait before fetching
-        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
-        console.log(`Attempt ${attempt + 1}: Fetching email after ${delays[attempt]}ms delay`);
-        
+        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+        console.log(`Attempt ${attempt + 1}: GET /emails/receiving/${emailId}`);
+
         try {
-          const emailContentResponse = await fetch(`https://api.resend.com/emails/${emailId}`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${resendApiKey}`,
+          const emailContentResponse = await fetch(
+            `https://api.resend.com/emails/receiving/${emailId}`,
+            {
+              method: "GET",
+              headers: { Authorization: `Bearer ${resendApiKey}` },
             },
-          });
-          
+          );
+
           if (emailContentResponse.ok) {
             const emailContent = await emailContentResponse.json();
-            console.log("Resend API response keys:", Object.keys(emailContent || {}));
+            console.log("Received Emails API response keys:", Object.keys(emailContent || {}));
             text = emailContent.text || "";
             html = emailContent.html || "";
-            console.log("Fetched text length:", text.length);
-            console.log("Fetched html length:", html.length);
-            
-            // If we got content, break out of retry loop
+            console.log("Fetched text length:", text.length, "html length:", html.length);
             if (text || html) {
-              console.log("Successfully retrieved email content on attempt", attempt + 1);
+              console.log("Got content on attempt", attempt + 1);
               break;
             }
           } else {
             const errorText = await emailContentResponse.text();
-            console.error(`Attempt ${attempt + 1} failed:`, emailContentResponse.status, errorText);
+            console.error(
+              `Attempt ${attempt + 1} failed:`,
+              emailContentResponse.status,
+              errorText,
+            );
           }
         } catch (fetchError) {
           console.error(`Attempt ${attempt + 1} error:`, fetchError);
