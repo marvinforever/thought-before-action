@@ -3378,6 +3378,165 @@ export type Database = {
           },
         ]
       }
+      friday_debrief_invites: {
+        Row: {
+          channel_invited: string
+          created_at: string
+          id: string
+          invited_at: string
+          message_id: string | null
+          profile_id: string
+          reminder_sent_at: string | null
+          responded_at: string | null
+          skipped: boolean
+          week_of: string
+        }
+        Insert: {
+          channel_invited?: string
+          created_at?: string
+          id?: string
+          invited_at?: string
+          message_id?: string | null
+          profile_id: string
+          reminder_sent_at?: string | null
+          responded_at?: string | null
+          skipped?: boolean
+          week_of: string
+        }
+        Update: {
+          channel_invited?: string
+          created_at?: string
+          id?: string
+          invited_at?: string
+          message_id?: string | null
+          profile_id?: string
+          reminder_sent_at?: string | null
+          responded_at?: string | null
+          skipped?: boolean
+          week_of?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friday_debrief_invites_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friday_debrief_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          last_debrief_week: string | null
+          longest_streak: number
+          profile_id: string
+          total_debriefs: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          last_debrief_week?: string | null
+          longest_streak?: number
+          profile_id: string
+          total_debriefs?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          last_debrief_week?: string | null
+          longest_streak?: number
+          profile_id?: string
+          total_debriefs?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friday_debrief_streaks_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friday_debriefs: {
+        Row: {
+          audio_url: string | null
+          category_scores: Json | null
+          channel: string
+          created_at: string
+          extracted_themes: Json | null
+          focus_text: string | null
+          id: string
+          jericho_reply_sent_at: string | null
+          narrative_summary: string | null
+          need_text: string | null
+          processed_at: string | null
+          profile_id: string
+          raw_response: string | null
+          stuck_text: string | null
+          submitted_at: string
+          transcript: string | null
+          updated_at: string
+          week_of: string
+          wins_text: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          category_scores?: Json | null
+          channel: string
+          created_at?: string
+          extracted_themes?: Json | null
+          focus_text?: string | null
+          id?: string
+          jericho_reply_sent_at?: string | null
+          narrative_summary?: string | null
+          need_text?: string | null
+          processed_at?: string | null
+          profile_id: string
+          raw_response?: string | null
+          stuck_text?: string | null
+          submitted_at?: string
+          transcript?: string | null
+          updated_at?: string
+          week_of: string
+          wins_text?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          category_scores?: Json | null
+          channel?: string
+          created_at?: string
+          extracted_themes?: Json | null
+          focus_text?: string | null
+          id?: string
+          jericho_reply_sent_at?: string | null
+          narrative_summary?: string | null
+          need_text?: string | null
+          processed_at?: string | null
+          profile_id?: string
+          raw_response?: string | null
+          stuck_text?: string | null
+          submitted_at?: string
+          transcript?: string | null
+          updated_at?: string
+          week_of?: string
+          wins_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friday_debriefs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       greatness_keys: {
         Row: {
           company_id: string
@@ -7226,6 +7385,9 @@ export type Database = {
           current_sprint_focus: string | null
           emotional_state: string | null
           error_log: string | null
+          friday_debrief_day_time: string
+          friday_debrief_enabled: boolean
+          friday_debrief_share_with_manager: boolean
           hot_customers: Json | null
           id: string
           is_free_tier: boolean | null
@@ -7251,6 +7413,9 @@ export type Database = {
           current_sprint_focus?: string | null
           emotional_state?: string | null
           error_log?: string | null
+          friday_debrief_day_time?: string
+          friday_debrief_enabled?: boolean
+          friday_debrief_share_with_manager?: boolean
           hot_customers?: Json | null
           id?: string
           is_free_tier?: boolean | null
@@ -7276,6 +7441,9 @@ export type Database = {
           current_sprint_focus?: string | null
           emotional_state?: string | null
           error_log?: string | null
+          friday_debrief_day_time?: string
+          friday_debrief_enabled?: boolean
+          friday_debrief_share_with_manager?: boolean
           hot_customers?: Json | null
           id?: string
           is_free_tier?: boolean | null
@@ -7803,6 +7971,21 @@ export type Database = {
           rep_name: string
           total_revenue: number
           transaction_count: number
+        }[]
+      }
+      get_team_debrief_aggregates: {
+        Args: { p_manager_id: string; p_weeks_back?: number }
+        Returns: {
+          avg_asks: number
+          avg_focus: number
+          avg_stuck: number
+          avg_vibe: number
+          avg_wins: number
+          current_streak: number
+          full_name: string
+          profile_id: string
+          recent_themes: Json
+          weeks_completed: number
         }[]
       }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
