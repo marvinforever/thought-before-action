@@ -26,6 +26,7 @@ import {
 import slcLogo from "@/assets/logos/slc-logo.png";
 import agPartnersLogo from "@/assets/logos/ag-partners-logo.webp";
 import winfieldLogo from "@/assets/logos/winfield-logo.png";
+import momentumIconDark from "@/assets/logos/momentum-icon-white.jpg"; // black mark on white bg
 
 const slides = [
   { id: "moment", label: "Brandt's Moment" },
@@ -279,6 +280,23 @@ export default function PitchBrandt() {
       `}</style>
 
       <div className="pitch-root earth-bg">
+        {/* Persistent Momentum Company brand mark — top-left of every slide */}
+        <div className="pitch-floating fixed top-5 left-5 z-40 flex items-center gap-2.5 px-3 py-2 rounded-full bg-card/70 backdrop-blur border border-border">
+          <img
+            src={momentumIconDark}
+            alt="The Momentum Company"
+            className="h-5 w-5 object-contain mix-blend-multiply"
+          />
+          <div className="flex flex-col leading-tight">
+            <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-primary">
+              Jericho
+            </span>
+            <span className="text-[9px] font-medium text-muted-foreground">
+              by The Momentum Company
+            </span>
+          </div>
+        </div>
+
         {/* Floating slide indicator + exit */}
         <div className="pitch-floating fixed top-5 right-5 z-50 flex items-center gap-2">
           <a
@@ -647,7 +665,13 @@ export default function PitchBrandt() {
               variants={fadeUp}
               className="mt-16 pt-8 border-t border-border flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
             >
+              <img
+                src={momentumIconDark}
+                alt="The Momentum Company"
+                className="h-8 w-8 object-contain mix-blend-multiply mr-1"
+              />
               <span className="font-semibold text-primary">Mark Jewell</span>
+              <span className="text-muted-foreground">— The Momentum Company</span>
               <span>·</span>
               <a href="mailto:mark@themomentumcompany.com" className="hover:text-accent transition-colors">
                 mark@themomentumcompany.com
