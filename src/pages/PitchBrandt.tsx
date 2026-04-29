@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas-pro";
 import {
   ArrowUpRight,
   Download,
+  Loader2,
   ClipboardCheck,
   BookOpen,
   Mic,
@@ -85,6 +88,7 @@ function SlideShell({
 
 export default function PitchBrandt() {
   const [active, setActive] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Track active slide via IntersectionObserver
@@ -123,6 +127,90 @@ export default function PitchBrandt() {
   const goTo = (i: number) => {
     const el = document.getElementById(slides[i].id);
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const downloadPDF = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      // Landscape Letter: 11 x 8.5 inches
+      const pdf = new jsPDF({ orientation: "landscape", unit: "in", format: "letter" });
+      const pageW = pdf.internal.pageSize.getWidth();   // 11
+      const pageH = pdf.internal.pageSize.getHeight();  // 8.5
+      const margin = 0.5; // inches — top/bottom/left/right
+      const contentW = pageW - margin * 2;
+      const contentH = pageH - margin * 2;
+
+      const slideEls = Array.from(
+        document.querySelectorAll<HTMLElement>(".pitch-slide")
+      );
+
+      for (let i = 0; i < slideEls.length; i++) {
+        const el = slideEls[i];
+        // Render the slide off-screen at a fixed deck aspect ratio so layout
+        // matches the landscape page (no mobile single-column collapse).
+        const RENDER_W = 1600;
+        const RENDER_H = Math.round((RENDER_W * contentH) / contentW);
+
+        const clone = el.cloneNode(true) as HTMLElement;
+        const wrap = document.createElement("div");
+        wrap.style.position = "fixed";
+        wrap.style.left = "-10000px";
+        wrap.style.top = "0";
+        wrap.style.width = `${RENDER_W}px`;
+        wrap.style.height = `${RENDER_H}px`;
+        wrap.style.background = "hsl(var(--background))";
+        wrap.style.overflow = "hidden";
+        clone.style.minHeight = `${RENDER_H}px`;
+        clone.style.height = `${RENDER_H}px`;
+        clone.style.width = `${RENDER_W}px`;
+        clone.style.padding = "72px 88px";
+        clone.style.display = "flex";
+        clone.style.alignItems = "center";
+        clone.style.justifyContent = "center";
+        // Strip floating UI artifacts
+        clone.querySelectorAll(".pitch-floating, .grain-overlay").forEach((n) => n.remove());
+        wrap.appendChild(clone);
+        document.body.appendChild(wrap);
+
+        try {
+          const canvas = await html2canvas(clone, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+            useCORS: true,
+            logging: false,
+            windowWidth: RENDER_W,
+            windowHeight: RENDER_H,
+          });
+          const img = canvas.toDataURL("image/jpeg", 0.92);
+          if (i > 0) pdf.addPage();
+          pdf.addImage(img, "JPEG", margin, margin, contentW, contentH);
+
+          // Footer
+          pdf.setFontSize(8);
+          pdf.setTextColor(130, 140, 155);
+          pdf.text(
+            "Jericho × Brandt — Confidential",
+            margin,
+            pageH - 0.22
+          );
+          pdf.text(
+            `${i + 1} / ${slideEls.length}`,
+            pageW - margin,
+            pageH - 0.22,
+            { align: "right" }
+          );
+        } finally {
+          document.body.removeChild(wrap);
+        }
+      }
+
+      pdf.save("jericho-brandt-pitch.pdf");
+    } catch (err) {
+      console.error("PDF export failed", err);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -198,11 +286,12 @@ export default function PitchBrandt() {
 
         {/* Floating download */}
         <button
-          onClick={() => window.print()}
-          className="pitch-floating fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:opacity-90 transition-opacity"
+          onClick={downloadPDF}
+          disabled={exporting}
+          className="pitch-floating fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-70"
         >
-          <Download className="h-4 w-4" />
-          Download PDF
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {exporting ? "Generating PDF…" : "Download PDF"}
         </button>
 
         <div ref={containerRef} className="pitch-scroll">
