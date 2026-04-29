@@ -6973,6 +6973,57 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_submissions: {
+        Row: {
+          contact_email: string
+          contact_name: string
+          contact_phone: string | null
+          created_at: string
+          file_names: string[]
+          file_paths: string[]
+          id: string
+          notes: string | null
+          product_categories: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          supplier_company: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email: string
+          contact_name: string
+          contact_phone?: string | null
+          created_at?: string
+          file_names?: string[]
+          file_paths?: string[]
+          id?: string
+          notes?: string | null
+          product_categories?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          supplier_company: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          file_names?: string[]
+          file_paths?: string[]
+          id?: string
+          notes?: string | null
+          product_categories?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          supplier_company?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       task_notes: {
         Row: {
           created_at: string
