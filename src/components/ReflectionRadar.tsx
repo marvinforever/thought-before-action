@@ -1,23 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Calendar, TrendingUp, MessageSquareHeart } from "lucide-react";
+import { Sparkles, Flame, TrendingUp, TrendingDown, Minus, MessageSquareHeart } from "lucide-react";
 import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   ResponsiveContainer,
   LineChart,
   Line,
   Tooltip as RechartsTooltip,
-  XAxis,
   YAxis,
+  ReferenceLine,
 } from "recharts";
 
 type CategoryScores = {
@@ -42,17 +36,75 @@ type Debrief = {
   extracted_themes: string[] | null;
 };
 
-const AXES: Array<{ key: keyof CategoryScores; label: string }> = [
-  { key: "wins", label: "Wins" },
-  { key: "stuck", label: "Stuck" },
-  { key: "focus", label: "Focus" },
-  { key: "asks", label: "Asks" },
-  { key: "vibe", label: "Vibe" },
+type AxisDef = {
+  key: keyof CategoryScores;
+  label: string;
+  // higher is better (true) or lower is better (false, e.g. Stuck)
+  higherBetter: boolean;
+  description: string;
+};
+
+const AXES: AxisDef[] = [
+  { key: "wins",  label: "Wins",  higherBetter: true,  description: "Things that worked" },
+  { key: "focus", label: "Focus", higherBetter: true,  description: "Clarity on what matters" },
+  { key: "vibe",  label: "Vibe",  higherBetter: true,  description: "Energy & momentum" },
+  { key: "asks",  label: "Asks",  higherBetter: true,  description: "Willingness to ask for help" },
+  { key: "stuck", label: "Stuck", higherBetter: false, description: "Friction (lower is better)" },
 ];
 
 function avg(values: number[]): number {
   if (!values.length) return 0;
-  return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+// Momentum Score 0-100: weighted average of normalized axes (Stuck inverted)
+function momentumScore(scores: CategoryScores | null | undefined): number {
+  if (!scores) return 0;
+  const norm = AXES.map((a) => {
+    const v = Number(scores[a.key] ?? 0);
+    const clamped = Math.max(0, Math.min(10, v));
+    return a.higherBetter ? clamped : 10 - clamped;
+  });
+  return Math.round((avg(norm) / 10) * 100);
+}
+
+function streakWeeks(debriefs: Debrief[]): number {
+  if (!debriefs.length) return 0;
+  const sorted = [...debriefs].sort((a, b) => b.week_of.localeCompare(a.week_of));
+  let streak = 0;
+  let cursor = new Date(sorted[0].week_of);
+  for (const d of sorted) {
+    const wk = new Date(d.week_of);
+    const diffDays = Math.round((cursor.getTime() - wk.getTime()) / (1000 * 60 * 60 * 24));
+    if (streak === 0 && diffDays <= 7) {
+      streak = 1;
+      cursor = wk;
+      continue;
+    }
+    if (diffDays >= 6 && diffDays <= 8) {
+      streak += 1;
+      cursor = wk;
+    } else if (diffDays === 0) {
+      // duplicate same week, skip
+      continue;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+function trendDelta(values: number[], higherBetter: boolean): { dir: "up" | "down" | "flat"; delta: number } {
+  if (values.length < 2) return { dir: "flat", delta: 0 };
+  const recent = values.slice(-3);
+  const prior = values.slice(0, -3);
+  if (!prior.length) return { dir: "flat", delta: 0 };
+  const recentAvg = avg(recent);
+  const priorAvg = avg(prior);
+  const raw = recentAvg - priorAvg;
+  const adjusted = higherBetter ? raw : -raw;
+  if (Math.abs(adjusted) < 0.3) return { dir: "flat", delta: Math.round(adjusted * 10) / 10 };
+  return { dir: adjusted > 0 ? "up" : "down", delta: Math.round(adjusted * 10) / 10 };
 }
 
 export function ReflectionRadar() {
@@ -92,12 +144,23 @@ export function ReflectionRadar() {
     return () => { cancelled = true; };
   }, []);
 
+  const chrono = useMemo(() => [...debriefs].reverse(), [debriefs]);
+
+  const momentum = useMemo(() => {
+    if (!debriefs.length) return { current: 0, prior: 0, delta: 0 };
+    const current = momentumScore(debriefs[0].category_scores);
+    const prior = debriefs[1] ? momentumScore(debriefs[1].category_scores) : current;
+    return { current, prior, delta: current - prior };
+  }, [debriefs]);
+
+  const streak = useMemo(() => streakWeeks(debriefs), [debriefs]);
+
   if (loading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Weekly Reflections</CardTitle>
-          <CardDescription>Your Friday Debrief radar</CardDescription>
+          <CardDescription>Your Friday Debrief momentum</CardDescription>
         </CardHeader>
         <CardContent><Skeleton className="h-64 w-full" /></CardContent>
       </Card>
@@ -109,7 +172,7 @@ export function ReflectionRadar() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Weekly Reflections</CardTitle>
-          <CardDescription>Your Friday Debrief radar</CardDescription>
+          <CardDescription>Your Friday Debrief momentum</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 space-y-2">
@@ -126,32 +189,14 @@ export function ReflectionRadar() {
   }
 
   const current = debriefs[0];
-  const last4 = debriefs.slice(0, 4);
-
-  const radarData = AXES.map(({ key, label }) => ({
-    axis: label,
-    current: Number(current.category_scores?.[key] ?? 0),
-    avg4: avg(last4.map((d) => Number(d.category_scores?.[key] ?? 0))),
-  }));
-
-  // Trend strip data: chronological
-  const trend = [...debriefs].reverse().map((d) => {
-    const s = d.category_scores ?? {};
-    return {
-      week: d.week_of?.slice(5),
-      wins: Number(s.wins ?? 0),
-      stuck: Number(s.stuck ?? 0),
-      focus: Number(s.focus ?? 0),
-      asks: Number(s.asks ?? 0),
-      vibe: Number(s.vibe ?? 0),
-    };
-  });
-
   const themes = Array.from(
-    new Set(
-      debriefs.slice(0, 4).flatMap((d) => (d.extracted_themes ?? []).map(String))
-    )
+    new Set(debriefs.slice(0, 4).flatMap((d) => (d.extracted_themes ?? []).map(String)))
   ).slice(0, 8);
+
+  const momentumDir = momentum.delta > 2 ? "up" : momentum.delta < -2 ? "down" : "flat";
+  const MomentumIcon = momentumDir === "up" ? TrendingUp : momentumDir === "down" ? TrendingDown : Minus;
+  const momentumColor =
+    momentumDir === "up" ? "text-emerald-500" : momentumDir === "down" ? "text-rose-500" : "text-muted-foreground";
 
   return (
     <Card>
@@ -162,63 +207,126 @@ export function ReflectionRadar() {
               <Sparkles className="h-5 w-5 text-primary" /> Weekly Reflections
             </CardTitle>
             <CardDescription>
-              Your Friday Debrief radar — current week vs. 4-week average
+              Momentum across your last {debriefs.length} {debriefs.length === 1 ? "week" : "weeks"}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            Week of {new Date(current.week_of).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          <div className="flex items-center gap-2">
+            {streak > 0 && (
+              <Badge variant="secondary" className="gap-1">
+                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                {streak} week{streak === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Radar */}
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData} outerRadius="75%">
-                <PolarGrid stroke="hsl(var(--border))" />
-                <PolarAngleAxis dataKey="axis" tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }} />
-                <PolarRadiusAxis angle={90} domain={[0, 10]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
-                <Radar
-                  name="4-week avg"
-                  dataKey="avg4"
-                  stroke="hsl(var(--muted-foreground))"
-                  fill="hsl(var(--muted-foreground))"
-                  fillOpacity={0.15}
-                />
-                <Radar
-                  name="This week"
-                  dataKey="current"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.45}
-                />
-                <RechartsTooltip
-                  contentStyle={{
-                    background: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    color: "hsl(var(--popover-foreground))",
-                  }}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
 
-          {/* Narrative + scores */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-5 gap-2">
-              {AXES.map(({ key, label }) => {
-                const v = Number(current.category_scores?.[key] ?? 0);
-                return (
-                  <div key={key} className="rounded-lg border bg-card p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-                    <div className="text-lg font-semibold text-foreground">{v.toFixed(0)}</div>
-                  </div>
-                );
-              })}
+      <CardContent className="space-y-6">
+        {/* Momentum Score hero */}
+        <div className="rounded-xl border bg-gradient-to-br from-primary/5 to-transparent p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Momentum Score</div>
+            <div className="flex items-baseline gap-3 mt-1">
+              <div className="text-5xl font-bold text-foreground tabular-nums">{momentum.current}</div>
+              <div className={`flex items-center gap-1 text-sm font-medium ${momentumColor}`}>
+                <MomentumIcon className="h-4 w-4" />
+                {momentum.delta > 0 ? "+" : ""}{momentum.delta} vs last week
+              </div>
             </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Week of {new Date(current.week_of).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </div>
+          </div>
+          {chrono.length > 1 && (
+            <div className="h-16 w-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chrono.map((d) => ({ score: momentumScore(d.category_scores) }))}>
+                  <YAxis domain={[0, 100]} hide />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Small multiples — one sparkline per axis */}
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+            By Dimension
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {AXES.map((axis) => {
+              const series = chrono.map((d) => Number(d.category_scores?.[axis.key] ?? 0));
+              const currentVal = series[series.length - 1] ?? 0;
+              const t = trendDelta(series, axis.higherBetter);
+              const TIcon = t.dir === "up" ? TrendingUp : t.dir === "down" ? TrendingDown : Minus;
+              const tColor =
+                t.dir === "up" ? "text-emerald-500" :
+                t.dir === "down" ? "text-rose-500" :
+                "text-muted-foreground";
+              const lineColor = axis.higherBetter ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+              const data = series.map((v, i) => ({ i, v }));
+              return (
+                <div key={axis.key} className="rounded-lg border bg-card p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-medium text-foreground">{axis.label}</div>
+                    <div className={`flex items-center gap-0.5 text-[11px] ${tColor}`}>
+                      <TIcon className="h-3 w-3" />
+                      {t.delta > 0 ? "+" : ""}{t.delta}
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <div className="text-2xl font-semibold text-foreground tabular-nums">{currentVal.toFixed(0)}</div>
+                    <div className="text-[10px] text-muted-foreground">/10</div>
+                  </div>
+                  <div className="h-10">
+                    {data.length > 1 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data}>
+                          <YAxis domain={[0, 10]} hide />
+                          <ReferenceLine y={5} stroke="hsl(var(--border))" strokeDasharray="2 2" />
+                          <Line
+                            type="monotone"
+                            dataKey="v"
+                            stroke={lineColor}
+                            strokeWidth={2}
+                            dot={{ r: 1.5, fill: lineColor }}
+                          />
+                          <RechartsTooltip
+                            contentStyle={{
+                              background: "hsl(var(--popover))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 6,
+                              fontSize: 11,
+                              padding: "4px 8px",
+                            }}
+                            formatter={(val: any) => [val, axis.label]}
+                            labelFormatter={() => ""}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center text-[10px] text-muted-foreground">
+                        Need 2+ weeks for trend
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">{axis.description}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Narrative + themes */}
+        {(current.narrative_summary || themes.length > 0) && (
+          <div className="space-y-3">
             {current.narrative_summary && (
               <div className="rounded-lg bg-muted/40 p-3 text-sm leading-relaxed">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
@@ -235,43 +343,9 @@ export function ReflectionRadar() {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Trend strip */}
-        {trend.length > 1 && (
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-              12-Week Trend
-            </div>
-            <div className="h-32 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trend}>
-                  <XAxis dataKey="week" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 10]} hide />
-                  <RechartsTooltip
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 8,
-                      color: "hsl(var(--popover-foreground))",
-                      fontSize: 12,
-                    }}
-                  />
-                  <Line type="monotone" dataKey="wins" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="focus" stroke="hsl(var(--accent-foreground))" strokeWidth={1.5} dot={false} opacity={0.7} />
-                  <Line type="monotone" dataKey="vibe" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} dot={false} opacity={0.6} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex gap-3 text-[10px] text-muted-foreground mt-1">
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-primary" /> Wins</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-foreground/60" /> Focus</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-muted-foreground" /> Vibe</span>
-            </div>
-          </div>
         )}
 
-        {/* Past debriefs list */}
+        {/* Recent debriefs */}
         <div>
           <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
             Recent Debriefs
@@ -287,7 +361,12 @@ export function ReflectionRadar() {
                   <div className="text-sm font-medium text-foreground">
                     {new Date(d.week_of).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   </div>
-                  <Badge variant="outline" className="text-[10px] capitalize">{d.channel}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-foreground tabular-nums">
+                      {momentumScore(d.category_scores)}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] capitalize">{d.channel}</Badge>
+                  </div>
                 </div>
                 <div className="text-xs text-muted-foreground line-clamp-2 mt-1">
                   {d.wins_text || d.narrative_summary || "—"}
@@ -308,6 +387,10 @@ export function ReflectionRadar() {
           </DialogHeader>
           {selected && (
             <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">Momentum {momentumScore(selected.category_scores)}</Badge>
+                <Badge variant="outline" className="capitalize">{selected.channel}</Badge>
+              </div>
               {[
                 { label: "Wins", value: selected.wins_text },
                 { label: "Stuck", value: selected.stuck_text },
