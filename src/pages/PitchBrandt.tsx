@@ -569,7 +569,9 @@ export default function PitchBrandt() {
                   <div key={c.name} className="flex flex-col gap-2">
                     <div className="h-10 flex items-center">
                       {c.logo ? (
-                        <img src={c.logo} alt={c.name} className="max-h-10 max-w-[140px] object-contain opacity-80" />
+                        <div className="inline-flex items-center justify-center h-10 px-3 rounded-md bg-primary">
+                          <img src={c.logo} alt={c.name} className="max-h-7 max-w-[130px] object-contain" />
+                        </div>
                       ) : (
                         <span className="display-serif text-2xl text-primary font-semibold">{c.name}</span>
                       )}
