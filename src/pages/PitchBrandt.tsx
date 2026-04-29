@@ -268,7 +268,8 @@ export default function PitchBrandt() {
             linear-gradient(180deg, hsl(var(--background)), hsl(45 30% 97%));
         }
         .display-serif {
-          font-family: ui-serif, Georgia, "Times New Roman", serif;
+          font-family: "Fraunces", ui-serif, "New York", Georgia, "Times New Roman", serif;
+          font-optical-sizing: auto;
           letter-spacing: -0.02em;
         }
         @media print {
