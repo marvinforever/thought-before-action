@@ -632,7 +632,10 @@ export default function PitchBrandt() {
               className="relative"
             >
               <div className="display-serif text-4xl sm:text-5xl lg:text-7xl text-primary font-semibold leading-[1.05] max-w-5xl">
-                <span className="text-accent">"</span>Jericho is the activation layer for your CRM.<span className="text-accent">"</span>
+                <span className="text-accent">"</span>Jericho is the activation layer for your sales data.<span className="text-accent">"</span>
+              </div>
+              <div className="mt-6 display-serif text-2xl sm:text-3xl lg:text-4xl text-accent font-medium italic">
+                Less friction. More fun.
               </div>
             </motion.div>
 
