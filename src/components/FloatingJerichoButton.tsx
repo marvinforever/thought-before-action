@@ -17,6 +17,7 @@ export function FloatingJerichoButton({ isOpen: controlledIsOpen, onOpenChange }
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showVoiceButton, setShowVoiceButton] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
   const [contextType, setContextType] = useState<string | undefined>();
   const location = useLocation();
 
@@ -44,14 +45,17 @@ export function FloatingJerichoButton({ isOpen: controlledIsOpen, onOpenChange }
     // Check on mount and subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
+        setIsAuthed(true);
         checkUserCompany(session.user.id);
       } else {
+        setIsAuthed(false);
         setShowVoiceButton(false);
       }
     });
 
     // Initial check
     supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsAuthed(!!user);
       if (user) checkUserCompany(user.id);
     });
     
