@@ -12,7 +12,7 @@ import { CheckCircle2, FileSpreadsheet, FileText, Upload, Download } from "lucid
 const ACCEPTED =
   ".csv,.xlsx,.xls,.numbers,.tsv,.pdf,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MAX_BYTES = 25 * 1024 * 1024; // 25MB per file
-const MAX_FILES = 10;
+const MAX_FILES = 50;
 
 const TEMPLATE_HEADERS = [
   "product_name",
@@ -61,6 +61,8 @@ export default function SupplierIntake() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [form, setForm] = useState({
     supplier_company: "",
     contact_name: "",
@@ -70,18 +72,33 @@ export default function SupplierIntake() {
     notes: "",
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const list = Array.from(e.target.files ?? []);
+  const addFiles = (incoming: File[]) => {
     const valid: File[] = [];
-    for (const f of list) {
+    for (const f of incoming) {
       if (f.size > MAX_BYTES) {
         toast({ title: "File too large", description: `${f.name} exceeds 25MB.`, variant: "destructive" });
         continue;
       }
+      // de-dupe by name+size
+      if (files.some((x) => x.name === f.name && x.size === f.size)) continue;
       valid.push(f);
     }
     const merged = [...files, ...valid].slice(0, MAX_FILES);
+    if (files.length + valid.length > MAX_FILES) {
+      toast({ title: "File limit reached", description: `Up to ${MAX_FILES} files per submission.` });
+    }
     setFiles(merged);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files ?? []));
+    e.target.value = ""; // allow re-selecting the same file
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    addFiles(Array.from(e.dataTransfer.files ?? []));
   };
 
   const removeFile = (idx: number) => setFiles(files.filter((_, i) => i !== idx));
@@ -97,21 +114,33 @@ export default function SupplierIntake() {
       return;
     }
     setSubmitting(true);
+    setProgress({ done: 0, total: files.length });
     try {
       const stamp = Date.now();
       const safeCompany = form.supplier_company.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) || "supplier";
       const folder = `${safeCompany}/${stamp}`;
-      const paths: string[] = [];
-      const names: string[] = [];
-      for (const f of files) {
-        const safeName = f.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
-        const path = `${folder}/${safeName}`;
-        const { error } = await supabase.storage
-          .from("supplier-submissions")
-          .upload(path, f, { upsert: false, contentType: f.type || undefined });
-        if (error) throw error;
-        paths.push(path);
-        names.push(f.name);
+      // Upload in parallel batches of 4 to avoid overwhelming the connection
+      const BATCH = 4;
+      const paths: string[] = new Array(files.length);
+      const names: string[] = new Array(files.length);
+      let completed = 0;
+      for (let i = 0; i < files.length; i += BATCH) {
+        const slice = files.slice(i, i + BATCH);
+        await Promise.all(
+          slice.map(async (f, j) => {
+            const idx = i + j;
+            const safeName = f.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
+            const path = `${folder}/${idx}-${safeName}`;
+            const { error } = await supabase.storage
+              .from("supplier-submissions")
+              .upload(path, f, { upsert: false, contentType: f.type || undefined });
+            if (error) throw error;
+            paths[idx] = path;
+            names[idx] = f.name;
+            completed += 1;
+            setProgress({ done: completed, total: files.length });
+          })
+        );
       }
       const { error: insErr } = await supabase.from("supplier_submissions").insert({
         supplier_company: form.supplier_company.trim(),
@@ -130,6 +159,7 @@ export default function SupplierIntake() {
       toast({ title: "Submission failed", description: err.message ?? "Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
+      setProgress(null);
     }
   };
 
@@ -184,7 +214,7 @@ export default function SupplierIntake() {
               <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
                 <li><strong>Spreadsheets:</strong> CSV, Excel (.xlsx / .xls), Numbers, Google Sheets export, TSV</li>
                 <li><strong>Documents:</strong> PDF cut sheets, label PDFs, SDS sheets</li>
-                <li>Up to {MAX_FILES} files, max 25MB each</li>
+                <li>Up to {MAX_FILES} files per submission, max 25MB each</li>
               </ul>
             </div>
 
@@ -271,13 +301,31 @@ export default function SupplierIntake() {
 
               <div className="space-y-2">
                 <Label>Attach files *</Label>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-md p-6 cursor-pointer hover:bg-accent/5 transition">
+                <label
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  className={`flex flex-col items-center justify-center border-2 border-dashed rounded-md p-6 cursor-pointer transition ${
+                    dragOver ? "border-primary bg-primary/5" : "hover:bg-accent/5"
+                  }`}
+                >
                   <Upload className="h-6 w-6 text-muted-foreground mb-2" />
-                  <span className="text-sm text-muted-foreground">Click to choose files (CSV, Excel, Numbers, Sheets, PDF)</span>
+                  <span className="text-sm text-muted-foreground text-center">
+                    <strong className="text-foreground">Drop files here</strong> or click to choose
+                    <br />
+                    <span className="text-xs">CSV, Excel, Numbers, Sheets, PDF — up to {MAX_FILES} at once</span>
+                  </span>
                   <input type="file" multiple accept={ACCEPTED} className="hidden" onChange={handleFileChange} />
                 </label>
                 {files.length > 0 && (
-                  <ul className="space-y-1 mt-2">
+                  <>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+                    <span>{files.length} file{files.length === 1 ? "" : "s"} attached</span>
+                    <button type="button" onClick={() => setFiles([])} className="hover:text-destructive">
+                      Clear all
+                    </button>
+                  </div>
+                  <ul className="space-y-1 mt-1 max-h-64 overflow-y-auto">
                     {files.map((f, i) => (
                       <li key={i} className="flex items-center justify-between text-sm border rounded px-3 py-2">
                         <span className="flex items-center gap-2 truncate">
@@ -291,11 +339,16 @@ export default function SupplierIntake() {
                       </li>
                     ))}
                   </ul>
+                  </>
                 )}
               </div>
 
               <Button type="submit" size="lg" disabled={submitting} className="w-full">
-                {submitting ? "Uploading…" : "Submit product info"}
+                {submitting
+                  ? progress
+                    ? `Uploading ${progress.done} of ${progress.total}…`
+                    : "Uploading…"
+                  : "Submit product info"}
               </Button>
             </form>
           </CardContent>
