@@ -73,8 +73,13 @@ export function FloatingJerichoButton({ isOpen: controlledIsOpen, onOpenChange }
     return () => window.removeEventListener('openJerichoChat' as any, handleOpenChat);
   }, []);
 
-  // Hide on public landing page, auth page, and try page
-  if (location.pathname === "/" || location.pathname === "/auth" || location.pathname === "/try") {
+  // Hide on public/unauthenticated routes (landing, auth, try, pitch decks, etc.)
+  const publicPathPrefixes = ["/pitch", "/partner", "/ai-readiness", "/academy", "/prep"];
+  const publicExactPaths = ["/", "/auth", "/try", "/reset-password", "/connect-google"];
+  if (
+    publicExactPaths.includes(location.pathname) ||
+    publicPathPrefixes.some((p) => location.pathname.startsWith(p))
+  ) {
     return null;
   }
 
