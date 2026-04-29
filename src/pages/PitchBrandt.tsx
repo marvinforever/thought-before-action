@@ -281,31 +281,31 @@ export default function PitchBrandt() {
 
       <div className="pitch-root earth-bg">
         {/* Persistent Momentum Company brand mark — top-left of every slide */}
-        <div className="pitch-floating fixed top-5 left-5 z-40 flex items-center gap-2.5 px-3 py-2 rounded-full bg-card/70 backdrop-blur border border-border">
+        <div className="pitch-floating fixed top-3 left-3 sm:top-5 sm:left-5 z-40 flex items-center gap-1.5 sm:gap-2.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/70 backdrop-blur border border-border max-w-[55vw] sm:max-w-none">
           <img
             src={momentumIconDark}
             alt="The Momentum Company"
-            className="h-5 w-5 object-contain mix-blend-multiply"
+            className="h-4 w-4 sm:h-5 sm:w-5 object-contain mix-blend-multiply shrink-0"
           />
-          <div className="flex flex-col leading-tight">
-            <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-primary">
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase text-primary">
               Jericho
             </span>
-            <span className="text-[9px] font-medium text-muted-foreground">
+            <span className="hidden sm:inline text-[9px] font-medium text-muted-foreground">
               by The Momentum Company
             </span>
           </div>
         </div>
 
         {/* Floating slide indicator + exit */}
-        <div className="pitch-floating fixed top-5 right-5 z-50 flex items-center gap-2">
+        <div className="pitch-floating fixed top-3 right-3 sm:top-5 sm:right-5 z-50 flex items-center gap-1.5 sm:gap-2">
           <a
             href="https://askjericho.com"
-            className="px-3 py-2 rounded-full bg-card/80 backdrop-blur border border-border text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 backdrop-blur border border-border text-[11px] sm:text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Exit ↗
           </a>
-          <div className="px-3 py-2 rounded-full bg-card/80 backdrop-blur border border-border flex items-center gap-2">
+          <div className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 backdrop-blur border border-border flex items-center gap-1.5 sm:gap-2">
             {slides.map((s, i) => (
               <button
                 key={s.id}
