@@ -59,6 +59,7 @@ import ConnectGoogle from "./pages/ConnectGoogle";
 import GoogleOAuthCallback from "./pages/GoogleOAuthCallback";
 import TryJericho from "./pages/TryJericho";
 import AdminDailyBriefPreview from "./pages/AdminDailyBriefPreview";
+import PitchBrandt from "./pages/PitchBrandt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +94,7 @@ const App = () => (
                 <Route path="/" element={<Sales />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/try" element={<TryJericho />} />
+                <Route path="/pitch/brandt" element={<PitchBrandt />} />
                 <Route path="/register" element={<RegistrationWizard />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 
