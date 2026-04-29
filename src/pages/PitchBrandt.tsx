@@ -145,6 +145,19 @@ export default function PitchBrandt() {
         document.querySelectorAll<HTMLElement>(".pitch-slide")
       );
 
+      // Make sure every slide has been scrolled into view at least once so
+      // framer-motion has run its `whileInView` enter animation. Without this,
+      // un-scrolled slides remain at opacity:0 and render as blank pages.
+      const scroller = document.querySelector<HTMLElement>(".pitch-scroll");
+      const originalScroll = scroller?.scrollTop ?? 0;
+      for (const s of slideEls) {
+        s.scrollIntoView({ behavior: "auto", block: "start" });
+        // give framer-motion a tick to flip styles to visible
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      scroller?.scrollTo({ top: originalScroll, behavior: "auto" });
+      await new Promise((r) => setTimeout(r, 100));
+
       for (let i = 0; i < slideEls.length; i++) {
         const el = slideEls[i];
         // Render the slide off-screen at a fixed deck aspect ratio so layout
@@ -153,6 +166,13 @@ export default function PitchBrandt() {
         const RENDER_H = Math.round((RENDER_W * contentH) / contentW);
 
         const clone = el.cloneNode(true) as HTMLElement;
+        // Force every motion child visible in case framer-motion left it hidden.
+        clone.querySelectorAll<HTMLElement>("*").forEach((node) => {
+          const s = node.style;
+          if (s.opacity === "0" || parseFloat(s.opacity) === 0) s.opacity = "1";
+          // Strip transforms that translate content off-screen during enter anim
+          if (s.transform && /translate|matrix/i.test(s.transform)) s.transform = "none";
+        });
         const wrap = document.createElement("div");
         wrap.style.position = "fixed";
         wrap.style.left = "-10000px";
