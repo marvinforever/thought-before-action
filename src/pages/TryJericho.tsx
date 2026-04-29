@@ -850,7 +850,7 @@ export default function TryJericho() {
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6">
-                  Your Performance Coach.
+                  Let's make your growth fun and easy. Start here.
                 </h1>
 
                 <p className="text-lg sm:text-xl text-white/70 max-w-xl mx-auto mb-10 leading-relaxed">
