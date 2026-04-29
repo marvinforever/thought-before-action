@@ -13,7 +13,8 @@ import {
   ClipboardList,
   Target,
   MessageCircle,
-  Mail
+  Mail,
+  Package
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -92,6 +93,7 @@ const SuperAdminLayout = () => {
     { icon: Target, label: "Targeted Accounts", path: "/super-admin/targeted-accounts" },
     { icon: MessageCircle, label: "Telegram Setup", path: "/super-admin/telegram-setup" },
     { icon: Mail, label: "Daily Brief Preview", path: "/super-admin/daily-brief-preview" },
+    { icon: Package, label: "Supplier Submissions", path: "/super-admin/supplier-submissions" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
