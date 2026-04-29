@@ -665,7 +665,13 @@ export default function PitchBrandt() {
               variants={fadeUp}
               className="mt-16 pt-8 border-t border-border flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
             >
+              <img
+                src={momentumIconDark}
+                alt="The Momentum Company"
+                className="h-8 w-8 object-contain mix-blend-multiply mr-1"
+              />
               <span className="font-semibold text-primary">Mark Jewell</span>
+              <span className="text-muted-foreground">— The Momentum Company</span>
               <span>·</span>
               <a href="mailto:mark@themomentumcompany.com" className="hover:text-accent transition-colors">
                 mark@themomentumcompany.com
