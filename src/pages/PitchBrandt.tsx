@@ -501,7 +501,7 @@ export default function PitchBrandt() {
               {[
                 { icon: LayoutDashboard, title: "Manager dashboard", body: "Full visibility into every team member." },
                 { icon: CalendarCheck, title: "1:1 tracking", body: "Auto-notes, action items, overdue alerts." },
-                { icon: TrendingUp, title: "Performance reviews", body: "Built from actual sales activity — not memory." },
+                { icon: TrendingUp, title: "Automated performance reviews", body: "Auto-generated from actual sales activity, 1:1 notes, and coaching history — not memory." },
                 { icon: Layers, title: "Capability frameworks", body: "Foundational → Advancing → Independent → Mastery." },
                 { icon: Target, title: "Growth plans", body: "Tied to 90-day targets, 30-day benchmarks, 7-day sprints." },
                 { icon: Award, title: "Recognition system", body: "Lands in the rep's growth plan and inbox." },
