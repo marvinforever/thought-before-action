@@ -26,6 +26,7 @@ import {
 import slcLogo from "@/assets/logos/slc-logo.png";
 import agPartnersLogo from "@/assets/logos/ag-partners-logo.webp";
 import winfieldLogo from "@/assets/logos/winfield-logo.png";
+import momentumIconDark from "@/assets/logos/momentum-icon-white.jpg"; // black mark on white bg
 
 const slides = [
   { id: "moment", label: "Brandt's Moment" },
