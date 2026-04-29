@@ -61,6 +61,7 @@ import TryJericho from "./pages/TryJericho";
 import AdminDailyBriefPreview from "./pages/AdminDailyBriefPreview";
 import PitchBrandt from "./pages/PitchBrandt";
 import SupplierIntake from "./pages/SupplierIntake";
+import AdminSupplierSubmissions from "./pages/AdminSupplierSubmissions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -125,6 +126,7 @@ const App = () => (
               <Route path="targeted-accounts" element={<AdminTargetedAccountsImport />} />
               <Route path="telegram-setup" element={<TelegramSetup />} />
               <Route path="daily-brief-preview" element={<AdminDailyBriefPreview />} />
+              <Route path="supplier-submissions" element={<AdminSupplierSubmissions />} />
             </Route>
             {/* Use /* so nested dashboard routes (e.g. /dashboard/my-growth-plan) always match */}
             <Route path="/dashboard/*" element={<DashboardLayout />}>
