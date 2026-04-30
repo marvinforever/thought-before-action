@@ -243,6 +243,10 @@ export default function PitchBrandt() {
           name="description"
           content="A private pitch for Brandt: equip your sellers and add value to your retailers with Jericho — the AI sales coach built for ag."
         />
+        <meta property="og:title" content="Your Unfair Advantage" />
+        <meta property="og:description" content="Jericho × Brandt — the AI sales coach built for ag." />
+        <meta name="twitter:title" content="Your Unfair Advantage" />
+        <meta name="twitter:description" content="Jericho × Brandt — the AI sales coach built for ag." />
       </Helmet>
 
       <style>{`
